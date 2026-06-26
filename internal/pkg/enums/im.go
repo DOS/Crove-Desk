@@ -208,7 +208,7 @@ var AIAgentHandoffModeValues = []AIAgentHandoffMode{
 var aiAgentHandoffModeLabelMap = map[AIAgentHandoffMode]string{
 	AIAgentHandoffModeWaitPool:        "进入待接入池",
 	AIAgentHandoffModeDefaultTeamPool: "进入默认客服组待接入池",
-	AIAgentHandoffModeAIHoldAndNotify: "AI托底并提醒人工",
+	AIAgentHandoffModeAIHoldAndNotify: "AI继续接待并提醒人工",
 }
 
 func GetAIAgentHandoffModeLabel(mode AIAgentHandoffMode) string {
@@ -228,8 +228,8 @@ var AIAgentFallbackModeValues = []AIAgentFallbackMode{
 }
 
 var aiAgentFallbackModeLabelMap = map[AIAgentFallbackMode]string{
-	AIAgentFallbackModeNoAnswer:     "直接声明无答案",
-	AIAgentFallbackModeSuggestRetry: "建议补充信息",
+	AIAgentFallbackModeNoAnswer:     "直接说明知识不足",
+	AIAgentFallbackModeSuggestRetry: "引导用户补充信息",
 }
 
 func GetAIAgentFallbackModeLabel(mode AIAgentFallbackMode) string {

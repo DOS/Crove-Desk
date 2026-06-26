@@ -5,8 +5,8 @@ export enum AIAgentFallbackMode {
   SuggestRetry = 2,
 }
 export const AIAgentFallbackModeLabels: Record<AIAgentFallbackMode, string> = {
-  [AIAgentFallbackMode.NoAnswer]: "直接声明无答案",
-  [AIAgentFallbackMode.SuggestRetry]: "建议补充信息",
+  [AIAgentFallbackMode.NoAnswer]: "直接说明知识不足",
+  [AIAgentFallbackMode.SuggestRetry]: "引导用户补充信息",
 }
 
 export enum AIAgentHandoffMode {
@@ -17,7 +17,7 @@ export enum AIAgentHandoffMode {
 export const AIAgentHandoffModeLabels: Record<AIAgentHandoffMode, string> = {
   [AIAgentHandoffMode.WaitPool]: "进入待接入池",
   [AIAgentHandoffMode.DefaultTeamPool]: "进入默认客服组待接入池",
-  [AIAgentHandoffMode.AIHoldAndNotify]: "AI托底并提醒人工",
+  [AIAgentHandoffMode.AIHoldAndNotify]: "AI继续接待并提醒人工",
 }
 
 export enum AIModelType {

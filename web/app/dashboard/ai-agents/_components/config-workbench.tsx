@@ -278,14 +278,14 @@ export function AIAgentConfigWorkbench({
     () => [
       { value: String(AIAgentHandoffMode.WaitPool), label: "进入待接入池" },
       { value: String(AIAgentHandoffMode.DefaultTeamPool), label: "进入默认客服组待接入池" },
-      { value: String(AIAgentHandoffMode.AIHoldAndNotify), label: "AI托底并提醒人工" },
+      { value: String(AIAgentHandoffMode.AIHoldAndNotify), label: "AI继续接待并提醒人工" },
     ],
     []
   )
   const fallbackModeOptions = useMemo(
     () => [
-      { value: String(AIAgentFallbackMode.NoAnswer), label: "直接声明无答案" },
-      { value: String(AIAgentFallbackMode.SuggestRetry), label: "建议补充信息" },
+      { value: String(AIAgentFallbackMode.NoAnswer), label: "直接说明知识不足" },
+      { value: String(AIAgentFallbackMode.SuggestRetry), label: "引导用户补充信息" },
     ],
     []
   )
@@ -652,11 +652,11 @@ export function AIAgentConfigWorkbench({
               {activeSection === "basic" ? (
                 <ConfigSection>
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <FieldBlock label="转人工模式">
-                      <OptionCombobox value={handoffMode} options={handoffModeOptions} placeholder="选择转人工模式" onChange={setHandoffMode} />
+                    <FieldBlock label="转人工执行方式">
+                      <OptionCombobox value={handoffMode} options={handoffModeOptions} placeholder="选择转人工执行方式" onChange={setHandoffMode} />
                     </FieldBlock>
-                    <FieldBlock label="兜底策略">
-                      <OptionCombobox value={fallbackMode} options={fallbackModeOptions} placeholder="选择兜底策略" onChange={setFallbackMode} />
+                    <FieldBlock label="知识不足回复策略">
+                      <OptionCombobox value={fallbackMode} options={fallbackModeOptions} placeholder="选择知识不足回复策略" onChange={setFallbackMode} />
                     </FieldBlock>
                   </div>
                   <AddRow
@@ -674,7 +674,7 @@ export function AIAgentConfigWorkbench({
                     items={selectedTeamOptions}
                     onRemove={(id) => setSelectedTeamIds((current) => current.filter((item) => item !== id))}
                   />
-                  <FieldBlock label="兜底文案">
+                  <FieldBlock label="知识不足回复文案">
                     <Textarea rows={5} value={fallbackMessage} onChange={(event) => setFallbackMessage(event.target.value)} />
                   </FieldBlock>
                   <FieldBlock label="描述">
