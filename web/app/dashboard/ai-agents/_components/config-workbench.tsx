@@ -5,16 +5,11 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   BotMessageSquareIcon,
-  BrainCircuitIcon,
-  DatabaseIcon,
   GitBranchIcon,
   HistoryIcon,
-  LifeBuoyIcon,
   PlugIcon,
   SaveIcon,
-  SendIcon,
   SettingsIcon,
-  ShieldCheckIcon,
   Trash2Icon,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -23,6 +18,12 @@ import { ContentEditor } from "@/components/content-editor"
 import { OptionCombobox } from "@/components/option-combobox"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -52,11 +53,9 @@ import {
   validateAIWorkflow,
   type AIAgent,
   type AIConfig,
-  type AIWorkflow,
   type AIWorkflowDefinition,
   type AIWorkflowNodeSpec,
   type AIWorkflowVersion,
-  type AIWorkflowValidationResult,
   type AdminAgentTeam,
   type CreateAIAgentPayload,
   type KnowledgeBase,
@@ -85,13 +84,8 @@ type DirectToolOption = {
 
 type SectionKey =
   | "basic"
-  | "model"
-  | "knowledge"
-  | "skills"
-  | "tools"
+  | "capabilities"
   | "workflow"
-  | "handoff"
-  | "versions"
 
 const fallbackDefinition: AIWorkflowDefinition = {
   schemaVersion: 1,
@@ -140,13 +134,12 @@ export function AIAgentConfigWorkbench({
   const [currentAgentId, setCurrentAgentId] = useState(agentId ?? null)
   const [activeSection, setActiveSection] = useState<SectionKey>("basic")
   const [agent, setAgent] = useState<AIAgent | null>(null)
-  const [workflow, setWorkflow] = useState<AIWorkflow | null>(null)
   const [workflowVersions, setWorkflowVersions] = useState<AIWorkflowVersion[]>([])
   const [nodeSpecs, setNodeSpecs] = useState<AIWorkflowNodeSpec[]>([])
-  const [validation, setValidation] = useState<AIWorkflowValidationResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [savingAgent, setSavingAgent] = useState(false)
   const [savingWorkflow, setSavingWorkflow] = useState(false)
+  const [versionDialogOpen, setVersionDialogOpen] = useState(false)
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
@@ -216,7 +209,6 @@ export function AIAgentConfigWorkbench({
 
       if (!currentAgentId || currentAgentId <= 0) {
         setAgent(null)
-        setWorkflow(null)
         setWorkflowVersions([])
         setName("")
         setDescription("")
@@ -233,7 +225,6 @@ export function AIAgentConfigWorkbench({
         setSelectedSkillIds([])
         setDirectTools([])
         replaceWorkflowDefinition(defaultDefinition ?? fallbackDefinition)
-        setValidation(null)
         return
       }
 
@@ -243,7 +234,6 @@ export function AIAgentConfigWorkbench({
       ])
 
       setAgent(agentDetail)
-      setWorkflow(workflowDetail)
       if (workflowDetail?.id > 0) {
         const versionPage = await fetchAIWorkflowVersions({ workflowId: workflowDetail.id, limit: 20 })
         setWorkflowVersions(versionPage.results ?? [])
@@ -265,7 +255,6 @@ export function AIAgentConfigWorkbench({
       setSelectedSkillIds(agentDetail.skillIds ?? [])
       setDirectTools(agentDetail.directTools ?? [])
       replaceWorkflowDefinition(workflowDetail.draftDefinition ?? defaultDefinition ?? fallbackDefinition)
-      setValidation(null)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load Agent config")
     } finally {
@@ -438,13 +427,12 @@ export function AIAgentConfigWorkbench({
     if (!currentAgentId) return
     setSavingWorkflow(true)
     try {
-      const saved = await saveAIAgentWorkflow({
+      await saveAIAgentWorkflow({
         agentId: currentAgentId,
         name: "",
         description: "",
         definition,
       })
-      setWorkflow(saved)
       toast.success("Workflow draft saved")
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save workflow draft")
@@ -457,7 +445,6 @@ export function AIAgentConfigWorkbench({
     setSavingWorkflow(true)
     try {
       const result = await validateAIWorkflow(definition)
-      setValidation(result)
       toast[result.valid ? "success" : "error"](
         result.valid ? "Workflow is valid" : "Workflow has validation errors"
       )
@@ -474,7 +461,6 @@ export function AIAgentConfigWorkbench({
     try {
       const defaultDefinition = await fetchAIWorkflowDefaultDefinition()
       replaceWorkflowDefinition(defaultDefinition ?? fallbackDefinition)
-      setValidation(null)
       toast.success("已恢复默认流程，保存草稿或发布后生效")
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "恢复默认流程失败")
@@ -493,14 +479,10 @@ export function AIAgentConfigWorkbench({
         description: "",
         definition,
       })
-      setWorkflow(saved)
       const version = await publishAIAgentWorkflow(currentAgentId, definition)
       toast.success(`Published version ${version.version}`)
       setAgent((current) =>
         current ? { ...current, workflowVersionId: version.id } : current
-      )
-      setWorkflow((current) =>
-        current ? { ...current, publishedVersionId: version.id } : saved
       )
       if (saved.id > 0) {
         const versionPage = await fetchAIWorkflowVersions({
@@ -523,13 +505,8 @@ export function AIAgentConfigWorkbench({
 
   const sections: { key: SectionKey; title: string; icon: ReactNode }[] = [
     { key: "basic", title: "基础信息", icon: <SettingsIcon /> },
-    { key: "model", title: "模型与 Prompt", icon: <BrainCircuitIcon /> },
-    { key: "knowledge", title: "知识库", icon: <DatabaseIcon /> },
-    { key: "skills", title: "Skills", icon: <ShieldCheckIcon /> },
-    { key: "tools", title: "MCP Tools", icon: <PlugIcon /> },
+    { key: "capabilities", title: "能力来源", icon: <PlugIcon /> },
     { key: "workflow", title: "会话流程", icon: <GitBranchIcon /> },
-    { key: "handoff", title: "转人工与兜底", icon: <LifeBuoyIcon /> },
-    { key: "versions", title: "版本记录", icon: <HistoryIcon /> },
   ]
 
   const selectedKnowledgeOptions = selectedOptions(selectedKnowledgeIds, knowledgeOptions)
@@ -569,15 +546,7 @@ export function AIAgentConfigWorkbench({
                 onClick={saveAgentSettings}
               >
                 <SaveIcon className="size-4" />
-                保存
-              </Button>
-              <Button
-                type="button"
-                disabled={savingWorkflow || loading || !currentAgentId}
-                onClick={publishWorkflow}
-              >
-                <SendIcon className="size-4" />
-                发布流程
+                保存配置
               </Button>
             </>
           )}
@@ -624,7 +593,7 @@ export function AIAgentConfigWorkbench({
               加载中...
             </div>
           ) : (
-            <div className={activeSection === "workflow" ? "h-full min-h-0" : "w-full p-6"}>
+            <div className={activeSection === "workflow" ? "h-full min-h-0" : "w-full space-y-6 p-6"}>
               {activeSection === "basic" ? (
                 <ConfigSection>
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -646,7 +615,7 @@ export function AIAgentConfigWorkbench({
                 </ConfigSection>
               ) : null}
 
-              {activeSection === "model" ? (
+              {activeSection === "basic" ? (
                 <ConfigSection>
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <FieldBlock label="AI 配置">
@@ -683,7 +652,38 @@ export function AIAgentConfigWorkbench({
                 </ConfigSection>
               ) : null}
 
-              {activeSection === "knowledge" ? (
+              {activeSection === "basic" ? (
+                <ConfigSection>
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <FieldBlock label="转人工模式">
+                      <OptionCombobox value={handoffMode} options={handoffModeOptions} placeholder="选择转人工模式" onChange={setHandoffMode} />
+                    </FieldBlock>
+                    <FieldBlock label="兜底策略">
+                      <OptionCombobox value={fallbackMode} options={fallbackModeOptions} placeholder="选择兜底策略" onChange={setFallbackMode} />
+                    </FieldBlock>
+                  </div>
+                  <AddRow
+                    value={teamToAdd}
+                    options={teamOptions.filter((option) => !selectedTeamIds.includes(Number(option.value)))}
+                    placeholder="选择客服组"
+                    onValueChange={setTeamToAdd}
+                    onAdd={() => {
+                      addSelected(teamToAdd, selectedTeamIds, setSelectedTeamIds)
+                      setTeamToAdd("")
+                    }}
+                  />
+                  <BadgeList
+                    empty="未配置客服组。"
+                    items={selectedTeamOptions}
+                    onRemove={(id) => setSelectedTeamIds((current) => current.filter((item) => item !== id))}
+                  />
+                  <FieldBlock label="兜底文案">
+                    <Textarea rows={5} value={fallbackMessage} onChange={(event) => setFallbackMessage(event.target.value)} />
+                  </FieldBlock>
+                </ConfigSection>
+              ) : null}
+
+              {activeSection === "capabilities" ? (
                 <ConfigSection>
                   <AddRow
                     value={knowledgeToAdd}
@@ -736,7 +736,7 @@ export function AIAgentConfigWorkbench({
                 </ConfigSection>
               ) : null}
 
-              {activeSection === "skills" ? (
+              {activeSection === "capabilities" ? (
                 <ConfigSection>
                   <AddRow
                     value={skillToAdd}
@@ -756,7 +756,7 @@ export function AIAgentConfigWorkbench({
                 </ConfigSection>
               ) : null}
 
-              {activeSection === "tools" ? (
+              {activeSection === "capabilities" ? (
                 <ConfigSection>
                   <div className="grid grid-cols-1 gap-3 lg:grid-cols-[220px_minmax(0,1fr)_auto]">
                     <OptionCombobox
@@ -824,87 +824,32 @@ export function AIAgentConfigWorkbench({
                   saveDraftDisabled={savingWorkflow || loading || !currentAgentId}
                   onPublish={publishWorkflow}
                   publishDisabled={savingWorkflow || loading || !currentAgentId}
+                  toolbarExtra={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 rounded-none px-2 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => setVersionDialogOpen(true)}
+                    >
+                      <HistoryIcon className="size-3.5" />
+                      版本记录
+                    </Button>
+                  }
                 />
               ) : null}
 
-              {activeSection === "handoff" ? (
-                <ConfigSection>
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <FieldBlock label="转人工模式">
-                      <OptionCombobox value={handoffMode} options={handoffModeOptions} placeholder="选择转人工模式" onChange={setHandoffMode} />
-                    </FieldBlock>
-                    <FieldBlock label="兜底策略">
-                      <OptionCombobox value={fallbackMode} options={fallbackModeOptions} placeholder="选择兜底策略" onChange={setFallbackMode} />
-                    </FieldBlock>
-                  </div>
-                  <AddRow
-                    value={teamToAdd}
-                    options={teamOptions.filter((option) => !selectedTeamIds.includes(Number(option.value)))}
-                    placeholder="选择客服组"
-                    onValueChange={setTeamToAdd}
-                    onAdd={() => {
-                      addSelected(teamToAdd, selectedTeamIds, setSelectedTeamIds)
-                      setTeamToAdd("")
-                    }}
+              <Dialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen}>
+                <DialogContent className="max-h-[80vh] overflow-hidden sm:max-w-4xl">
+                  <DialogHeader>
+                    <DialogTitle>版本记录</DialogTitle>
+                  </DialogHeader>
+                  <VersionRecordsTable
+                    agent={agent}
+                    workflowVersions={workflowVersions}
                   />
-                  <BadgeList
-                    empty="未配置客服组。"
-                    items={selectedTeamOptions}
-                    onRemove={(id) => setSelectedTeamIds((current) => current.filter((item) => item !== id))}
-                  />
-                  <FieldBlock label="兜底文案">
-                    <Textarea rows={5} value={fallbackMessage} onChange={(event) => setFallbackMessage(event.target.value)} />
-                  </FieldBlock>
-                </ConfigSection>
-              ) : null}
-
-              {activeSection === "versions" ? (
-                <ConfigSection>
-                  <div className="overflow-hidden rounded-md border">
-                    {workflowVersions.length > 0 ? (
-                      <Table>
-                        <TableHeader className="bg-muted/40">
-                          <TableRow>
-                            <TableHead className="w-28">版本</TableHead>
-                            <TableHead>发布时间</TableHead>
-                            <TableHead>发布人</TableHead>
-                            <TableHead>状态</TableHead>
-                            <TableHead className="text-right">定义指纹</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {workflowVersions.map((version) => (
-                            <TableRow key={version.id}>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">v{version.version}</span>
-                                  {agent?.workflowVersionId === version.id ? (
-                                    <Badge variant="secondary">当前生效</Badge>
-                                  ) : null}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {version.publishedAt || version.createdAt || "-"}
-                              </TableCell>
-                              <TableCell>{version.publishedByName || "-"}</TableCell>
-                              <TableCell>
-                                <Badge variant={version.status === Status.Ok ? "outline" : "secondary"}>
-                                  {version.status === Status.Ok ? "启用" : "禁用"}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right font-mono text-xs text-muted-foreground">
-                                {version.definitionHash ? version.definitionHash.slice(0, 8) : "-"}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    ) : (
-                      <div className="p-4 text-sm text-muted-foreground">暂无已发布版本。</div>
-                    )}
-                  </div>
-                </ConfigSection>
-              ) : null}
+                </DialogContent>
+              </Dialog>
 
             </div>
           )}
@@ -956,6 +901,60 @@ function AddRow({
       <Button type="button" variant="outline" disabled={!value} onClick={onAdd}>
         添加
       </Button>
+    </div>
+  )
+}
+
+function VersionRecordsTable({
+  agent,
+  workflowVersions,
+}: {
+  agent: AIAgent | null
+  workflowVersions: AIWorkflowVersion[]
+}) {
+  return (
+    <div className="max-h-[60vh] overflow-auto rounded-md border">
+      {workflowVersions.length > 0 ? (
+        <Table>
+          <TableHeader className="bg-muted/40">
+            <TableRow>
+              <TableHead className="w-28">版本</TableHead>
+              <TableHead>发布时间</TableHead>
+              <TableHead>发布人</TableHead>
+              <TableHead>状态</TableHead>
+              <TableHead className="text-right">定义指纹</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {workflowVersions.map((version) => (
+              <TableRow key={version.id}>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">v{version.version}</span>
+                    {agent?.workflowVersionId === version.id ? (
+                      <Badge variant="secondary">当前生效</Badge>
+                    ) : null}
+                  </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {version.publishedAt || version.createdAt || "-"}
+                </TableCell>
+                <TableCell>{version.publishedByName || "-"}</TableCell>
+                <TableCell>
+                  <Badge variant={version.status === Status.Ok ? "outline" : "secondary"}>
+                    {version.status === Status.Ok ? "启用" : "禁用"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right font-mono text-xs text-muted-foreground">
+                  {version.definitionHash ? version.definitionHash.slice(0, 8) : "-"}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <div className="p-4 text-sm text-muted-foreground">暂无已发布版本。</div>
+      )}
     </div>
   )
 }

@@ -40,7 +40,7 @@ import {
   SendIcon,
   Undo2Icon,
 } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -192,6 +192,7 @@ export function WorkflowEditor({
   saveDraftDisabled = false,
   onPublish,
   publishDisabled = false,
+  toolbarExtra,
 }: {
   definition: AIWorkflowDefinition
   nodeSpecs: AIWorkflowNodeSpec[]
@@ -204,6 +205,7 @@ export function WorkflowEditor({
   saveDraftDisabled?: boolean
   onPublish?: () => void
   publishDisabled?: boolean
+  toolbarExtra?: ReactNode
 }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<WorkflowFlowNode>(
     toFlowNodes(definition)
@@ -916,6 +918,7 @@ export function WorkflowEditor({
               onRedo={redoWorkflowEdit}
               onRestoreDefault={onRestoreDefault}
               restoreDefaultDisabled={restoreDefaultDisabled}
+              toolbarExtra={toolbarExtra}
             />
           </div>
           {propertyPanelNode ? (
@@ -1403,6 +1406,7 @@ function WorkflowCanvasToolbar({
   onRedo,
   onRestoreDefault,
   restoreDefaultDisabled,
+  toolbarExtra,
 }: {
   validationErrors: string[]
   validationValid: boolean
@@ -1418,6 +1422,7 @@ function WorkflowCanvasToolbar({
   onRedo: () => void
   onRestoreDefault?: () => void
   restoreDefaultDisabled?: boolean
+  toolbarExtra?: ReactNode
 }) {
   return (
     <div className="flex overflow-hidden rounded-md border bg-background/95 shadow-sm">
@@ -1484,6 +1489,12 @@ function WorkflowCanvasToolbar({
             <RotateCcwIcon className="size-3.5" />
             恢复默认
           </Button>
+        </>
+      ) : null}
+      {toolbarExtra ? (
+        <>
+          <WorkflowToolbarDivider />
+          {toolbarExtra}
         </>
       ) : null}
       <WorkflowToolbarDivider />
