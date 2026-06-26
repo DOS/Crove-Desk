@@ -559,24 +559,24 @@ export function AIAgentConfigWorkbench({
             未发布流程，AI 不会自动回复。保存配置后请进入“会话流程”发布一个版本，再绑定渠道或启用自动回复。
           </div>
         ) : null}
-        <div className="shrink-0 border-b bg-muted/20 px-4 py-2">
+        <div className="shrink-0 border-b bg-muted/30 px-4 py-2">
           <div className="flex min-w-0 items-center gap-1 overflow-x-auto overflow-y-hidden">
             {sections.map((section) => (
               <button
                 key={section.key}
                 type="button"
                 onClick={() => setActiveSection(section.key)}
-                className={`group flex h-8 shrink-0 items-center gap-2 rounded-md border px-2.5 text-sm transition-colors ${
+                className={`group flex h-8 shrink-0 items-center gap-2 rounded-md border px-2.5 text-sm shadow-xs transition-all ${
                   activeSection === section.key
                     ? "border-primary bg-primary font-medium text-primary-foreground shadow-xs"
-                    : "border-transparent bg-transparent text-muted-foreground hover:border-border/70 hover:bg-background/80 hover:text-foreground"
+                    : "border-border/70 bg-background text-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary hover:shadow-sm"
                 }`}
               >
                 <span
                   className={`flex size-5 shrink-0 items-center justify-center rounded-sm transition-colors ${
                     activeSection === section.key
                       ? "bg-primary-foreground/15 text-primary-foreground"
-                      : "text-muted-foreground group-hover:text-foreground"
+                      : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
                   }`}
                 >
                   {section.icon}
