@@ -609,9 +609,6 @@ export function AIAgentConfigWorkbench({
                       />
                     </FieldBlock>
                   </div>
-                  <FieldBlock label="描述">
-                    <Textarea rows={4} value={description} onChange={(event) => setDescription(event.target.value)} />
-                  </FieldBlock>
                 </ConfigSection>
               ) : null}
 
@@ -679,6 +676,9 @@ export function AIAgentConfigWorkbench({
                   />
                   <FieldBlock label="兜底文案">
                     <Textarea rows={5} value={fallbackMessage} onChange={(event) => setFallbackMessage(event.target.value)} />
+                  </FieldBlock>
+                  <FieldBlock label="描述">
+                    <Textarea rows={4} value={description} onChange={(event) => setDescription(event.target.value)} />
                   </FieldBlock>
                 </ConfigSection>
               ) : null}
