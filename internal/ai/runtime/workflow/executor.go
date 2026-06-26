@@ -13,7 +13,7 @@ import (
 
 	"agent-desk/internal/ai"
 	"agent-desk/internal/ai/runtime/graphs"
-	"agent-desk/internal/ai/runtime/internal/impl/retrievers"
+	"agent-desk/internal/ai/runtime/retrievers"
 	"agent-desk/internal/ai/workflow/dsl"
 	workflowregistry "agent-desk/internal/ai/workflow/registry"
 	"agent-desk/internal/models"

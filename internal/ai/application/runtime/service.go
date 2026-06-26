@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"agent-desk/internal/ai/runtime/executor"
 	workflowexecutor "agent-desk/internal/ai/runtime/workflow"
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/errorsx"
@@ -17,9 +16,6 @@ import (
 )
 
 type Service struct {
-	runtime *executor.Service
-	catalog *toolCatalog
-	prepare *prepareService
 }
 
 const (
@@ -29,12 +25,7 @@ const (
 )
 
 func NewService() *Service {
-	catalog := newToolCatalog()
-	return &Service{
-		runtime: executor.NewService(),
-		catalog: catalog,
-		prepare: newPrepareService(catalog),
-	}
+	return &Service{}
 }
 
 func (s *Service) Run(ctx context.Context, req Request) (*Summary, error) {
@@ -106,23 +97,7 @@ func (s *Service) Resume(ctx context.Context, req ResumeRequest) (*Summary, erro
 			return toWorkflowSummary(workflowResult, req.AIConfig.ModelName, workflow, workflowRunID), nil
 		}
 	}
-	toolSet, err := s.prepare.prepareToolsForResume(req)
-	if err != nil {
-		return nil, err
-	}
-	req.ToolSet = toolSet
-	summary, err := s.runtime.ExecuteResume(ctx, executor.ResumeInput{
-		Conversation: req.Conversation,
-		AIAgent:      req.AIAgent,
-		AIConfig:     req.AIConfig,
-		CheckPointID: req.CheckPointID,
-		ResumeData:   req.ResumeData,
-		ToolSet:      req.ToolSet,
-	})
-	if err != nil {
-		return toSummary(summary), err
-	}
-	return toSummary(summary), nil
+	return nil, errorsx.InvalidParam("legacy checkpoint is not supported; please start a new workflow reply")
 }
 
 func firstWorkflowResumeText(data map[string]string) string {

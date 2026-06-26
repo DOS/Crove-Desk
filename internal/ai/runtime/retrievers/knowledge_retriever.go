@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"agent-desk/internal/ai/rag"
-	"agent-desk/internal/ai/runtime/internal/impl/callbacks"
+	"agent-desk/internal/ai/runtime/traces"
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/utils"
@@ -47,8 +47,8 @@ type KnowledgeRetrieveResult struct {
 	TopScore         float64
 	AnswerMode       enums.KnowledgeAnswerMode
 	Trace            *rag.RetrieveTrace
-	TraceItems       []callbacks.RetrieverTraceItem
-	TraceSummary     callbacks.RetrieverTraceSummary
+	TraceItems       []traces.RetrieverTraceItem
+	TraceSummary     traces.RetrieverTraceSummary
 	Policies         []KnowledgeBaseRetrievePolicy
 }
 
@@ -231,7 +231,7 @@ func loadRuntimeKnowledgeBases(ids []int64) map[int64]models.KnowledgeBase {
 	return ret
 }
 
-func buildRetrieverTraceItems(queryPreview string, results []rag.RetrieveResult, trace *rag.RetrieveTrace) []callbacks.RetrieverTraceItem {
+func buildRetrieverTraceItems(queryPreview string, results []rag.RetrieveResult, trace *rag.RetrieveTrace) []traces.RetrieverTraceItem {
 	if len(results) == 0 {
 		return nil
 	}
@@ -239,9 +239,9 @@ func buildRetrieverTraceItems(queryPreview string, results []rag.RetrieveResult,
 	if trace != nil {
 		latencyMs = trace.EmbeddingMs + trace.VectorSearchMs + trace.HydrateMs
 	}
-	ret := make([]callbacks.RetrieverTraceItem, 0, len(results))
+	ret := make([]traces.RetrieverTraceItem, 0, len(results))
 	for _, item := range results {
-		ret = append(ret, callbacks.RetrieverTraceItem{
+		ret = append(ret, traces.RetrieverTraceItem{
 			Query:           queryPreview,
 			KnowledgeBaseID: item.KnowledgeBaseID,
 			DocumentID:      item.DocumentID,
@@ -253,8 +253,8 @@ func buildRetrieverTraceItems(queryPreview string, results []rag.RetrieveResult,
 	return ret
 }
 
-func buildRetrieverTraceSummary(opts KnowledgeRetrieveOptions, policies []KnowledgeBaseRetrievePolicy, contextResults []rag.RetrieveResult, results []rag.RetrieveResult, trace *rag.RetrieveTrace) callbacks.RetrieverTraceSummary {
-	ret := callbacks.RetrieverTraceSummary{
+func buildRetrieverTraceSummary(opts KnowledgeRetrieveOptions, policies []KnowledgeBaseRetrievePolicy, contextResults []rag.RetrieveResult, results []rag.RetrieveResult, trace *rag.RetrieveTrace) traces.RetrieverTraceSummary {
+	ret := traces.RetrieverTraceSummary{
 		TopK:             opts.TopK,
 		ScoreThreshold:   opts.ScoreThreshold,
 		ContextMaxTokens: opts.ContextMaxTokens,
@@ -277,13 +277,13 @@ func buildRetrieverTraceSummary(opts KnowledgeRetrieveOptions, policies []Knowle
 	return ret
 }
 
-func buildRetrieverPolicyTraceItems(policies []KnowledgeBaseRetrievePolicy) []callbacks.RetrieverPolicyTraceItem {
+func buildRetrieverPolicyTraceItems(policies []KnowledgeBaseRetrievePolicy) []traces.RetrieverPolicyTraceItem {
 	if len(policies) == 0 {
 		return nil
 	}
-	ret := make([]callbacks.RetrieverPolicyTraceItem, 0, len(policies))
+	ret := make([]traces.RetrieverPolicyTraceItem, 0, len(policies))
 	for _, item := range policies {
-		ret = append(ret, callbacks.RetrieverPolicyTraceItem{
+		ret = append(ret, traces.RetrieverPolicyTraceItem{
 			KnowledgeBaseID: item.KnowledgeBaseID,
 			TopK:            item.TopK,
 			ScoreThreshold:  item.ScoreThreshold,

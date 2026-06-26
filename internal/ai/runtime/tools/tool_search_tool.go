@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"agent-desk/internal/ai/mcps"
-	impladapter "agent-desk/internal/ai/runtime/internal/impl/adapter"
 	"agent-desk/internal/ai/runtime/registry"
+	"agent-desk/internal/ai/runtime/tooling"
 	"agent-desk/internal/pkg/i18nx"
 	"agent-desk/internal/pkg/toolx"
 
@@ -277,5 +277,5 @@ func cloneArguments(input map[string]any) map[string]any {
 }
 
 func buildToolCallResultSummary(result *mcps.ToolCallResult) string {
-	return impladapter.BuildReducedToolResultSummary(result)
+	return tooling.BuildReducedToolResultSummary(result)
 }

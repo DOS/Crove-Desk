@@ -1,4 +1,4 @@
-package callbacks
+package traces
 
 type ToolTraceItem struct {
 	ToolCode      string         `json:"toolCode"`

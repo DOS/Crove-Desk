@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"agent-desk/internal/ai/runtime/registry"
 	"agent-desk/internal/models"
 )
 
@@ -11,7 +10,6 @@ type Request struct {
 	AIAgent      models.AIAgent
 	AIConfig     models.AIConfig
 	CheckPointID string
-	ToolSet      *registry.ToolSet
 }
 
 type ResumeRequest struct {
@@ -21,7 +19,6 @@ type ResumeRequest struct {
 	AIConfig     models.AIConfig
 	CheckPointID string
 	ResumeData   map[string]string
-	ToolSet      *registry.ToolSet
 }
 
 type InterruptContextSummary struct {
