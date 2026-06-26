@@ -1090,7 +1090,6 @@
     "knowledgeTab": "Knowledge",
     "skillsTab": "Skills",
     "directToolsTab": "MCP tools",
-    "graphToolsTab": "Graph Tools",
     "knowledgeHint": "Select at least one knowledge base. You can adjust priority order.",
     "selectKnowledge": "Select and add knowledge base",
     "searchKnowledge": "Search knowledge bases",
@@ -1117,13 +1116,7 @@
     "searchDirectTool": "Search Direct Tools",
     "emptyDirectTool": "No Direct Tools available",
     "noDirectToolsHint": "Without Direct Tools, the agent will not call external or built-in tools directly. It will rely on knowledge bases, skills, and normal replies.",
-    "removeDirectTool": "Remove Direct Tool {name}",
-    "graphToolsHint": "Use for built-in workflows such as ticket creation and human handoff. These are kept separate from Direct Tools.",
-    "selectGraphTool": "Select Graph Tool",
-    "searchGraphTool": "Search Graph Tools",
-    "emptyGraphTool": "No Graph Tools available",
-    "noGraphToolsHint": "Without Graph Tools, the agent will not expose built-in workflow tools such as ticket creation or human handoff.",
-    "removeGraphTool": "Remove Graph Tool {name}"
+    "removeDirectTool": "Remove Direct Tool {name}"
   },
   "aiConfig": {
     "allStatuses": "All statuses",

@@ -239,7 +239,6 @@ export type AIAgent = {
     description: string
     arguments?: Record<string, string>
   }[]
-  graphTools: string[]
   workflowVersionId: number
   workflowPublished: boolean
   workflowState: string
@@ -273,7 +272,6 @@ export type CreateAIAgentPayload = {
     description: string
     arguments?: Record<string, string>
   }[]
-  graphTools: string[]
 }
 
 export type UpdateAIAgentPayload = CreateAIAgentPayload & {

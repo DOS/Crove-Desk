@@ -1090,7 +1090,6 @@
     "knowledgeTab": "知识库",
     "skillsTab": "Skills",
     "directToolsTab": "MCP tools",
-    "graphToolsTab": "内置流程",
     "knowledgeHint": "至少选择一个知识库，可调整知识库优先级。",
     "selectKnowledge": "选择并添加知识库",
     "searchKnowledge": "搜索知识库",
@@ -1117,13 +1116,7 @@
     "searchDirectTool": "搜索 Direct Tool",
     "emptyDirectTool": "没有可添加的 Direct Tool",
     "noDirectToolsHint": "不配置 Direct Tool 时，Agent 不会直接调用外部或内置工具，只会依赖知识库、Skill 和普通回复。",
-    "removeDirectTool": "移除 Direct Tool {name}",
-    "graphToolsHint": "用于建单、转人工等系统内置流程，不再混放到 Direct Tools 中。",
-    "selectGraphTool": "选择 Graph Tool",
-    "searchGraphTool": "搜索 Graph Tool",
-    "emptyGraphTool": "没有可添加的 Graph Tool",
-    "noGraphToolsHint": "不配置 Graph Tool 时，Agent 不会暴露建单/转人工等内置流程工具。",
-    "removeGraphTool": "移除 Graph Tool {name}"
+    "removeDirectTool": "移除 Direct Tool {name}"
   },
   "aiConfig": {
     "allStatuses": "全部状态",

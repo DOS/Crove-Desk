@@ -113,7 +113,6 @@ func (s *aIAgentService) UpdateAIAgent(req request.UpdateAIAgentRequest, operato
 		"knowledge_ids":         item.KnowledgeIDs,
 		"skill_ids":             item.SkillIDs,
 		"allowed_mcp_tools":     item.AllowedMCPTools,
-		"allowed_graph_tools":   item.AllowedGraphTools,
 		"update_user_id":        operator.UserID,
 		"update_user_name":      operator.Username,
 		"updated_at":            time.Now(),
@@ -193,10 +192,6 @@ func (s *aIAgentService) buildAIAgentModel(id int64, req request.CreateAIAgentRe
 	if err != nil {
 		return nil, err
 	}
-	graphTools, err := s.normalizeGraphTools(req.GraphTools)
-	if err != nil {
-		return nil, err
-	}
 	directToolsJSON := ""
 	if len(directTools) > 0 {
 		buf, marshalErr := json.Marshal(directTools)
@@ -204,14 +199,6 @@ func (s *aIAgentService) buildAIAgentModel(id int64, req request.CreateAIAgentRe
 			return nil, errorsx.InvalidParamI18n("error.e0021")
 		}
 		directToolsJSON = string(buf)
-	}
-	graphToolsJSON := ""
-	if len(graphTools) > 0 {
-		buf, marshalErr := json.Marshal(graphTools)
-		if marshalErr != nil {
-			return nil, errorsx.InvalidParamI18n("error.e0028")
-		}
-		graphToolsJSON = string(buf)
 	}
 	return &models.AIAgent{
 		Name:                name,
@@ -228,7 +215,6 @@ func (s *aIAgentService) buildAIAgentModel(id int64, req request.CreateAIAgentRe
 		KnowledgeIDs:        utils.JoinInt64s(knowledgeIDs),
 		SkillIDs:            utils.JoinInt64s(skillIDs),
 		AllowedMCPTools:     directToolsJSON,
-		AllowedGraphTools:   graphToolsJSON,
 		WorkflowVersionID:   0,
 	}, nil
 }
@@ -329,29 +315,6 @@ func (s *aIAgentService) normalizeDirectTools(input []request.AIAgentMCPToolRequ
 		}
 		seen[key] = struct{}{}
 		ret = append(ret, normalized)
-	}
-	return ret, nil
-}
-
-func (s *aIAgentService) normalizeGraphTools(input []string) ([]string, error) {
-	if len(input) == 0 {
-		return nil, nil
-	}
-	ret := make([]string, 0, len(input))
-	seen := make(map[string]struct{})
-	for _, item := range input {
-		toolCode := toolx.NormalizeToolCodeAlias(strings.TrimSpace(item))
-		if toolCode == "" {
-			continue
-		}
-		if !toolx.IsAgentDirectGraphToolCode(toolCode) {
-			return nil, errorsx.InvalidParamI18n("error.e0027")
-		}
-		if _, exists := seen[toolCode]; exists {
-			continue
-		}
-		seen[toolCode] = struct{}{}
-		ret = append(ret, toolCode)
 	}
 	return ret, nil
 }

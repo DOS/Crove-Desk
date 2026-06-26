@@ -396,7 +396,6 @@ export function AIAgentConfigWorkbench({
       knowledgeIds: uniqueNumbers(selectedKnowledgeIds),
       skillIds: uniqueNumbers(selectedSkillIds),
       directTools,
-      graphTools: [],
     }
   }
 

@@ -46,6 +46,40 @@ func TestToWorkflowSummaryPreservesInterruptCheckpoint(t *testing.T) {
 	}
 }
 
+func TestPrepareWorkflowAgentDoesNotInjectWorkflowAppendix(t *testing.T) {
+	db := setupWorkflowResumeTestDB(t)
+	definitionJSON := mustMarshalDefinition(t, dsl.Definition{
+		SchemaVersion: 1,
+		EntryNodeID:   "start",
+		Nodes: []dsl.Node{
+			{ID: "start", Type: workflowregistry.NodeTypeStart, Name: "Start"},
+			{ID: "handoff", Type: workflowregistry.NodeTypeHandoffToHuman, Name: "Handoff"},
+		},
+		Edges: []dsl.Edge{{ID: "edge_start_handoff", Source: "start", Target: "handoff"}},
+	})
+	version := models.AIWorkflowVersion{
+		WorkflowID: 1,
+		Version:    1,
+		Status:     enums.StatusOk,
+		Definition: definitionJSON,
+	}
+	if err := db.Create(&version).Error; err != nil {
+		t.Fatalf("create workflow version: %v", err)
+	}
+
+	agent, _, err := prepareWorkflowAgent(models.AIAgent{
+		ID:                1,
+		SystemPrompt:      "保持简洁回答。",
+		WorkflowVersionID: version.ID,
+	})
+	if err != nil {
+		t.Fatalf("prepareWorkflowAgent() error = %v", err)
+	}
+	if agent.SystemPrompt != "保持简洁回答。" {
+		t.Fatalf("expected system prompt to stay unchanged, got %q", agent.SystemPrompt)
+	}
+}
+
 func TestServiceResumeUsesWorkflowCheckpointData(t *testing.T) {
 	db := setupWorkflowResumeTestDB(t)
 	def := runtimeHumanConfirmDefinition()

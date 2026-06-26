@@ -2,9 +2,7 @@ package runtime
 
 import (
 	"encoding/json"
-	"strings"
 
-	"agent-desk/internal/ai/workflow/compiler"
 	"agent-desk/internal/ai/workflow/dsl"
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/enums"
@@ -16,7 +14,6 @@ import (
 
 type resolvedWorkflow struct {
 	Definition dsl.Definition
-	Compiled   compiler.Result
 	WorkflowID int64
 	VersionID  int64
 }
@@ -35,7 +32,6 @@ func resolveAgentWorkflow(aiAgent models.AIAgent) (resolvedWorkflow, error) {
 	}
 	return resolvedWorkflow{
 		Definition: def,
-		Compiled:   compiler.Compile(def),
 		WorkflowID: version.WorkflowID,
 		VersionID:  version.ID,
 	}, nil
@@ -46,15 +42,5 @@ func prepareWorkflowAgent(aiAgent models.AIAgent) (models.AIAgent, resolvedWorkf
 	if err != nil {
 		return aiAgent, resolvedWorkflow{}, err
 	}
-	if strings.TrimSpace(workflow.Compiled.Appendix) == "" {
-		return aiAgent, workflow, nil
-	}
-	prompt := strings.TrimSpace(aiAgent.SystemPrompt)
-	appendix := strings.TrimSpace(workflow.Compiled.Appendix)
-	if prompt == "" {
-		aiAgent.SystemPrompt = appendix
-		return aiAgent, workflow, nil
-	}
-	aiAgent.SystemPrompt = prompt + "\n\n" + appendix
 	return aiAgent, workflow, nil
 }

@@ -524,7 +524,6 @@ type AIAgent struct {
 	KnowledgeIDs        string                          `gorm:"type:varchar(500);not null;default:''"`       // KnowledgeIDs 为绑定的知识库ID列表，按顺序表示优先级。
 	SkillIDs            string                          `gorm:"type:varchar(500);not null;default:''"`       // SkillIDs 为绑定的技能ID列表，按顺序表示允许路由的范围。
 	AllowedMCPTools     string                          `gorm:"type:text"`                                   // AllowedMCPTools 为允许 direct tool 路由的 MCP 工具白名单配置JSON。
-	AllowedGraphTools   string                          `gorm:"type:text"`                                   // AllowedGraphTools 为允许 Graph Tool 的白名单配置JSON。
 	WorkflowVersionID   int64                           `gorm:"type:bigint;not null;default:0;index"`        // WorkflowVersionID 为绑定的已发布会话流程版本ID。
 	SortNo              int                             `gorm:"type:int;not null;default:0;index"`           // SortNo 为后台展示排序号。
 	AuditFields

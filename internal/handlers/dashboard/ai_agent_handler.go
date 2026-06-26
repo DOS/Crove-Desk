@@ -188,7 +188,6 @@ func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) respons
 		Skills:              make([]response.AIAgentSkillResponse, 0),
 		Teams:               make([]response.AIAgentTeamResponse, 0),
 		DirectTools:         make([]response.AIAgentMCPToolResponse, 0),
-		GraphTools:          make([]string, 0),
 		WorkflowVersionID:   item.WorkflowVersionID,
 		WorkflowPublished:   item.WorkflowVersionID > 0,
 		WorkflowState:       aiAgentWorkflowState(item.WorkflowVersionID),
@@ -236,7 +235,6 @@ func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) respons
 					continue
 				}
 				if toolx.IsAgentDirectGraphToolCode(toolCode) {
-					ret.GraphTools = appendGraphToolCodeIfMissing(ret.GraphTools, toolCode)
 					continue
 				}
 				serverCode := strings.TrimSpace(tool.ServerCode)
@@ -271,18 +269,6 @@ func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) respons
 			}
 		}
 	}
-	if raw := strings.TrimSpace(item.AllowedGraphTools); raw != "" {
-		var graphTools []string
-		if err := json.Unmarshal([]byte(raw), &graphTools); err == nil {
-			for _, toolCode := range graphTools {
-				toolCode = toolx.NormalizeToolCodeAlias(strings.TrimSpace(toolCode))
-				if !toolx.IsAgentDirectGraphToolCode(toolCode) {
-					continue
-				}
-				ret.GraphTools = appendGraphToolCodeIfMissing(ret.GraphTools, toolCode)
-			}
-		}
-	}
 	return ret
 }
 
@@ -298,17 +284,4 @@ func aiAgentWorkflowStateText(workflowVersionID int64) string {
 		return "已发布"
 	}
 	return "未发布"
-}
-
-func appendGraphToolCodeIfMissing(items []string, toolCode string) []string {
-	toolCode = strings.TrimSpace(toolCode)
-	if toolCode == "" {
-		return items
-	}
-	for _, item := range items {
-		if strings.TrimSpace(item) == toolCode {
-			return items
-		}
-	}
-	return append(items, toolCode)
 }

@@ -57,7 +57,6 @@ type CreateAIAgentRequest struct {
 	KnowledgeIDs        []int64                         `json:"knowledgeIds"`
 	SkillIDs            []int64                         `json:"skillIds"`
 	DirectTools         []AIAgentMCPToolRequest         `json:"directTools"`
-	GraphTools          []string                        `json:"graphTools"`
 }
 
 type UpdateAIAgentRequest struct {

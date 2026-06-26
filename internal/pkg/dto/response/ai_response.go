@@ -90,7 +90,6 @@ type AIAgentResponse struct {
 	SkillIDs            []int64                         `json:"skillIds"`
 	Skills              []AIAgentSkillResponse          `json:"skills"`
 	DirectTools         []AIAgentMCPToolResponse        `json:"directTools"`
-	GraphTools          []string                        `json:"graphTools"`
 	WorkflowVersionID   int64                           `json:"workflowVersionId"`
 	WorkflowPublished   bool                            `json:"workflowPublished"`
 	WorkflowState       string                          `json:"workflowState"`
