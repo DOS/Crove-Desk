@@ -15,7 +15,7 @@ export function VariableSelector({
 }) {
   const options = variables.map((item) => ({
     value: `${item.nodeId}.${item.field}`,
-    label: `${item.nodeName}.${item.field} · ${item.type}`,
+    label: `${item.nodeName}.${item.label || item.field} · ${item.type}`,
   }))
   const selectedValue = value?.nodeId && value.field ? `${value.nodeId}.${value.field}` : ""
 

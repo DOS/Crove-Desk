@@ -357,8 +357,17 @@ func (v *definitionValidator) validateCondition(field string, sourceNodeID strin
 	if !ok {
 		return
 	}
-	if _, ok := findOutputSpec(sourceSpec.OutputSchema, sourceField); !ok {
+	outputSpec, ok := findOutputSpec(sourceSpec.OutputSchema, sourceField)
+	if !ok {
 		v.addError(field+".left", "condition source field does not exist: "+sourceSelectorNodeID+"."+sourceField)
+		return
+	}
+	if len(outputSpec.Operators) > 0 && !stringInSlice(outputSpec.Operators, operator) {
+		v.addError(field+".operator", "condition operator is not allowed for variable: "+operator)
+		return
+	}
+	if !conditionOperatorWithoutRight(operator) && len(outputSpec.ValueOptions) > 0 && !valueOptionExists(outputSpec.ValueOptions, condition.Right) {
+		v.addError(field+".right", "condition comparison value is not allowed")
 	}
 }
 
@@ -366,6 +375,61 @@ func isSupportedConditionOperator(operator string) bool {
 	switch strings.TrimSpace(operator) {
 	case "eq", "equals", "neq", "not_equals", "contains", "exists", "not_exists", "truthy", "is_true", "falsy", "is_false", "gt", "gte", "lt", "lte":
 		return true
+	default:
+		return false
+	}
+}
+
+func conditionOperatorWithoutRight(operator string) bool {
+	switch strings.TrimSpace(operator) {
+	case "exists", "not_exists", "truthy", "is_true", "falsy", "is_false":
+		return true
+	default:
+		return false
+	}
+}
+
+func stringInSlice(items []string, value string) bool {
+	for _, item := range items {
+		if strings.TrimSpace(item) == value {
+			return true
+		}
+	}
+	return false
+}
+
+func valueOptionExists(items []registry.VariableValueOption, value any) bool {
+	for _, item := range items {
+		if conditionValuesEqual(item.Value, value) {
+			return true
+		}
+	}
+	return false
+}
+
+func conditionValuesEqual(left any, right any) bool {
+	switch l := left.(type) {
+	case string:
+		r, ok := right.(string)
+		return ok && l == r
+	case bool:
+		r, ok := right.(bool)
+		return ok && l == r
+	case int:
+		return conditionValuesEqual(float64(l), right)
+	case int64:
+		return conditionValuesEqual(float64(l), right)
+	case float64:
+		switch r := right.(type) {
+		case int:
+			return l == float64(r)
+		case int64:
+			return l == float64(r)
+		case float64:
+			return l == r
+		default:
+			return false
+		}
 	default:
 		return false
 	}

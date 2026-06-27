@@ -34,6 +34,36 @@ func TestBuildAIWorkflowNodeSpecsIncludesVariableContracts(t *testing.T) {
 	}
 }
 
+func TestBuildAIWorkflowNodeSpecsIncludesConditionValueOptions(t *testing.T) {
+	specs := BuildAIWorkflowNodeSpecs(workflowregistry.DefaultRegistry().List())
+
+	var action *workflowregistry.VariableSpec
+	for _, spec := range specs {
+		if spec.Type != workflowregistry.NodeTypeReplyPolicy {
+			continue
+		}
+		for index := range spec.OutputSchema {
+			if spec.OutputSchema[index].Name == "action" {
+				action = &spec.OutputSchema[index]
+				break
+			}
+		}
+	}
+
+	if action == nil {
+		t.Fatalf("expected reply_policy action output")
+	}
+	if action.Label != "处理策略" {
+		t.Fatalf("expected user-facing action label, got %q", action.Label)
+	}
+	if !hasResponseVariableOption(action.ValueOptions, "direct_reply", "直接回复客户") {
+		t.Fatalf("expected direct_reply option with business label, got %#v", action.ValueOptions)
+	}
+	if !hasResponseOperator(action.Operators, "eq") || !hasResponseOperator(action.Operators, "neq") {
+		t.Fatalf("expected action to constrain condition operators, got %#v", action.Operators)
+	}
+}
+
 func TestBuildAIWorkflowRunIncludesAuditDisplayFields(t *testing.T) {
 	startedAt := time.Date(2026, 6, 23, 10, 0, 0, 0, time.UTC)
 	endedAt := startedAt.Add(1500 * time.Millisecond)
@@ -104,6 +134,24 @@ func TestBuildAIWorkflowRunDetailIncludesPublishedDefinitionSnapshot(t *testing.
 func hasResponseVariable(items []workflowregistry.VariableSpec, name string) bool {
 	for _, item := range items {
 		if item.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func hasResponseVariableOption(items []workflowregistry.VariableValueOption, value any, label string) bool {
+	for _, item := range items {
+		if item.Value == value && item.Label == label {
+			return true
+		}
+	}
+	return false
+}
+
+func hasResponseOperator(items []string, value string) bool {
+	for _, item := range items {
+		if item == value {
 			return true
 		}
 	}

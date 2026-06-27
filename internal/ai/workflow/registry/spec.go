@@ -25,10 +25,19 @@ const (
 )
 
 type VariableSpec struct {
-	Name        string       `json:"name"`
-	Type        VariableType `json:"type"`
-	Required    bool         `json:"required,omitempty"`
-	Description string       `json:"description"`
+	Name         string                `json:"name"`
+	Label        string                `json:"label,omitempty"`
+	Type         VariableType          `json:"type"`
+	Required     bool                  `json:"required,omitempty"`
+	Description  string                `json:"description"`
+	Operators    []string              `json:"operators,omitempty"`
+	ValueOptions []VariableValueOption `json:"valueOptions,omitempty"`
+}
+
+type VariableValueOption struct {
+	Value       any    `json:"value"`
+	Label       string `json:"label"`
+	Description string `json:"description,omitempty"`
 }
 
 type NodeSpec struct {

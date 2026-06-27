@@ -301,9 +301,16 @@ export type AIWorkflowVariableSelector = {
 
 export type AIWorkflowVariableSpec = {
   name: string
+  label?: string
   type: AIWorkflowVariableType
   required?: boolean
   description: string
+  operators?: string[]
+  valueOptions?: {
+    value: unknown
+    label: string
+    description?: string
+  }[]
 }
 
 export type AIWorkflowDefinition = {

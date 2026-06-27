@@ -108,11 +108,20 @@ export type WorkflowVariableSelector = {
   field: string
 }
 
+export type WorkflowVariableValueOption = {
+  value: unknown
+  label: string
+  description?: string
+}
+
 export type WorkflowVariableSpec = {
   name: string
+  label?: string
   type: WorkflowVariableType
   required?: boolean
   description?: string
+  operators?: string[]
+  valueOptions?: WorkflowVariableValueOption[]
 }
 
 export type WorkflowNodeSpec = {
@@ -128,8 +137,11 @@ export type WorkflowVariableRef = {
   nodeId: string
   nodeName: string
   field: string
+  label?: string
   type: string
   description: string
+  operators?: string[]
+  valueOptions?: WorkflowVariableValueOption[]
 }
 
 export type WorkflowDraftValidation = {
@@ -647,8 +659,11 @@ export function getAvailableVariables(
         nodeId: sourceNode.id,
         nodeName: sourceNode.data?.name ?? spec?.title ?? sourceNode.id,
         field: output.name,
+        label: output.label,
         type: output.type,
         description: output.description ?? "",
+        operators: output.operators,
+        valueOptions: output.valueOptions,
       })
     }
   }

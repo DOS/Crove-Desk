@@ -292,6 +292,8 @@ function ConditionNodePanel({
             {branches.map((branch, index) => {
               const summary = summariesByBranchID.get(branch.id)
               const condition = branch.condition ?? {}
+              const selectedVariable = findConditionVariable(availableVariables, condition.left)
+              const operatorOptions = getConditionOperatorOptions(selectedVariable)
               const conditionRight = condition.right === undefined || condition.right === null
                 ? ""
                 : String(condition.right)
@@ -344,7 +346,7 @@ function ConditionNodePanel({
                         <Label className="text-xs">判断方式</Label>
                         <OptionCombobox
                           value={condition.operator ?? "eq"}
-                          options={conditionOperators}
+                          options={operatorOptions}
                           placeholder="选择判断方式"
                           searchPlaceholder="搜索判断方式"
                           emptyText="没有可用判断方式"
@@ -354,19 +356,13 @@ function ConditionNodePanel({
                         />
                       </div>
                       {!conditionOperatorWithoutRight(condition.operator ?? "eq") ? (
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">比较值</Label>
-                          <Input
-                            value={conditionRight}
-                            onChange={(event) => commitBranch(branch.id, {
-                              condition: {
-                                ...condition,
-                                right: normalizeConditionRight(event.target.value),
-                              },
-                            })}
-                            placeholder="请输入比较值"
-                          />
-                        </div>
+                        <ConditionRightControl
+                          value={conditionRight}
+                          variable={selectedVariable}
+                          onChange={(right) => commitBranch(branch.id, {
+                            condition: { ...condition, right },
+                          })}
+                        />
                       ) : null}
                     </div>
                   )}
@@ -422,23 +418,124 @@ const conditionOperators = [
   { value: "exists", label: "存在" },
   { value: "not_exists", label: "不存在" },
   { value: "truthy", label: "为真" },
+  { value: "is_true", label: "为真" },
   { value: "falsy", label: "为假" },
+  { value: "is_false", label: "为假" },
   { value: "gt", label: "大于" },
   { value: "gte", label: "大于等于" },
   { value: "lt", label: "小于" },
   { value: "lte", label: "小于等于" },
 ]
 
-function conditionOperatorWithoutRight(operator: string) {
-  return ["exists", "not_exists", "truthy", "falsy"].includes(operator)
+function ConditionRightControl({
+  value,
+  variable,
+  onChange,
+}: {
+  value: string
+  variable?: WorkflowVariableRef
+  onChange: (value: unknown) => void
+}) {
+  const valueOptions = getConditionValueOptions(variable)
+  if (valueOptions.length > 0) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">比较值</Label>
+        <OptionCombobox
+          value={value}
+          options={valueOptions}
+          placeholder="选择比较值"
+          searchPlaceholder="搜索比较值"
+          emptyText="当前变量没有可选值"
+          onChange={(nextValue) => onChange(decodeConditionRight(nextValue, variable))}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">比较值</Label>
+      <Input
+        type={variable?.type === "number" || variable?.type === "integer" ? "number" : "text"}
+        value={value}
+        onChange={(event) => onChange(normalizeConditionRight(event.target.value, variable))}
+        placeholder={variable ? `请输入${variable.label || variable.field}的比较值` : "请输入比较值"}
+      />
+    </div>
+  )
 }
 
-function normalizeConditionRight(value: string) {
+function conditionOperatorWithoutRight(operator: string) {
+  return ["exists", "not_exists", "truthy", "is_true", "falsy", "is_false"].includes(operator)
+}
+
+function normalizeConditionRight(value: string, variable?: WorkflowVariableRef) {
   const trimmed = value.trim()
+  if (variable?.type === "boolean") {
+    return trimmed === "true"
+  }
+  if (variable?.type === "number" || variable?.type === "integer") {
+    return trimmed === "" ? "" : Number(trimmed)
+  }
+  if (variable?.type === "string") {
+    return trimmed
+  }
   if (trimmed === "true") return true
   if (trimmed === "false") return false
   if (trimmed !== "" && !Number.isNaN(Number(trimmed))) return Number(trimmed)
   return trimmed
+}
+
+function findConditionVariable(
+  variables: WorkflowVariableRef[],
+  selector?: WorkflowVariableSelector
+): WorkflowVariableRef | undefined {
+  if (!selector?.nodeId || !selector.field) {
+    return undefined
+  }
+  return variables.find((item) => item.nodeId === selector.nodeId && item.field === selector.field)
+}
+
+function getConditionOperatorOptions(variable?: WorkflowVariableRef) {
+  if (!variable?.operators?.length) {
+    return conditionOperators
+  }
+  const allowed = new Set(variable.operators)
+  return conditionOperators.filter((item) => allowed.has(item.value))
+}
+
+function getConditionValueOptions(variable?: WorkflowVariableRef) {
+  if (variable?.valueOptions?.length) {
+    return variable.valueOptions.map((item) => ({
+      value: encodeConditionRight(item.value),
+      label: item.label,
+    }))
+  }
+  if (variable?.type === "boolean") {
+    return [
+      { value: "true", label: "是" },
+      { value: "false", label: "否" },
+    ]
+  }
+  return []
+}
+
+function encodeConditionRight(value: unknown) {
+  if (typeof value === "string") return value
+  if (typeof value === "number" || typeof value === "boolean") return String(value)
+  return JSON.stringify(value)
+}
+
+function decodeConditionRight(value: string, variable?: WorkflowVariableRef) {
+  if (variable?.type === "boolean") {
+    return value === "true"
+  }
+  if (variable?.type === "number" || variable?.type === "integer") {
+    return Number(value)
+  }
+  const option = variable?.valueOptions?.find((item) => encodeConditionRight(item.value) === value)
+  return option ? option.value : value
 }
 
 function normalizeBranch(branch: WorkflowConditionBranch): WorkflowConditionBranch {

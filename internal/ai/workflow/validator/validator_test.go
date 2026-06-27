@@ -304,6 +304,19 @@ func TestValidateDefinitionRejectsUnknownConditionVariable(t *testing.T) {
 	}
 }
 
+func TestValidateDefinitionRejectsInvalidConditionEnumValue(t *testing.T) {
+	def := policyConditionDefinition("unknown_action")
+
+	result := validator.ValidateDefinition(def, registry.DefaultRegistry())
+
+	if result.Valid {
+		t.Fatalf("expected invalid enum condition value to be rejected")
+	}
+	if !hasValidationMessage(result, "condition comparison value is not allowed") {
+		t.Fatalf("expected condition enum value error, got %#v", result.Errors)
+	}
+}
+
 func minimalDefinition() dsl.Definition {
 	return dsl.Definition{
 		SchemaVersion: 1,
@@ -318,6 +331,52 @@ func minimalDefinition() dsl.Definition {
 		Edges: []dsl.Edge{
 			{ID: "e1", Source: "start_1", Target: "reply_1"},
 			{ID: "e2", Source: "reply_1", Target: "end_1"},
+		},
+	}
+}
+
+func policyConditionDefinition(action any) dsl.Definition {
+	conditionConfig, _ := json.Marshal(dsl.ConditionConfig{
+		Branches: []dsl.ConditionBranch{
+			{
+				ID:           "direct",
+				Name:         "Direct",
+				TargetNodeID: "end_1",
+				Condition: &dsl.Condition{
+					Left:     &dsl.VariableSelector{NodeID: "policy_1", Field: "action"},
+					Operator: "eq",
+					Right:    action,
+				},
+			},
+			{
+				ID:           "default",
+				Name:         "Default",
+				TargetNodeID: "end_1",
+				Default:      true,
+			},
+		},
+	})
+	return dsl.Definition{
+		SchemaVersion: 1,
+		EntryNodeID:   "start_1",
+		Nodes: []dsl.Node{
+			{ID: "start_1", Type: "start"},
+			{ID: "understanding_1", Type: "conversation_understanding", Inputs: map[string]dsl.VariableSelector{
+				"userMessage": {NodeID: "start_1", Field: "userMessage"},
+			}},
+			{ID: "policy_1", Type: "reply_policy", Inputs: map[string]dsl.VariableSelector{
+				"messageIntent": {NodeID: "understanding_1", Field: "messageIntent"},
+				"answerScope":   {NodeID: "understanding_1", Field: "answerScope"},
+			}},
+			{ID: "condition_1", Type: "condition", Config: conditionConfig},
+			{ID: "end_1", Type: "end"},
+		},
+		Edges: []dsl.Edge{
+			{ID: "e1", Source: "start_1", Target: "understanding_1"},
+			{ID: "e2", Source: "understanding_1", Target: "policy_1"},
+			{ID: "e3", Source: "policy_1", Target: "condition_1"},
+			{ID: "e4", Source: "condition_1", Target: "end_1"},
+			{ID: "e5", Source: "condition_1", Target: "end_1"},
 		},
 	}
 }

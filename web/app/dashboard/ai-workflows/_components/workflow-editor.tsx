@@ -70,6 +70,7 @@ import {
   type WorkflowHistory,
   type WorkflowHelperLine,
   type WorkflowNodeConfig,
+  type WorkflowVariableSpec,
 } from "./workflow-utils"
 import { NodeConfigPanel, type WorkflowBranchSummary } from "./node-config-panel"
 import type { WorkflowBranchTargetOption } from "./node-config-panel"
@@ -250,8 +251,8 @@ export function WorkflowEditor({
     [draft, nodeSpecs, propertyPanelNode]
   )
   const propertyPanelBranchSummaries = useMemo(
-    () => (propertyPanelNode ? getBranchSummaries(nodes, propertyPanelNode.id) : []),
-    [nodes, propertyPanelNode]
+    () => (propertyPanelNode ? getBranchSummaries(nodes, propertyPanelNode.id, nodeSpecs) : []),
+    [nodeSpecs, nodes, propertyPanelNode]
   )
   const propertyPanelBranchTargetOptions = useMemo(
     () => (propertyPanelNode ? getBranchTargetOptions(nodes, edges, propertyPanelNode.id) : []),
@@ -1012,7 +1013,9 @@ const conditionOperators = [
   { value: "exists", label: "存在" },
   { value: "not_exists", label: "不存在" },
   { value: "truthy", label: "为真" },
+  { value: "is_true", label: "为真" },
   { value: "falsy", label: "为假" },
+  { value: "is_false", label: "为假" },
   { value: "gt", label: "大于" },
   { value: "gte", label: "大于等于" },
   { value: "lt", label: "小于" },
@@ -1021,7 +1024,8 @@ const conditionOperators = [
 
 function getBranchSummaries(
   nodes: WorkflowFlowNode[],
-  nodeId: string
+  nodeId: string,
+  nodeSpecs: AIWorkflowNodeSpec[]
 ): WorkflowBranchSummary[] {
   const node = nodes.find((item) => item.id === nodeId)
   const branches = node?.data.config?.branches ?? []
@@ -1032,7 +1036,7 @@ function getBranchSummaries(
         branchId: branch.id,
         targetNodeId: branch.targetNodeId,
         targetName: target?.data.name ?? target?.data.title ?? branch.targetNodeId,
-        conditionLabel: branch.condition ? formatConditionLabel(branch.condition) : "无条件匹配",
+        conditionLabel: branch.condition ? formatConditionLabel(branch.condition, nodes, nodeSpecs) : "无条件匹配",
         isDefault: Boolean(branch.default),
       }
     })
@@ -1054,29 +1058,60 @@ function getBranchTargetOptions(
     })
 }
 
-function formatConditionLabel(condition: WorkflowCondition) {
-  const left = condition.left?.nodeId && condition.left.field
-    ? `${condition.left.nodeId}.${condition.left.field}`
-    : "未选择变量"
+function formatConditionLabel(
+  condition: WorkflowCondition,
+  nodes: WorkflowFlowNode[],
+  nodeSpecs: AIWorkflowNodeSpec[]
+) {
+  const variable = findConditionOutputSpec(condition.left, nodes, nodeSpecs)
+  const left = variable?.label
+    ?? (condition.left?.nodeId && condition.left.field ? `${condition.left.nodeId}.${condition.left.field}` : "未选择变量")
   const operator = conditionOperators.find((item) => item.value === condition.operator)?.label
     ?? condition.operator
     ?? "未选择判断方式"
 
-  if (["exists", "not_exists", "truthy", "falsy"].includes(condition.operator ?? "")) {
+  if (["exists", "not_exists", "truthy", "is_true", "falsy", "is_false"].includes(condition.operator ?? "")) {
     return `${left} ${operator}`
   }
 
-  return `${left} ${operator} ${formatConditionRight(condition.right)}`
+  return `${left} ${operator} ${formatConditionRight(condition.right, variable)}`
 }
 
-function formatConditionRight(value: unknown) {
+function formatConditionRight(value: unknown, variable?: WorkflowVariableSpec) {
   if (value === undefined || value === null || value === "") {
     return "未填写比较值"
+  }
+  const option = variable?.valueOptions?.find((item) => conditionValueEquals(item.value, value))
+  if (option) {
+    return option.label
+  }
+  if (variable?.type === "boolean") {
+    return value === true ? "是" : "否"
   }
   if (typeof value === "object") {
     return JSON.stringify(value)
   }
   return String(value)
+}
+
+function findConditionOutputSpec(
+  selector: WorkflowCondition["left"],
+  nodes: WorkflowFlowNode[],
+  nodeSpecs: AIWorkflowNodeSpec[]
+): WorkflowVariableSpec | undefined {
+  if (!selector?.nodeId || !selector.field) {
+    return undefined
+  }
+  const sourceNode = nodes.find((item) => item.id === selector.nodeId)
+  if (!sourceNode) {
+    return undefined
+  }
+  const spec = getNodeSpec(nodeSpecs, sourceNode.data.nodeType ?? "")
+  return spec?.outputSchema?.find((item) => item.name === selector.field)
+}
+
+function conditionValueEquals(left: unknown, right: unknown) {
+  return JSON.stringify(left) === JSON.stringify(right)
 }
 
 function getEventClientPoint(event: MouseEvent | TouchEvent) {

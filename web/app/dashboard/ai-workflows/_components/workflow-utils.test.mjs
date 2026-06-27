@@ -317,6 +317,49 @@ describe("getAvailableVariables", () => {
 
     assert.deepEqual(plain(variables), [])
   })
+
+  it("preserves condition editor metadata from output specs", async () => {
+    const { getAvailableVariables } = await loadModule()
+
+    const variables = getAvailableVariables(
+      {
+        nodes: [
+          { id: "policy_1", type: "workflowNode", position: { x: 0, y: 0 }, data: { nodeType: "reply_policy", name: "回复策略" } },
+          { id: "condition_1", type: "workflowNode", position: { x: 200, y: 0 }, data: { nodeType: "condition" } },
+        ],
+        edges: [{ id: "e1", source: "policy_1", target: "condition_1" }],
+      },
+      "condition_1",
+      [
+        {
+          type: "reply_policy",
+          outputSchema: [
+            {
+              name: "action",
+              label: "处理策略",
+              type: "string",
+              description: "Selected policy action.",
+              operators: ["eq", "neq"],
+              valueOptions: [{ value: "direct_reply", label: "直接回复客户" }],
+            },
+          ],
+        },
+      ]
+    )
+
+    assert.deepEqual(plain(variables), [
+      {
+        nodeId: "policy_1",
+        nodeName: "回复策略",
+        field: "action",
+        label: "处理策略",
+        type: "string",
+        description: "Selected policy action.",
+        operators: ["eq", "neq"],
+        valueOptions: [{ value: "direct_reply", label: "直接回复客户" }],
+      },
+    ])
+  })
 })
 
 describe("toApiDefinition", () => {
