@@ -31,6 +31,7 @@ import {
 import {
   AlertCircleIcon,
   CheckCircle2Icon,
+  GitBranchIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   PlusIcon,
@@ -1095,6 +1096,7 @@ function getBranchSummaries(
         targetNodeId: branch.targetNodeId,
         targetName: target?.data.name ?? target?.data.title ?? branch.targetNodeId,
         conditionLabel: branch.condition ? formatConditionLabel(branch.condition, nodes, nodeSpecs) : "无条件匹配",
+        conditionSet: Boolean(branch.default || (branch.condition && isConditionConfigured(branch.condition))),
         isDefault: Boolean(branch.default),
       }
     })
@@ -1117,6 +1119,16 @@ function formatConditionLabel(
   }
 
   return `${left} ${operator} ${formatConditionRight(condition.right, variable)}`
+}
+
+function isConditionConfigured(condition: WorkflowCondition) {
+  if (!condition.left?.nodeId || !condition.left.field || !condition.operator) {
+    return false
+  }
+  if (["exists", "not_exists", "truthy", "is_true", "falsy", "is_false"].includes(condition.operator)) {
+    return true
+  }
+  return condition.right !== undefined && condition.right !== null && condition.right !== ""
 }
 
 function formatConditionRight(value: unknown, variable?: WorkflowVariableSpec) {
@@ -1272,11 +1284,13 @@ function WorkflowNodeHandle({
   type,
   position,
   className,
+  showIcon = true,
 }: {
   id?: string
   type: "source" | "target"
   position: Position
   className?: string
+  showIcon?: boolean
 }) {
   return (
     <Handle
@@ -1285,7 +1299,7 @@ function WorkflowNodeHandle({
       position={position}
       className={className}
     >
-      <PlusIcon className="size-2.5" />
+      {showIcon ? <PlusIcon className="size-2.5" /> : null}
     </Handle>
   )
 }
@@ -1362,12 +1376,19 @@ function WorkflowCanvasNode({ id, data, selected }: NodeProps<WorkflowFlowNode>)
     "flex items-center justify-center opacity-0 transition-all duration-150",
     showHandles ? "pointer-events-auto opacity-100" : "pointer-events-none"
   )
+  const conditionBranchHandleClassName = cn(
+    "!z-[1] !size-4 !rounded-none !border-none !bg-transparent !outline-none",
+    "after:absolute after:right-1.5 after:top-1 after:h-2 after:w-0.5 after:rounded-sm after:bg-muted-foreground/45",
+    "transition-all hover:scale-125"
+  )
   if (isConditionNode) {
     const branches = data.branchSummaries ?? []
+    const caseBranches = branches.filter((branch) => !branch.isDefault)
+    const defaultBranch = branches.find((branch) => branch.isDefault)
     return (
       <div
         className={[
-          "group/node relative w-72 rounded-xl border bg-background shadow-[0_12px_34px_rgba(15,23,42,0.08)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(15,23,42,0.12)]",
+          "group/node relative w-[240px] rounded-2xl border bg-background pb-1 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg",
           selected ? "border-primary ring-4 ring-primary/10" : "",
           hasIssue ? "border-destructive/70" : "border-border/70",
         ].join(" ")}
@@ -1377,54 +1398,78 @@ function WorkflowCanvasNode({ id, data, selected }: NodeProps<WorkflowFlowNode>)
         <WorkflowNodeHandle
           type="target"
           position={Position.Left}
-          className={cn("!left-0", handleClassName)}
+          className={cn("!left-[-9px] !top-4 !translate-y-0", handleClassName)}
         />
-        <div className="overflow-hidden rounded-xl">
-          <div className="flex items-start gap-2 border-b border-border/60 bg-muted/20 px-3 py-2.5">
+        <div className="overflow-hidden rounded-2xl">
+          <div className="flex items-center px-3 pb-2 pt-3">
             <div
-              className={cn(
-                "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg",
-                hasIssue ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-700"
-              )}
+              className="mr-2 flex size-6 shrink-0 items-center justify-center rounded-lg bg-cyan-500 text-white shadow-md"
             >
-              {hasIssue ? (
-                <AlertCircleIcon className="size-4" />
-              ) : (
-                <CheckCircle2Icon className="size-4" />
-              )}
+              <GitBranchIcon className="size-3.5" />
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium">{data.name ?? data.title}</div>
-              <div className="mt-0.5 truncate text-xs text-muted-foreground">条件分支</div>
+            <div className="min-w-0 grow truncate text-sm font-semibold uppercase text-foreground">
+              {data.name ?? data.title}
             </div>
           </div>
-          <div className="divide-y divide-border/60 text-xs">
-            {branches.length > 0 ? branches.map((branch, index) => (
-              <div key={branch.branchId} className="relative flex items-center gap-2 px-3 py-2.5 pr-6">
-                <span
-                  className={cn(
-                    "shrink-0 rounded-sm px-1.5 py-0.5 font-medium",
-                    branch.isDefault ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
-                  )}
-                >
-                  {branch.isDefault ? "ELSE" : index === 0 ? "IF" : "ELIF"}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium">{branch.conditionLabel}</div>
-                  <div className="mt-0.5 truncate text-muted-foreground">
-                    {branch.targetNodeId ? `连接到：${branch.targetName}` : "未连接目标节点"}
+          <div className="px-3">
+            {caseBranches.length > 0 ? caseBranches.map((branch, index) => (
+              <div key={branch.branchId}>
+                <div className="relative flex h-6 items-center px-1">
+                  <div className="flex w-full items-center justify-between">
+                    <div className="text-[10px] font-semibold text-muted-foreground/80">
+                      {caseBranches.length > 1 ? `CASE ${index + 1}` : ""}
+                    </div>
+                    <div className="text-[12px] font-semibold text-muted-foreground">
+                      {index === 0 ? "IF" : "ELIF"}
+                    </div>
+                  </div>
+                  <WorkflowNodeHandle
+                    id={getConditionBranchHandleId(branch.branchId)}
+                    type="source"
+                    position={Position.Right}
+                    className={cn(
+                      "!right-[-21px] !top-1/2 !-translate-y-1/2",
+                      conditionBranchHandleClassName,
+                      branch.targetNodeId && "after:bg-primary/70"
+                    )}
+                    showIcon={false}
+                  />
+                </div>
+                <div className="space-y-0.5">
+                  <div
+                    className={cn(
+                      "flex h-6 items-center rounded-md bg-muted px-1 text-xs font-normal text-muted-foreground",
+                      branch.conditionSet && "text-foreground"
+                    )}
+                    title={branch.conditionLabel}
+                  >
+                    <span className="truncate">
+                      {branch.conditionSet ? branch.conditionLabel : "条件未配置"}
+                    </span>
                   </div>
                 </div>
-                <WorkflowNodeHandle
-                  id={getConditionBranchHandleId(branch.branchId)}
-                  type="source"
-                  position={Position.Right}
-                  className={cn("!right-[-8px] !top-1/2 !-translate-y-1/2", handleClassName)}
-                />
               </div>
             )) : (
-              <div className="px-3 py-3 text-muted-foreground">当前还没有分支</div>
+              <div className="flex h-6 items-center rounded-md bg-muted px-1 text-xs text-muted-foreground">
+                条件未配置
+              </div>
             )}
+            <div className="relative flex h-6 items-center px-1">
+              <div className="w-full text-right text-xs font-semibold text-muted-foreground">ELSE</div>
+              {defaultBranch ? (
+                <WorkflowNodeHandle
+                  id={getConditionBranchHandleId(defaultBranch.branchId)}
+                  type="source"
+                  position={Position.Right}
+                  className={cn(
+                    "!right-[-21px] !top-1/2 !-translate-y-1/2",
+                    conditionBranchHandleClassName,
+                    defaultBranch.targetNodeId && "after:bg-primary/70"
+                  )}
+                  showIcon={false}
+                />
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

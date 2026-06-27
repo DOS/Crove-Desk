@@ -31,6 +31,7 @@ export type WorkflowBranchSummary = {
   targetNodeId: string
   targetName: string
   conditionLabel: string
+  conditionSet: boolean
   isDefault: boolean
 }
 
@@ -555,7 +556,8 @@ function decodeConditionRight(value: string, variable?: WorkflowVariableRef) {
 
 function normalizeBranch(branch: WorkflowConditionBranch): WorkflowConditionBranch {
   if (branch.default) {
-    const { condition: _condition, ...rest } = branch
+    const rest = { ...branch }
+    delete rest.condition
     return rest
   }
   return {
