@@ -874,7 +874,7 @@ export function WorkflowEditor({
   }
 
   return (
-    <div ref={editorRef} className="flex h-full min-h-0 w-full bg-[#f7f8fa]">
+    <div ref={editorRef} className="flex h-full min-h-0 w-full bg-[#f2f4f7]">
       {nodeLibraryRendered ? (
         <>
           <div
@@ -961,7 +961,7 @@ export function WorkflowEditor({
           data-workflow-canvas
           ref={canvasRef}
           className={[
-            "relative h-full min-h-0 overflow-hidden bg-[#f7f8fa]",
+            "relative h-full min-h-0 overflow-hidden bg-[#f2f4f7]",
             pendingNodeDrag?.active ? "ring-2 ring-primary/30" : "",
           ].join(" ")}
         >
@@ -1014,10 +1014,10 @@ export function WorkflowEditor({
             maxZoom={1.35}
           >
             <Background
-              gap={18}
-              size={1}
-              color="hsl(var(--muted-foreground) / 0.08)"
-              className="bg-[#f7f8fa]"
+              gap={[14, 14]}
+              size={2}
+              color="rgb(133 133 173 / 0.15)"
+              className="bg-[#f2f4f7]"
             />
             <Controls
               className="!bottom-4 !left-4 overflow-hidden !rounded-xl !border !border-border/70 !bg-background/90 !shadow-lg backdrop-blur"
