@@ -16,7 +16,7 @@ import {
 import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
 
 import { useFlowgramEditorProps } from "./flowgram-editor-provider"
-import { WorkflowConfigSidebar } from "./workflow-config-sidebar"
+import { WorkflowConfigPanel } from "./workflow-config-sidebar"
 import { WorkflowEditorToolbar } from "./workflow-editor-toolbar"
 import { WorkflowNodePalette } from "./workflow-node-palette"
 import {
@@ -63,7 +63,7 @@ export function WorkflowEditor({
   toolbarExtra?: ReactNode
 }) {
   const [localDefinition, setLocalDefinition] = useState(definition)
-  const [selectedNodeId, setSelectedNodeId] = useState(definition.nodes[0]?.id ?? "")
+  const [selectedNodeId, setSelectedNodeId] = useState("")
 
   const validation = useMemo(
     () => validateWorkflowDefinition(localDefinition, nodeSpecs),
@@ -157,9 +157,7 @@ function WorkflowEditorInner({
   useEffect(() => {
     const disposable = selectService.onSelectionChanged(() => {
       const selectedNode = selectService.selectedNodes[0]
-      if (selectedNode) {
-        onSelectNode(selectedNode.id)
-      }
+      onSelectNode(selectedNode?.id ?? "")
     })
     return () => disposable.dispose()
   }, [onSelectNode, selectService])
@@ -180,14 +178,6 @@ function WorkflowEditorInner({
     emitCurrentDefinition()
   }
 
-  const selectNode = (nodeId: string) => {
-    const node = workflowDocument.getAllNodes().find((item) => item.id === nodeId)
-    if (node) {
-      selectService.selectNodeAndFocus(node)
-    }
-    onSelectNode(nodeId)
-  }
-
   const updateNodeData = (nodeId: string, data: WorkflowNodeData) => {
     const next = updateWorkflowNodeData(definition, nodeId, data)
     context.operation.fromJSON(next as WorkflowJSON)
@@ -202,11 +192,19 @@ function WorkflowEditorInner({
     onDefinitionChange(context.document.toJSON() as AIWorkflowDefinition)
   }
 
+  const closeConfigPanel = () => {
+    selectService.clear()
+    onSelectNode("")
+  }
+
   return (
-    <div className="relative isolate flex min-h-[640px] flex-1 overflow-hidden border bg-background">
+    <div
+      data-workflow-editor-root
+      className="relative isolate flex h-full min-h-0 w-full flex-1 overflow-hidden border bg-background"
+    >
       <WorkflowNodePalette nodeSpecs={nodeSpecs} onAddNode={addNode} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <WorkflowEditorToolbar
           validation={validation}
           nodeCount={definition.nodes.length}
@@ -225,16 +223,16 @@ function WorkflowEditorInner({
           onPublish={onPublish}
           publishDisabled={publishDisabled}
         />
-        <div className="min-h-0 flex-1">
+        <div className="relative min-h-0 flex-1 overflow-hidden">
           <EditorRenderer className="h-full w-full" />
         </div>
       </div>
 
-      <WorkflowConfigSidebar
+      <WorkflowConfigPanel
         definition={definition}
         nodeSpecs={nodeSpecs}
         selectedNodeId={selectedNodeId}
-        onSelectNode={selectNode}
+        onClose={closeConfigPanel}
         onChangeNodeData={updateNodeData}
         onDeleteNode={removeNode}
       />

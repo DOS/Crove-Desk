@@ -31,6 +31,7 @@ export function NodeConfigPanel({
   nodeSpec,
   nodes,
   availableVariables,
+  showHeader = true,
   onChange,
   onDelete,
 }: {
@@ -39,6 +40,7 @@ export function NodeConfigPanel({
   nodes: AIWorkflowDefinition["nodes"]
   availableVariables?: WorkflowVariableRef[]
   branchSummaries?: WorkflowBranchSummary[]
+  showHeader?: boolean
   onChange: (nodeId: string, data: AIWorkflowDefinition["nodes"][number]["data"]) => void
   onDelete?: (nodeId: string) => void
 }) {
@@ -104,26 +106,30 @@ export function NodeConfigPanel({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b px-4 py-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="truncate text-sm font-medium">{node.data?.title || nodeSpec?.title || node.type}</div>
-            <div className="mt-1 truncate text-xs text-muted-foreground">{node.id}</div>
+      {showHeader ? (
+        <div className="border-b px-4 py-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium">
+                {node.data?.title || nodeSpec?.title || node.type}
+              </div>
+              <div className="mt-1 truncate text-xs text-muted-foreground">{node.id}</div>
+            </div>
+            {canDelete ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                onClick={() => onDelete?.(node.id)}
+                aria-label="删除节点"
+              >
+                <Trash2Icon className="size-4" />
+              </Button>
+            ) : null}
           </div>
-          {canDelete ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
-              onClick={() => onDelete?.(node.id)}
-              aria-label="删除节点"
-            >
-              <Trash2Icon className="size-4" />
-            </Button>
-          ) : null}
         </div>
-      </div>
+      ) : null}
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
         <div className="space-y-2">
           <Label htmlFor={`node-title-${node.id}`}>标题</Label>

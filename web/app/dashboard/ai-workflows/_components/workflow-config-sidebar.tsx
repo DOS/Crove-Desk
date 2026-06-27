@@ -1,27 +1,28 @@
 "use client"
 
+import { XIcon } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
 import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
-import { cn } from "@/lib/utils"
 
 import { NodeConfigPanel } from "./node-config-panel"
 import {
   getAvailableVariables,
-  getNodeTitle,
   type WorkflowNodeData,
 } from "./workflow-utils"
 
-export function WorkflowConfigSidebar({
+export function WorkflowConfigPanel({
   definition,
   nodeSpecs,
   selectedNodeId,
-  onSelectNode,
+  onClose,
   onChangeNodeData,
   onDeleteNode,
 }: {
   definition: AIWorkflowDefinition
   nodeSpecs: AIWorkflowNodeSpec[]
   selectedNodeId: string
-  onSelectNode: (nodeId: string) => void
+  onClose: () => void
   onChangeNodeData: (nodeId: string, data: WorkflowNodeData) => void
   onDeleteNode: (nodeId: string) => void
 }) {
@@ -33,39 +34,43 @@ export function WorkflowConfigSidebar({
     ? getAvailableVariables(definition, selectedNode.id, nodeSpecs)
     : []
 
+  if (!selectedNode) {
+    return null
+  }
+
   return (
-    <aside className="relative z-50 flex w-80 shrink-0 flex-col border-l bg-background">
-      <div className="border-b px-3 py-2">
-        <div className="text-sm font-medium">配置</div>
-      </div>
-      <div className="max-h-48 overflow-y-auto border-b p-2">
-        <div className="space-y-1">
-          {definition.nodes.map((node) => (
-            <button
-              key={node.id}
-              type="button"
-              className={cn(
-                "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted",
-                selectedNodeId === node.id && "bg-muted"
-              )}
-              onClick={() => onSelectNode(node.id)}
-            >
-              <span className="min-w-0 truncate">{getNodeTitle(node, nodeSpecs)}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">{node.type}</span>
-            </button>
-          ))}
+    <div className="pointer-events-none absolute inset-y-3 right-3 z-50 flex w-[360px] max-w-[calc(100%-1.5rem)]">
+      <section className="pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden rounded-lg border bg-background shadow-2xl">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b px-4 py-3">
+          <div className="min-w-0">
+            <div className="text-sm font-medium">属性</div>
+            <div className="mt-0.5 truncate text-xs text-muted-foreground">
+              {selectedNode.data?.title || selectedNodeSpec?.title || selectedNode.type}
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8 shrink-0 text-muted-foreground"
+            aria-label="关闭属性面板"
+            onClick={onClose}
+          >
+            <XIcon className="size-4" />
+          </Button>
         </div>
-      </div>
-      <div className="min-h-0 flex-1">
-        <NodeConfigPanel
-          node={selectedNode}
-          nodeSpec={selectedNodeSpec}
-          nodes={definition.nodes}
-          availableVariables={availableVariables}
-          onChange={onChangeNodeData}
-          onDelete={onDeleteNode}
-        />
-      </div>
-    </aside>
+        <div className="min-h-0 flex-1">
+          <NodeConfigPanel
+            node={selectedNode}
+            nodeSpec={selectedNodeSpec}
+            nodes={definition.nodes}
+            availableVariables={availableVariables}
+            showHeader={false}
+            onChange={onChangeNodeData}
+            onDelete={onDeleteNode}
+          />
+        </div>
+      </section>
+    </div>
   )
 }

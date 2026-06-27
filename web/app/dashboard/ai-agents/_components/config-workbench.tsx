@@ -591,7 +591,11 @@ export function AIAgentConfigWorkbench({
           </div>
         </div>
 
-        <main className="min-h-0 flex-1 overflow-y-auto bg-background">
+        <main
+          className={`min-h-0 flex-1 bg-background ${
+            activeSection === "workflow" ? "overflow-hidden" : "overflow-y-auto"
+          }`}
+        >
           {loading ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
               加载中...
