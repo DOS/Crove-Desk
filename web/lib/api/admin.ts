@@ -294,10 +294,19 @@ export type AIWorkflowVariableType =
   | "array<object>"
   | "any"
 
-export type AIWorkflowVariableSelector = {
-  nodeId: string
-  field: string
-}
+export type AIWorkflowValue =
+  | {
+      type: "ref"
+      content: [string, string]
+    }
+  | {
+      type: "constant"
+      content?: unknown
+    }
+  | {
+      type: "template"
+      content?: string
+    }
 
 export type AIWorkflowVariableSpec = {
   name: string
@@ -315,21 +324,28 @@ export type AIWorkflowVariableSpec = {
 
 export type AIWorkflowDefinition = {
   schemaVersion: number
-  entryNodeId: string
   nodes: {
     id: string
     type: string
-    name: string
-    position: AIWorkflowPosition
-    config: Record<string, unknown>
-    inputs?: Record<string, AIWorkflowVariableSelector>
+    meta: {
+      position: AIWorkflowPosition
+    }
+    data: {
+      title?: string
+      config?: Record<string, unknown>
+      inputs?: unknown
+      outputs?: unknown
+      inputsValues?: Record<string, AIWorkflowValue>
+      [key: string]: unknown
+    }
   }[]
-	  edges: {
-	    id: string
-	    source: string
-	    target: string
-	  }[]
-	}
+  edges: {
+    sourceNodeID: string
+    targetNodeID: string
+    sourcePortID?: string
+    targetPortID?: string
+  }[]
+}
 
 export type AIWorkflow = {
   id: number
@@ -370,7 +386,7 @@ export type AIWorkflowNodeSpec = {
   configSchema?: unknown
   inputSchema?: AIWorkflowVariableSpec[]
   outputSchema?: AIWorkflowVariableSpec[]
-  defaultInputs?: Record<string, AIWorkflowVariableSelector>
+  defaultInputs?: Record<string, AIWorkflowValue>
 }
 
 export type AIWorkflowValidationResult = {

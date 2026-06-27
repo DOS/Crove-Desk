@@ -112,7 +112,7 @@ type conditionEvaluation struct {
 
 func (e *Executor) Execute(ctx context.Context, input Input) (*Result, error) {
 	state := newRunState(input)
-	currentID := strings.TrimSpace(input.Definition.EntryNodeID)
+	currentID := state.startNodeID()
 	if currentID == "" {
 		return nil, fmt.Errorf("workflow entry node is required")
 	}
@@ -247,9 +247,18 @@ func newRunState(input Input) *runState {
 		}
 	}
 	for _, edge := range input.Definition.Edges {
-		state.outgoing[edge.Source] = append(state.outgoing[edge.Source], edge)
+		state.outgoing[strings.TrimSpace(edge.SourceNodeID)] = append(state.outgoing[strings.TrimSpace(edge.SourceNodeID)], edge)
 	}
 	return state
+}
+
+func (s *runState) startNodeID() string {
+	for _, node := range s.nodesByID {
+		if strings.TrimSpace(node.Type) == workflowregistry.NodeTypeStart {
+			return strings.TrimSpace(node.ID)
+		}
+	}
+	return ""
 }
 
 func (e *Executor) executeNode(ctx context.Context, state *runState, node dsl.Node) error {
@@ -587,19 +596,19 @@ func (e *Executor) executePrepareTicketDraft(ctx context.Context, state *runStat
 	input := graphs.PrepareTicketDraftInput{
 		Issue: issue,
 	}
-	if title := strings.TrimSpace(readStringConfig(node.Config, "title")); title != "" {
+	if title := strings.TrimSpace(readStringConfig(node.Data.Config, "title")); title != "" {
 		input.Title = title
 	}
-	if description := strings.TrimSpace(readStringConfig(node.Config, "description")); description != "" {
+	if description := strings.TrimSpace(readStringConfig(node.Data.Config, "description")); description != "" {
 		input.Description = description
 	}
-	if impact := strings.TrimSpace(readStringConfig(node.Config, "impact")); impact != "" {
+	if impact := strings.TrimSpace(readStringConfig(node.Data.Config, "impact")); impact != "" {
 		input.Impact = impact
 	}
-	if expectedOutcome := strings.TrimSpace(readStringConfig(node.Config, "expectedOutcome")); expectedOutcome != "" {
+	if expectedOutcome := strings.TrimSpace(readStringConfig(node.Data.Config, "expectedOutcome")); expectedOutcome != "" {
 		input.ExpectedOutcome = expectedOutcome
 	}
-	if currentAttempt := strings.TrimSpace(readStringConfig(node.Config, "currentAttempt")); currentAttempt != "" {
+	if currentAttempt := strings.TrimSpace(readStringConfig(node.Data.Config, "currentAttempt")); currentAttempt != "" {
 		input.CurrentAttempt = currentAttempt
 	}
 	args, err := json.Marshal(input)
@@ -632,20 +641,20 @@ func (e *Executor) executeAnalyzeConversation(ctx context.Context, state *runSta
 	input := graphs.AnalyzeConversationInput{
 		ObservedIssue: userMessage,
 	}
-	if strings.TrimSpace(readStringConfig(node.Config, "goal")) != "" {
-		input.Goal = strings.TrimSpace(readStringConfig(node.Config, "goal"))
+	if strings.TrimSpace(readStringConfig(node.Data.Config, "goal")) != "" {
+		input.Goal = strings.TrimSpace(readStringConfig(node.Data.Config, "goal"))
 	}
-	if readBoolConfig(node.Config, "needTicket") {
+	if readBoolConfig(node.Data.Config, "needTicket") {
 		input.NeedTicket = true
 	}
-	if readBoolConfig(node.Config, "needHumanHandoff") {
+	if readBoolConfig(node.Data.Config, "needHumanHandoff") {
 		input.NeedHumanHandoff = true
 	}
-	if readBoolConfig(node.Config, "needQualityCheck") {
+	if readBoolConfig(node.Data.Config, "needQualityCheck") {
 		input.NeedQualityCheck = true
 	}
-	if strings.TrimSpace(readStringConfig(node.Config, "additionalContext")) != "" {
-		input.AdditionalContext = strings.TrimSpace(readStringConfig(node.Config, "additionalContext"))
+	if strings.TrimSpace(readStringConfig(node.Data.Config, "additionalContext")) != "" {
+		input.AdditionalContext = strings.TrimSpace(readStringConfig(node.Data.Config, "additionalContext"))
 	}
 	args, err := json.Marshal(input)
 	if err != nil {
@@ -670,7 +679,7 @@ func (e *Executor) executeAnalyzeConversation(ctx context.Context, state *runSta
 }
 
 func (e *Executor) executeHandoffToHuman(state *runState, node dsl.Node) error {
-	if _, hasConfirmedInput := node.Inputs["confirmed"]; hasConfirmedInput && !truthy(state.resolveInput(node, "confirmed")) {
+	if _, hasConfirmedInput := node.Data.InputsValues["confirmed"]; hasConfirmedInput && !truthy(state.resolveInput(node, "confirmed")) {
 		state.setNodeVars(node.ID, map[string]any{
 			"handoffId":  int64(0),
 			"reason":     strings.TrimSpace(toString(state.resolveInput(node, "reason"))),
@@ -751,7 +760,7 @@ func (e *Executor) executeAnswerabilityGate(state *runState, node dsl.Node) erro
 }
 
 func (e *Executor) executeLLMReply(ctx context.Context, state *runState, node dsl.Node) error {
-	if staticReply := strings.TrimSpace(readStringConfig(node.Config, "staticReply")); staticReply != "" {
+	if staticReply := strings.TrimSpace(readStringConfig(node.Data.Config, "staticReply")); staticReply != "" {
 		state.setNodeVars(node.ID, map[string]any{"replyText": staticReply})
 		return nil
 	}
@@ -761,10 +770,10 @@ func (e *Executor) executeLLMReply(ctx context.Context, state *runState, node ds
 	}
 	knowledgeItems := toString(state.resolveInput(node, "knowledgeItems"))
 	systemPrompt := strings.TrimSpace(state.input.AIAgent.SystemPrompt)
-	if prompt := strings.TrimSpace(readStringConfig(node.Config, "prompt")); prompt != "" {
+	if prompt := strings.TrimSpace(readStringConfig(node.Data.Config, "prompt")); prompt != "" {
 		systemPrompt = strings.TrimSpace(systemPrompt + "\n\n" + prompt)
 	}
-	if _, declaresKnowledge := node.Inputs["knowledgeItems"]; declaresKnowledge && len(utils.SplitInt64s(state.input.AIAgent.KnowledgeIDs)) > 0 && !hasItems(state.resolveInput(node, "knowledgeItems")) {
+	if _, declaresKnowledge := node.Data.InputsValues["knowledgeItems"]; declaresKnowledge && len(utils.SplitInt64s(state.input.AIAgent.KnowledgeIDs)) > 0 && !hasItems(state.resolveInput(node, "knowledgeItems")) {
 		state.setNodeVars(node.ID, map[string]any{"replyText": workflowKnowledgeFallbackReply(state.input.AIAgent)})
 		return nil
 	}
@@ -798,11 +807,11 @@ func (s *runState) nextNodeID(sourceNodeID string) (string, bool, error) {
 	}
 	node := s.nodesByID[sourceNodeID]
 	if strings.TrimSpace(node.Type) != workflowregistry.NodeTypeCondition {
-		return strings.TrimSpace(edges[0].Target), true, nil
+		return strings.TrimSpace(edges[0].TargetNodeID), true, nil
 	}
 	config := dsl.ConditionConfig{}
-	if len(node.Config) > 0 {
-		if err := json.Unmarshal(node.Config, &config); err != nil {
+	if len(node.Data.Config) > 0 {
+		if err := json.Unmarshal(node.Data.Config, &config); err != nil {
 			return "", false, fmt.Errorf("invalid condition node config: %w", err)
 		}
 	}
@@ -864,11 +873,13 @@ func (s *runState) evaluateConditionBranch(sourceNodeID string, branch dsl.Condi
 		evaluation.Matched = true
 		return true, evaluation, nil
 	}
-	left := s.resolveSelector(condition.Left)
 	operator := strings.TrimSpace(condition.Operator)
+	var left any
 	if condition.Left != nil {
-		evaluation.SourceNodeID = strings.TrimSpace(condition.Left.NodeID)
-		evaluation.SourceField = strings.TrimSpace(condition.Left.Field)
+		left = s.resolveValue(*condition.Left)
+		evaluation.SourceNodeID, evaluation.SourceField, _ = condition.Left.Ref()
+		evaluation.SourceNodeID = strings.TrimSpace(evaluation.SourceNodeID)
+		evaluation.SourceField = strings.TrimSpace(evaluation.SourceField)
 	}
 	evaluation.Operator = operator
 	evaluation.LeftValue = left
@@ -909,8 +920,11 @@ func (s *runState) evaluateConditionBranch(sourceNodeID string, branch dsl.Condi
 
 func (s *runState) edgeIDForTarget(sourceNodeID string, targetNodeID string) string {
 	for _, edge := range s.outgoing[sourceNodeID] {
-		if strings.TrimSpace(edge.Target) == targetNodeID {
-			return strings.TrimSpace(edge.ID)
+		if strings.TrimSpace(edge.TargetNodeID) == targetNodeID {
+			if edge.SourcePortID != "" {
+				return strings.TrimSpace(edge.SourcePortID)
+			}
+			return strings.TrimSpace(edge.SourceNodeID + "->" + edge.TargetNodeID)
 		}
 	}
 	return ""
@@ -921,27 +935,27 @@ func (s *runState) setNodeVars(nodeID string, values map[string]any) {
 }
 
 func (s *runState) resolveInput(node dsl.Node, inputName string) any {
-	selector, ok := node.Inputs[inputName]
+	value, ok := node.Data.InputsValues[inputName]
 	if !ok {
 		return nil
 	}
-	return s.resolveSelector(&selector)
+	return s.resolveValue(value)
 }
 
 func (s *runState) nodeInputPreview(node dsl.Node) map[string]any {
-	inputs := make(map[string]any, len(node.Inputs))
-	for name, selector := range node.Inputs {
-		inputs[name] = s.resolveSelector(&selector)
+	inputs := make(map[string]any, len(node.Data.InputsValues))
+	for name, value := range node.Data.InputsValues {
+		inputs[name] = s.resolveValue(value)
 	}
 	ret := map[string]any{
 		"inputs": inputs,
 	}
-	if len(node.Config) > 0 {
+	if len(node.Data.Config) > 0 {
 		var cfg any
-		if err := json.Unmarshal(node.Config, &cfg); err == nil {
+		if err := json.Unmarshal(node.Data.Config, &cfg); err == nil {
 			ret["config"] = cfg
 		} else {
-			ret["config"] = string(node.Config)
+			ret["config"] = string(node.Data.Config)
 		}
 	}
 	return ret
@@ -969,15 +983,28 @@ func workflowPreviewJSON(value any) string {
 	return string(raw[:maxPreviewBytes])
 }
 
-func (s *runState) resolveSelector(selector *dsl.VariableSelector) any {
-	if selector == nil {
+func (s *runState) resolveValue(value dsl.Value) any {
+	switch value.Type {
+	case dsl.ValueTypeRef:
+		nodeID, field, ok := value.Ref()
+		if !ok {
+			return nil
+		}
+		fields := s.vars[strings.TrimSpace(nodeID)]
+		if fields == nil {
+			return nil
+		}
+		return fields[strings.TrimSpace(field)]
+	case dsl.ValueTypeConstant:
+		return value.ConstantContent
+	case dsl.ValueTypeTemplate:
+		if len(value.Content) > 0 {
+			return value.Content[0]
+		}
+		return nil
+	default:
 		return nil
 	}
-	fields := s.vars[strings.TrimSpace(selector.NodeID)]
-	if fields == nil {
-		return nil
-	}
-	return fields[strings.TrimSpace(selector.Field)]
 }
 
 func readStringConfig(raw json.RawMessage, key string) string {

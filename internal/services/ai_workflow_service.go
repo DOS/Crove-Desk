@@ -423,120 +423,132 @@ func (s *aiWorkflowService) createDefaultAgentWorkflow(db *gorm.DB, agent *model
 
 func defaultAgentWorkflowDefinition() dsl.Definition {
 	return dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start_1",
+		SchemaVersion: dsl.SchemaVersion,
 		Nodes: []dsl.Node{
-			{ID: "start_1", Type: workflowregistry.NodeTypeStart, Name: "开始", Position: dsl.Position{X: 0, Y: 520}},
-			{ID: "understanding_1", Type: workflowregistry.NodeTypeConversationUnderstanding, Name: "会话理解", Position: dsl.Position{X: 320, Y: 520}, Inputs: map[string]dsl.VariableSelector{
-				"userMessage": {NodeID: "start_1", Field: "userMessage"},
-			}},
-			{ID: "policy_1", Type: workflowregistry.NodeTypeReplyPolicy, Name: "回复策略", Position: dsl.Position{X: 640, Y: 520}, Inputs: map[string]dsl.VariableSelector{
-				"userMessage":   {NodeID: "start_1", Field: "userMessage"},
-				"messageIntent": {NodeID: "understanding_1", Field: "messageIntent"},
-				"answerScope":   {NodeID: "understanding_1", Field: "answerScope"},
-				"riskSignals":   {NodeID: "understanding_1", Field: "riskSignals"},
-			}},
-			{ID: "policy_route_1", Type: workflowregistry.NodeTypeCondition, Name: "策略分流", Position: dsl.Position{X: 960, Y: 520}, Config: mustMarshalWorkflowConfig(dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
-				{ID: "direct", Name: "直接回复", TargetNodeID: "policy_reply_1", Condition: &dsl.Condition{Left: &dsl.VariableSelector{NodeID: "policy_1", Field: "action"}, Operator: "eq", Right: "direct_reply"}},
-				{ID: "clarify", Name: "追问澄清", TargetNodeID: "policy_reply_1", Condition: &dsl.Condition{Left: &dsl.VariableSelector{NodeID: "policy_1", Field: "action"}, Operator: "eq", Right: "clarify"}},
-				{ID: "end_conversation", Name: "结束语", TargetNodeID: "policy_reply_1", Condition: &dsl.Condition{Left: &dsl.VariableSelector{NodeID: "policy_1", Field: "action"}, Operator: "eq", Right: "end_conversation"}},
-				{ID: "handoff", Name: "转人工", TargetNodeID: "handoff_1", Condition: &dsl.Condition{Left: &dsl.VariableSelector{NodeID: "policy_1", Field: "action"}, Operator: "eq", Right: "handoff_to_human"}},
-				{ID: "ticket", Name: "创建工单", TargetNodeID: "draft_ticket_1", Condition: &dsl.Condition{Left: &dsl.VariableSelector{NodeID: "policy_1", Field: "action"}, Operator: "eq", Right: "prepare_ticket"}},
-				{ID: "knowledge", Name: "知识库回复", TargetNodeID: "retrieve_1", Condition: &dsl.Condition{Left: &dsl.VariableSelector{NodeID: "policy_1", Field: "action"}, Operator: "eq", Right: "retrieve_knowledge"}},
+			workflowNode("start_1", workflowregistry.NodeTypeStart, "开始", 0, 520, nil, nil),
+			workflowNode("understanding_1", workflowregistry.NodeTypeConversationUnderstanding, "会话理解", 320, 520, workflowInputs("userMessage", "start_1", "userMessage"), nil),
+			workflowNode("policy_1", workflowregistry.NodeTypeReplyPolicy, "回复策略", 640, 520, map[string]dsl.Value{
+				"userMessage":   dsl.RefValue("start_1", "userMessage"),
+				"messageIntent": dsl.RefValue("understanding_1", "messageIntent"),
+				"answerScope":   dsl.RefValue("understanding_1", "answerScope"),
+				"riskSignals":   dsl.RefValue("understanding_1", "riskSignals"),
+			}, nil),
+			workflowNode("policy_route_1", workflowregistry.NodeTypeCondition, "策略分流", 960, 520, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				workflowConditionBranch("direct", "直接回复", "policy_reply_1", "policy_1", "action", "eq", "direct_reply"),
+				workflowConditionBranch("clarify", "追问澄清", "policy_reply_1", "policy_1", "action", "eq", "clarify"),
+				workflowConditionBranch("end_conversation", "结束语", "policy_reply_1", "policy_1", "action", "eq", "end_conversation"),
+				workflowConditionBranch("handoff", "转人工", "handoff_1", "policy_1", "action", "eq", "handoff_to_human"),
+				workflowConditionBranch("ticket", "创建工单", "draft_ticket_1", "policy_1", "action", "eq", "prepare_ticket"),
+				workflowConditionBranch("knowledge", "知识库回复", "retrieve_1", "policy_1", "action", "eq", "retrieve_knowledge"),
 				{ID: "default", Name: "默认澄清", TargetNodeID: "policy_reply_1", Default: true},
-			}})},
-			{ID: "policy_reply_1", Type: workflowregistry.NodeTypeSendReply, Name: "发送策略回复", Position: dsl.Position{X: 1280, Y: 0}, Inputs: map[string]dsl.VariableSelector{
-				"replyText": {NodeID: "policy_1", Field: "replyText"},
-			}},
-			{ID: "handoff_1", Type: workflowregistry.NodeTypeHandoffToHuman, Name: "转人工", Position: dsl.Position{X: 1280, Y: 220}, Inputs: map[string]dsl.VariableSelector{
-				"reason": {NodeID: "start_1", Field: "userMessage"},
-			}},
-			{ID: "handoff_end_1", Type: workflowregistry.NodeTypeEnd, Name: "结束", Position: dsl.Position{X: 1600, Y: 220}},
-			{ID: "draft_ticket_1", Type: workflowregistry.NodeTypePrepareTicketDraft, Name: "整理工单草稿", Position: dsl.Position{X: 1280, Y: 440}, Inputs: map[string]dsl.VariableSelector{
-				"issue": {NodeID: "start_1", Field: "userMessage"},
-			}},
-			{ID: "ticket_confirm_prompt_1", Type: workflowregistry.NodeTypeLLMReply, Name: "建单确认文案", Position: dsl.Position{X: 1600, Y: 440}, Config: json.RawMessage(`{"staticReply":"我已整理工单草稿。请回复“确认”创建工单，或回复“取消”放弃。"}`), Inputs: map[string]dsl.VariableSelector{
-				"userMessage": {NodeID: "start_1", Field: "userMessage"},
-			}},
-			{ID: "ticket_confirm_1", Type: workflowregistry.NodeTypeHumanConfirm, Name: "确认建单", Position: dsl.Position{X: 1920, Y: 440}, Inputs: map[string]dsl.VariableSelector{
-				"prompt": {NodeID: "ticket_confirm_prompt_1", Field: "replyText"},
-			}},
-			{ID: "ticket_confirm_route_1", Type: workflowregistry.NodeTypeCondition, Name: "建单确认分流", Position: dsl.Position{X: 2240, Y: 440}, Config: mustMarshalWorkflowConfig(dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
-				{ID: "confirmed", Name: "已确认", TargetNodeID: "create_ticket_1", Condition: &dsl.Condition{Left: &dsl.VariableSelector{NodeID: "ticket_confirm_1", Field: "confirmed"}, Operator: "is_true"}},
+			}}),
+			workflowNode("policy_reply_1", workflowregistry.NodeTypeSendReply, "发送策略回复", 1280, 0, workflowInputs("replyText", "policy_1", "replyText"), nil),
+			workflowNode("handoff_1", workflowregistry.NodeTypeHandoffToHuman, "转人工", 1280, 220, workflowInputs("reason", "start_1", "userMessage"), nil),
+			workflowNode("handoff_end_1", workflowregistry.NodeTypeEnd, "结束", 1600, 220, nil, nil),
+			workflowNode("draft_ticket_1", workflowregistry.NodeTypePrepareTicketDraft, "整理工单草稿", 1280, 440, workflowInputs("issue", "start_1", "userMessage"), nil),
+			workflowNode("ticket_confirm_prompt_1", workflowregistry.NodeTypeLLMReply, "建单确认文案", 1600, 440, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": "我已整理工单草稿。请回复“确认”创建工单，或回复“取消”放弃。"}),
+			workflowNode("ticket_confirm_1", workflowregistry.NodeTypeHumanConfirm, "确认建单", 1920, 440, workflowInputs("prompt", "ticket_confirm_prompt_1", "replyText"), nil),
+			workflowNode("ticket_confirm_route_1", workflowregistry.NodeTypeCondition, "建单确认分流", 2240, 440, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				workflowConditionBranch("confirmed", "已确认", "create_ticket_1", "ticket_confirm_1", "confirmed", "is_true", nil),
 				{ID: "default", Name: "取消或未确认", TargetNodeID: "ticket_cancel_reply_1", Default: true},
-			}})},
-			{ID: "create_ticket_1", Type: workflowregistry.NodeTypeCreateTicket, Name: "创建工单", Position: dsl.Position{X: 2560, Y: 320}, Inputs: map[string]dsl.VariableSelector{
-				"ticketDraft": {NodeID: "draft_ticket_1", Field: "ticketDraft"},
-				"confirmed":   {NodeID: "ticket_confirm_1", Field: "confirmed"},
-			}},
-			{ID: "ticket_result_reply_1", Type: workflowregistry.NodeTypeSendReply, Name: "发送建单结果", Position: dsl.Position{X: 2880, Y: 320}, Inputs: map[string]dsl.VariableSelector{
-				"replyText": {NodeID: "create_ticket_1", Field: "message"},
-			}},
-			{ID: "ticket_cancel_reply_1", Type: workflowregistry.NodeTypeLLMReply, Name: "取消建单提示", Position: dsl.Position{X: 2560, Y: 560}, Config: json.RawMessage(`{"staticReply":"已取消创建工单。你可以继续补充问题，我会继续帮你处理。"}`), Inputs: map[string]dsl.VariableSelector{
-				"userMessage": {NodeID: "start_1", Field: "userMessage"},
-			}},
-			{ID: "send_ticket_cancel_1", Type: workflowregistry.NodeTypeSendReply, Name: "发送取消提示", Position: dsl.Position{X: 2880, Y: 560}, Inputs: map[string]dsl.VariableSelector{
-				"replyText": {NodeID: "ticket_cancel_reply_1", Field: "replyText"},
-			}},
-			{ID: "retrieve_1", Type: workflowregistry.NodeTypeKnowledgeRetrieve, Name: "知识检索", Position: dsl.Position{X: 1280, Y: 860}, Inputs: map[string]dsl.VariableSelector{
-				"query": {NodeID: "start_1", Field: "userMessage"},
-			}},
-			{ID: "answerability_1", Type: workflowregistry.NodeTypeAnswerabilityGate, Name: "可回答判断", Position: dsl.Position{X: 1600, Y: 860}, Inputs: map[string]dsl.VariableSelector{
-				"userMessage":    {NodeID: "start_1", Field: "userMessage"},
-				"knowledgeItems": {NodeID: "retrieve_1", Field: "items"},
-			}},
-			{ID: "answerability_route_1", Type: workflowregistry.NodeTypeCondition, Name: "可回答分流", Position: dsl.Position{X: 1920, Y: 860}, Config: mustMarshalWorkflowConfig(dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
-				{ID: "answerable", Name: "可以回答", TargetNodeID: "reply_1", Condition: &dsl.Condition{Left: &dsl.VariableSelector{NodeID: "answerability_1", Field: "answerability"}, Operator: "eq", Right: "answerable"}},
+			}}),
+			workflowNode("create_ticket_1", workflowregistry.NodeTypeCreateTicket, "创建工单", 2560, 320, map[string]dsl.Value{
+				"ticketDraft": dsl.RefValue("draft_ticket_1", "ticketDraft"),
+				"confirmed":   dsl.RefValue("ticket_confirm_1", "confirmed"),
+			}, nil),
+			workflowNode("ticket_result_reply_1", workflowregistry.NodeTypeSendReply, "发送建单结果", 2880, 320, workflowInputs("replyText", "create_ticket_1", "message"), nil),
+			workflowNode("ticket_cancel_reply_1", workflowregistry.NodeTypeLLMReply, "取消建单提示", 2560, 560, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": "已取消创建工单。你可以继续补充问题，我会继续帮你处理。"}),
+			workflowNode("send_ticket_cancel_1", workflowregistry.NodeTypeSendReply, "发送取消提示", 2880, 560, workflowInputs("replyText", "ticket_cancel_reply_1", "replyText"), nil),
+			workflowNode("retrieve_1", workflowregistry.NodeTypeKnowledgeRetrieve, "知识检索", 1280, 860, workflowInputs("query", "start_1", "userMessage"), nil),
+			workflowNode("answerability_1", workflowregistry.NodeTypeAnswerabilityGate, "可回答判断", 1600, 860, map[string]dsl.Value{
+				"userMessage":    dsl.RefValue("start_1", "userMessage"),
+				"knowledgeItems": dsl.RefValue("retrieve_1", "items"),
+			}, nil),
+			workflowNode("answerability_route_1", workflowregistry.NodeTypeCondition, "可回答分流", 1920, 860, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				workflowConditionBranch("answerable", "可以回答", "reply_1", "answerability_1", "answerability", "eq", "answerable"),
 				{ID: "default", Name: "兜底追问", TargetNodeID: "fallback_reply_1", Default: true},
-			}})},
-			{ID: "reply_1", Type: workflowregistry.NodeTypeLLMReply, Name: "AI 回复", Position: dsl.Position{X: 2240, Y: 780}, Inputs: map[string]dsl.VariableSelector{
-				"userMessage":    {NodeID: "start_1", Field: "userMessage"},
-				"knowledgeItems": {NodeID: "retrieve_1", Field: "items"},
-			}},
-			{ID: "send_1", Type: workflowregistry.NodeTypeSendReply, Name: "发送回复", Position: dsl.Position{X: 2560, Y: 780}, Inputs: map[string]dsl.VariableSelector{
-				"replyText": {NodeID: "reply_1", Field: "replyText"},
-			}},
-			{ID: "fallback_reply_1", Type: workflowregistry.NodeTypeLLMReply, Name: "兜底追问", Position: dsl.Position{X: 2240, Y: 1040}, Inputs: map[string]dsl.VariableSelector{
-				"userMessage":    {NodeID: "start_1", Field: "userMessage"},
-				"knowledgeItems": {NodeID: "retrieve_1", Field: "items"},
-			}},
-			{ID: "send_fallback_1", Type: workflowregistry.NodeTypeSendReply, Name: "发送兜底", Position: dsl.Position{X: 2560, Y: 1040}, Inputs: map[string]dsl.VariableSelector{
-				"replyText": {NodeID: "fallback_reply_1", Field: "replyText"},
-			}},
-			{ID: "end_1", Type: workflowregistry.NodeTypeEnd, Name: "结束", Position: dsl.Position{X: 3200, Y: 780}},
+			}}),
+			workflowNode("reply_1", workflowregistry.NodeTypeLLMReply, "AI 回复", 2240, 780, map[string]dsl.Value{
+				"userMessage":    dsl.RefValue("start_1", "userMessage"),
+				"knowledgeItems": dsl.RefValue("retrieve_1", "items"),
+			}, nil),
+			workflowNode("send_1", workflowregistry.NodeTypeSendReply, "发送回复", 2560, 780, workflowInputs("replyText", "reply_1", "replyText"), nil),
+			workflowNode("fallback_reply_1", workflowregistry.NodeTypeLLMReply, "兜底追问", 2240, 1040, map[string]dsl.Value{
+				"userMessage":    dsl.RefValue("start_1", "userMessage"),
+				"knowledgeItems": dsl.RefValue("retrieve_1", "items"),
+			}, nil),
+			workflowNode("send_fallback_1", workflowregistry.NodeTypeSendReply, "发送兜底", 2560, 1040, workflowInputs("replyText", "fallback_reply_1", "replyText"), nil),
+			workflowNode("end_1", workflowregistry.NodeTypeEnd, "结束", 3200, 780, nil, nil),
 		},
 		Edges: []dsl.Edge{
-			{ID: "edge_start_understanding", Source: "start_1", Target: "understanding_1"},
-			{ID: "edge_understanding_policy", Source: "understanding_1", Target: "policy_1"},
-			{ID: "edge_policy_route", Source: "policy_1", Target: "policy_route_1"},
-			{ID: "edge_policy_reply", Source: "policy_route_1", Target: "policy_reply_1"},
-			{ID: "edge_policy_handoff", Source: "policy_route_1", Target: "handoff_1"},
-			{ID: "edge_policy_ticket", Source: "policy_route_1", Target: "draft_ticket_1"},
-			{ID: "edge_policy_knowledge", Source: "policy_route_1", Target: "retrieve_1"},
-			{ID: "edge_policy_reply_end", Source: "policy_reply_1", Target: "end_1"},
-			{ID: "edge_handoff_end", Source: "handoff_1", Target: "handoff_end_1"},
-			{ID: "edge_draft_ticket_confirm_prompt", Source: "draft_ticket_1", Target: "ticket_confirm_prompt_1"},
-			{ID: "edge_ticket_prompt_confirm", Source: "ticket_confirm_prompt_1", Target: "ticket_confirm_1"},
-			{ID: "edge_ticket_confirm_route", Source: "ticket_confirm_1", Target: "ticket_confirm_route_1"},
-			{ID: "edge_ticket_confirm_create", Source: "ticket_confirm_route_1", Target: "create_ticket_1"},
-			{ID: "edge_ticket_confirm_cancel", Source: "ticket_confirm_route_1", Target: "ticket_cancel_reply_1"},
-			{ID: "edge_create_ticket_result", Source: "create_ticket_1", Target: "ticket_result_reply_1"},
-			{ID: "edge_ticket_result_end", Source: "ticket_result_reply_1", Target: "end_1"},
-			{ID: "edge_ticket_cancel_send", Source: "ticket_cancel_reply_1", Target: "send_ticket_cancel_1"},
-			{ID: "edge_ticket_cancel_end", Source: "send_ticket_cancel_1", Target: "end_1"},
-			{ID: "edge_retrieve_answerability", Source: "retrieve_1", Target: "answerability_1"},
-			{ID: "edge_answerability_route", Source: "answerability_1", Target: "answerability_route_1"},
-			{ID: "edge_answerability_reply", Source: "answerability_route_1", Target: "reply_1"},
-			{ID: "edge_answerability_fallback", Source: "answerability_route_1", Target: "fallback_reply_1"},
-			{ID: "edge_reply_send", Source: "reply_1", Target: "send_1"},
-			{ID: "edge_fallback_send", Source: "fallback_reply_1", Target: "send_fallback_1"},
-			{ID: "edge_send_end", Source: "send_1", Target: "end_1"},
-			{ID: "edge_send_fallback_end", Source: "send_fallback_1", Target: "end_1"},
+			workflowEdge("start_1", "understanding_1"),
+			workflowEdge("understanding_1", "policy_1"),
+			workflowEdge("policy_1", "policy_route_1"),
+			workflowEdge("policy_route_1", "policy_reply_1"),
+			workflowEdge("policy_route_1", "handoff_1"),
+			workflowEdge("policy_route_1", "draft_ticket_1"),
+			workflowEdge("policy_route_1", "retrieve_1"),
+			workflowEdge("policy_reply_1", "end_1"),
+			workflowEdge("handoff_1", "handoff_end_1"),
+			workflowEdge("draft_ticket_1", "ticket_confirm_prompt_1"),
+			workflowEdge("ticket_confirm_prompt_1", "ticket_confirm_1"),
+			workflowEdge("ticket_confirm_1", "ticket_confirm_route_1"),
+			workflowEdge("ticket_confirm_route_1", "create_ticket_1"),
+			workflowEdge("ticket_confirm_route_1", "ticket_cancel_reply_1"),
+			workflowEdge("create_ticket_1", "ticket_result_reply_1"),
+			workflowEdge("ticket_result_reply_1", "end_1"),
+			workflowEdge("ticket_cancel_reply_1", "send_ticket_cancel_1"),
+			workflowEdge("send_ticket_cancel_1", "end_1"),
+			workflowEdge("retrieve_1", "answerability_1"),
+			workflowEdge("answerability_1", "answerability_route_1"),
+			workflowEdge("answerability_route_1", "reply_1"),
+			workflowEdge("answerability_route_1", "fallback_reply_1"),
+			workflowEdge("reply_1", "send_1"),
+			workflowEdge("fallback_reply_1", "send_fallback_1"),
+			workflowEdge("send_1", "end_1"),
+			workflowEdge("send_fallback_1", "end_1"),
 		},
 	}
 }
 
+func workflowNode(id string, nodeType string, title string, x float64, y float64, inputs map[string]dsl.Value, config any) dsl.Node {
+	return dsl.Node{
+		ID:   id,
+		Type: nodeType,
+		Meta: dsl.NodeMeta{Position: dsl.Position{X: x, Y: y}},
+		Data: dsl.NodeData{
+			Title:        title,
+			Config:       mustMarshalWorkflowConfig(config),
+			InputsValues: inputs,
+		},
+	}
+}
+
+func workflowInputs(name string, nodeID string, field string) map[string]dsl.Value {
+	return map[string]dsl.Value{name: dsl.RefValue(nodeID, field)}
+}
+
+func workflowConditionBranch(id string, name string, targetNodeID string, nodeID string, field string, operator string, right any) dsl.ConditionBranch {
+	return dsl.ConditionBranch{
+		ID:           id,
+		Name:         name,
+		TargetNodeID: targetNodeID,
+		Condition: &dsl.Condition{
+			Left:     &dsl.Value{Type: dsl.ValueTypeRef, Content: []string{nodeID, field}},
+			Operator: operator,
+			Right:    right,
+		},
+	}
+}
+
+func workflowEdge(source string, target string) dsl.Edge {
+	return dsl.Edge{SourceNodeID: source, TargetNodeID: target}
+}
+
 func mustMarshalWorkflowConfig(value any) json.RawMessage {
+	if value == nil {
+		return nil
+	}
 	raw, err := json.Marshal(value)
 	if err != nil {
 		panic(err)

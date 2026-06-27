@@ -49,7 +49,7 @@ func TestAIAgentServiceCreatesDefaultWorkflow(t *testing.T) {
 	if err := json.Unmarshal([]byte(workflow.DraftDefinition), &stored); err != nil {
 		t.Fatalf("unmarshal draft definition: %v", err)
 	}
-	if stored.EntryNodeID == "" {
+	if stored.SchemaVersion != dsl.SchemaVersion || nodeTypeByID(stored, "start_1") != workflowregistry.NodeTypeStart {
 		t.Fatalf("expected default draft definition")
 	}
 	validation := workflowvalidator.ValidateDefinition(stored, workflowregistry.DefaultRegistry())
@@ -93,7 +93,7 @@ func TestAIAgentServiceCreatesDefaultWorkflow(t *testing.T) {
 
 func TestAIWorkflowServiceDefaultAgentWorkflowDefinitionIsValid(t *testing.T) {
 	definition := AIWorkflowService.DefaultAgentWorkflowDefinition()
-	if definition.EntryNodeID == "" {
+	if definition.SchemaVersion != dsl.SchemaVersion || nodeTypeByID(definition, "start_1") != workflowregistry.NodeTypeStart {
 		t.Fatalf("expected default workflow definition")
 	}
 	validation := workflowvalidator.ValidateDefinition(definition, workflowregistry.DefaultRegistry())
@@ -296,7 +296,7 @@ func conditionBranches(t *testing.T, def dsl.Definition, nodeID string) []dsl.Co
 			continue
 		}
 		var config dsl.ConditionConfig
-		if err := json.Unmarshal(node.Config, &config); err != nil {
+		if err := json.Unmarshal(node.Data.Config, &config); err != nil {
 			t.Fatalf("unmarshal condition config for %s: %v", nodeID, err)
 		}
 		return config.Branches
@@ -307,7 +307,7 @@ func conditionBranches(t *testing.T, def dsl.Definition, nodeID string) []dsl.Co
 
 func workflowEdgeExists(def dsl.Definition, sourceID string, targetID string) bool {
 	for _, edge := range def.Edges {
-		if edge.Source == sourceID && edge.Target == targetID {
+		if edge.SourceNodeID == sourceID && edge.TargetNodeID == targetID {
 			return true
 		}
 	}
@@ -329,10 +329,10 @@ func assertWorkflowLayoutDoesNotOverlap(t *testing.T, def dsl.Definition) {
 		width, height := defaultWorkflowNodeRenderSize(node.Type)
 		boxes = append(boxes, workflowLayoutBox{
 			NodeID: node.ID,
-			Left:   node.Position.X,
-			Top:    node.Position.Y,
-			Right:  node.Position.X + width,
-			Bottom: node.Position.Y + height,
+			Left:   node.Meta.Position.X,
+			Top:    node.Meta.Position.Y,
+			Right:  node.Meta.Position.X + width,
+			Bottom: node.Meta.Position.Y + height,
 		})
 	}
 	const minGap = 32.0

@@ -435,286 +435,254 @@ func findNodeTrace(items []NodeTrace, nodeID string) *NodeTrace {
 }
 
 func emptyKnowledgeReplyDefinition() dsl.Definition {
-	return dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start_1",
-		Nodes: []dsl.Node{
-			{ID: "start_1", Type: workflowregistry.NodeTypeStart, Name: "Start"},
-			{ID: "reply_1", Type: workflowregistry.NodeTypeLLMReply, Name: "Reply", Inputs: map[string]dsl.VariableSelector{
-				"userMessage":    {NodeID: "start_1", Field: "userMessage"},
-				"knowledgeItems": {NodeID: "missing_retrieve", Field: "items"},
-			}},
-			{ID: "send_1", Type: workflowregistry.NodeTypeSendReply, Name: "Send", Inputs: map[string]dsl.VariableSelector{
-				"replyText": {NodeID: "reply_1", Field: "replyText"},
-			}},
-			{ID: "end_1", Type: workflowregistry.NodeTypeEnd, Name: "End"},
+	return wfTestDefinition(
+		[]dsl.Node{
+			wfTestNode("start_1", workflowregistry.NodeTypeStart, "Start", nil, nil),
+			wfTestNode("reply_1", workflowregistry.NodeTypeLLMReply, "Reply", map[string]dsl.Value{
+				"userMessage":    dsl.RefValue("start_1", "userMessage"),
+				"knowledgeItems": dsl.RefValue("missing_retrieve", "items"),
+			}, nil),
+			wfTestNode("send_1", workflowregistry.NodeTypeSendReply, "Send", wfTestInputs("replyText", "reply_1", "replyText"), nil),
+			wfTestNode("end_1", workflowregistry.NodeTypeEnd, "End", nil, nil),
 		},
-		Edges: []dsl.Edge{
-			{ID: "edge_start_reply", Source: "start_1", Target: "reply_1"},
-			{ID: "edge_reply_send", Source: "reply_1", Target: "send_1"},
-			{ID: "edge_send_end", Source: "send_1", Target: "end_1"},
+		[]dsl.Edge{
+			wfTestEdge("start_1", "reply_1", "edge_start_reply"),
+			wfTestEdge("reply_1", "send_1", "edge_reply_send"),
+			wfTestEdge("send_1", "end_1", "edge_send_end"),
 		},
-	}
+	)
 }
 
 func policyFirstWorkflowDefinition() dsl.Definition {
-	return dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start_1",
-		Nodes: []dsl.Node{
-			{ID: "start_1", Type: workflowregistry.NodeTypeStart, Name: "Start"},
-			{ID: "understanding_1", Type: workflowregistry.NodeTypeConversationUnderstanding, Name: "Understanding", Inputs: map[string]dsl.VariableSelector{
-				"userMessage": {NodeID: "start_1", Field: "userMessage"},
-			}},
-			{ID: "policy_1", Type: workflowregistry.NodeTypeReplyPolicy, Name: "Policy", Inputs: map[string]dsl.VariableSelector{
-				"userMessage":    {NodeID: "start_1", Field: "userMessage"},
-				"messageIntent":  {NodeID: "understanding_1", Field: "messageIntent"},
-				"answerScope":    {NodeID: "understanding_1", Field: "answerScope"},
-				"riskSignals":    {NodeID: "understanding_1", Field: "riskSignals"},
-				"knowledgeItems": {NodeID: "retrieve_1", Field: "items"},
-			}},
-			{ID: "policy_route_1", Type: workflowregistry.NodeTypeCondition, Name: "Policy Route", Config: mustMarshalWorkflowTestConfig(dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
-				{ID: "direct", Name: "Direct", TargetNodeID: "send_direct_1", Condition: &dsl.Condition{
-					Left:     &dsl.VariableSelector{NodeID: "policy_1", Field: "action"},
-					Operator: "eq",
-					Right:    "direct_reply",
-				}},
-				{ID: "knowledge", Name: "Knowledge", TargetNodeID: "retrieve_end", Condition: &dsl.Condition{
-					Left:     &dsl.VariableSelector{NodeID: "policy_1", Field: "action"},
-					Operator: "eq",
-					Right:    "retrieve_knowledge",
-				}},
+	return wfTestDefinition(
+		[]dsl.Node{
+			wfTestNode("start_1", workflowregistry.NodeTypeStart, "Start", nil, nil),
+			wfTestNode("understanding_1", workflowregistry.NodeTypeConversationUnderstanding, "Understanding", wfTestInputs("userMessage", "start_1", "userMessage"), nil),
+			wfTestNode("policy_1", workflowregistry.NodeTypeReplyPolicy, "Policy", map[string]dsl.Value{
+				"userMessage":    dsl.RefValue("start_1", "userMessage"),
+				"messageIntent":  dsl.RefValue("understanding_1", "messageIntent"),
+				"answerScope":    dsl.RefValue("understanding_1", "answerScope"),
+				"riskSignals":    dsl.RefValue("understanding_1", "riskSignals"),
+				"knowledgeItems": dsl.RefValue("retrieve_1", "items"),
+			}, nil),
+			wfTestNode("policy_route_1", workflowregistry.NodeTypeCondition, "Policy Route", nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				wfTestConditionBranch("direct", "Direct", "send_direct_1", "policy_1", "action", "eq", "direct_reply"),
+				wfTestConditionBranch("knowledge", "Knowledge", "retrieve_end", "policy_1", "action", "eq", "retrieve_knowledge"),
 				{ID: "default", Name: "Default", TargetNodeID: "end_1", Default: true},
-			}})},
-			{ID: "send_direct_1", Type: workflowregistry.NodeTypeSendReply, Name: "Send Direct", Inputs: map[string]dsl.VariableSelector{
-				"replyText": {NodeID: "policy_1", Field: "replyText"},
-			}},
-			{ID: "retrieve_end", Type: workflowregistry.NodeTypeEnd, Name: "Retrieve"},
-			{ID: "end_1", Type: workflowregistry.NodeTypeEnd, Name: "End"},
+			}}),
+			wfTestNode("send_direct_1", workflowregistry.NodeTypeSendReply, "Send Direct", wfTestInputs("replyText", "policy_1", "replyText"), nil),
+			wfTestNode("retrieve_end", workflowregistry.NodeTypeEnd, "Retrieve", nil, nil),
+			wfTestNode("end_1", workflowregistry.NodeTypeEnd, "End", nil, nil),
 		},
-		Edges: []dsl.Edge{
-			{ID: "edge_start_understanding", Source: "start_1", Target: "understanding_1"},
-			{ID: "edge_understanding_policy", Source: "understanding_1", Target: "policy_1"},
-			{ID: "edge_policy_route", Source: "policy_1", Target: "policy_route_1"},
-			{ID: "edge_policy_direct", Source: "policy_route_1", Target: "send_direct_1"},
-			{ID: "edge_policy_knowledge", Source: "policy_route_1", Target: "retrieve_end"},
-			{ID: "edge_policy_default", Source: "policy_route_1", Target: "end_1"},
-			{ID: "edge_send_direct_end", Source: "send_direct_1", Target: "end_1"},
+		[]dsl.Edge{
+			wfTestEdge("start_1", "understanding_1", "edge_start_understanding"),
+			wfTestEdge("understanding_1", "policy_1", "edge_understanding_policy"),
+			wfTestEdge("policy_1", "policy_route_1", "edge_policy_route"),
+			wfTestEdge("policy_route_1", "send_direct_1", "edge_policy_direct"),
+			wfTestEdge("policy_route_1", "retrieve_end", "edge_policy_knowledge"),
+			wfTestEdge("policy_route_1", "end_1", "edge_policy_default"),
+			wfTestEdge("send_direct_1", "end_1", "edge_send_direct_end"),
 		},
-	}
+	)
 }
 
 func conditionalReplyDefinition() dsl.Definition {
-	return dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start_1",
-		Nodes: []dsl.Node{
-			{ID: "start_1", Type: workflowregistry.NodeTypeStart, Name: "Start"},
-			{ID: "condition_1", Type: workflowregistry.NodeTypeCondition, Name: "Route", Config: mustMarshalWorkflowTestConfig(dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
-				{ID: "vip", Name: "VIP", TargetNodeID: "vip_reply", Condition: &dsl.Condition{
-					Left:     &dsl.VariableSelector{NodeID: "start_1", Field: "userMessage"},
-					Operator: "eq",
-					Right:    "vip",
-				}},
+	return wfTestDefinition(
+		[]dsl.Node{
+			wfTestNode("start_1", workflowregistry.NodeTypeStart, "Start", nil, nil),
+			wfTestNode("condition_1", workflowregistry.NodeTypeCondition, "Route", nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				wfTestConditionBranch("vip", "VIP", "vip_reply", "start_1", "userMessage", "eq", "vip"),
 				{ID: "default", Name: "Default", TargetNodeID: "normal_reply", Default: true},
-			}})},
-			{ID: "vip_reply", Type: workflowregistry.NodeTypeLLMReply, Name: "VIP", Config: []byte(`{"staticReply":"VIP reply"}`)},
-			{ID: "normal_reply", Type: workflowregistry.NodeTypeLLMReply, Name: "Normal", Config: []byte(`{"staticReply":"Normal reply"}`)},
-			{ID: "send_vip", Type: workflowregistry.NodeTypeSendReply, Name: "Send VIP", Inputs: map[string]dsl.VariableSelector{
-				"replyText": {NodeID: "vip_reply", Field: "replyText"},
-			}},
-			{ID: "send_normal", Type: workflowregistry.NodeTypeSendReply, Name: "Send Normal", Inputs: map[string]dsl.VariableSelector{
-				"replyText": {NodeID: "normal_reply", Field: "replyText"},
-			}},
-			{ID: "end_1", Type: workflowregistry.NodeTypeEnd, Name: "End"},
+			}}),
+			wfTestNode("vip_reply", workflowregistry.NodeTypeLLMReply, "VIP", nil, map[string]any{"staticReply": "VIP reply"}),
+			wfTestNode("normal_reply", workflowregistry.NodeTypeLLMReply, "Normal", nil, map[string]any{"staticReply": "Normal reply"}),
+			wfTestNode("send_vip", workflowregistry.NodeTypeSendReply, "Send VIP", wfTestInputs("replyText", "vip_reply", "replyText"), nil),
+			wfTestNode("send_normal", workflowregistry.NodeTypeSendReply, "Send Normal", wfTestInputs("replyText", "normal_reply", "replyText"), nil),
+			wfTestNode("end_1", workflowregistry.NodeTypeEnd, "End", nil, nil),
 		},
-		Edges: []dsl.Edge{
-			{ID: "edge_start_condition", Source: "start_1", Target: "condition_1"},
-			{ID: "edge_condition_vip", Source: "condition_1", Target: "vip_reply"},
-			{ID: "edge_condition_default", Source: "condition_1", Target: "normal_reply"},
-			{ID: "edge_vip_send", Source: "vip_reply", Target: "send_vip"},
-			{ID: "edge_normal_send", Source: "normal_reply", Target: "send_normal"},
-			{ID: "edge_send_vip_end", Source: "send_vip", Target: "end_1"},
-			{ID: "edge_send_normal_end", Source: "send_normal", Target: "end_1"},
+		[]dsl.Edge{
+			wfTestEdge("start_1", "condition_1", "edge_start_condition"),
+			wfTestEdge("condition_1", "vip_reply", "edge_condition_vip"),
+			wfTestEdge("condition_1", "normal_reply", "edge_condition_default"),
+			wfTestEdge("vip_reply", "send_vip", "edge_vip_send"),
+			wfTestEdge("normal_reply", "send_normal", "edge_normal_send"),
+			wfTestEdge("send_vip", "end_1", "edge_send_vip_end"),
+			wfTestEdge("send_normal", "end_1", "edge_send_normal_end"),
 		},
-	}
+	)
 }
 
 func createTicketWorkflowDefinition() dsl.Definition {
-	return dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start_1",
-		Nodes: []dsl.Node{
-			{ID: "start_1", Type: workflowregistry.NodeTypeStart, Name: "Start"},
-			{ID: "draft_1", Type: workflowregistry.NodeTypePrepareTicketDraft, Name: "Draft", Inputs: map[string]dsl.VariableSelector{
-				"issue": {NodeID: "start_1", Field: "userMessage"},
-			}},
-			{ID: "prompt_1", Type: workflowregistry.NodeTypeLLMReply, Name: "Prompt", Config: []byte(`{"staticReply":"请确认创建工单"}`)},
-			{ID: "confirm_1", Type: workflowregistry.NodeTypeHumanConfirm, Name: "Confirm", Inputs: map[string]dsl.VariableSelector{
-				"prompt": {NodeID: "prompt_1", Field: "replyText"},
-			}},
-			{ID: "confirm_route_1", Type: workflowregistry.NodeTypeCondition, Name: "Confirm Route", Config: mustMarshalWorkflowTestConfig(dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
-				{ID: "yes", Name: "Yes", TargetNodeID: "create_ticket_1", Condition: &dsl.Condition{
-					Left:     &dsl.VariableSelector{NodeID: "confirm_1", Field: "confirmed"},
-					Operator: "is_true",
-				}},
+	return wfTestDefinition(
+		[]dsl.Node{
+			wfTestNode("start_1", workflowregistry.NodeTypeStart, "Start", nil, nil),
+			wfTestNode("draft_1", workflowregistry.NodeTypePrepareTicketDraft, "Draft", wfTestInputs("issue", "start_1", "userMessage"), nil),
+			wfTestNode("prompt_1", workflowregistry.NodeTypeLLMReply, "Prompt", nil, map[string]any{"staticReply": "请确认创建工单"}),
+			wfTestNode("confirm_1", workflowregistry.NodeTypeHumanConfirm, "Confirm", wfTestInputs("prompt", "prompt_1", "replyText"), nil),
+			wfTestNode("confirm_route_1", workflowregistry.NodeTypeCondition, "Confirm Route", nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				wfTestConditionBranch("yes", "Yes", "create_ticket_1", "confirm_1", "confirmed", "is_true", nil),
 				{ID: "default", Name: "Cancel", TargetNodeID: "cancel_end", Default: true},
-			}})},
-			{ID: "create_ticket_1", Type: workflowregistry.NodeTypeCreateTicket, Name: "Create Ticket", Inputs: map[string]dsl.VariableSelector{
-				"ticketDraft": {NodeID: "draft_1", Field: "ticketDraft"},
-				"confirmed":   {NodeID: "confirm_1", Field: "confirmed"},
-			}},
-			{ID: "end_1", Type: workflowregistry.NodeTypeEnd, Name: "End"},
-			{ID: "cancel_end", Type: workflowregistry.NodeTypeEnd, Name: "Cancel"},
+			}}),
+			wfTestNode("create_ticket_1", workflowregistry.NodeTypeCreateTicket, "Create Ticket", map[string]dsl.Value{
+				"ticketDraft": dsl.RefValue("draft_1", "ticketDraft"),
+				"confirmed":   dsl.RefValue("confirm_1", "confirmed"),
+			}, nil),
+			wfTestNode("end_1", workflowregistry.NodeTypeEnd, "End", nil, nil),
+			wfTestNode("cancel_end", workflowregistry.NodeTypeEnd, "Cancel", nil, nil),
 		},
-		Edges: []dsl.Edge{
-			{ID: "edge_start_draft", Source: "start_1", Target: "draft_1"},
-			{ID: "edge_draft_prompt", Source: "draft_1", Target: "prompt_1"},
-			{ID: "edge_prompt_confirm", Source: "prompt_1", Target: "confirm_1"},
-			{ID: "edge_confirm_route", Source: "confirm_1", Target: "confirm_route_1"},
-			{ID: "edge_confirm_create", Source: "confirm_route_1", Target: "create_ticket_1"},
-			{ID: "edge_confirm_cancel", Source: "confirm_route_1", Target: "cancel_end"},
-			{ID: "edge_create_end", Source: "create_ticket_1", Target: "end_1"},
+		[]dsl.Edge{
+			wfTestEdge("start_1", "draft_1", "edge_start_draft"),
+			wfTestEdge("draft_1", "prompt_1", "edge_draft_prompt"),
+			wfTestEdge("prompt_1", "confirm_1", "edge_prompt_confirm"),
+			wfTestEdge("confirm_1", "confirm_route_1", "edge_confirm_route"),
+			wfTestEdge("confirm_route_1", "create_ticket_1", "edge_confirm_create"),
+			wfTestEdge("confirm_route_1", "cancel_end", "edge_confirm_cancel"),
+			wfTestEdge("create_ticket_1", "end_1", "edge_create_end"),
 		},
-	}
+	)
 }
 
 func humanConfirmWorkflowDefinition() dsl.Definition {
-	return dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start_1",
-		Nodes: []dsl.Node{
-			{ID: "start_1", Type: workflowregistry.NodeTypeStart, Name: "Start"},
-			{ID: "prompt_1", Type: workflowregistry.NodeTypeLLMReply, Name: "Prompt", Config: []byte(`{"staticReply":"请确认创建工单"}`)},
-			{ID: "confirm_1", Type: workflowregistry.NodeTypeHumanConfirm, Name: "Confirm", Inputs: map[string]dsl.VariableSelector{
-				"prompt": {NodeID: "prompt_1", Field: "replyText"},
-			}},
-			{ID: "confirm_route_1", Type: workflowregistry.NodeTypeCondition, Name: "Confirm Route", Config: mustMarshalWorkflowTestConfig(dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
-				{ID: "yes", Name: "Yes", TargetNodeID: "end_1", Condition: &dsl.Condition{
-					Left:     &dsl.VariableSelector{NodeID: "confirm_1", Field: "confirmed"},
-					Operator: "is_true",
-				}},
+	return wfTestDefinition(
+		[]dsl.Node{
+			wfTestNode("start_1", workflowregistry.NodeTypeStart, "Start", nil, nil),
+			wfTestNode("prompt_1", workflowregistry.NodeTypeLLMReply, "Prompt", nil, map[string]any{"staticReply": "请确认创建工单"}),
+			wfTestNode("confirm_1", workflowregistry.NodeTypeHumanConfirm, "Confirm", wfTestInputs("prompt", "prompt_1", "replyText"), nil),
+			wfTestNode("confirm_route_1", workflowregistry.NodeTypeCondition, "Confirm Route", nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				wfTestConditionBranch("yes", "Yes", "end_1", "confirm_1", "confirmed", "is_true", nil),
 				{ID: "default", Name: "Cancel", TargetNodeID: "cancel_end", Default: true},
-			}})},
-			{ID: "end_1", Type: workflowregistry.NodeTypeEnd, Name: "End"},
-			{ID: "cancel_end", Type: workflowregistry.NodeTypeEnd, Name: "Cancel"},
+			}}),
+			wfTestNode("end_1", workflowregistry.NodeTypeEnd, "End", nil, nil),
+			wfTestNode("cancel_end", workflowregistry.NodeTypeEnd, "Cancel", nil, nil),
 		},
-		Edges: []dsl.Edge{
-			{ID: "edge_start_prompt", Source: "start_1", Target: "prompt_1"},
-			{ID: "edge_prompt_confirm", Source: "prompt_1", Target: "confirm_1"},
-			{ID: "edge_confirm_route", Source: "confirm_1", Target: "confirm_route_1"},
-			{ID: "edge_confirm_yes", Source: "confirm_route_1", Target: "end_1"},
-			{ID: "edge_confirm_cancel", Source: "confirm_route_1", Target: "cancel_end"},
+		[]dsl.Edge{
+			wfTestEdge("start_1", "prompt_1", "edge_start_prompt"),
+			wfTestEdge("prompt_1", "confirm_1", "edge_prompt_confirm"),
+			wfTestEdge("confirm_1", "confirm_route_1", "edge_confirm_route"),
+			wfTestEdge("confirm_route_1", "end_1", "edge_confirm_yes"),
+			wfTestEdge("confirm_route_1", "cancel_end", "edge_confirm_cancel"),
 		},
-	}
+	)
 }
 
 func prepareTicketDraftWorkflowDefinition() dsl.Definition {
-	return dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start_1",
-		Nodes: []dsl.Node{
-			{ID: "start_1", Type: workflowregistry.NodeTypeStart, Name: "Start"},
-			{ID: "draft_1", Type: workflowregistry.NodeTypePrepareTicketDraft, Name: "Draft", Inputs: map[string]dsl.VariableSelector{
-				"issue": {NodeID: "start_1", Field: "userMessage"},
-			}},
-			{ID: "draft_route_1", Type: workflowregistry.NodeTypeCondition, Name: "Draft Route", Config: mustMarshalWorkflowTestConfig(dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
-				{ID: "ready", Name: "Ready", TargetNodeID: "ready_end", Condition: &dsl.Condition{
-					Left:     &dsl.VariableSelector{NodeID: "draft_1", Field: "ticketDraft"},
-					Operator: "exists",
-				}},
+	return wfTestDefinition(
+		[]dsl.Node{
+			wfTestNode("start_1", workflowregistry.NodeTypeStart, "Start", nil, nil),
+			wfTestNode("draft_1", workflowregistry.NodeTypePrepareTicketDraft, "Draft", wfTestInputs("issue", "start_1", "userMessage"), nil),
+			wfTestNode("draft_route_1", workflowregistry.NodeTypeCondition, "Draft Route", nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				wfTestConditionBranch("ready", "Ready", "ready_end", "draft_1", "ticketDraft", "exists", nil),
 				{ID: "default", Name: "Default", TargetNodeID: "default_end", Default: true},
-			}})},
-			{ID: "ready_end", Type: workflowregistry.NodeTypeEnd, Name: "Ready"},
-			{ID: "default_end", Type: workflowregistry.NodeTypeEnd, Name: "Default"},
+			}}),
+			wfTestNode("ready_end", workflowregistry.NodeTypeEnd, "Ready", nil, nil),
+			wfTestNode("default_end", workflowregistry.NodeTypeEnd, "Default", nil, nil),
 		},
-		Edges: []dsl.Edge{
-			{ID: "edge_start_draft", Source: "start_1", Target: "draft_1"},
-			{ID: "edge_draft_route", Source: "draft_1", Target: "draft_route_1"},
-			{ID: "edge_draft_ready", Source: "draft_route_1", Target: "ready_end"},
-			{ID: "edge_draft_default", Source: "draft_route_1", Target: "default_end"},
+		[]dsl.Edge{
+			wfTestEdge("start_1", "draft_1", "edge_start_draft"),
+			wfTestEdge("draft_1", "draft_route_1", "edge_draft_route"),
+			wfTestEdge("draft_route_1", "ready_end", "edge_draft_ready"),
+			wfTestEdge("draft_route_1", "default_end", "edge_draft_default"),
 		},
-	}
+	)
 }
 
 func analyzeConversationWorkflowDefinition() dsl.Definition {
-	return dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start_1",
-		Nodes: []dsl.Node{
-			{ID: "start_1", Type: workflowregistry.NodeTypeStart, Name: "Start"},
-			{ID: "analyze_1", Type: workflowregistry.NodeTypeAnalyzeConversation, Name: "Analyze", Inputs: map[string]dsl.VariableSelector{
-				"userMessage": {NodeID: "start_1", Field: "userMessage"},
-			}},
-			{ID: "analyze_route_1", Type: workflowregistry.NodeTypeCondition, Name: "Analyze Route", Config: mustMarshalWorkflowTestConfig(dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
-				{ID: "handoff", Name: "Handoff", TargetNodeID: "handoff_end", Condition: &dsl.Condition{
-					Left:     &dsl.VariableSelector{NodeID: "analyze_1", Field: "needHumanHandoff"},
-					Operator: "is_true",
-				}},
+	return wfTestDefinition(
+		[]dsl.Node{
+			wfTestNode("start_1", workflowregistry.NodeTypeStart, "Start", nil, nil),
+			wfTestNode("analyze_1", workflowregistry.NodeTypeAnalyzeConversation, "Analyze", wfTestInputs("userMessage", "start_1", "userMessage"), nil),
+			wfTestNode("analyze_route_1", workflowregistry.NodeTypeCondition, "Analyze Route", nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				wfTestConditionBranch("handoff", "Handoff", "handoff_end", "analyze_1", "needHumanHandoff", "is_true", nil),
 				{ID: "default", Name: "Default", TargetNodeID: "default_end", Default: true},
-			}})},
-			{ID: "handoff_end", Type: workflowregistry.NodeTypeEnd, Name: "Handoff"},
-			{ID: "default_end", Type: workflowregistry.NodeTypeEnd, Name: "Default"},
+			}}),
+			wfTestNode("handoff_end", workflowregistry.NodeTypeEnd, "Handoff", nil, nil),
+			wfTestNode("default_end", workflowregistry.NodeTypeEnd, "Default", nil, nil),
 		},
-		Edges: []dsl.Edge{
-			{ID: "edge_start_analyze", Source: "start_1", Target: "analyze_1"},
-			{ID: "edge_analyze_route", Source: "analyze_1", Target: "analyze_route_1"},
-			{ID: "edge_analyze_handoff", Source: "analyze_route_1", Target: "handoff_end"},
-			{ID: "edge_analyze_default", Source: "analyze_route_1", Target: "default_end"},
+		[]dsl.Edge{
+			wfTestEdge("start_1", "analyze_1", "edge_start_analyze"),
+			wfTestEdge("analyze_1", "analyze_route_1", "edge_analyze_route"),
+			wfTestEdge("analyze_route_1", "handoff_end", "edge_analyze_handoff"),
+			wfTestEdge("analyze_route_1", "default_end", "edge_analyze_default"),
 		},
-	}
+	)
 }
 
 func handoffWorkflowDefinition() dsl.Definition {
-	return dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start_1",
-		Nodes: []dsl.Node{
-			{ID: "start_1", Type: workflowregistry.NodeTypeStart, Name: "Start"},
-			{ID: "handoff_1", Type: workflowregistry.NodeTypeHandoffToHuman, Name: "Handoff", Inputs: map[string]dsl.VariableSelector{
-				"reason": {NodeID: "start_1", Field: "userMessage"},
-			}},
-			{ID: "handoff_route_1", Type: workflowregistry.NodeTypeCondition, Name: "Handoff Route", Config: mustMarshalWorkflowTestConfig(dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
-				{ID: "assigned", Name: "Assigned", TargetNodeID: "assigned_end", Condition: &dsl.Condition{
-					Left:     &dsl.VariableSelector{NodeID: "handoff_1", Field: "decision"},
-					Operator: "eq",
-					Right:    string(services.HandoffDecisionAssigned),
-				}},
+	return wfTestDefinition(
+		[]dsl.Node{
+			wfTestNode("start_1", workflowregistry.NodeTypeStart, "Start", nil, nil),
+			wfTestNode("handoff_1", workflowregistry.NodeTypeHandoffToHuman, "Handoff", wfTestInputs("reason", "start_1", "userMessage"), nil),
+			wfTestNode("handoff_route_1", workflowregistry.NodeTypeCondition, "Handoff Route", nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				wfTestConditionBranch("assigned", "Assigned", "assigned_end", "handoff_1", "decision", "eq", string(services.HandoffDecisionAssigned)),
 				{ID: "default", Name: "Default", TargetNodeID: "default_end", Default: true},
-			}})},
-			{ID: "assigned_end", Type: workflowregistry.NodeTypeEnd, Name: "Assigned"},
-			{ID: "default_end", Type: workflowregistry.NodeTypeEnd, Name: "Default"},
+			}}),
+			wfTestNode("assigned_end", workflowregistry.NodeTypeEnd, "Assigned", nil, nil),
+			wfTestNode("default_end", workflowregistry.NodeTypeEnd, "Default", nil, nil),
 		},
-		Edges: []dsl.Edge{
-			{ID: "edge_start_handoff", Source: "start_1", Target: "handoff_1"},
-			{ID: "edge_handoff_route", Source: "handoff_1", Target: "handoff_route_1"},
-			{ID: "edge_handoff_assigned", Source: "handoff_route_1", Target: "assigned_end"},
-			{ID: "edge_handoff_default", Source: "handoff_route_1", Target: "default_end"},
+		[]dsl.Edge{
+			wfTestEdge("start_1", "handoff_1", "edge_start_handoff"),
+			wfTestEdge("handoff_1", "handoff_route_1", "edge_handoff_route"),
+			wfTestEdge("handoff_route_1", "assigned_end", "edge_handoff_assigned"),
+			wfTestEdge("handoff_route_1", "default_end", "edge_handoff_default"),
+		},
+	)
+}
+
+func handoffAfterConfirmationWorkflowDefinition() dsl.Definition {
+	return wfTestDefinition(
+		[]dsl.Node{
+			wfTestNode("start_1", workflowregistry.NodeTypeStart, "Start", nil, nil),
+			wfTestNode("prompt_1", workflowregistry.NodeTypeLLMReply, "Prompt", nil, map[string]any{"staticReply": "请确认转人工"}),
+			wfTestNode("confirm_1", workflowregistry.NodeTypeHumanConfirm, "Confirm", wfTestInputs("prompt", "prompt_1", "replyText"), nil),
+			wfTestNode("handoff_1", workflowregistry.NodeTypeHandoffToHuman, "Handoff", map[string]dsl.Value{
+				"reason":    dsl.RefValue("start_1", "userMessage"),
+				"confirmed": dsl.RefValue("confirm_1", "confirmed"),
+			}, nil),
+			wfTestNode("end_1", workflowregistry.NodeTypeEnd, "End", nil, nil),
+		},
+		[]dsl.Edge{
+			wfTestEdge("start_1", "prompt_1", "edge_start_prompt"),
+			wfTestEdge("prompt_1", "confirm_1", "edge_prompt_confirm"),
+			wfTestEdge("confirm_1", "handoff_1", "edge_confirm_handoff"),
+			wfTestEdge("handoff_1", "end_1", "edge_handoff_end"),
+		},
+	)
+}
+
+func wfTestDefinition(nodes []dsl.Node, edges []dsl.Edge) dsl.Definition {
+	return dsl.Definition{SchemaVersion: dsl.SchemaVersion, Nodes: nodes, Edges: edges}
+}
+
+func wfTestNode(id string, nodeType string, title string, inputs map[string]dsl.Value, config any) dsl.Node {
+	return dsl.Node{
+		ID:   id,
+		Type: nodeType,
+		Meta: dsl.NodeMeta{Position: dsl.Position{X: 0, Y: 0}},
+		Data: dsl.NodeData{
+			Title:        title,
+			InputsValues: inputs,
+			Config:       mustMarshalWorkflowTestConfig(config),
 		},
 	}
 }
 
-func handoffAfterConfirmationWorkflowDefinition() dsl.Definition {
-	return dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start_1",
-		Nodes: []dsl.Node{
-			{ID: "start_1", Type: workflowregistry.NodeTypeStart, Name: "Start"},
-			{ID: "prompt_1", Type: workflowregistry.NodeTypeLLMReply, Name: "Prompt", Config: []byte(`{"staticReply":"请确认转人工"}`)},
-			{ID: "confirm_1", Type: workflowregistry.NodeTypeHumanConfirm, Name: "Confirm", Inputs: map[string]dsl.VariableSelector{
-				"prompt": {NodeID: "prompt_1", Field: "replyText"},
-			}},
-			{ID: "handoff_1", Type: workflowregistry.NodeTypeHandoffToHuman, Name: "Handoff", Inputs: map[string]dsl.VariableSelector{
-				"reason":    {NodeID: "start_1", Field: "userMessage"},
-				"confirmed": {NodeID: "confirm_1", Field: "confirmed"},
-			}},
-			{ID: "end_1", Type: workflowregistry.NodeTypeEnd, Name: "End"},
-		},
-		Edges: []dsl.Edge{
-			{ID: "edge_start_prompt", Source: "start_1", Target: "prompt_1"},
-			{ID: "edge_prompt_confirm", Source: "prompt_1", Target: "confirm_1"},
-			{ID: "edge_confirm_handoff", Source: "confirm_1", Target: "handoff_1"},
-			{ID: "edge_handoff_end", Source: "handoff_1", Target: "end_1"},
+func wfTestInputs(name string, nodeID string, field string) map[string]dsl.Value {
+	return map[string]dsl.Value{name: dsl.RefValue(nodeID, field)}
+}
+
+func wfTestEdge(source string, target string, id string) dsl.Edge {
+	return dsl.Edge{SourceNodeID: source, TargetNodeID: target, SourcePortID: id}
+}
+
+func wfTestConditionBranch(id string, name string, targetNodeID string, nodeID string, field string, operator string, right any) dsl.ConditionBranch {
+	return dsl.ConditionBranch{
+		ID:           id,
+		Name:         name,
+		TargetNodeID: targetNodeID,
+		Condition: &dsl.Condition{
+			Left:     &dsl.Value{Type: dsl.ValueTypeRef, Content: []string{nodeID, field}},
+			Operator: operator,
+			Right:    right,
 		},
 	}
 }

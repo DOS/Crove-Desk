@@ -1,97 +1,8 @@
+import type { AIWorkflowDefinition, AIWorkflowNodeSpec, AIWorkflowValue } from "@/lib/api/admin"
+
 export type WorkflowNodePosition = {
   x: number
   y: number
-}
-
-export type WorkflowHelperLineNode = {
-  id: string
-  position: WorkflowNodePosition
-  width?: number | null
-  height?: number | null
-  measured?: {
-    width?: number | null
-    height?: number | null
-  }
-}
-
-export type WorkflowHelperLine = {
-  horizontal?: {
-    y: number
-    left: number
-    width: number
-  }
-  vertical?: {
-    x: number
-    top: number
-    height: number
-  }
-}
-
-export type WorkflowHelperLineResult = WorkflowHelperLine & {
-  position: WorkflowNodePosition
-}
-
-export type WorkflowEditorNode = {
-  id: string
-  type?: string
-  position: WorkflowNodePosition
-  data?: {
-    nodeType?: string
-    name?: string
-    label?: string
-    config?: WorkflowNodeConfig
-    inputs?: Record<string, WorkflowVariableSelector>
-  }
-}
-
-export type WorkflowEditorEdge = {
-  id: string
-  source: string
-  target: string
-  sourceHandle?: string | null
-  targetHandle?: string | null
-}
-
-export type WorkflowCondition = {
-  expression?: string
-  left?: WorkflowVariableSelector
-  operator?: string
-  right?: unknown
-}
-
-export type WorkflowConditionBranch = {
-  id: string
-  name?: string
-  targetNodeId: string
-  condition?: WorkflowCondition
-  default?: boolean
-}
-
-export type WorkflowNodeConfig = Record<string, unknown> & {
-  branches?: WorkflowConditionBranch[]
-}
-
-export type WorkflowDraft = {
-  nodes: WorkflowEditorNode[]
-  edges: WorkflowEditorEdge[]
-}
-
-export type WorkflowDefinition = {
-  schemaVersion: number
-  entryNodeId: string
-  nodes: {
-    id: string
-    type: string
-    name: string
-    position: WorkflowNodePosition
-    config: WorkflowNodeConfig
-    inputs?: Record<string, WorkflowVariableSelector>
-  }[]
-  edges: {
-    id: string
-    source: string
-    target: string
-  }[]
 }
 
 export type WorkflowVariableType =
@@ -104,11 +15,6 @@ export type WorkflowVariableType =
   | "array<int>"
   | "array<object>"
   | "any"
-
-export type WorkflowVariableSelector = {
-  nodeId: string
-  field: string
-}
 
 export type WorkflowVariableValueOption = {
   value: unknown
@@ -126,13 +32,26 @@ export type WorkflowVariableSpec = {
   valueOptions?: WorkflowVariableValueOption[]
 }
 
-export type WorkflowNodeSpec = {
-  type: string
-  title?: string
-  description?: string
-  inputSchema?: WorkflowVariableSpec[]
-  outputSchema?: WorkflowVariableSpec[]
-  defaultInputs?: Record<string, WorkflowVariableSelector>
+export type WorkflowValue = AIWorkflowValue
+export type WorkflowVariableSelector = Extract<AIWorkflowValue, { type: "ref" }>
+
+export type WorkflowCondition = {
+  expression?: string
+  left?: WorkflowValue
+  operator?: string
+  right?: unknown
+}
+
+export type WorkflowConditionBranch = {
+  id: string
+  name?: string
+  targetNodeId: string
+  condition?: WorkflowCondition
+  default?: boolean
+}
+
+export type WorkflowNodeConfig = Record<string, unknown> & {
+  branches?: WorkflowConditionBranch[]
 }
 
 export type WorkflowVariableRef = {
@@ -146,640 +65,319 @@ export type WorkflowVariableRef = {
   valueOptions?: WorkflowVariableValueOption[]
 }
 
+export type WorkflowNodeSpec = AIWorkflowNodeSpec
+
 export type WorkflowDraftValidation = {
   valid: boolean
   errors: string[]
 }
 
-export type WorkflowHistory<T> = {
-  past: T[]
-  future: T[]
-  limit: number
+export type WorkflowNode = AIWorkflowDefinition["nodes"][number]
+export type WorkflowNodeData = WorkflowNode["data"]
+export type WorkflowEdge = AIWorkflowDefinition["edges"][number]
+
+export function createRefValue(nodeId: string, field: string): WorkflowVariableSelector {
+  return { type: "ref", content: [nodeId, field] }
 }
 
-export type WorkflowHistoryChange<T> = {
-  history: WorkflowHistory<T>
-  snapshot: T
+export function isRefValue(value: WorkflowValue | undefined): value is WorkflowVariableSelector {
+  return value?.type === "ref" && Array.isArray(value.content) && value.content.length >= 2
 }
 
-const helperLineAlignmentThreshold = 6
-const defaultWorkflowHistoryLimit = 50
-const conditionBranchHandlePrefix = "condition-branch:"
-
-export function getConditionBranchHandleId(branchId: string): string {
-  return `${conditionBranchHandlePrefix}${branchId}`
+export function refNodeId(value: WorkflowValue | undefined): string {
+  return isRefValue(value) ? value.content[0] : ""
 }
 
-export function parseConditionBranchHandleId(handleId?: string | null): string | null {
-  if (!handleId?.startsWith(conditionBranchHandlePrefix)) {
-    return null
-  }
-  const branchId = handleId.slice(conditionBranchHandlePrefix.length)
-  return branchId || null
+export function refField(value: WorkflowValue | undefined): string {
+  return isRefValue(value) ? value.content[1] : ""
 }
 
-function cloneHistorySnapshot<T>(snapshot: T): T {
-  return JSON.parse(JSON.stringify(snapshot)) as T
-}
-
-export function createWorkflowHistory<T>(limit = defaultWorkflowHistoryLimit): WorkflowHistory<T> {
-  return {
-    past: [],
-    future: [],
-    limit,
-  }
-}
-
-export function pushWorkflowHistory<T>(
-  history: WorkflowHistory<T>,
-  snapshot: T
-): WorkflowHistory<T> {
-  const past = [...history.past, cloneHistorySnapshot(snapshot)]
-  return {
-    past: past.slice(Math.max(0, past.length - history.limit)),
-    future: [],
-    limit: history.limit,
-  }
-}
-
-export function undoWorkflowHistory<T>(
-  history: WorkflowHistory<T>,
-  current: T
-): WorkflowHistoryChange<T> | null {
-  const snapshot = history.past.at(-1)
-  if (!snapshot) {
-    return null
-  }
-  return {
-    snapshot: cloneHistorySnapshot(snapshot),
-    history: {
-      past: history.past.slice(0, -1),
-      future: [cloneHistorySnapshot(current), ...history.future],
-      limit: history.limit,
-    },
-  }
-}
-
-export function redoWorkflowHistory<T>(
-  history: WorkflowHistory<T>,
-  current: T
-): WorkflowHistoryChange<T> | null {
-  const snapshot = history.future[0]
-  if (!snapshot) {
-    return null
-  }
-  const past = [...history.past, cloneHistorySnapshot(current)]
-  return {
-    snapshot: cloneHistorySnapshot(snapshot),
-    history: {
-      past: past.slice(Math.max(0, past.length - history.limit)),
-      future: history.future.slice(1),
-      limit: history.limit,
-    },
-  }
-}
-
-function getNodeSize(node: WorkflowHelperLineNode) {
-  return {
-    width: node.measured?.width ?? node.width ?? 0,
-    height: node.measured?.height ?? node.height ?? 0,
-  }
-}
-
-function getNodeAnchorValues(node: WorkflowHelperLineNode) {
-  const size = getNodeSize(node)
-  return {
-    x: [
-      node.position.x,
-      node.position.x + size.width / 2,
-      node.position.x + size.width,
-    ],
-    y: [
-      node.position.y,
-      node.position.y + size.height / 2,
-      node.position.y + size.height,
-    ],
-  }
-}
-
-function getNearestAlignment(
-  axis: "x" | "y",
-  nodes: WorkflowHelperLineNode[],
-  draggingNode: WorkflowHelperLineNode
+export function getNodeTitle(
+  node: AIWorkflowDefinition["nodes"][number] | undefined,
+  specs: AIWorkflowNodeSpec[] = []
 ) {
-  const draggingAnchors = getNodeAnchorValues(draggingNode)[axis]
-  let nearest:
-    | {
-        diff: number
-        targetValue: number
-        candidate: WorkflowHelperLineNode
-      }
-    | undefined
-
-  for (const candidate of nodes) {
-    if (candidate.id === draggingNode.id) {
-      continue
-    }
-    const candidateAnchors = getNodeAnchorValues(candidate)[axis]
-    for (const draggingAnchor of draggingAnchors) {
-      for (const candidateAnchor of candidateAnchors) {
-        const diff = candidateAnchor - draggingAnchor
-        if (Math.abs(diff) > helperLineAlignmentThreshold) {
-          continue
-        }
-        if (!nearest || Math.abs(diff) < Math.abs(nearest.diff)) {
-          nearest = {
-            diff,
-            targetValue: candidateAnchor,
-            candidate,
-          }
-        }
-      }
-    }
+  if (!node) {
+    return ""
   }
-
-  return nearest
+  return node.data?.title || specs.find((item) => item.type === node.type)?.title || node.type || node.id
 }
 
-export function calculateWorkflowHelperLines(
-  nodes: WorkflowHelperLineNode[],
-  draggingNode: WorkflowHelperLineNode
-): WorkflowHelperLineResult {
-  const xAlignment = getNearestAlignment("x", nodes, draggingNode)
-  const yAlignment = getNearestAlignment("y", nodes, draggingNode)
-  const position = {
-    x: draggingNode.position.x + (xAlignment?.diff ?? 0),
-    y: draggingNode.position.y + (yAlignment?.diff ?? 0),
-  }
-  const draggingSize = getNodeSize(draggingNode)
-  const snappedDraggingNode = {
-    ...draggingNode,
-    position,
-  }
-  const result: WorkflowHelperLineResult = {
-    position,
-  }
-
-  if (yAlignment) {
-    const candidateSize = getNodeSize(yAlignment.candidate)
-    const left = Math.min(snappedDraggingNode.position.x, yAlignment.candidate.position.x)
-    const right = Math.max(
-      snappedDraggingNode.position.x + draggingSize.width,
-      yAlignment.candidate.position.x + candidateSize.width
-    )
-    result.horizontal = {
-      y: yAlignment.targetValue,
-      left,
-      width: right - left,
-    }
-  }
-
-  if (xAlignment) {
-    const candidateSize = getNodeSize(xAlignment.candidate)
-    const top = Math.min(snappedDraggingNode.position.y, xAlignment.candidate.position.y)
-    const bottom = Math.max(
-      snappedDraggingNode.position.y + draggingSize.height,
-      xAlignment.candidate.position.y + candidateSize.height
-    )
-    result.vertical = {
-      x: xAlignment.targetValue,
-      top,
-      height: bottom - top,
-    }
-  }
-
-  return result
-}
-
-export function validateWorkflowDraft(
-  draft: WorkflowDraft,
-  nodeSpecs: WorkflowNodeSpec[] = []
+export function validateWorkflowDefinition(
+  definition: AIWorkflowDefinition,
+  nodeSpecs: AIWorkflowNodeSpec[] = []
 ): WorkflowDraftValidation {
   const errors: string[] = []
-  const nodeIds = new Set<string>()
-  let startCount = 0
-  let endCount = 0
+  const nodes = definition.nodes ?? []
+  const edges = definition.edges ?? []
+  const startNodes = nodes.filter((node) => node.type === "start")
+  const endNodes = nodes.filter((node) => node.type === "end")
 
-  for (const node of draft.nodes) {
-    const id = node.id.trim()
-    if (!id) {
-      errors.push("node id is required")
-      continue
-    }
-    if (nodeIds.has(id)) {
-      errors.push(`duplicate node id: ${id}`)
-    }
-    nodeIds.add(id)
-    const nodeType = node.data?.nodeType ?? node.type
-    if (nodeType === "start") {
-      startCount += 1
-    }
-    if (nodeType === "end") {
-      endCount += 1
-    }
-  }
-
-  if (startCount !== 1) {
+  if (startNodes.length !== 1) {
     errors.push("workflow must contain exactly one start node")
   }
-  if (endCount < 1) {
+  if (endNodes.length === 0) {
     errors.push("workflow must contain at least one end node")
   }
 
-  const edgeIds = new Set<string>()
-  const outgoingTargets = new Map<string, Set<string>>()
-  const branchEdges = new Set<string>()
-  for (const edge of draft.edges) {
-    const id = edge.id.trim()
-    if (!id) {
-      errors.push("edge id is required")
-    } else if (edgeIds.has(id)) {
-      errors.push(`duplicate edge id: ${id}`)
-    }
-    edgeIds.add(id)
-    if (!nodeIds.has(edge.source)) {
-      errors.push(`edge source node does not exist: ${edge.source}`)
-    }
-    if (!nodeIds.has(edge.target)) {
-      errors.push(`edge target node does not exist: ${edge.target}`)
-    }
-    if (!outgoingTargets.has(edge.source)) {
-      outgoingTargets.set(edge.source, new Set())
-    }
-    outgoingTargets.get(edge.source)?.add(edge.target)
-    const branchId = parseConditionBranchHandleId(edge.sourceHandle)
-    if (branchId) {
-      branchEdges.add(`${edge.source}:${branchId}:${edge.target}`)
-    }
-  }
-
-  for (const node of draft.nodes) {
-    const nodeType = node.data?.nodeType ?? node.type ?? ""
-    const spec = getNodeSpec(nodeSpecs, nodeType)
-    if (spec) {
-      for (const input of getRequiredInputs(spec)) {
-        const selector = node.data?.inputs?.[input.name]
-        if (!selector?.nodeId || !selector.field) {
-          const nodeName = node.data?.name ?? spec.title ?? node.id
-          errors.push(`${nodeName} 缺少必填输入「${input.name}」，请选择上游节点的输出变量。`)
-        }
-      }
-    }
-    if (nodeType === "condition") {
-      const branches = node.data?.config?.branches ?? []
-      if (branches.length === 0) {
-        errors.push(`${node.data?.name ?? node.id} 至少需要一个分支。`)
-        continue
-      }
-      let defaultCount = 0
-      const branchIds = new Set<string>()
-      const targets = outgoingTargets.get(node.id) ?? new Set<string>()
-      for (const branch of branches) {
-        const branchName = branch.name || branch.id || "未命名分支"
-        if (!branch.id) {
-          errors.push(`${node.data?.name ?? node.id} 存在未填写 ID 的分支。`)
-        } else if (branchIds.has(branch.id)) {
-          errors.push(`${node.data?.name ?? node.id} 存在重复分支 ID「${branch.id}」。`)
-        }
-        branchIds.add(branch.id)
-        if (!branch.targetNodeId) {
-          errors.push(`${node.data?.name ?? node.id} 的分支「${branchName}」缺少目标节点。`)
-        } else if (!nodeIds.has(branch.targetNodeId)) {
-          errors.push(`${node.data?.name ?? node.id} 的分支「${branchName}」目标节点不存在。`)
-        } else if (!targets.has(branch.targetNodeId)) {
-          errors.push(`${node.data?.name ?? node.id} 的分支「${branchName}」需要连接到目标节点。`)
-        } else if (branchEdges.size > 0 && !branchEdges.has(`${node.id}:${branch.id}:${branch.targetNodeId}`)) {
-          errors.push(`${node.data?.name ?? node.id} 的分支「${branchName}」需要从对应分支连接点连到目标节点。`)
-        }
-        if (branch.default) {
-          defaultCount += 1
-          if (branch.condition) {
-            errors.push(`${node.data?.name ?? node.id} 的默认分支不能配置条件。`)
-          }
-          if (branches.indexOf(branch) !== branches.length - 1) {
-            errors.push(`${node.data?.name ?? node.id} 的默认分支必须放在最后。`)
-          }
-          continue
-        }
-        if (!branch.condition?.left?.nodeId || !branch.condition.left.field) {
-          errors.push(`${node.data?.name ?? node.id} 的分支「${branchName}」缺少判断变量。`)
-        }
-        if (!branch.condition?.operator) {
-          errors.push(`${node.data?.name ?? node.id} 的分支「${branchName}」缺少判断方式。`)
-        }
-      }
-      if (defaultCount !== 1) {
-        errors.push(`${node.data?.name ?? node.id} 必须且只能有一个默认分支。`)
-      }
-    }
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  }
-}
-
-export function toApiDefinition(draft: WorkflowDraft): WorkflowDefinition {
-  const startNode = draft.nodes.find((node) => (node.data?.nodeType ?? node.type) === "start")
-  return {
-    schemaVersion: 1,
-    entryNodeId: startNode?.id ?? "",
-    nodes: draft.nodes.map((node) => ({
-      id: node.id,
-      type: node.data?.nodeType ?? node.type ?? "",
-      name: node.data?.name ?? node.type ?? node.id,
-      position: {
-        x: node.position.x,
-        y: node.position.y,
-      },
-      config: node.data?.config ?? {},
-      ...(node.data?.inputs ? { inputs: node.data.inputs } : {}),
-    })),
-    edges: draft.edges.map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-    })),
-  }
-}
-
-export function applyConditionBranchConnection(
-  draft: WorkflowDraft,
-  connection: Pick<WorkflowEditorEdge, "source" | "target" | "sourceHandle">
-): WorkflowDraft {
-  const branchId = parseConditionBranchHandleId(connection.sourceHandle)
-  if (!branchId || !connection.source || !connection.target) {
-    return draft
-  }
-  return updateConditionBranchTarget(draft, connection.source, branchId, connection.target)
-}
-
-export function clearConditionBranchConnection(
-  draft: WorkflowDraft,
-  edge: WorkflowEditorEdge
-): WorkflowDraft {
-  const branchId = parseConditionBranchHandleId(edge.sourceHandle)
-  if (branchId) {
-    return updateConditionBranchTarget(draft, edge.source, branchId, "")
-  }
-  const sourceNode = draft.nodes.find((node) => node.id === edge.source)
-  if (!sourceNode || (sourceNode.data?.nodeType ?? sourceNode.type) !== "condition") {
-    return draft
-  }
-  const branch = sourceNode.data?.config?.branches?.find((item) => item.targetNodeId === edge.target)
-  return branch ? updateConditionBranchTarget(draft, edge.source, branch.id, "") : draft
-}
-
-function updateConditionBranchTarget(
-  draft: WorkflowDraft,
-  conditionNodeId: string,
-  branchId: string,
-  targetNodeId: string
-): WorkflowDraft {
-  let changed = false
-  const nodes = draft.nodes.map((node) => {
-    if (node.id !== conditionNodeId || (node.data?.nodeType ?? node.type) !== "condition") {
-      return node
-    }
-    const branches = node.data?.config?.branches ?? []
-    const nextBranches = branches.map((branch) => {
-      if (branch.id !== branchId || branch.targetNodeId === targetNodeId) {
-        return branch
-      }
-      changed = true
-      return { ...branch, targetNodeId }
-    })
-    if (!changed) {
-      return node
-    }
-    return {
-      ...node,
-      data: {
-        ...node.data,
-        config: {
-          ...(node.data?.config ?? {}),
-          branches: nextBranches,
-        },
-      },
-    }
-  })
-  return changed ? { ...draft, nodes } : draft
-}
-
-export function fromApiDefinition(definition: WorkflowDefinition): WorkflowDraft {
-  return {
-    nodes: (definition.nodes ?? []).map((node) => ({
-      id: node.id,
-      type: node.type,
-      position: node.position ?? { x: 0, y: 0 },
-      data: {
-        nodeType: node.type,
-        name: node.name,
-        config: node.config ?? {},
-        inputs: node.inputs ?? {},
-      },
-    })),
-    edges: (definition.edges ?? []).map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-    })),
-  }
-}
-
-export function applyAutoInputMappings(
-  draft: WorkflowDraft,
-  sourceNodeId: string,
-  targetNodeId: string,
-  nodeSpecs: WorkflowNodeSpec[]
-): WorkflowDraft {
-  const sourceNode = draft.nodes.find((node) => node.id === sourceNodeId)
-  const targetNode = draft.nodes.find((node) => node.id === targetNodeId)
-  if (!sourceNode || !targetNode) {
-    return draft
-  }
-  const sourceSpec = getNodeSpec(nodeSpecs, sourceNode.data?.nodeType ?? sourceNode.type ?? "")
-  const targetSpec = getNodeSpec(nodeSpecs, targetNode.data?.nodeType ?? targetNode.type ?? "")
-  if (!sourceSpec || !targetSpec) {
-    return draft
-  }
-  const nextInputs = { ...(targetNode.data?.inputs ?? {}) }
-  let changed = false
-
-  for (const input of targetSpec.inputSchema ?? []) {
-    if (nextInputs[input.name]) {
+  const nodeIds = new Set<string>()
+  for (const node of nodes) {
+    if (!node.id?.trim()) {
+      errors.push("node id is required")
       continue
     }
-    const output = findPreferredOutput(input.name, input.type, sourceSpec.outputSchema ?? [])
-    if (!output) {
+    if (nodeIds.has(node.id)) {
+      errors.push(`duplicate node id: ${node.id}`)
+    }
+    nodeIds.add(node.id)
+    if (!node.type?.trim()) {
+      errors.push(`node type is required: ${node.id}`)
+    }
+  }
+
+  for (const edge of edges) {
+    if (!nodeIds.has(edge.sourceNodeID)) {
+      errors.push(`edge source node does not exist: ${edge.sourceNodeID}`)
+    }
+    if (!nodeIds.has(edge.targetNodeID)) {
+      errors.push(`edge target node does not exist: ${edge.targetNodeID}`)
+    }
+  }
+
+  const specByType = new Map(nodeSpecs.map((spec) => [spec.type, spec]))
+  for (const node of nodes) {
+    const spec = specByType.get(node.type)
+    if (!spec) {
       continue
     }
-    nextInputs[input.name] = { nodeId: sourceNodeId, field: output.name }
-    changed = true
+    const inputsValues = node.data?.inputsValues ?? {}
+    for (const input of spec.inputSchema ?? []) {
+      if (input.required && !inputsValues[input.name]) {
+        errors.push(`${getNodeTitle(node, nodeSpecs)} missing required input: ${input.label || input.name}`)
+      }
+    }
   }
 
-  if (!changed) {
-    return draft
-  }
-
-  return {
-    ...draft,
-    nodes: draft.nodes.map((node) =>
-      node.id === targetNodeId
-        ? {
-            ...node,
-            data: {
-              ...node.data,
-              inputs: nextInputs,
-            },
-          }
-        : node
-    ),
-  }
+  return { valid: errors.length === 0, errors }
 }
 
 export function createWorkflowNodeFromSpec(
-  spec: WorkflowNodeSpec,
-  existingNodes: Pick<WorkflowEditorNode, "id">[],
+  spec: AIWorkflowNodeSpec,
+  existingNodes: Pick<AIWorkflowDefinition["nodes"][number], "id">[],
   position: WorkflowNodePosition
-): WorkflowEditorNode {
+): AIWorkflowDefinition["nodes"][number] {
   const id = uniqueNodeId(existingNodes, spec.type)
   return {
     id,
-    type: "workflowNode",
-    position,
+    type: spec.type,
+    meta: { position },
     data: {
-      nodeType: spec.type,
-      name: spec.title ?? spec.type,
-      label: spec.title ?? spec.type,
+      title: spec.title || spec.type,
       config: {},
-      inputs: spec.defaultInputs ?? {},
+      inputsValues: spec.defaultInputs ?? {},
     },
   }
 }
 
-function uniqueNodeId(existingNodes: Pick<WorkflowEditorNode, "id">[], nodeType: string) {
-  let nextIndex = existingNodes.length + 1
-  let id = `${nodeType}_${nextIndex}`
-  while (existingNodes.some((node) => node.id === id)) {
-    nextIndex += 1
-    id = `${nodeType}_${nextIndex}`
+export function updateWorkflowNodeData(
+  definition: AIWorkflowDefinition,
+  nodeId: string,
+  data: WorkflowNodeData
+): AIWorkflowDefinition {
+  return {
+    ...definition,
+    nodes: definition.nodes.map((node) => (
+      node.id === nodeId ? { ...node, data } : node
+    )),
   }
-  return id
 }
 
-function findPreferredOutput(
-  inputName: string,
-  inputType: WorkflowVariableType,
-  outputs: WorkflowVariableSpec[]
-): WorkflowVariableSpec | undefined {
-  const preferred = preferredOutputName(inputName)
-  if (preferred) {
-    const exact = outputs.find((output) => output.name === preferred && variableTypesCompatible(inputType, output.type))
-    if (exact) {
-      return exact
+export function deleteWorkflowNode(
+  definition: AIWorkflowDefinition,
+  nodeId: string
+): AIWorkflowDefinition {
+  const node = definition.nodes.find((item) => item.id === nodeId)
+  if (!node || node.type === "start" || node.type === "end") {
+    return definition
+  }
+  return {
+    ...definition,
+    nodes: definition.nodes.filter((item) => item.id !== nodeId),
+    edges: definition.edges.filter((edge) => (
+      edge.sourceNodeID !== nodeId && edge.targetNodeID !== nodeId
+    )),
+  }
+}
+
+export function upsertConditionBranch(
+  definition: AIWorkflowDefinition,
+  nodeId: string,
+  branch: WorkflowConditionBranch
+): AIWorkflowDefinition {
+  const node = definition.nodes.find((item) => item.id === nodeId)
+  if (!node) {
+    return definition
+  }
+  const config = normalizeNodeConfig(node.data?.config)
+  const branches = config.branches ?? []
+  const nextBranches = branches.some((item) => item.id === branch.id)
+    ? branches.map((item) => (item.id === branch.id ? branch : item))
+    : [...branches, branch]
+  return updateWorkflowNodeData(definition, nodeId, {
+    ...(node.data ?? {}),
+    config: { ...config, branches: nextBranches },
+  })
+}
+
+export function deleteConditionBranch(
+  definition: AIWorkflowDefinition,
+  nodeId: string,
+  branchId: string
+): AIWorkflowDefinition {
+  const node = definition.nodes.find((item) => item.id === nodeId)
+  if (!node) {
+    return definition
+  }
+  const config = normalizeNodeConfig(node.data?.config)
+  return updateWorkflowNodeData(definition, nodeId, {
+    ...(node.data ?? {}),
+    config: {
+      ...config,
+      branches: (config.branches ?? []).filter((branch) => branch.id !== branchId),
+    },
+  })
+}
+
+export function normalizeNodeConfig(config: unknown): WorkflowNodeConfig {
+  if (!config || typeof config !== "object" || Array.isArray(config)) {
+    return {}
+  }
+  const record = config as Record<string, unknown>
+  const branches = Array.isArray(record.branches)
+    ? record.branches
+        .map(normalizeConditionBranch)
+        .filter((branch): branch is WorkflowConditionBranch => branch !== null)
+    : undefined
+  return {
+    ...record,
+    ...(branches ? { branches } : {}),
+  } as WorkflowNodeConfig
+}
+
+export function createConditionBranchID(existingBranches: WorkflowConditionBranch[]) {
+  const existingIDs = new Set(existingBranches.map((branch) => branch.id))
+  for (let index = 1; index < 10000; index++) {
+    const id = `branch_${index}`
+    if (!existingIDs.has(id)) {
+      return id
     }
   }
-  const sameName = outputs.find((output) => output.name === inputName && variableTypesCompatible(inputType, output.type))
-  if (sameName) {
-    return sameName
-  }
-  return outputs.find((output) => variableTypesCompatible(inputType, output.type))
-}
-
-function preferredOutputName(inputName: string): string {
-  switch (inputName) {
-    case "query":
-    case "userMessage":
-    case "issue":
-    case "prompt":
-      return "userMessage"
-    case "knowledgeItems":
-      return "items"
-    case "replyText":
-      return "replyText"
-    case "confirmed":
-      return "confirmed"
-    case "ticketDraft":
-      return "ticketDraft"
-    case "reason":
-      return "reason"
-    default:
-      return ""
-  }
-}
-
-function variableTypesCompatible(input: WorkflowVariableType, output: WorkflowVariableType): boolean {
-  return input === "any" || output === "any" || input === output
-}
-
-export function getNodeSpec(
-  nodeSpecs: WorkflowNodeSpec[],
-  nodeType: string
-): WorkflowNodeSpec | undefined {
-  return nodeSpecs.find((spec) => spec.type === nodeType)
-}
-
-export function getRequiredInputs(spec: WorkflowNodeSpec | undefined): WorkflowVariableSpec[] {
-  return (spec?.inputSchema ?? []).filter((item) => item.required)
+  return `branch_${Date.now()}`
 }
 
 export function getAvailableVariables(
-  draft: WorkflowDraft,
+  definition: AIWorkflowDefinition,
   nodeId: string,
-  nodeSpecs: WorkflowNodeSpec[]
+  nodeSpecs: AIWorkflowNodeSpec[]
 ): WorkflowVariableRef[] {
-  const ancestors = collectAncestorNodeIds(draft, nodeId)
-  const nodesById = new Map(draft.nodes.map((node) => [node.id, node]))
-  const variables: WorkflowVariableRef[] = []
+  const ancestorIds = collectAncestorNodeIds(definition, nodeId)
+  const specByType = new Map(nodeSpecs.map((spec) => [spec.type, spec]))
+  const ret: WorkflowVariableRef[] = []
 
-  for (const sourceNodeId of ancestors) {
-    const sourceNode = nodesById.get(sourceNodeId)
-    if (!sourceNode) {
+  for (const id of ancestorIds) {
+    const node = definition.nodes.find((item) => item.id === id)
+    if (!node) {
       continue
     }
-    const nodeType = sourceNode.data?.nodeType ?? sourceNode.type ?? ""
-    const spec = getNodeSpec(nodeSpecs, nodeType)
+    const spec = specByType.get(node.type)
     for (const output of spec?.outputSchema ?? []) {
-      variables.push({
-        nodeId: sourceNode.id,
-        nodeName: sourceNode.data?.name ?? spec?.title ?? sourceNode.id,
+      ret.push({
+        nodeId: node.id,
+        nodeName: getNodeTitle(node, nodeSpecs),
         field: output.name,
         label: output.label,
         type: output.type,
-        description: output.description ?? "",
+        description: output.description || "",
         operators: output.operators,
         valueOptions: output.valueOptions,
       })
     }
   }
 
-  return variables
+  return ret
 }
 
-function collectAncestorNodeIds(draft: WorkflowDraft, nodeId: string): string[] {
+function collectAncestorNodeIds(definition: AIWorkflowDefinition, nodeId: string): string[] {
   const incoming = new Map<string, string[]>()
-  for (const edge of draft.edges) {
-    const sources = incoming.get(edge.target) ?? []
-    sources.push(edge.source)
-    incoming.set(edge.target, sources)
+  for (const edge of definition.edges ?? []) {
+    const list = incoming.get(edge.targetNodeID) ?? []
+    list.push(edge.sourceNodeID)
+    incoming.set(edge.targetNodeID, list)
   }
 
-  const visited = new Set<string>()
-  const ordered: string[] = []
-
-  function visit(current: string) {
-    for (const source of incoming.get(current) ?? []) {
-      if (visited.has(source)) {
+  const result: string[] = []
+  const seen = new Set<string>()
+  const visit = (id: string) => {
+    for (const source of incoming.get(id) ?? []) {
+      if (seen.has(source)) {
         continue
       }
-      visited.add(source)
+      seen.add(source)
       visit(source)
-      ordered.push(source)
+      result.push(source)
     }
   }
-
   visit(nodeId)
-  return ordered
+  return result
+}
+
+function uniqueNodeId(existingNodes: Pick<AIWorkflowDefinition["nodes"][number], "id">[], nodeType: string) {
+  const normalizedType = nodeType.replace(/[^a-zA-Z0-9_]/g, "_") || "node"
+  const existingIDs = new Set(existingNodes.map((node) => node.id))
+  for (let index = 1; index < 10000; index++) {
+    const id = `${normalizedType}_${index}`
+    if (!existingIDs.has(id)) {
+      return id
+    }
+  }
+  return `${normalizedType}_${Date.now()}`
+}
+
+function normalizeConditionBranch(value: unknown): WorkflowConditionBranch | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null
+  }
+  const record = value as Record<string, unknown>
+  const id = typeof record.id === "string" ? record.id : ""
+  const targetNodeId = typeof record.targetNodeId === "string" ? record.targetNodeId : ""
+  if (!id) {
+    return null
+  }
+  return {
+    id,
+    name: typeof record.name === "string" ? record.name : undefined,
+    targetNodeId,
+    default: record.default === true,
+    condition: normalizeCondition(record.condition),
+  }
+}
+
+function normalizeCondition(value: unknown): WorkflowCondition | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined
+  }
+  const record = value as Record<string, unknown>
+  return {
+    expression: typeof record.expression === "string" ? record.expression : undefined,
+    left: isWorkflowValue(record.left) ? record.left : undefined,
+    operator: typeof record.operator === "string" ? record.operator : undefined,
+    right: record.right,
+  }
+}
+
+function isWorkflowValue(value: unknown): value is WorkflowValue {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false
+  }
+  const type = (value as Record<string, unknown>).type
+  return type === "ref" || type === "constant" || type === "template"
 }

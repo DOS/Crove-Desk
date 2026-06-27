@@ -20,16 +20,15 @@ import (
 func TestAIWorkflowServiceValidateDefinitionReportsErrors(t *testing.T) {
 	setupAIWorkflowTestDB(t)
 	result := AIWorkflowService.ValidateDefinition(dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start_1",
+		SchemaVersion: dsl.SchemaVersion,
 		Nodes: []dsl.Node{
-			{ID: "start_1", Type: "start"},
-			{ID: "create_1", Type: "create_ticket"},
-			{ID: "end_1", Type: "end"},
+			workflowServiceTestNode("start_1", "start", nil, nil),
+			workflowServiceTestNode("create_1", "create_ticket", nil, nil),
+			workflowServiceTestNode("end_1", "end", nil, nil),
 		},
 		Edges: []dsl.Edge{
-			{ID: "e1", Source: "start_1", Target: "create_1"},
-			{ID: "e2", Source: "create_1", Target: "end_1"},
+			workflowServiceTestEdge("start_1", "create_1"),
+			workflowServiceTestEdge("create_1", "end_1"),
 		},
 	})
 
@@ -79,7 +78,7 @@ func TestAIWorkflowServicePublishCreatesImmutableVersion(t *testing.T) {
 	if err := json.Unmarshal([]byte(version.Definition), &stored); err != nil {
 		t.Fatalf("unmarshal stored definition: %v", err)
 	}
-	if stored.EntryNodeID != "start_1" {
+	if stored.SchemaVersion != dsl.SchemaVersion || len(stored.Nodes) == 0 {
 		t.Fatalf("unexpected stored definition: %+v", stored)
 	}
 }
@@ -131,16 +130,15 @@ func TestAIWorkflowServicePublishRejectsInvalidDSL(t *testing.T) {
 	_, err = AIWorkflowService.PublishWorkflow(request.PublishAIWorkflowRequest{
 		WorkflowID: workflow.ID,
 		Definition: dsl.Definition{
-			SchemaVersion: 1,
-			EntryNodeID:   "start_1",
+			SchemaVersion: dsl.SchemaVersion,
 			Nodes: []dsl.Node{
-				{ID: "start_1", Type: "start"},
-				{ID: "create_1", Type: "create_ticket"},
-				{ID: "end_1", Type: "end"},
+				workflowServiceTestNode("start_1", "start", nil, nil),
+				workflowServiceTestNode("create_1", "create_ticket", nil, nil),
+				workflowServiceTestNode("end_1", "end", nil, nil),
 			},
 			Edges: []dsl.Edge{
-				{ID: "e1", Source: "start_1", Target: "create_1"},
-				{ID: "e2", Source: "create_1", Target: "end_1"},
+				workflowServiceTestEdge("start_1", "create_1"),
+				workflowServiceTestEdge("create_1", "end_1"),
 			},
 		},
 	}, operator)
@@ -164,7 +162,7 @@ func TestAIWorkflowServiceRunListAndDetail(t *testing.T) {
 		t.Fatalf("create workflow: %v", err)
 	}
 	versionDefinition := validAIWorkflowDefinition()
-	versionDefinition.Nodes[1].Name = "运行时回复"
+	versionDefinition.Nodes[1].Data.Title = "运行时回复"
 	versionDefinitionJSON, err := json.Marshal(versionDefinition)
 	if err != nil {
 		t.Fatalf("marshal version definition: %v", err)
@@ -278,20 +276,47 @@ func setupAIWorkflowTestDB(t *testing.T) {
 
 func validAIWorkflowDefinition() dsl.Definition {
 	return dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start_1",
+		SchemaVersion: dsl.SchemaVersion,
 		Nodes: []dsl.Node{
-			{ID: "start_1", Type: "start"},
-			{ID: "reply_1", Type: "send_reply", Config: json.RawMessage(`{"text":"hello"}`), Inputs: map[string]dsl.VariableSelector{
-				"replyText": {NodeID: "start_1", Field: "userMessage"},
-			}},
-			{ID: "end_1", Type: "end"},
+			workflowServiceTestNode("start_1", "start", nil, nil),
+			workflowServiceTestNode("reply_1", "send_reply", map[string]dsl.Value{
+				"replyText": dsl.RefValue("start_1", "userMessage"),
+			}, map[string]any{"text": "hello"}),
+			workflowServiceTestNode("end_1", "end", nil, nil),
 		},
 		Edges: []dsl.Edge{
-			{ID: "e1", Source: "start_1", Target: "reply_1"},
-			{ID: "e2", Source: "reply_1", Target: "end_1"},
+			workflowServiceTestEdge("start_1", "reply_1"),
+			workflowServiceTestEdge("reply_1", "end_1"),
 		},
 	}
+}
+
+func workflowServiceTestNode(id string, nodeType string, inputs map[string]dsl.Value, config any) dsl.Node {
+	return dsl.Node{
+		ID:   id,
+		Type: nodeType,
+		Meta: dsl.NodeMeta{Position: dsl.Position{X: 0, Y: 0}},
+		Data: dsl.NodeData{
+			Title:        nodeType,
+			InputsValues: inputs,
+			Config:       mustMarshalWorkflowServiceTestConfig(config),
+		},
+	}
+}
+
+func workflowServiceTestEdge(source string, target string) dsl.Edge {
+	return dsl.Edge{SourceNodeID: source, TargetNodeID: target}
+}
+
+func mustMarshalWorkflowServiceTestConfig(value any) json.RawMessage {
+	if value == nil {
+		return nil
+	}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		panic(err)
+	}
+	return raw
 }
 
 func aiWorkflowTestOperator() *dto.AuthPrincipal {

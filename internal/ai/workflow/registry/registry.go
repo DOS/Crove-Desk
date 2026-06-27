@@ -67,8 +67,8 @@ func DefaultRegistry() *Registry {
 				output("riskSignals", VariableTypeStringArray, "Detected risk signals."),
 				output("reason", VariableTypeString, "Decision reason."),
 			},
-			DefaultInputs: map[string]dsl.VariableSelector{
-				"userMessage": {NodeID: "start_1", Field: "userMessage"},
+			DefaultInputs: map[string]dsl.Value{
+				"userMessage": dsl.RefValue("start_1", "userMessage"),
 			},
 		},
 		NodeSpec{
@@ -123,8 +123,8 @@ func DefaultRegistry() *Registry {
 				output("items", VariableTypeObjectArray, "Retrieved knowledge items."),
 				output("summary", VariableTypeString, "Short retrieval summary."),
 			},
-			DefaultInputs: map[string]dsl.VariableSelector{
-				"query": {NodeID: "start_1", Field: "userMessage"},
+			DefaultInputs: map[string]dsl.Value{
+				"query": dsl.RefValue("start_1", "userMessage"),
 			},
 		},
 		NodeSpec{

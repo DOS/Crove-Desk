@@ -49,13 +49,12 @@ func TestToWorkflowSummaryPreservesInterruptCheckpoint(t *testing.T) {
 func TestPrepareWorkflowAgentDoesNotInjectWorkflowAppendix(t *testing.T) {
 	db := setupWorkflowResumeTestDB(t)
 	definitionJSON := mustMarshalDefinition(t, dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start",
+		SchemaVersion: 2,
 		Nodes: []dsl.Node{
-			{ID: "start", Type: workflowregistry.NodeTypeStart, Name: "Start"},
-			{ID: "handoff", Type: workflowregistry.NodeTypeHandoffToHuman, Name: "Handoff"},
+			runtimeTestNode("start", workflowregistry.NodeTypeStart, "Start", nil, nil),
+			runtimeTestNode("handoff", workflowregistry.NodeTypeHandoffToHuman, "Handoff", nil, nil),
 		},
-		Edges: []dsl.Edge{{ID: "edge_start_handoff", Source: "start", Target: "handoff"}},
+		Edges: []dsl.Edge{runtimeTestEdge("edge_start_handoff", "start", "handoff")},
 	})
 	version := models.AIWorkflowVersion{
 		WorkflowID: 1,
@@ -219,14 +218,13 @@ func TestServiceResumeReusesInterruptedWorkflowRun(t *testing.T) {
 func TestServiceRunWritesFailedWorkflowRun(t *testing.T) {
 	db := setupWorkflowResumeTestDB(t)
 	def := dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start_1",
+		SchemaVersion: 2,
 		Nodes: []dsl.Node{
-			{ID: "start_1", Type: workflowregistry.NodeTypeStart, Name: "Start"},
-			{ID: "bad_1", Type: "unsupported_node", Name: "Bad"},
+			runtimeTestNode("start_1", workflowregistry.NodeTypeStart, "Start", nil, nil),
+			runtimeTestNode("bad_1", "unsupported_node", "Bad", nil, nil),
 		},
 		Edges: []dsl.Edge{
-			{ID: "edge_start_bad", Source: "start_1", Target: "bad_1"},
+			runtimeTestEdge("edge_start_bad", "start_1", "bad_1"),
 		},
 	}
 	version := models.AIWorkflowVersion{
@@ -335,22 +333,37 @@ func setupWorkflowResumeTestDB(t *testing.T) *gorm.DB {
 
 func runtimeHumanConfirmDefinition() dsl.Definition {
 	return dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start_1",
+		SchemaVersion: 2,
 		Nodes: []dsl.Node{
-			{ID: "start_1", Type: workflowregistry.NodeTypeStart, Name: "Start"},
-			{ID: "prompt_1", Type: workflowregistry.NodeTypeLLMReply, Name: "Prompt", Config: []byte(`{"staticReply":"请确认"}`)},
-			{ID: "confirm_1", Type: workflowregistry.NodeTypeHumanConfirm, Name: "Confirm", Inputs: map[string]dsl.VariableSelector{
-				"prompt": {NodeID: "prompt_1", Field: "replyText"},
-			}},
-			{ID: "end_1", Type: workflowregistry.NodeTypeEnd, Name: "End"},
+			runtimeTestNode("start_1", workflowregistry.NodeTypeStart, "Start", nil, nil),
+			runtimeTestNode("prompt_1", workflowregistry.NodeTypeLLMReply, "Prompt", []byte(`{"staticReply":"请确认"}`), nil),
+			runtimeTestNode("confirm_1", workflowregistry.NodeTypeHumanConfirm, "Confirm", nil, map[string]dsl.Value{
+				"prompt": dsl.RefValue("prompt_1", "replyText"),
+			}),
+			runtimeTestNode("end_1", workflowregistry.NodeTypeEnd, "End", nil, nil),
 		},
 		Edges: []dsl.Edge{
-			{ID: "edge_start_prompt", Source: "start_1", Target: "prompt_1"},
-			{ID: "edge_prompt_confirm", Source: "prompt_1", Target: "confirm_1"},
-			{ID: "edge_confirm_end", Source: "confirm_1", Target: "end_1"},
+			runtimeTestEdge("edge_start_prompt", "start_1", "prompt_1"),
+			runtimeTestEdge("edge_prompt_confirm", "prompt_1", "confirm_1"),
+			runtimeTestEdge("edge_confirm_end", "confirm_1", "end_1"),
 		},
 	}
+}
+
+func runtimeTestNode(id string, nodeType string, title string, config []byte, inputs map[string]dsl.Value) dsl.Node {
+	return dsl.Node{
+		ID:   id,
+		Type: nodeType,
+		Data: dsl.NodeData{
+			Title:        title,
+			Config:       config,
+			InputsValues: inputs,
+		},
+	}
+}
+
+func runtimeTestEdge(id string, source string, target string) dsl.Edge {
+	return dsl.Edge{SourceNodeID: source, TargetNodeID: target, SourcePortID: id}
 }
 
 func mustMarshalDefinition(t *testing.T, def dsl.Definition) string {

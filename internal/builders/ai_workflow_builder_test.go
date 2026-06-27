@@ -99,13 +99,12 @@ func TestBuildAIWorkflowRunIncludesAuditDisplayFields(t *testing.T) {
 
 func TestBuildAIWorkflowRunDetailIncludesPublishedDefinitionSnapshot(t *testing.T) {
 	definition := dsl.Definition{
-		SchemaVersion: 1,
-		EntryNodeID:   "start_1",
+		SchemaVersion: dsl.SchemaVersion,
 		Nodes: []dsl.Node{
-			{ID: "start_1", Type: workflowregistry.NodeTypeStart, Name: "开始"},
-			{ID: "reply_1", Type: workflowregistry.NodeTypeLLMReply, Name: "运行时回复"},
+			{ID: "start_1", Type: workflowregistry.NodeTypeStart, Data: dsl.NodeData{Title: "开始"}},
+			{ID: "reply_1", Type: workflowregistry.NodeTypeLLMReply, Data: dsl.NodeData{Title: "运行时回复"}},
 		},
-		Edges: []dsl.Edge{{ID: "edge_start_reply", Source: "start_1", Target: "reply_1"}},
+		Edges: []dsl.Edge{{SourceNodeID: "start_1", TargetNodeID: "reply_1", SourcePortID: "edge_start_reply"}},
 	}
 	buf, err := json.Marshal(definition)
 	if err != nil {
@@ -120,13 +119,13 @@ func TestBuildAIWorkflowRunDetailIncludesPublishedDefinitionSnapshot(t *testing.
 		&models.AIAgent{Name: "售后 Agent"},
 	)
 
-	if resp.Definition.EntryNodeID != "start_1" {
+	if resp.Definition.SchemaVersion != dsl.SchemaVersion {
 		t.Fatalf("expected run detail definition from published version, got %#v", resp.Definition)
 	}
-	if len(resp.Definition.Nodes) != 2 || resp.Definition.Nodes[1].Name != "运行时回复" {
+	if len(resp.Definition.Nodes) != 2 || resp.Definition.Nodes[1].Data.Title != "运行时回复" {
 		t.Fatalf("expected published definition nodes, got %#v", resp.Definition.Nodes)
 	}
-	if len(resp.Definition.Edges) != 1 || resp.Definition.Edges[0].ID != "edge_start_reply" {
+	if len(resp.Definition.Edges) != 1 || resp.Definition.Edges[0].SourcePortID != "edge_start_reply" {
 		t.Fatalf("expected published definition edges, got %#v", resp.Definition.Edges)
 	}
 }

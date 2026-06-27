@@ -53,7 +53,6 @@ type definitionValidator struct {
 func (v *definitionValidator) validate() {
 	v.validateNodes()
 	v.validateEdges()
-	v.validateEntry()
 	v.validateReachability()
 	v.validateConfirmationGuards()
 	v.validateVariableMappings()
@@ -98,53 +97,29 @@ func (v *definitionValidator) validateNodes() {
 }
 
 func (v *definitionValidator) validateEdges() {
-	seen := make(map[string]struct{}, len(v.def.Edges))
 	for index, edge := range v.def.Edges {
-		edge.ID = strings.TrimSpace(edge.ID)
-		edge.Source = strings.TrimSpace(edge.Source)
-		edge.Target = strings.TrimSpace(edge.Target)
+		source := strings.TrimSpace(edge.SourceNodeID)
+		target := strings.TrimSpace(edge.TargetNodeID)
 		field := fmt.Sprintf("edges[%d]", index)
-		if edge.ID == "" {
-			v.addError(field+".id", "edge id is required")
-		} else if _, exists := seen[edge.ID]; exists {
-			v.addError(field+".id", "duplicate edge id: "+edge.ID)
+		if source == "" {
+			v.addError(field+".sourceNodeID", "edge source node is required")
+		} else if _, ok := v.nodesByID[source]; !ok {
+			v.addError(field+".sourceNodeID", "edge source node does not exist: "+source)
 		}
-		seen[edge.ID] = struct{}{}
-		if edge.Source == "" {
-			v.addError(field+".source", "edge source is required")
-		} else if _, ok := v.nodesByID[edge.Source]; !ok {
-			v.addError(field+".source", "edge source node does not exist: "+edge.Source)
+		if target == "" {
+			v.addError(field+".targetNodeID", "edge target node is required")
+		} else if _, ok := v.nodesByID[target]; !ok {
+			v.addError(field+".targetNodeID", "edge target node does not exist: "+target)
 		}
-		if edge.Target == "" {
-			v.addError(field+".target", "edge target is required")
-		} else if _, ok := v.nodesByID[edge.Target]; !ok {
-			v.addError(field+".target", "edge target node does not exist: "+edge.Target)
+		if source != "" && target != "" {
+			v.outgoing[source] = append(v.outgoing[source], target)
+			v.incoming[target] = append(v.incoming[target], source)
 		}
-		if edge.Source != "" && edge.Target != "" {
-			v.outgoing[edge.Source] = append(v.outgoing[edge.Source], edge.Target)
-			v.incoming[edge.Target] = append(v.incoming[edge.Target], edge.Source)
-		}
-	}
-}
-
-func (v *definitionValidator) validateEntry() {
-	entryNodeID := strings.TrimSpace(v.def.EntryNodeID)
-	if entryNodeID == "" {
-		v.addError("entryNodeId", "entry node id is required")
-		return
-	}
-	entry, ok := v.nodesByID[entryNodeID]
-	if !ok {
-		v.addError("entryNodeId", "entry node does not exist: "+entryNodeID)
-		return
-	}
-	if entry.Type != registry.NodeTypeStart {
-		v.addError("entryNodeId", "entry node must be the start node")
 	}
 }
 
 func (v *definitionValidator) validateReachability() {
-	entryNodeID := strings.TrimSpace(v.def.EntryNodeID)
+	entryNodeID := v.entryNodeID()
 	if entryNodeID == "" {
 		return
 	}
@@ -187,17 +162,17 @@ func (v *definitionValidator) validateConfirmationGuards() {
 }
 
 func (v *definitionValidator) validateConfirmedInput(nodeID string, node dsl.Node) {
-	selector, ok := node.Inputs["confirmed"]
-	if !ok || strings.TrimSpace(selector.NodeID) == "" || strings.TrimSpace(selector.Field) == "" {
+	value, ok := node.Data.InputsValues["confirmed"]
+	sourceNodeID, sourceField, refOK := value.Ref()
+	if !ok || !refOK || strings.TrimSpace(sourceNodeID) == "" || strings.TrimSpace(sourceField) == "" {
 		return
 	}
-	sourceNodeID := strings.TrimSpace(selector.NodeID)
 	sourceNode, ok := v.nodesByID[sourceNodeID]
 	if !ok {
 		return
 	}
-	if sourceNode.Type != registry.NodeTypeHumanConfirm || strings.TrimSpace(selector.Field) != "confirmed" {
-		v.addError("nodes."+nodeID+".inputs.confirmed", "confirmed input must come from human_confirm.confirmed")
+	if sourceNode.Type != registry.NodeTypeHumanConfirm || strings.TrimSpace(sourceField) != "confirmed" {
+		v.addError("nodes."+nodeID+".data.inputsValues.confirmed", "confirmed input must come from human_confirm.confirmed")
 	}
 }
 
@@ -211,47 +186,55 @@ func (v *definitionValidator) validateVariableMappings() {
 			if !input.Required {
 				continue
 			}
-			selector, ok := node.Inputs[input.Name]
-			if !ok || strings.TrimSpace(selector.NodeID) == "" || strings.TrimSpace(selector.Field) == "" {
-				v.addError("nodes."+id+".inputs."+input.Name, "required input mapping is missing: "+input.Name)
+			value, ok := node.Data.InputsValues[input.Name]
+			if !ok {
+				v.addError("nodes."+id+".data.inputsValues."+input.Name, "required input mapping is missing: "+input.Name)
 				continue
 			}
-			v.validateInputSelector(id, input, selector)
+			v.validateInputValue(id, input, value)
 		}
-		for inputName, selector := range node.Inputs {
-			if strings.TrimSpace(selector.NodeID) == "" || strings.TrimSpace(selector.Field) == "" {
-				v.addError("nodes."+id+".inputs."+inputName, "input mapping source is required")
-				continue
-			}
+		for inputName, value := range node.Data.InputsValues {
 			if _, ok := findInputSpec(spec.InputSchema, inputName); ok {
 				continue
 			}
-			sourceNode, sourceOK := v.nodesByID[strings.TrimSpace(selector.NodeID)]
+			sourceNodeID, sourceField, refOK := value.Ref()
+			if !refOK {
+				continue
+			}
+			sourceNode, sourceOK := v.nodesByID[strings.TrimSpace(sourceNodeID)]
 			if !sourceOK {
-				v.addError("nodes."+id+".inputs."+inputName, "input source node does not exist: "+selector.NodeID)
+				v.addError("nodes."+id+".data.inputsValues."+inputName, "input source node does not exist: "+sourceNodeID)
 				continue
 			}
 			sourceSpec, sourceSpecOK := v.registry.Get(sourceNode.Type)
 			if !sourceSpecOK {
 				continue
 			}
-			if _, ok := findOutputSpec(sourceSpec.OutputSchema, selector.Field); !ok {
-				v.addError("nodes."+id+".inputs."+inputName, "input source field does not exist: "+selector.NodeID+"."+selector.Field)
+			if _, ok := findOutputSpec(sourceSpec.OutputSchema, sourceField); !ok {
+				v.addError("nodes."+id+".data.inputsValues."+inputName, "input source field does not exist: "+sourceNodeID+"."+sourceField)
 			}
 		}
 	}
 }
 
-func (v *definitionValidator) validateInputSelector(nodeID string, input registry.VariableSpec, selector dsl.VariableSelector) {
-	sourceNodeID := strings.TrimSpace(selector.NodeID)
-	sourceField := strings.TrimSpace(selector.Field)
+func (v *definitionValidator) validateInputValue(nodeID string, input registry.VariableSpec, value dsl.Value) {
+	sourceNodeID, sourceField, ok := value.Ref()
+	if !ok {
+		if value.Type == dsl.ValueTypeConstant || value.Type == dsl.ValueTypeTemplate {
+			return
+		}
+		v.addError("nodes."+nodeID+".data.inputsValues."+input.Name, "input mapping source is required")
+		return
+	}
+	sourceNodeID = strings.TrimSpace(sourceNodeID)
+	sourceField = strings.TrimSpace(sourceField)
 	sourceNode, ok := v.nodesByID[sourceNodeID]
 	if !ok {
-		v.addError("nodes."+nodeID+".inputs."+input.Name, "input source node does not exist: "+sourceNodeID)
+		v.addError("nodes."+nodeID+".data.inputsValues."+input.Name, "input source node does not exist: "+sourceNodeID)
 		return
 	}
 	if !v.hasPath(sourceNodeID, nodeID, make(map[string]struct{})) {
-		v.addError("nodes."+nodeID+".inputs."+input.Name, "input source node is not available before current node: "+sourceNodeID)
+		v.addError("nodes."+nodeID+".data.inputsValues."+input.Name, "input source node is not available before current node: "+sourceNodeID)
 		return
 	}
 	sourceSpec, ok := v.registry.Get(sourceNode.Type)
@@ -260,11 +243,11 @@ func (v *definitionValidator) validateInputSelector(nodeID string, input registr
 	}
 	output, ok := findOutputSpec(sourceSpec.OutputSchema, sourceField)
 	if !ok {
-		v.addError("nodes."+nodeID+".inputs."+input.Name, "input source field does not exist: "+sourceNodeID+"."+sourceField)
+		v.addError("nodes."+nodeID+".data.inputsValues."+input.Name, "input source field does not exist: "+sourceNodeID+"."+sourceField)
 		return
 	}
 	if !variableTypesCompatible(input.Type, output.Type) {
-		v.addError("nodes."+nodeID+".inputs."+input.Name, fmt.Sprintf("input type mismatch: %s expects %s but %s.%s is %s", input.Name, input.Type, sourceNodeID, sourceField, output.Type))
+		v.addError("nodes."+nodeID+".data.inputsValues."+input.Name, fmt.Sprintf("input type mismatch: %s expects %s but %s.%s is %s", input.Name, input.Type, sourceNodeID, sourceField, output.Type))
 	}
 }
 
@@ -275,8 +258,8 @@ func (v *definitionValidator) validateConditions() {
 		}
 		field := fmt.Sprintf("nodes[%d].config.branches", index)
 		config := dsl.ConditionConfig{}
-		if len(node.Config) > 0 {
-			if err := json.Unmarshal(node.Config, &config); err != nil {
+		if len(node.Data.Config) > 0 {
+			if err := json.Unmarshal(node.Data.Config, &config); err != nil {
 				v.addError(field, "condition branches config must be valid JSON")
 				continue
 			}
@@ -341,9 +324,10 @@ func (v *definitionValidator) validateCondition(field string, sourceNodeID strin
 		v.addError(field+".left", "condition left variable is required")
 		return
 	}
-	sourceSelectorNodeID := strings.TrimSpace(condition.Left.NodeID)
-	sourceField := strings.TrimSpace(condition.Left.Field)
-	if sourceSelectorNodeID == "" || sourceField == "" {
+	sourceSelectorNodeID, sourceField, leftOK := condition.Left.Ref()
+	sourceSelectorNodeID = strings.TrimSpace(sourceSelectorNodeID)
+	sourceField = strings.TrimSpace(sourceField)
+	if !leftOK || sourceSelectorNodeID == "" || sourceField == "" {
 		v.addError(field+".left", "condition left variable is required")
 		return
 	}
@@ -462,11 +446,18 @@ func (v *definitionValidator) hasEdgeTo(sourceID string, targetID string) bool {
 		return true
 	}
 	for _, edge := range v.def.Edges {
-		if strings.TrimSpace(edge.Source) == sourceID && strings.TrimSpace(edge.Target) == targetID {
+		if strings.TrimSpace(edge.SourceNodeID) == sourceID && strings.TrimSpace(edge.TargetNodeID) == targetID {
 			return true
 		}
 	}
 	return false
+}
+
+func (v *definitionValidator) entryNodeID() string {
+	if len(v.startNodeIDs) != 1 {
+		return ""
+	}
+	return v.startNodeIDs[0]
 }
 
 func findInputSpec(items []registry.VariableSpec, name string) (registry.VariableSpec, bool) {

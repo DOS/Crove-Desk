@@ -2,33 +2,41 @@
 
 import { OptionCombobox } from "@/components/option-combobox"
 
-import type { WorkflowVariableRef, WorkflowVariableSelector } from "./workflow-utils"
+import {
+  createRefValue,
+  refField,
+  refNodeId,
+  type WorkflowVariableRef,
+  type WorkflowVariableSelector,
+} from "./workflow-utils"
 
 export function VariableSelector({
   value,
   variables,
   onChange,
+  placeholder = "选择变量",
 }: {
   value?: WorkflowVariableSelector
   variables: WorkflowVariableRef[]
   onChange: (value: WorkflowVariableSelector) => void
+  placeholder?: string
 }) {
-  const options = variables.map((item) => ({
-    value: `${item.nodeId}.${item.field}`,
-    label: `${item.nodeName}.${item.label || item.field} · ${item.type}`,
+  const selected = value ? `${refNodeId(value)}.${refField(value)}` : ""
+  const options = variables.map((variable) => ({
+    value: `${variable.nodeId}.${variable.field}`,
+    label: `${variable.nodeName}.${variable.label || variable.field}`,
   }))
-  const selectedValue = value?.nodeId && value.field ? `${value.nodeId}.${value.field}` : ""
 
   return (
     <OptionCombobox
-      value={selectedValue}
+      value={selected}
       options={options}
-      placeholder="选择变量"
-      searchPlaceholder="搜索变量"
-      emptyText="没有可用上游变量"
-      onChange={(nextValue) => {
-        const [nodeId, ...fieldParts] = nextValue.split(".")
-        onChange({ nodeId, field: fieldParts.join(".") })
+      placeholder={placeholder}
+      onChange={(next) => {
+        const variable = variables.find((item) => `${item.nodeId}.${item.field}` === next)
+        if (variable) {
+          onChange(createRefValue(variable.nodeId, variable.field))
+        }
       }}
     />
   )

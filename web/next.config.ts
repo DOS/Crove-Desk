@@ -14,6 +14,7 @@ export default function nextConfig(phase: string): NextConfig {
     assetPrefix: `${productionBasePath}/`,
     trailingSlash: false,
     devIndicators: false,
+    reactStrictMode: false,
   }
 
   if (phase !== PHASE_DEVELOPMENT_SERVER) {

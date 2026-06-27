@@ -41,16 +41,16 @@ type VariableValueOption struct {
 }
 
 type NodeSpec struct {
-	Type                            string                          `json:"type"`
-	Title                           string                          `json:"title"`
-	Description                     string                          `json:"description"`
-	RiskLevel                       NodeRiskLevel                   `json:"riskLevel"`
-	Interruptible                   bool                            `json:"interruptible"`
-	RequiresConfirmationPredecessor bool                            `json:"requiresConfirmationPredecessor"`
-	ConfigSchema                    any                             `json:"configSchema,omitempty"`
-	InputSchema                     []VariableSpec                  `json:"inputSchema,omitempty"`
-	OutputSchema                    []VariableSpec                  `json:"outputSchema,omitempty"`
-	DefaultInputs                   map[string]dsl.VariableSelector `json:"defaultInputs,omitempty"`
+	Type                            string               `json:"type"`
+	Title                           string               `json:"title"`
+	Description                     string               `json:"description"`
+	RiskLevel                       NodeRiskLevel        `json:"riskLevel"`
+	Interruptible                   bool                 `json:"interruptible"`
+	RequiresConfirmationPredecessor bool                 `json:"requiresConfirmationPredecessor"`
+	ConfigSchema                    any                  `json:"configSchema,omitempty"`
+	InputSchema                     []VariableSpec       `json:"inputSchema,omitempty"`
+	OutputSchema                    []VariableSpec       `json:"outputSchema,omitempty"`
+	DefaultInputs                   map[string]dsl.Value `json:"defaultInputs,omitempty"`
 }
 
 type Registry struct {

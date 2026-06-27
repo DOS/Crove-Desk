@@ -51,7 +51,7 @@ type AIWorkflowNodeSpecResponse struct {
 	ConfigSchema                    any                             `json:"configSchema,omitempty"`
 	InputSchema                     []workflowregistry.VariableSpec `json:"inputSchema,omitempty"`
 	OutputSchema                    []workflowregistry.VariableSpec `json:"outputSchema,omitempty"`
-	DefaultInputs                   map[string]dsl.VariableSelector `json:"defaultInputs,omitempty"`
+	DefaultInputs                   map[string]dsl.Value            `json:"defaultInputs,omitempty"`
 }
 
 type AIWorkflowRunResponse struct {
