@@ -5,54 +5,35 @@ import {
   WorkflowNodeRenderer,
   type WorkflowNodeProps,
 } from "@flowgram.ai/free-layout-editor"
-import {
-  BotIcon,
-  CircleStopIcon,
-  DatabaseIcon,
-  GitBranchIcon,
-  MessageSquareTextIcon,
-  SendIcon,
-  UserRoundIcon,
-} from "lucide-react"
-import type { ComponentType } from "react"
+import { useLayoutEffect } from "react"
 
 import { cn } from "@/lib/utils"
-
-const iconByType: Record<string, ComponentType<{ className?: string }>> = {
-  start: UserRoundIcon,
-  conversation_understanding: BotIcon,
-  reply_policy: MessageSquareTextIcon,
-  condition: GitBranchIcon,
-  knowledge_retrieve: DatabaseIcon,
-  answerability_gate: GitBranchIcon,
-  llm_reply: BotIcon,
-  human_confirm: UserRoundIcon,
-  create_ticket: MessageSquareTextIcon,
-  handoff_to_human: UserRoundIcon,
-  send_reply: SendIcon,
-  end: CircleStopIcon,
-}
 
 export function FlowgramNodeRenderer(props: WorkflowNodeProps) {
   const { selected, node, form } = useNodeRender()
   const nodeType = String(node.flowNodeType ?? "")
-  const Icon = iconByType[nodeType] ?? BotIcon
+
+  useLayoutEffect(() => {
+    if (nodeType !== "condition") return
+    const frame = window.requestAnimationFrame(() => {
+      node.ports.updateDynamicPorts()
+    })
+    return () => window.cancelAnimationFrame(frame)
+  })
 
   return (
     <WorkflowNodeRenderer
       node={props.node}
       className={cn(
-        "w-[260px] rounded-md border bg-background shadow-sm transition-colors",
-        selected ? "border-primary ring-2 ring-primary/15" : "border-border"
+        "w-[360px] overflow-hidden rounded-lg border bg-background shadow-[0_2px_6px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.02)] transition-colors",
+        selected ? "border-[#4e40e5]" : "border-[rgba(6,7,9,0.15)]"
       )}
       style={{ padding: 0 }}
+      portPrimaryColor="#4e40e5"
+      portSecondaryColor="#d0d5dd"
+      portBackgroundColor="#fff"
     >
-      <div className="flex items-start gap-3 p-3">
-        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border bg-muted">
-          <Icon className="size-4 text-muted-foreground" />
-        </div>
-        {form?.render()}
-      </div>
+      {form?.render()}
     </WorkflowNodeRenderer>
   )
 }

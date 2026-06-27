@@ -166,13 +166,16 @@ export function createWorkflowNodeFromSpec(
   position: WorkflowNodePosition
 ): AIWorkflowDefinition["nodes"][number] {
   const id = uniqueNodeId(existingNodes, spec.type)
+  const defaultConfig = spec.type === "condition"
+    ? { branches: [{ id: "default", name: "默认分支", targetNodeId: "", default: true }] }
+    : {}
   return {
     id,
     type: spec.type,
     meta: { position },
     data: {
       title: spec.title || spec.type,
-      config: {},
+      config: defaultConfig,
       inputsValues: spec.defaultInputs ?? {},
     },
   }
@@ -247,6 +250,68 @@ export function deleteConditionBranch(
   })
 }
 
+export function normalizeConditionPortsForFlowgram(
+  definition: AIWorkflowDefinition
+): AIWorkflowDefinition {
+  return {
+    ...definition,
+    nodes: definition.nodes.map((node) => {
+      if (node.type !== "condition") {
+        return node
+      }
+      const config = normalizeNodeConfig(node.data?.config)
+      const branches = ensureConditionBranches(config.branches ?? [])
+      return {
+        ...node,
+        data: {
+          ...(node.data ?? {}),
+          config: { ...config, branches },
+          portKeys: branches.map((branch) => branch.id),
+          ports: branches.map((branch) => branch.id),
+        },
+      }
+    }),
+    edges: definition.edges.map((edge) => {
+      const source = definition.nodes.find((node) => node.id === edge.sourceNodeID)
+      if (!source || source.type !== "condition" || edge.sourcePortID) {
+        return edge
+      }
+      const branch = findConditionBranchForTarget(source, edge.targetNodeID)
+      return branch ? { ...edge, sourcePortID: branch.id } : edge
+    }),
+  }
+}
+
+export function syncConditionBranchTargetsFromEdges(
+  definition: AIWorkflowDefinition
+): AIWorkflowDefinition {
+  return {
+    ...definition,
+    nodes: definition.nodes.map((node) => {
+      if (node.type !== "condition") {
+        return node
+      }
+      const config = normalizeNodeConfig(node.data?.config)
+      const branches = ensureConditionBranches(config.branches ?? [])
+      const nextBranches = branches.map((branch) => {
+        const edge = definition.edges.find((item) => (
+          item.sourceNodeID === node.id && item.sourcePortID === branch.id
+        ))
+        return edge ? { ...branch, targetNodeId: edge.targetNodeID } : branch
+      })
+      return {
+        ...node,
+        data: {
+          ...(node.data ?? {}),
+          config: { ...config, branches: nextBranches },
+          portKeys: nextBranches.map((branch) => branch.id),
+          ports: nextBranches.map((branch) => branch.id),
+        },
+      }
+    }),
+  }
+}
+
 export function normalizeNodeConfig(config: unknown): WorkflowNodeConfig {
   if (!config || typeof config !== "object" || Array.isArray(config)) {
     return {}
@@ -261,6 +326,31 @@ export function normalizeNodeConfig(config: unknown): WorkflowNodeConfig {
     ...record,
     ...(branches ? { branches } : {}),
   } as WorkflowNodeConfig
+}
+
+function ensureConditionBranches(branches: WorkflowConditionBranch[]) {
+  if (branches.some((branch) => branch.default)) {
+    return orderConditionBranches(branches)
+  }
+  return orderConditionBranches([
+    ...branches,
+    { id: "default", name: "默认分支", targetNodeId: "", default: true },
+  ])
+}
+
+function orderConditionBranches(branches: WorkflowConditionBranch[]) {
+  return [
+    ...branches.filter((branch) => !branch.default),
+    ...branches.filter((branch) => branch.default).slice(0, 1),
+  ]
+}
+
+function findConditionBranchForTarget(
+  node: AIWorkflowDefinition["nodes"][number],
+  targetNodeId: string
+) {
+  const branches = ensureConditionBranches(normalizeNodeConfig(node.data?.config).branches ?? [])
+  return branches.find((branch) => branch.targetNodeId === targetNodeId)
 }
 
 export function createConditionBranchID(existingBranches: WorkflowConditionBranch[]) {

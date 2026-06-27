@@ -303,4 +303,68 @@ describe("workflow definition mutations", () => {
     const deleted = deleteConditionBranch(updated, "condition_1", "default")
     assert.deepEqual(plain(deleted.nodes[0].data.config.branches.map((branch) => branch.id)), ["vip"])
   })
+
+  it("adds FlowGram source ports for condition edges without removing existing lines", async () => {
+    const { normalizeConditionPortsForFlowgram } = await loadModule()
+    const definition = {
+      schemaVersion: 2,
+      nodes: [
+        workflowNode("condition_1", "condition", { x: 240, y: 0 }, {
+          config: {
+            branches: [
+              { id: "vip", name: "VIP", targetNodeId: "vip_reply", condition: { operator: "eq" } },
+              { id: "default", name: "默认", targetNodeId: "normal_reply", default: true },
+            ],
+          },
+        }),
+        workflowNode("vip_reply", "llm_reply", { x: 520, y: 0 }),
+        workflowNode("normal_reply", "llm_reply", { x: 520, y: 120 }),
+      ],
+      edges: [
+        workflowEdge("condition_1", "vip_reply"),
+        workflowEdge("condition_1", "normal_reply"),
+      ],
+    }
+
+    const next = normalizeConditionPortsForFlowgram(definition)
+
+    assert.deepEqual(plain(next.nodes[0].data.portKeys), ["vip", "default"])
+    assert.deepEqual(plain(next.nodes[0].data.ports), ["vip", "default"])
+    assert.deepEqual(plain(next.edges), [
+      workflowEdge("condition_1", "vip_reply", { sourcePortID: "vip" }),
+      workflowEdge("condition_1", "normal_reply", { sourcePortID: "default" }),
+    ])
+  })
+
+  it("syncs branch targets from condition source ports while preserving unrelated edges", async () => {
+    const { syncConditionBranchTargetsFromEdges } = await loadModule()
+    const definition = {
+      schemaVersion: 2,
+      nodes: [
+        workflowNode("condition_1", "condition", { x: 240, y: 0 }, {
+          config: {
+            branches: [
+              { id: "vip", name: "VIP", targetNodeId: "", condition: { operator: "eq" } },
+              { id: "default", name: "默认", targetNodeId: "", default: true },
+            ],
+          },
+          portKeys: ["vip", "default"],
+          ports: ["vip", "default"],
+        }),
+        workflowNode("vip_reply", "llm_reply", { x: 520, y: 0 }),
+        workflowNode("normal_reply", "llm_reply", { x: 520, y: 120 }),
+      ],
+      edges: [
+        workflowEdge("condition_1", "vip_reply", { sourcePortID: "vip" }),
+        workflowEdge("condition_1", "normal_reply", { sourcePortID: "default" }),
+        workflowEdge("vip_reply", "normal_reply"),
+      ],
+    }
+
+    const next = syncConditionBranchTargetsFromEdges(definition)
+
+    assert.equal(next.nodes[0].data.config.branches[0].targetNodeId, "vip_reply")
+    assert.equal(next.nodes[0].data.config.branches[1].targetNodeId, "normal_reply")
+    assert.equal(next.edges.length, 3)
+  })
 })
