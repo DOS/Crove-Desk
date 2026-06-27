@@ -8,9 +8,9 @@ import {
   BaseEdge,
   ConnectionMode,
   Controls,
+  EdgeLabelRenderer,
   getBezierPath,
   Handle,
-  MarkerType,
   Position,
   ReactFlow,
   ViewportPortal,
@@ -30,16 +30,22 @@ import {
 } from "@xyflow/react"
 import {
   AlertCircleIcon,
+  BotIcon,
   CheckCircle2Icon,
+  CircleStopIcon,
+  DatabaseIcon,
   GitBranchIcon,
+  MessageSquareTextIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
+  PlayIcon,
   PlusIcon,
   Redo2Icon,
   RotateCcwIcon,
   SaveIcon,
   SendIcon,
   Undo2Icon,
+  UserRoundIcon,
 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 
@@ -103,6 +109,8 @@ type WorkflowEditorSnapshot = {
 }
 type WorkflowEdgeRenderData = {
   active?: boolean
+  nodeSpecs?: AIWorkflowNodeSpec[]
+  onInsertNode?: (edgeId: string, spec: AIWorkflowNodeSpec) => void
 }
 type WorkflowFinalConnectionState = FinalConnectionState
 
@@ -131,15 +139,10 @@ const fitViewOptions = {
 
 const defaultEdgeOptions = {
   type: "workflowEdge",
-  markerEnd: {
-    type: MarkerType.ArrowClosed,
-  },
   style: {
-    strokeWidth: 1.6,
+    strokeWidth: 2,
   },
 }
-
-const workflowHandleRadius = 8
 
 function toFlowNodes(definition: AIWorkflowDefinition): WorkflowFlowNode[] {
   return fromApiDefinition(definition).nodes.map((node) => ({
@@ -659,6 +662,65 @@ export function WorkflowEditor({
     [pushCurrentSnapshotToHistory, setEdges, setNodes]
   )
 
+  const insertNodeOnEdge = useCallback(
+    (edgeId: string, spec: AIWorkflowNodeSpec) => {
+      const edge = edges.find((item) => item.id === edgeId)
+      if (!edge) {
+        return
+      }
+      pushCurrentSnapshotToHistory()
+      const remainingEdges = edges.filter((item) => item.id !== edge.id)
+      setNodes((currentNodes) => {
+        const sourceNode = currentNodes.find((node) => node.id === edge.source)
+        const targetNode = currentNodes.find((node) => node.id === edge.target)
+        const nextPosition = sourceNode && targetNode
+          ? {
+              x: (sourceNode.position.x + targetNode.position.x) / 2,
+              y: (sourceNode.position.y + targetNode.position.y) / 2,
+            }
+          : { x: 180 + currentNodes.length * 32, y: 120 + currentNodes.length * 24 }
+        const nextNode = createWorkflowNodeFromSpec(spec, currentNodes, nextPosition) as WorkflowFlowNode
+        const sourceToNew = {
+          id: uniqueEdgeId(remainingEdges, edge.source, nextNode.id, edge.sourceHandle),
+          source: edge.source,
+          target: nextNode.id,
+          sourceHandle: edge.sourceHandle,
+          type: "workflowEdge",
+        } as WorkflowFlowEdge
+        const newToTarget = {
+          id: uniqueEdgeId([...remainingEdges, sourceToNew], nextNode.id, edge.target),
+          source: nextNode.id,
+          target: edge.target,
+          targetHandle: edge.targetHandle,
+          type: "workflowEdge",
+        } as WorkflowFlowEdge
+        const nextEdges = [...remainingEdges, sourceToNew, newToTarget]
+        let nextDraft = applyConditionBranchConnection(
+          toDraft([...currentNodes, nextNode], nextEdges),
+          sourceToNew
+        )
+        nextDraft = applyAutoInputMappings(nextDraft, edge.source, nextNode.id, nodeSpecs)
+        nextDraft = applyAutoInputMappings(nextDraft, nextNode.id, edge.target, nodeSpecs)
+        setEdges(nextEdges)
+        return [...currentNodes, nextNode].map((node) => {
+          const draftNode = nextDraft.nodes.find((item) => item.id === node.id)
+          if (!draftNode) {
+            return node
+          }
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              config: draftNode.data?.config ?? node.data.config,
+              inputs: draftNode.data?.inputs ?? node.data.inputs,
+            },
+          }
+        })
+      })
+    },
+    [edges, nodeSpecs, pushCurrentSnapshotToHistory, setEdges, setNodes]
+  )
+
   const renderedNodes = useMemo(
     () =>
       enrichNodesForRender(nodes, nodeSpecs).map((node) => ({
@@ -774,10 +836,12 @@ export function WorkflowEditor({
           selected: active,
           data: {
             active,
+            nodeSpecs,
+            onInsertNode: insertNodeOnEdge,
           } satisfies WorkflowEdgeRenderData,
         }
       }),
-    [edges, selectedEdgeId]
+    [edges, insertNodeOnEdge, nodeSpecs, selectedEdgeId]
   )
 
   const clampNodeLibraryWidth = useCallback((width: number) => {
@@ -810,7 +874,7 @@ export function WorkflowEditor({
   }
 
   return (
-    <div ref={editorRef} className="flex h-full min-h-0 w-full">
+    <div ref={editorRef} className="flex h-full min-h-0 w-full bg-[#f7f8fa]">
       {nodeLibraryRendered ? (
         <>
           <div
@@ -825,7 +889,7 @@ export function WorkflowEditor({
           >
             <aside
               className={[
-                "h-full min-h-0 bg-muted/20 transition-all duration-200 ease-out",
+                "h-full min-h-0 border-r border-border/60 bg-background/95 shadow-sm transition-all duration-200 ease-out",
                 nodeLibraryVisible
                   ? "translate-x-0 opacity-100"
                   : "-translate-x-3 opacity-0",
@@ -834,7 +898,7 @@ export function WorkflowEditor({
               <ScrollArea className="h-full min-h-0">
                 <div className="p-3">
                   <div className="mb-3 flex items-center justify-between gap-2">
-                    <div className="min-w-0 truncate text-sm font-medium">节点库</div>
+                    <div className="min-w-0 truncate text-sm font-semibold uppercase">节点库</div>
                     <Button
                       type="button"
                       variant="ghost"
@@ -859,7 +923,7 @@ export function WorkflowEditor({
                           }
                           addNode(spec)
                         }}
-                        className="flex w-full cursor-grab rounded-md border bg-background px-3 py-2 text-left text-sm hover:bg-muted active:cursor-grabbing"
+                        className="group flex w-full cursor-grab rounded-xl border border-transparent bg-muted/55 px-3 py-2 text-left text-sm shadow-xs transition-all hover:border-primary/20 hover:bg-background hover:shadow-sm active:cursor-grabbing"
                       >
                         <span className="min-w-0">
                           <span className="block truncate font-medium">{spec.title}</span>
@@ -867,8 +931,8 @@ export function WorkflowEditor({
                             {spec.description}
                           </span>
                           <span className="mt-1 flex gap-2 text-[11px] text-muted-foreground">
-                            <span>输入 {spec.inputSchema?.length ?? 0}</span>
-                            <span>输出 {spec.outputSchema?.length ?? 0}</span>
+                            <span className="rounded-md bg-background px-1.5 py-0.5">输入 {spec.inputSchema?.length ?? 0}</span>
+                            <span className="rounded-md bg-background px-1.5 py-0.5">输出 {spec.outputSchema?.length ?? 0}</span>
                           </span>
                         </span>
                       </button>
@@ -897,7 +961,7 @@ export function WorkflowEditor({
           data-workflow-canvas
           ref={canvasRef}
           className={[
-            "relative h-full min-h-0",
+            "relative h-full min-h-0 overflow-hidden bg-[#f7f8fa]",
             pendingNodeDrag?.active ? "ring-2 ring-primary/30" : "",
           ].join(" ")}
         >
@@ -950,13 +1014,13 @@ export function WorkflowEditor({
             maxZoom={1.35}
           >
             <Background
-              gap={24}
-              size={0.8}
-              color="hsl(var(--muted-foreground) / 0.035)"
-              className="bg-[radial-gradient(circle_at_20%_10%,hsl(var(--primary)/0.02),transparent_30%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--muted)/0.08))]"
+              gap={18}
+              size={1}
+              color="hsl(var(--muted-foreground) / 0.08)"
+              className="bg-[#f7f8fa]"
             />
             <Controls
-              className="!bottom-4 !left-4 overflow-hidden !rounded-xl !border !border-border/70 !bg-background/95 !shadow-lg"
+              className="!bottom-4 !left-4 overflow-hidden !rounded-xl !border !border-border/70 !bg-background/90 !shadow-lg backdrop-blur"
               showInteractive={false}
             />
             <WorkflowHelperLines lines={helperLines} />
@@ -983,7 +1047,7 @@ export function WorkflowEditor({
           {propertyPanelNode ? (
             <aside
               className={[
-                "absolute top-3 right-3 z-30 h-[calc(100%-1.5rem)] w-[min(380px,calc(100%-1.5rem))] overflow-hidden rounded-md border bg-background shadow-lg transition-all duration-200 ease-out",
+                "absolute top-3 right-3 z-30 h-[calc(100%-1.5rem)] w-[min(420px,calc(100%-1.5rem))] overflow-hidden rounded-2xl border border-border/70 bg-background shadow-xl transition-all duration-200 ease-out",
                 propertyPanelVisible
                   ? "translate-x-0 scale-100 opacity-100"
                   : "translate-x-3 scale-[0.98] opacity-0",
@@ -1014,7 +1078,7 @@ export function WorkflowEditor({
           ) : null}
           {pendingNodeDrag?.active ? (
             <div
-              className="pointer-events-none fixed z-50 rounded-md border bg-background px-3 py-2 text-sm font-medium shadow-lg"
+              className="pointer-events-none fixed z-50 rounded-xl border border-primary/20 bg-background px-3 py-2 text-sm font-medium shadow-lg"
               style={{
                 left: pendingNodeDrag.x + 12,
                 top: pendingNodeDrag.y + 12,
@@ -1186,19 +1250,6 @@ function isEditableKeyboardTarget(target: EventTarget | null) {
   return Boolean(target.closest("input, textarea, select, [contenteditable='true']"))
 }
 
-function getEdgeEndpointOffset(position: Position, amount: number) {
-  switch (position) {
-    case Position.Left:
-      return { x: amount, y: 0 }
-    case Position.Right:
-      return { x: -amount, y: 0 }
-    case Position.Top:
-      return { x: 0, y: amount }
-    case Position.Bottom:
-      return { x: 0, y: -amount }
-  }
-}
-
 function WorkflowConnectionLine({
   fromX,
   fromY,
@@ -1208,20 +1259,14 @@ function WorkflowConnectionLine({
   toPosition,
   toHandle,
 }: ConnectionLineComponentProps) {
-  const sourceOffset = getEdgeEndpointOffset(fromPosition ?? Position.Right, workflowHandleRadius)
-  const targetOffset = getEdgeEndpointOffset(toPosition ?? Position.Left, toHandle ? workflowHandleRadius : 0)
-  const sourceX = fromX + sourceOffset.x
-  const sourceY = fromY + sourceOffset.y
-  const targetX = toX + targetOffset.x
-  const targetY = toY + targetOffset.y
   const [edgePath] = getBezierPath({
-    sourceX,
-    sourceY,
+    sourceX: fromX - 8,
+    sourceY: fromY,
     sourcePosition: fromPosition ?? Position.Right,
-    targetX,
-    targetY,
+    targetX: toX + (toHandle ? 8 : 0),
+    targetY: toY,
     targetPosition: toPosition ?? Position.Left,
-    curvature: 0.18,
+    curvature: 0.16,
   })
 
   return (
@@ -1229,13 +1274,13 @@ function WorkflowConnectionLine({
       <path
         fill="none"
         stroke="var(--primary)"
-        opacity={0.72}
-        strokeDasharray="6 5"
+        opacity={0.7}
+        strokeDasharray="8 8"
         strokeLinecap="round"
         strokeWidth={2}
         d={edgePath}
       />
-      <circle cx={toX} cy={toY} r={4} fill="var(--primary)" />
+      <circle cx={toX} cy={toY} r={3.5} fill="var(--primary)" />
     </g>
   )
 }
@@ -1246,36 +1291,98 @@ function WorkflowCanvasEdge({
   sourceY,
   targetX,
   targetY,
-  sourcePosition,
-  targetPosition,
   selected,
   data,
   markerEnd,
 }: EdgeProps<WorkflowFlowEdge>) {
-  const sourceOffset = getEdgeEndpointOffset(sourcePosition, workflowHandleRadius)
-  const targetOffset = getEdgeEndpointOffset(targetPosition, workflowHandleRadius)
-  const [edgePath] = getBezierPath({
-    sourceX: sourceX + sourceOffset.x,
-    sourceY: sourceY + sourceOffset.y,
-    sourcePosition,
-    targetX: targetX + targetOffset.x,
-    targetY: targetY + targetOffset.y,
-    targetPosition,
-    curvature: 0.18,
-  })
   const edgeData = data as WorkflowEdgeRenderData | undefined
   const active = selected || edgeData?.active
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX: sourceX - 8,
+    sourceY,
+    sourcePosition: Position.Right,
+    targetX: targetX + 8,
+    targetY,
+    targetPosition: Position.Left,
+    curvature: 0.16,
+  })
+  const [insertOpen, setInsertOpen] = useState(false)
+  const [insertHovered, setInsertHovered] = useState(false)
+  const insertVisible = active || insertOpen || insertHovered
 
   return (
-    <BaseEdge
-      id={id}
-      path={edgePath}
-      markerEnd={markerEnd}
-      className={cn(
-        "transition-all",
-        active ? "!stroke-primary !stroke-[2.4px]" : "!stroke-muted-foreground/45 !stroke-[1.8px]"
-      )}
-    />
+    <>
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        markerEnd={markerEnd}
+        className={cn(
+          "transition-all",
+          active ? "!stroke-primary" : "!stroke-muted-foreground/45"
+        )}
+        style={{
+          strokeWidth: 2,
+        }}
+      />
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={18}
+        className="react-flow__edge-interaction"
+        onMouseEnter={() => setInsertHovered(true)}
+        onMouseLeave={() => setInsertHovered(false)}
+      />
+      <EdgeLabelRenderer>
+        <div
+          className="nodrag nopan absolute transition-opacity duration-150"
+          style={{
+            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            pointerEvents: insertVisible ? "all" : "none",
+            opacity: insertVisible ? 1 : 0,
+          }}
+          onMouseEnter={() => setInsertHovered(true)}
+          onMouseLeave={() => setInsertHovered(false)}
+        >
+          <Popover open={insertOpen} onOpenChange={setInsertOpen}>
+            <PopoverTrigger
+              render={
+                <button
+                  type="button"
+                  className="flex size-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-all hover:scale-150 hover:border-primary hover:text-primary"
+                  aria-label="在连线上添加节点"
+                >
+                  <PlusIcon className="size-3" />
+                </button>
+              }
+            />
+            <PopoverContent side="right" align="center" className="w-72 p-2">
+              <div className="px-2 pb-2 text-xs font-medium text-muted-foreground">添加节点</div>
+              <div className="max-h-72 space-y-1 overflow-y-auto">
+                {(edgeData?.nodeSpecs ?? []).map((spec) => (
+                  <button
+                    key={spec.type}
+                    type="button"
+                    className="flex w-full rounded-md px-2 py-2 text-left hover:bg-muted"
+                    onClick={() => {
+                      edgeData?.onInsertNode?.(id, spec)
+                      setInsertOpen(false)
+                    }}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">{spec.title}</span>
+                      <span className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+                        {spec.description}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </EdgeLabelRenderer>
+    </>
   )
 }
 
@@ -1361,6 +1468,50 @@ function WorkflowAddAfterButton({
   )
 }
 
+function WorkflowNodeTypeIcon({ nodeType }: { nodeType?: string }) {
+  const iconClassName = "size-3.5"
+  switch (nodeType) {
+    case "start":
+      return <PlayIcon className={iconClassName} />
+    case "condition":
+    case "answerability_gate":
+      return <GitBranchIcon className={iconClassName} />
+    case "knowledge_retrieve":
+      return <DatabaseIcon className={iconClassName} />
+    case "llm_reply":
+      return <BotIcon className={iconClassName} />
+    case "send_reply":
+      return <MessageSquareTextIcon className={iconClassName} />
+    case "handoff_to_human":
+      return <UserRoundIcon className={iconClassName} />
+    case "end":
+      return <CircleStopIcon className={iconClassName} />
+    default:
+      return <BotIcon className={iconClassName} />
+  }
+}
+
+function getWorkflowNodeIconClassName(nodeType?: string) {
+  switch (nodeType) {
+    case "start":
+      return "bg-blue-500"
+    case "condition":
+    case "answerability_gate":
+      return "bg-cyan-500"
+    case "knowledge_retrieve":
+      return "bg-emerald-500"
+    case "llm_reply":
+      return "bg-indigo-500"
+    case "send_reply":
+    case "end":
+      return "bg-amber-500"
+    case "handoff_to_human":
+      return "bg-violet-500"
+    default:
+      return "bg-sky-500"
+  }
+}
+
 function WorkflowCanvasNode({ id, data, selected }: NodeProps<WorkflowFlowNode>) {
   const [hovered, setHovered] = useState(false)
   const missingInputs = data.missingInputs ?? []
@@ -1371,10 +1522,15 @@ function WorkflowCanvasNode({ id, data, selected }: NodeProps<WorkflowFlowNode>)
     | ((sourceNodeId: string, spec: AIWorkflowNodeSpec) => void)
     | undefined
   const showHandles = selected || hovered
-  const handleClassName = cn(
-    "!size-4 !rounded-full !border-0 !bg-primary !text-primary-foreground !shadow-lg",
-    "flex items-center justify-center opacity-0 transition-all duration-150",
-    showHandles ? "pointer-events-auto opacity-100" : "pointer-events-none"
+  const targetHandleClassName = cn(
+    "!z-[1] !size-4 !rounded-none !border-none !bg-transparent !outline-none",
+    "after:absolute after:left-1.5 after:top-1 after:h-2 after:w-0.5 after:rounded-sm after:bg-muted-foreground/45",
+    "transition-all hover:scale-125"
+  )
+  const sourceHandleClassName = cn(
+    "!z-[1] !size-4 !rounded-none !border-none !bg-transparent !outline-none",
+    "after:absolute after:right-1.5 after:top-1 after:h-2 after:w-0.5 after:rounded-sm after:bg-muted-foreground/45",
+    "transition-all hover:scale-125"
   )
   const conditionBranchHandleClassName = cn(
     "!z-[1] !size-4 !rounded-none !border-none !bg-transparent !outline-none",
@@ -1398,14 +1554,18 @@ function WorkflowCanvasNode({ id, data, selected }: NodeProps<WorkflowFlowNode>)
         <WorkflowNodeHandle
           type="target"
           position={Position.Left}
-          className={cn("!left-[-9px] !top-4 !translate-y-0", handleClassName)}
+          className={cn("!left-[-9px] !top-4 !translate-y-0", targetHandleClassName)}
+          showIcon={false}
         />
         <div className="overflow-hidden rounded-2xl">
           <div className="flex items-center px-3 pb-2 pt-3">
             <div
-              className="mr-2 flex size-6 shrink-0 items-center justify-center rounded-lg bg-cyan-500 text-white shadow-md"
+              className={cn(
+                "mr-2 flex size-6 shrink-0 items-center justify-center rounded-lg text-white shadow-md",
+                getWorkflowNodeIconClassName(data.nodeType)
+              )}
             >
-              <GitBranchIcon className="size-3.5" />
+              <WorkflowNodeTypeIcon nodeType={data.nodeType} />
             </div>
             <div className="min-w-0 grow truncate text-sm font-semibold uppercase text-foreground">
               {data.name ?? data.title}
@@ -1478,7 +1638,7 @@ function WorkflowCanvasNode({ id, data, selected }: NodeProps<WorkflowFlowNode>)
   return (
     <div
       className={[
-        "group/node relative w-52 rounded-xl border bg-background shadow-[0_12px_34px_rgba(15,23,42,0.08)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(15,23,42,0.12)]",
+        "group/node relative w-[240px] rounded-2xl border bg-background pb-1 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg",
         selected ? "border-primary ring-4 ring-primary/10" : "",
         hasIssue ? "border-destructive/70" : "border-border/70",
       ].join(" ")}
@@ -1488,47 +1648,51 @@ function WorkflowCanvasNode({ id, data, selected }: NodeProps<WorkflowFlowNode>)
       <WorkflowNodeHandle
         type="target"
         position={Position.Left}
-        className={cn("!left-0", handleClassName)}
+        className={cn("!left-[-9px] !top-4 !translate-y-0", targetHandleClassName)}
+        showIcon={false}
       />
-      <div className="overflow-hidden rounded-xl">
-        <div className="flex items-start gap-2 border-b border-border/60 bg-muted/20 px-3 py-2.5">
+      <div className="overflow-hidden rounded-2xl">
+        <div className="flex items-center px-3 pb-2 pt-3">
           <div
             className={cn(
-              "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg",
-              hasIssue ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-700"
+              "mr-2 flex size-6 shrink-0 items-center justify-center rounded-lg text-white shadow-md",
+              getWorkflowNodeIconClassName(data.nodeType)
             )}
           >
+            <WorkflowNodeTypeIcon nodeType={data.nodeType} />
+          </div>
+          <div className="mr-1 flex min-w-0 grow items-center text-sm font-semibold uppercase text-foreground">
+            <div className="min-w-0 grow truncate" title={data.name ?? data.title}>
+              {data.name ?? data.title}
+            </div>
             {hasIssue ? (
-              <AlertCircleIcon className="size-4" />
+              <AlertCircleIcon className="ml-2 size-3.5 shrink-0 text-destructive" />
             ) : (
-              <CheckCircle2Icon className="size-4" />
+              <CheckCircle2Icon className="ml-2 size-3.5 shrink-0 text-emerald-600" />
             )}
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium">{data.name ?? data.title}</div>
-            <div className="mt-0.5 truncate text-xs text-muted-foreground">{data.title}</div>
-          </div>
         </div>
-        <div className="space-y-2 px-3 py-2.5 text-xs">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="rounded-full bg-muted px-2 py-0.5">输入 {data.inputCount ?? 0}</span>
-            <span className="rounded-full bg-muted px-2 py-0.5">输出 {data.outputCount ?? 0}</span>
+        <div className="space-y-1 px-3 text-xs">
+          <div className="flex h-6 items-center justify-between rounded-md bg-muted px-1 text-muted-foreground">
+            <span className="truncate font-medium uppercase">INPUTS</span>
+            <span>{data.inputCount ?? 0}</span>
+          </div>
+          <div className="flex h-6 items-center justify-between rounded-md bg-muted px-1 text-muted-foreground">
+            <span className="truncate font-medium uppercase">OUTPUTS</span>
+            <span>{data.outputCount ?? 0}</span>
           </div>
           {hasIssue ? (
-            <div className="rounded-md bg-destructive/10 px-2 py-1.5 text-destructive">
+            <div className="flex min-h-6 items-center rounded-md bg-destructive/10 px-1 text-destructive">
               缺少输入：{missingInputs.join("、")}
             </div>
-          ) : (
-            <div className="rounded-md bg-emerald-500/10 px-2 py-1.5 text-emerald-700">
-              配置完整
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
       <WorkflowNodeHandle
         type="source"
         position={Position.Right}
-        className={cn("!right-0", handleClassName)}
+        className={cn("!right-[-9px] !top-4 !translate-y-0", sourceHandleClassName)}
+        showIcon={false}
       />
       <WorkflowAddAfterButton
         nodeId={id}

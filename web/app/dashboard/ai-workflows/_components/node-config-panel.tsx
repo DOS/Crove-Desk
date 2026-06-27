@@ -114,37 +114,38 @@ function NodeConfigForm({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 p-4">
-      <div>
-        <div className="text-sm font-medium">{panelTitle}</div>
-        <div className="mt-1 text-xs text-muted-foreground">
-          {node.data.nodeType && node.data.nodeType !== panelTitle
-            ? `${node.id} · ${node.data.nodeType}`
-            : node.id}
+    <div className="flex min-h-full flex-col">
+      <div className="sticky top-0 z-10 shrink-0 border-b border-border/60 bg-background">
+        <div className="px-4 pb-2 pt-4">
+          <Input
+            id="workflow-node-name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            onBlur={() => commitChange({ name: name.trim() || node.data.nodeType || node.id })}
+            className="h-8 border-0 bg-transparent px-0 text-sm font-semibold uppercase shadow-none focus-visible:ring-0"
+            aria-label="节点名称"
+          />
+          <div className="mt-1 truncate text-xs text-muted-foreground">
+            {node.data.nodeType && node.data.nodeType !== panelTitle
+              ? `${node.id} · ${node.data.nodeType}`
+              : node.id}
+          </div>
         </div>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="workflow-node-name">节点名称</Label>
-        <Input
-          id="workflow-node-name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          onBlur={() => commitChange({ name: name.trim() || node.data.nodeType || node.id })}
-        />
-      </div>
-      {isConditionNode ? (
-        <ConditionNodePanel
-          branches={node.data.config?.branches ?? []}
-          branchSummaries={branchSummaries}
-          availableVariables={availableVariables}
-          outputSchema={outputSchema}
-          onChange={(branches) => commitChange({ config: { ...(node.data.config ?? {}), branches } })}
-        />
-      ) : (
-        <>
+      <div className="flex flex-1 flex-col">
+        {isConditionNode ? (
+          <ConditionNodePanel
+            branches={node.data.config?.branches ?? []}
+            branchSummaries={branchSummaries}
+            availableVariables={availableVariables}
+            outputSchema={outputSchema}
+            onChange={(branches) => commitChange({ config: { ...(node.data.config ?? {}), branches } })}
+          />
+        ) : (
+          <>
           {inputSchema.length > 0 ? (
-            <div className="space-y-3">
-              <div className="text-sm font-medium">输入映射</div>
+            <div className="space-y-3 border-b border-border/60 p-4">
+              <div className="text-sm font-semibold uppercase">输入映射</div>
               {availableVariables.length === 0 ? (
                 <div className="rounded-md border border-dashed p-2 text-xs text-muted-foreground">
                   当前节点前面还没有可用变量，请先连接上游节点。
@@ -185,7 +186,7 @@ function NodeConfigForm({
               ))}
             </div>
           ) : null}
-          <details className="rounded-md border bg-background p-3">
+          <details className="border-b border-border/60 p-4">
             <summary className="cursor-pointer text-sm font-medium">高级配置 JSON</summary>
             <div className="mt-3 space-y-2">
               <Textarea
@@ -201,9 +202,9 @@ function NodeConfigForm({
             </div>
           </details>
           {outputSchema.length > 0 ? (
-            <div className="space-y-2">
-              <div className="text-sm font-medium">输出变量</div>
-              <div className="space-y-1 rounded-md border bg-background p-2">
+            <div className="space-y-2 p-4">
+              <div className="text-sm font-semibold uppercase">输出变量</div>
+              <div className="space-y-1 rounded-lg bg-muted/60 p-2">
                 {outputSchema.map((output) => (
                   <div key={output.name} className="space-y-0.5 rounded-sm px-1 py-0.5">
                     <div className="flex items-center justify-between gap-2 text-xs">
@@ -218,8 +219,9 @@ function NodeConfigForm({
               </div>
             </div>
           ) : null}
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   )
 }
@@ -292,9 +294,9 @@ function ConditionNodePanel({
 
   return (
     <>
-      <div className="space-y-2">
+      <div className="space-y-3 border-b border-border/60 p-4">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-medium">分支</div>
+          <div className="text-sm font-semibold uppercase">分支</div>
           <Button type="button" variant="outline" size="sm" onClick={addBranch}>
             添加分支
           </Button>
@@ -310,12 +312,19 @@ function ConditionNodePanel({
                 ? ""
                 : String(condition.right)
               return (
-                <div key={branch.id} className="space-y-3 rounded-md border bg-background p-3">
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="min-w-0 truncate font-medium">
-                      {branch.default ? "ELSE" : index === 0 ? "IF" : "ELSE IF"}
-                    </span>
-                    <span className="shrink-0 rounded-sm bg-muted px-1.5 py-0.5 text-muted-foreground">
+                <div key={branch.id} className="space-y-3 rounded-xl bg-muted/60 p-3">
+                  <div className="flex h-6 items-center justify-between gap-2 text-xs">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">
+                        {branch.default ? "ELSE" : index === 0 ? "IF" : "ELIF"}
+                      </span>
+                      {!branch.default ? (
+                        <span className="truncate text-[10px] font-semibold text-muted-foreground/80">
+                          CASE {index + 1}
+                        </span>
+                      ) : null}
+                    </div>
+                    <span className="shrink-0 rounded-md bg-background px-1.5 py-0.5 text-muted-foreground">
                       {branch.default ? "默认" : "条件"}
                     </span>
                   </div>
@@ -325,22 +334,23 @@ function ConditionNodePanel({
                       value={branch.name ?? ""}
                       onChange={(event) => commitBranch(branch.id, { name: event.target.value })}
                       placeholder="例如：需要转人工"
+                      className="h-8 bg-background"
                     />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">目标节点</Label>
-                    <div className="rounded-md border border-dashed bg-muted/20 px-2 py-2 text-xs text-muted-foreground">
+                    <div className="rounded-md border border-dashed bg-background/70 px-2 py-2 text-xs text-muted-foreground">
                       {summary?.targetNodeId
                         ? `已连接到：${summary.targetName}`
                         : "请从画布中该分支右侧连接点拖线到目标节点"}
                     </div>
                   </div>
                   {branch.default ? (
-                    <div className="rounded-md border border-dashed p-2 text-xs text-muted-foreground">
+                    <div className="rounded-md bg-background/70 p-2 text-xs text-muted-foreground">
                       未命中上方条件时进入：{summary?.targetName ?? (branch.targetNodeId || "未选择目标节点")}
                     </div>
                   ) : (
-                    <div className="space-y-3 rounded-md border bg-muted/20 p-2">
+                    <div className="space-y-3 rounded-lg bg-background p-2">
                       <div className="space-y-1.5">
                         <Label className="text-xs">判断变量</Label>
                         <VariableSelector
@@ -377,22 +387,22 @@ function ConditionNodePanel({
                   )}
                   <div className="flex flex-wrap gap-2">
                     {!branch.default && index > 0 ? (
-                      <Button type="button" size="sm" variant="outline" onClick={() => moveBranch(branch.id, -1)}>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => moveBranch(branch.id, -1)}>
                         上移
                       </Button>
                     ) : null}
                     {!branch.default && index < branches.findIndex((item) => item.default) - 1 ? (
-                      <Button type="button" size="sm" variant="outline" onClick={() => moveBranch(branch.id, 1)}>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => moveBranch(branch.id, 1)}>
                         下移
                       </Button>
                     ) : null}
                     {!branch.default ? (
-                      <Button type="button" size="sm" variant="outline" onClick={() => deleteBranch(branch.id)}>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => deleteBranch(branch.id)}>
                         删除
                       </Button>
                     ) : null}
                   </div>
-                  <div className="line-clamp-2 text-xs text-muted-foreground">
+                  <div className="line-clamp-2 rounded-md bg-background/70 px-2 py-1.5 text-xs text-muted-foreground">
                     {summary?.conditionLabel ?? "尚未完成分支配置"}
                   </div>
                 </div>
@@ -406,9 +416,9 @@ function ConditionNodePanel({
         )}
       </div>
       {outputSchema.length > 0 ? (
-        <div className="space-y-2">
-          <div className="text-sm font-medium">输出变量</div>
-          <div className="space-y-1 rounded-md border bg-background p-2">
+        <div className="space-y-2 p-4">
+          <div className="text-sm font-semibold uppercase">输出变量</div>
+          <div className="space-y-1 rounded-lg bg-muted/60 p-2">
             {outputSchema.map((output) => (
               <div key={output.name} className="space-y-0.5 rounded-sm px-1 py-0.5">
                 <div className="flex items-center justify-between gap-2 text-xs">
