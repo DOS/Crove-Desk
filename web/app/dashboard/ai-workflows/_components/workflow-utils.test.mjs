@@ -80,6 +80,60 @@ describe("validateWorkflowDraft", () => {
     assert.equal(result.valid, false)
     assert.match(result.errors.join("\n"), /缺少必填输入「replyText」/)
   })
+
+  it("rejects condition branch target without matching branch handle edge", async () => {
+    const { getConditionBranchHandleId, validateWorkflowDraft } = await loadModule()
+
+    const result = validateWorkflowDraft({
+      nodes: [
+        { id: "start_1", type: "workflowNode", position: { x: 0, y: 0 }, data: { nodeType: "start" } },
+        {
+          id: "condition_1",
+          type: "workflowNode",
+          position: { x: 200, y: 0 },
+          data: {
+            nodeType: "condition",
+            name: "Route",
+            config: {
+              branches: [
+                {
+                  id: "direct",
+                  name: "Direct",
+                  targetNodeId: "send_1",
+                  condition: {
+                    left: { nodeId: "start_1", field: "userMessage" },
+                    operator: "eq",
+                    right: "hello",
+                  },
+                },
+                {
+                  id: "default",
+                  name: "Else",
+                  targetNodeId: "send_1",
+                  default: true,
+                },
+              ],
+            },
+          },
+        },
+        { id: "send_1", type: "workflowNode", position: { x: 400, y: 0 }, data: { nodeType: "send_reply" } },
+        { id: "end_1", type: "workflowNode", position: { x: 600, y: 0 }, data: { nodeType: "end" } },
+      ],
+      edges: [
+        { id: "e1", source: "start_1", target: "condition_1" },
+        {
+          id: "e2",
+          source: "condition_1",
+          target: "send_1",
+          sourceHandle: getConditionBranchHandleId("default"),
+        },
+        { id: "e3", source: "send_1", target: "end_1" },
+      ],
+    })
+
+    assert.equal(result.valid, false)
+    assert.match(result.errors.join("\n"), /对应分支连接点/)
+  })
 })
 
 describe("applyAutoInputMappings", () => {
@@ -363,6 +417,76 @@ describe("getAvailableVariables", () => {
 })
 
 describe("toApiDefinition", () => {
+  it("updates condition branch target from branch handle connection", async () => {
+    const { applyConditionBranchConnection, getConditionBranchHandleId } = await loadModule()
+
+    const draft = applyConditionBranchConnection(
+      {
+        nodes: [
+          {
+            id: "condition_1",
+            type: "workflowNode",
+            position: { x: 0, y: 0 },
+            data: {
+              nodeType: "condition",
+              config: {
+                branches: [
+                  { id: "direct", name: "Direct", targetNodeId: "", condition: { operator: "eq" } },
+                  { id: "default", name: "Else", targetNodeId: "", default: true },
+                ],
+              },
+            },
+          },
+          { id: "send_1", type: "workflowNode", position: { x: 200, y: 0 }, data: { nodeType: "send_reply" } },
+        ],
+        edges: [],
+      },
+      {
+        source: "condition_1",
+        target: "send_1",
+        sourceHandle: getConditionBranchHandleId("direct"),
+      }
+    )
+
+    assert.equal(draft.nodes[0].data.config.branches[0].targetNodeId, "send_1")
+    assert.equal(draft.nodes[0].data.config.branches[1].targetNodeId, "")
+  })
+
+  it("clears condition branch target when the branch edge is removed", async () => {
+    const { clearConditionBranchConnection, getConditionBranchHandleId } = await loadModule()
+
+    const draft = clearConditionBranchConnection(
+      {
+        nodes: [
+          {
+            id: "condition_1",
+            type: "workflowNode",
+            position: { x: 0, y: 0 },
+            data: {
+              nodeType: "condition",
+              config: {
+                branches: [
+                  { id: "direct", name: "Direct", targetNodeId: "send_1", condition: { operator: "eq" } },
+                  { id: "default", name: "Else", targetNodeId: "fallback_1", default: true },
+                ],
+              },
+            },
+          },
+        ],
+        edges: [],
+      },
+      {
+        id: "edge_condition_send",
+        source: "condition_1",
+        target: "send_1",
+        sourceHandle: getConditionBranchHandleId("direct"),
+      }
+    )
+
+    assert.equal(draft.nodes[0].data.config.branches[0].targetNodeId, "")
+    assert.equal(draft.nodes[0].data.config.branches[1].targetNodeId, "fallback_1")
+  })
+
   it("keeps condition branches on the condition node config and exports plain edges", async () => {
     const { toApiDefinition } = await loadModule()
 

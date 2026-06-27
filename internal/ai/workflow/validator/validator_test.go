@@ -317,6 +317,29 @@ func TestValidateDefinitionRejectsInvalidConditionEnumValue(t *testing.T) {
 	}
 }
 
+func TestValidateDefinitionRejectsConditionDefaultBranchBeforeLast(t *testing.T) {
+	def := conditionDefinition()
+	var config dsl.ConditionConfig
+	if err := json.Unmarshal(def.Nodes[1].Config, &config); err != nil {
+		t.Fatalf("unmarshal condition config: %v", err)
+	}
+	config.Branches[0], config.Branches[1] = config.Branches[1], config.Branches[0]
+	raw, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("marshal condition config: %v", err)
+	}
+	def.Nodes[1].Config = raw
+
+	result := validator.ValidateDefinition(def, registry.DefaultRegistry())
+
+	if result.Valid {
+		t.Fatalf("expected default branch before last to be invalid")
+	}
+	if !hasValidationMessage(result, "default condition branch must be last") {
+		t.Fatalf("expected default branch order error, got %#v", result.Errors)
+	}
+}
+
 func minimalDefinition() dsl.Definition {
 	return dsl.Definition{
 		SchemaVersion: 1,

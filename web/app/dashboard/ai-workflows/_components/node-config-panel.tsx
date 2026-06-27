@@ -34,24 +34,17 @@ export type WorkflowBranchSummary = {
   isDefault: boolean
 }
 
-export type WorkflowBranchTargetOption = {
-  value: string
-  label: string
-}
-
 export function NodeConfigPanel({
   node,
   nodeSpec,
   availableVariables,
   branchSummaries = [],
-  branchTargetOptions = [],
   onChange,
 }: {
   node: Node<WorkflowNodeData> | null
   nodeSpec?: WorkflowNodeSpec
   availableVariables: WorkflowVariableRef[]
   branchSummaries?: WorkflowBranchSummary[]
-  branchTargetOptions?: WorkflowBranchTargetOption[]
   onChange: (nodeId: string, data: WorkflowNodeData) => void
 }) {
   if (!node) {
@@ -69,7 +62,6 @@ export function NodeConfigPanel({
       nodeSpec={nodeSpec}
       availableVariables={availableVariables}
       branchSummaries={branchSummaries}
-      branchTargetOptions={branchTargetOptions}
       onChange={onChange}
     />
   )
@@ -80,14 +72,12 @@ function NodeConfigForm({
   nodeSpec,
   availableVariables,
   branchSummaries,
-  branchTargetOptions,
   onChange,
 }: {
   node: Node<WorkflowNodeData>
   nodeSpec?: WorkflowNodeSpec
   availableVariables: WorkflowVariableRef[]
   branchSummaries: WorkflowBranchSummary[]
-  branchTargetOptions: WorkflowBranchTargetOption[]
   onChange: (nodeId: string, data: WorkflowNodeData) => void
 }) {
   const [name, setName] = useState(node.data.name ?? "")
@@ -145,7 +135,6 @@ function NodeConfigForm({
         <ConditionNodePanel
           branches={node.data.config?.branches ?? []}
           branchSummaries={branchSummaries}
-          branchTargetOptions={branchTargetOptions}
           availableVariables={availableVariables}
           outputSchema={outputSchema}
           onChange={(branches) => commitChange({ config: { ...(node.data.config ?? {}), branches } })}
@@ -237,14 +226,12 @@ function NodeConfigForm({
 function ConditionNodePanel({
   branches,
   branchSummaries,
-  branchTargetOptions,
   availableVariables,
   outputSchema,
   onChange,
 }: {
   branches: WorkflowConditionBranch[]
   branchSummaries: WorkflowBranchSummary[]
-  branchTargetOptions: WorkflowBranchTargetOption[]
   availableVariables: WorkflowVariableRef[]
   outputSchema: WorkflowVariableSpec[]
   onChange: (branches: WorkflowConditionBranch[]) => void
@@ -257,25 +244,49 @@ function ConditionNodePanel({
   }
   const addBranch = () => {
     const index = branches.length + 1
+    const nextBranch = {
+      id: `branch_${index}`,
+      name: `分支 ${index}`,
+      targetNodeId: "",
+      condition: { operator: "eq" },
+    }
+    const defaultIndex = branches.findIndex((branch) => branch.default)
+    if (defaultIndex >= 0) {
+      onChange([
+        ...branches.slice(0, defaultIndex),
+        nextBranch,
+        ...branches.slice(defaultIndex),
+      ])
+      return
+    }
     onChange([
       ...branches,
+      nextBranch,
       {
-        id: `branch_${index}`,
-        name: `分支 ${index}`,
-        targetNodeId: branchTargetOptions[0]?.value ?? "",
-        condition: { operator: "eq" },
+        id: "default",
+        name: "其他情况",
+        targetNodeId: "",
+        default: true,
       },
     ])
   }
   const deleteBranch = (branchId: string) => {
-    onChange(branches.filter((branch) => branch.id !== branchId))
+    onChange(branches.filter((branch) => branch.id !== branchId || branch.default))
   }
-  const markDefault = (branchId: string) => {
-    onChange(branches.map((branch) => normalizeBranch({
-      ...branch,
-      default: branch.id === branchId,
-      condition: branch.id === branchId ? undefined : branch.condition ?? { operator: "eq" },
-    })))
+  const moveBranch = (branchId: string, direction: -1 | 1) => {
+    const index = branches.findIndex((branch) => branch.id === branchId)
+    if (index < 0 || branches[index]?.default) {
+      return
+    }
+    const nextIndex = index + direction
+    if (nextIndex < 0 || nextIndex >= branches.length || branches[nextIndex]?.default) {
+      return
+    }
+    const next = [...branches]
+    const current = next[index]
+    next[index] = next[nextIndex]
+    next[nextIndex] = current
+    onChange(next)
   }
 
   return (
@@ -317,14 +328,11 @@ function ConditionNodePanel({
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">目标节点</Label>
-                    <OptionCombobox
-                      value={branch.targetNodeId}
-                      options={branchTargetOptions}
-                      placeholder="选择目标节点"
-                      searchPlaceholder="搜索目标节点"
-                      emptyText="请先从条件节点连出下游节点"
-                      onChange={(value) => commitBranch(branch.id, { targetNodeId: value })}
-                    />
+                    <div className="rounded-md border border-dashed bg-muted/20 px-2 py-2 text-xs text-muted-foreground">
+                      {summary?.targetNodeId
+                        ? `已连接到：${summary.targetName}`
+                        : "请从画布中该分支右侧连接点拖线到目标节点"}
+                    </div>
                   </div>
                   {branch.default ? (
                     <div className="rounded-md border border-dashed p-2 text-xs text-muted-foreground">
@@ -367,14 +375,21 @@ function ConditionNodePanel({
                     </div>
                   )}
                   <div className="flex flex-wrap gap-2">
-                    {!branch.default ? (
-                      <Button type="button" size="sm" variant="outline" onClick={() => markDefault(branch.id)}>
-                        设为默认
+                    {!branch.default && index > 0 ? (
+                      <Button type="button" size="sm" variant="outline" onClick={() => moveBranch(branch.id, -1)}>
+                        上移
                       </Button>
                     ) : null}
-                    <Button type="button" size="sm" variant="outline" onClick={() => deleteBranch(branch.id)}>
-                      删除
-                    </Button>
+                    {!branch.default && index < branches.findIndex((item) => item.default) - 1 ? (
+                      <Button type="button" size="sm" variant="outline" onClick={() => moveBranch(branch.id, 1)}>
+                        下移
+                      </Button>
+                    ) : null}
+                    {!branch.default ? (
+                      <Button type="button" size="sm" variant="outline" onClick={() => deleteBranch(branch.id)}>
+                        删除
+                      </Button>
+                    ) : null}
                   </div>
                   <div className="line-clamp-2 text-xs text-muted-foreground">
                     {summary?.conditionLabel ?? "尚未完成分支配置"}

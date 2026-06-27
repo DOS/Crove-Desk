@@ -48,6 +48,8 @@ export type WorkflowEditorEdge = {
   id: string
   source: string
   target: string
+  sourceHandle?: string | null
+  targetHandle?: string | null
 }
 
 export type WorkflowCondition = {
@@ -162,6 +164,19 @@ export type WorkflowHistoryChange<T> = {
 
 const helperLineAlignmentThreshold = 6
 const defaultWorkflowHistoryLimit = 50
+const conditionBranchHandlePrefix = "condition-branch:"
+
+export function getConditionBranchHandleId(branchId: string): string {
+  return `${conditionBranchHandlePrefix}${branchId}`
+}
+
+export function parseConditionBranchHandleId(handleId?: string | null): string | null {
+  if (!handleId?.startsWith(conditionBranchHandlePrefix)) {
+    return null
+  }
+  const branchId = handleId.slice(conditionBranchHandlePrefix.length)
+  return branchId || null
+}
 
 function cloneHistorySnapshot<T>(snapshot: T): T {
   return JSON.parse(JSON.stringify(snapshot)) as T
@@ -373,6 +388,7 @@ export function validateWorkflowDraft(
 
   const edgeIds = new Set<string>()
   const outgoingTargets = new Map<string, Set<string>>()
+  const branchEdges = new Set<string>()
   for (const edge of draft.edges) {
     const id = edge.id.trim()
     if (!id) {
@@ -391,19 +407,22 @@ export function validateWorkflowDraft(
       outgoingTargets.set(edge.source, new Set())
     }
     outgoingTargets.get(edge.source)?.add(edge.target)
+    const branchId = parseConditionBranchHandleId(edge.sourceHandle)
+    if (branchId) {
+      branchEdges.add(`${edge.source}:${branchId}:${edge.target}`)
+    }
   }
 
   for (const node of draft.nodes) {
     const nodeType = node.data?.nodeType ?? node.type ?? ""
     const spec = getNodeSpec(nodeSpecs, nodeType)
-    if (!spec) {
-      continue
-    }
-    for (const input of getRequiredInputs(spec)) {
-      const selector = node.data?.inputs?.[input.name]
-      if (!selector?.nodeId || !selector.field) {
-        const nodeName = node.data?.name ?? spec.title ?? node.id
-        errors.push(`${nodeName} 缺少必填输入「${input.name}」，请选择上游节点的输出变量。`)
+    if (spec) {
+      for (const input of getRequiredInputs(spec)) {
+        const selector = node.data?.inputs?.[input.name]
+        if (!selector?.nodeId || !selector.field) {
+          const nodeName = node.data?.name ?? spec.title ?? node.id
+          errors.push(`${nodeName} 缺少必填输入「${input.name}」，请选择上游节点的输出变量。`)
+        }
       }
     }
     if (nodeType === "condition") {
@@ -429,11 +448,16 @@ export function validateWorkflowDraft(
           errors.push(`${node.data?.name ?? node.id} 的分支「${branchName}」目标节点不存在。`)
         } else if (!targets.has(branch.targetNodeId)) {
           errors.push(`${node.data?.name ?? node.id} 的分支「${branchName}」需要连接到目标节点。`)
+        } else if (branchEdges.size > 0 && !branchEdges.has(`${node.id}:${branch.id}:${branch.targetNodeId}`)) {
+          errors.push(`${node.data?.name ?? node.id} 的分支「${branchName}」需要从对应分支连接点连到目标节点。`)
         }
         if (branch.default) {
           defaultCount += 1
           if (branch.condition) {
             errors.push(`${node.data?.name ?? node.id} 的默认分支不能配置条件。`)
+          }
+          if (branches.indexOf(branch) !== branches.length - 1) {
+            errors.push(`${node.data?.name ?? node.id} 的默认分支必须放在最后。`)
           }
           continue
         }
@@ -478,6 +502,69 @@ export function toApiDefinition(draft: WorkflowDraft): WorkflowDefinition {
       target: edge.target,
     })),
   }
+}
+
+export function applyConditionBranchConnection(
+  draft: WorkflowDraft,
+  connection: Pick<WorkflowEditorEdge, "source" | "target" | "sourceHandle">
+): WorkflowDraft {
+  const branchId = parseConditionBranchHandleId(connection.sourceHandle)
+  if (!branchId || !connection.source || !connection.target) {
+    return draft
+  }
+  return updateConditionBranchTarget(draft, connection.source, branchId, connection.target)
+}
+
+export function clearConditionBranchConnection(
+  draft: WorkflowDraft,
+  edge: WorkflowEditorEdge
+): WorkflowDraft {
+  const branchId = parseConditionBranchHandleId(edge.sourceHandle)
+  if (branchId) {
+    return updateConditionBranchTarget(draft, edge.source, branchId, "")
+  }
+  const sourceNode = draft.nodes.find((node) => node.id === edge.source)
+  if (!sourceNode || (sourceNode.data?.nodeType ?? sourceNode.type) !== "condition") {
+    return draft
+  }
+  const branch = sourceNode.data?.config?.branches?.find((item) => item.targetNodeId === edge.target)
+  return branch ? updateConditionBranchTarget(draft, edge.source, branch.id, "") : draft
+}
+
+function updateConditionBranchTarget(
+  draft: WorkflowDraft,
+  conditionNodeId: string,
+  branchId: string,
+  targetNodeId: string
+): WorkflowDraft {
+  let changed = false
+  const nodes = draft.nodes.map((node) => {
+    if (node.id !== conditionNodeId || (node.data?.nodeType ?? node.type) !== "condition") {
+      return node
+    }
+    const branches = node.data?.config?.branches ?? []
+    const nextBranches = branches.map((branch) => {
+      if (branch.id !== branchId || branch.targetNodeId === targetNodeId) {
+        return branch
+      }
+      changed = true
+      return { ...branch, targetNodeId }
+    })
+    if (!changed) {
+      return node
+    }
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        config: {
+          ...(node.data?.config ?? {}),
+          branches: nextBranches,
+        },
+      },
+    }
+  })
+  return changed ? { ...draft, nodes } : draft
 }
 
 export function fromApiDefinition(definition: WorkflowDefinition): WorkflowDraft {

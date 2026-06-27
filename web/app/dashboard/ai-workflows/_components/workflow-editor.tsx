@@ -52,12 +52,15 @@ import {
 import { cn } from "@/lib/utils"
 import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
 import {
+  applyConditionBranchConnection,
   applyAutoInputMappings,
   calculateWorkflowHelperLines,
+  clearConditionBranchConnection,
   createWorkflowHistory,
   createWorkflowNodeFromSpec,
   fromApiDefinition,
   getAvailableVariables,
+  getConditionBranchHandleId,
   getNodeSpec,
   getRequiredInputs,
   pushWorkflowHistory,
@@ -66,6 +69,7 @@ import {
   undoWorkflowHistory,
   validateWorkflowDraft,
   type WorkflowCondition,
+  type WorkflowDraft,
   type WorkflowEditorNode,
   type WorkflowHistory,
   type WorkflowHelperLine,
@@ -73,7 +77,6 @@ import {
   type WorkflowVariableSpec,
 } from "./workflow-utils"
 import { NodeConfigPanel, type WorkflowBranchSummary } from "./node-config-panel"
-import type { WorkflowBranchTargetOption } from "./node-config-panel"
 
 type WorkflowNodeData = Record<string, unknown> & {
   nodeType?: string
@@ -88,6 +91,7 @@ type WorkflowNodeData = Record<string, unknown> & {
   inputCount?: number
   outputCount?: number
   missingInputs?: string[]
+  branchSummaries?: WorkflowBranchSummary[]
 }
 
 type WorkflowFlowNode = Node<WorkflowNodeData>
@@ -157,10 +161,25 @@ function toFlowEdges(definition: AIWorkflowDefinition): WorkflowFlowEdge[] {
     type: "workflowEdge",
     source: edge.source,
     target: edge.target,
+    sourceHandle: getConditionBranchHandleForEdge(definition, edge.source, edge.target),
   }))
 }
 
-function toDraft(nodes: WorkflowFlowNode[], edges: WorkflowFlowEdge[]) {
+function getConditionBranchHandleForEdge(
+  definition: AIWorkflowDefinition,
+  sourceNodeId: string,
+  targetNodeId: string
+) {
+  const sourceNode = definition.nodes?.find((node) => node.id === sourceNodeId)
+  if (!sourceNode || sourceNode.type !== "condition") {
+    return undefined
+  }
+  const config = sourceNode.config as WorkflowNodeConfig | undefined
+  const branch = config?.branches?.find((item) => item.targetNodeId === targetNodeId)
+  return branch ? getConditionBranchHandleId(branch.id) : undefined
+}
+
+function toDraft(nodes: WorkflowFlowNode[], edges: WorkflowFlowEdge[]): WorkflowDraft {
   return {
     nodes: nodes.map((node) => ({
       id: node.id,
@@ -177,6 +196,8 @@ function toDraft(nodes: WorkflowFlowNode[], edges: WorkflowFlowEdge[]) {
       id: edge.id,
       source: edge.source,
       target: edge.target,
+      sourceHandle: edge.sourceHandle,
+      targetHandle: edge.targetHandle,
     })),
   }
 }
@@ -253,10 +274,6 @@ export function WorkflowEditor({
   const propertyPanelBranchSummaries = useMemo(
     () => (propertyPanelNode ? getBranchSummaries(nodes, propertyPanelNode.id, nodeSpecs) : []),
     [nodeSpecs, nodes, propertyPanelNode]
-  )
-  const propertyPanelBranchTargetOptions = useMemo(
-    () => (propertyPanelNode ? getBranchTargetOptions(nodes, edges, propertyPanelNode.id) : []),
-    [edges, nodes, propertyPanelNode]
   )
   useEffect(() => {
     onDefinitionChange(toApiDefinition(draft) as AIWorkflowDefinition)
@@ -415,18 +432,28 @@ export function WorkflowEditor({
       pushCurrentSnapshotToHistory()
       const edge = {
         ...connection,
-        id: uniqueEdgeId(edges, connection.source, connection.target),
+        id: uniqueEdgeId(edges, connection.source, connection.target, connection.sourceHandle),
         type: "workflowEdge",
       } as WorkflowFlowEdge
-      setEdges((current) => addEdge(edge, current))
+      const nextEdges = [
+        ...edges.filter((item) => !(
+          connection.sourceHandle
+          && item.source === connection.source
+          && item.sourceHandle === connection.sourceHandle
+        )),
+        edge,
+      ]
+      setEdges((current) => addEdge(edge, current.filter((item) => !(
+        connection.sourceHandle
+        && item.source === connection.source
+        && item.sourceHandle === connection.sourceHandle
+      ))))
       setNodes((currentNodes) => {
-        const currentDraft = toDraft(currentNodes, [...edges, edge])
-        const nextDraft = applyAutoInputMappings(
-          currentDraft,
-          connection.source!,
-          connection.target!,
-          nodeSpecs
+        const connectedDraft = applyConditionBranchConnection(
+          toDraft(currentNodes, nextEdges),
+          edge
         )
+        const nextDraft = applyAutoInputMappings(connectedDraft, connection.source!, connection.target!, nodeSpecs)
         return currentNodes.map((node) => {
           const nextNode = nextDraft.nodes.find((item) => item.id === node.id)
           if (!nextNode) {
@@ -436,6 +463,7 @@ export function WorkflowEditor({
             ...node,
             data: {
               ...node.data,
+              config: nextNode.data?.config ?? node.data.config,
               inputs: nextNode.data?.inputs ?? node.data.inputs,
             },
           }
@@ -498,12 +526,41 @@ export function WorkflowEditor({
 
   const onWorkflowEdgesChange = useCallback(
     (changes: EdgeChange<WorkflowFlowEdge>[]) => {
-      if (changes.some((change) => change.type === "remove")) {
+      const removedEdges = changes
+        .filter((change) => change.type === "remove")
+        .map((change) => edges.find((edge) => edge.id === change.id))
+        .filter((edge): edge is WorkflowFlowEdge => Boolean(edge))
+      if (removedEdges.length > 0) {
         pushCurrentSnapshotToHistory()
+        setNodes((currentNodes) => {
+          let draft = toDraft(currentNodes, edges.filter((edge) => !removedEdges.some((removed) => removed.id === edge.id)))
+          for (const removedEdge of removedEdges) {
+            draft = clearConditionBranchConnection(draft, {
+              id: removedEdge.id,
+              source: removedEdge.source,
+              target: removedEdge.target,
+              sourceHandle: removedEdge.sourceHandle,
+              targetHandle: removedEdge.targetHandle,
+            })
+          }
+          return currentNodes.map((node) => {
+            const nextNode = draft.nodes.find((item) => item.id === node.id)
+            if (!nextNode) {
+              return node
+            }
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                config: nextNode.data?.config ?? node.data.config,
+              },
+            }
+          })
+        })
       }
       onEdgesChange(changes)
     },
-    [onEdgesChange, pushCurrentSnapshotToHistory]
+    [edges, onEdgesChange, pushCurrentSnapshotToHistory, setNodes]
   )
 
   const onNodeDragStart = useCallback<OnNodeDrag<WorkflowFlowNode>>(() => {
@@ -938,7 +995,6 @@ export function WorkflowEditor({
                     nodeSpec={propertyPanelNodeSpec}
                     availableVariables={propertyPanelAvailableVariables}
                     branchSummaries={propertyPanelBranchSummaries}
-                    branchTargetOptions={propertyPanelBranchTargetOptions}
                     onChange={updateNodeData}
                   />
                 ) : null}
@@ -972,12 +1028,13 @@ export function WorkflowEditor({
   )
 }
 
-function uniqueEdgeId(edges: WorkflowFlowEdge[], source: string, target: string) {
+function uniqueEdgeId(edges: WorkflowFlowEdge[], source: string, target: string, sourceHandle?: string | null) {
   let nextIndex = edges.length + 1
-  let id = `edge_${source}_${target}_${nextIndex}`
+  const handleSuffix = sourceHandle ? `_${sourceHandle.replace(/[^a-zA-Z0-9_-]/g, "_")}` : ""
+  let id = `edge_${source}${handleSuffix}_${target}_${nextIndex}`
   while (edges.some((edge) => edge.id === id)) {
     nextIndex += 1
-    id = `edge_${source}_${target}_${nextIndex}`
+    id = `edge_${source}${handleSuffix}_${target}_${nextIndex}`
   }
   return id
 }
@@ -1001,6 +1058,7 @@ function enrichNodesForRender(
         inputCount: spec?.inputSchema?.length ?? 0,
         outputCount: spec?.outputSchema?.length ?? 0,
         missingInputs: missingInputs.map((input) => input.name),
+        branchSummaries: node.data.nodeType === "condition" ? getBranchSummaries(nodes, node.id, nodeSpecs) : undefined,
       },
     }
   })
@@ -1038,22 +1096,6 @@ function getBranchSummaries(
         targetName: target?.data.name ?? target?.data.title ?? branch.targetNodeId,
         conditionLabel: branch.condition ? formatConditionLabel(branch.condition, nodes, nodeSpecs) : "无条件匹配",
         isDefault: Boolean(branch.default),
-      }
-    })
-}
-
-function getBranchTargetOptions(
-  nodes: WorkflowFlowNode[],
-  edges: WorkflowFlowEdge[],
-  nodeId: string
-): WorkflowBranchTargetOption[] {
-  return edges
-    .filter((edge) => edge.source === nodeId)
-    .map((edge) => {
-      const target = nodes.find((node) => node.id === edge.target)
-      return {
-        value: edge.target,
-        label: target?.data.name ?? target?.data.title ?? edge.target,
       }
     })
 }
@@ -1226,16 +1268,19 @@ function WorkflowCanvasEdge({
 }
 
 function WorkflowNodeHandle({
+  id,
   type,
   position,
   className,
 }: {
+  id?: string
   type: "source" | "target"
   position: Position
   className?: string
 }) {
   return (
     <Handle
+      id={id}
       type={type}
       position={position}
       className={className}
@@ -1318,45 +1363,70 @@ function WorkflowCanvasNode({ id, data, selected }: NodeProps<WorkflowFlowNode>)
     showHandles ? "pointer-events-auto opacity-100" : "pointer-events-none"
   )
   if (isConditionNode) {
+    const branches = data.branchSummaries ?? []
     return (
       <div
-        className="group/node relative flex size-36 items-center justify-center"
+        className={[
+          "group/node relative w-72 rounded-xl border bg-background shadow-[0_12px_34px_rgba(15,23,42,0.08)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(15,23,42,0.12)]",
+          selected ? "border-primary ring-4 ring-primary/10" : "",
+          hasIssue ? "border-destructive/70" : "border-border/70",
+        ].join(" ")}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        <div
-          className={[
-            "absolute inset-4 rotate-45 rounded-xl border bg-background shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all",
-            selected ? "border-primary ring-4 ring-primary/10" : "",
-            hasIssue ? "border-destructive/70" : "border-border/70",
-          ].join(" ")}
-        />
         <WorkflowNodeHandle
           type="target"
           position={Position.Left}
           className={cn("!left-0", handleClassName)}
         />
-        <div className="relative z-10 flex max-w-24 flex-col items-center text-center">
-          {hasIssue ? (
-            <AlertCircleIcon className="mb-1 size-4 text-destructive" />
-          ) : (
-            <CheckCircle2Icon className="mb-1 size-4 text-emerald-600" />
-          )}
-          <div className="line-clamp-2 text-sm font-medium leading-tight">{data.name ?? data.title}</div>
-          <div className="mt-1 text-[11px] text-muted-foreground">分支</div>
+        <div className="overflow-hidden rounded-xl">
+          <div className="flex items-start gap-2 border-b border-border/60 bg-muted/20 px-3 py-2.5">
+            <div
+              className={cn(
+                "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg",
+                hasIssue ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-700"
+              )}
+            >
+              {hasIssue ? (
+                <AlertCircleIcon className="size-4" />
+              ) : (
+                <CheckCircle2Icon className="size-4" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium">{data.name ?? data.title}</div>
+              <div className="mt-0.5 truncate text-xs text-muted-foreground">条件分支</div>
+            </div>
+          </div>
+          <div className="divide-y divide-border/60 text-xs">
+            {branches.length > 0 ? branches.map((branch, index) => (
+              <div key={branch.branchId} className="relative flex items-center gap-2 px-3 py-2.5 pr-6">
+                <span
+                  className={cn(
+                    "shrink-0 rounded-sm px-1.5 py-0.5 font-medium",
+                    branch.isDefault ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
+                  )}
+                >
+                  {branch.isDefault ? "ELSE" : index === 0 ? "IF" : "ELIF"}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">{branch.conditionLabel}</div>
+                  <div className="mt-0.5 truncate text-muted-foreground">
+                    {branch.targetNodeId ? `连接到：${branch.targetName}` : "未连接目标节点"}
+                  </div>
+                </div>
+                <WorkflowNodeHandle
+                  id={getConditionBranchHandleId(branch.branchId)}
+                  type="source"
+                  position={Position.Right}
+                  className={cn("!right-[-8px] !top-1/2 !-translate-y-1/2", handleClassName)}
+                />
+              </div>
+            )) : (
+              <div className="px-3 py-3 text-muted-foreground">当前还没有分支</div>
+            )}
+          </div>
         </div>
-        <WorkflowNodeHandle
-          type="source"
-          position={Position.Right}
-          className={cn("!right-0", handleClassName)}
-        />
-        <WorkflowAddAfterButton
-          nodeId={id}
-          visible={showHandles}
-          className="right-4 top-4"
-          nodeSpecs={nodeSpecs}
-          onAddAfter={onAddAfter}
-        />
       </div>
     )
   }

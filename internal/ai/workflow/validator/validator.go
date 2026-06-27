@@ -310,6 +310,9 @@ func (v *definitionValidator) validateConditions() {
 				if branch.Condition != nil {
 					v.addError(branchField+".condition", "default condition branch must not define a condition")
 				}
+				if branchIndex != len(config.Branches)-1 {
+					v.addError(branchField, "default condition branch must be last")
+				}
 				continue
 			}
 			v.validateCondition(branchField+".condition", strings.TrimSpace(node.ID), branch.Condition)
