@@ -1,4 +1,4 @@
-import type { WorkflowNodeRegistry } from "@flowgram.ai/free-layout-editor"
+import { Field, type WorkflowNodeRegistry } from "@flowgram.ai/free-layout-editor"
 
 import type { AIWorkflowNodeSpec } from "@/lib/api/admin"
 
@@ -23,11 +23,36 @@ export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): Wo
       type: spec.type,
       meta: {
         defaultExpanded: true,
+        isStart: spec.type === "start",
         deleteDisable: spec.type === "start" || spec.type === "end",
         copyDisable: spec.type === "start" || spec.type === "end",
         defaultPorts: defaultPortsForNodeType(spec.type),
       },
+      formMeta: {
+        render: () => <FlowgramNodeForm nodeType={spec.type} fallbackTitle={spec.title || spec.type} />,
+      },
     }))
+}
+
+function FlowgramNodeForm({
+  nodeType,
+  fallbackTitle,
+}: {
+  nodeType: string
+  fallbackTitle: string
+}) {
+  return (
+    <div className="min-w-0 flex-1">
+      <Field<string> name="title">
+        {({ field }) => (
+          <div className="truncate text-sm font-medium leading-5">
+            {field.value || fallbackTitle}
+          </div>
+        )}
+      </Field>
+      <div className="mt-1 truncate text-xs text-muted-foreground">{nodeType}</div>
+    </div>
+  )
 }
 
 function defaultPortsForNodeType(type: string) {

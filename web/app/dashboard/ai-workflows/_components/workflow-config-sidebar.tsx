@@ -34,7 +34,7 @@ export function WorkflowConfigSidebar({
     : []
 
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-l bg-background">
+    <aside className="relative z-50 flex w-80 shrink-0 flex-col border-l bg-background">
       <div className="border-b px-3 py-2">
         <div className="text-sm font-medium">配置</div>
       </div>

@@ -34,11 +34,9 @@ const iconByType: Record<string, ComponentType<{ className?: string }>> = {
 }
 
 export function FlowgramNodeRenderer(props: WorkflowNodeProps) {
-  const { selected, node } = useNodeRender()
+  const { selected, node, form } = useNodeRender()
   const nodeType = String(node.flowNodeType ?? "")
   const Icon = iconByType[nodeType] ?? BotIcon
-  const nodeJSON = node.toJSON?.() as { data?: { title?: string }; title?: string } | undefined
-  const title = nodeJSON?.data?.title || nodeJSON?.title || nodeType || "节点"
 
   return (
     <WorkflowNodeRenderer
@@ -53,10 +51,7 @@ export function FlowgramNodeRenderer(props: WorkflowNodeProps) {
         <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border bg-muted">
           <Icon className="size-4 text-muted-foreground" />
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium leading-5">{title}</div>
-          <div className="mt-1 truncate text-xs text-muted-foreground">{nodeType}</div>
-        </div>
+        {form?.render()}
       </div>
     </WorkflowNodeRenderer>
   )

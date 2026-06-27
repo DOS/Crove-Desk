@@ -50,7 +50,7 @@ export function WorkflowEditorToolbar({
   publishDisabled?: boolean
 }) {
   return (
-    <div className="flex h-10 shrink-0 items-center justify-between border-b bg-background px-2">
+    <div className="relative z-50 flex h-10 shrink-0 items-center justify-between border-b bg-background px-2">
       <div className="flex min-w-0 items-center gap-2">
         <span
           className={cn(

@@ -2,7 +2,16 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 
-import { EditorRenderer, FreeLayoutEditorProvider } from "@flowgram.ai/free-layout-editor"
+import {
+  EditorRenderer,
+  FreeLayoutEditorProvider,
+  WorkflowDocument,
+  WorkflowSelectService,
+  type WorkflowJSON,
+  type WorkflowNodeJSON,
+  useClientContext,
+  useService,
+} from "@flowgram.ai/free-layout-editor"
 
 import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
 
@@ -54,19 +63,7 @@ export function WorkflowEditor({
   toolbarExtra?: ReactNode
 }) {
   const [localDefinition, setLocalDefinition] = useState(definition)
-  const [editorKey, setEditorKey] = useState(0)
   const [selectedNodeId, setSelectedNodeId] = useState(definition.nodes[0]?.id ?? "")
-
-  useEffect(() => {
-    setLocalDefinition(definition)
-    setSelectedNodeId((current) => {
-      if (definition.nodes.some((node) => node.id === current)) {
-        return current
-      }
-      return definition.nodes[0]?.id ?? ""
-    })
-    setEditorKey((current) => current + 1)
-  }, [definition])
 
   const validation = useMemo(
     () => validateWorkflowDefinition(localDefinition, nodeSpecs),
@@ -82,47 +79,138 @@ export function WorkflowEditor({
     },
   })
 
-  const emitDefinition = (next: AIWorkflowDefinition, remountEditor = false) => {
-    setLocalDefinition(next)
-    if (remountEditor) {
-      setEditorKey((current) => current + 1)
+  return (
+    <FreeLayoutEditorProvider {...editorProps}>
+      <WorkflowEditorInner
+        definition={localDefinition}
+        nodeSpecs={nodeSpecs}
+        selectedNodeId={selectedNodeId}
+        validation={validation}
+        toolbarExtra={toolbarExtra}
+        onDefinitionChange={(next) => {
+          setLocalDefinition(next)
+          onDefinitionChange(next)
+        }}
+        onSelectNode={setSelectedNodeId}
+        onUndo={onUndo}
+        undoDisabled={undoDisabled}
+        onRedo={onRedo}
+        redoDisabled={redoDisabled}
+        onRestoreDefault={onRestoreDefault}
+        restoreDefaultDisabled={restoreDefaultDisabled}
+        onValidate={onValidate}
+        validateDisabled={validateDisabled}
+        onSaveDraft={onSaveDraft}
+        saveDraftDisabled={saveDraftDisabled}
+        onPublish={onPublish}
+        publishDisabled={publishDisabled}
+      />
+    </FreeLayoutEditorProvider>
+  )
+}
+
+function WorkflowEditorInner({
+  definition,
+  nodeSpecs,
+  selectedNodeId,
+  validation,
+  toolbarExtra,
+  onDefinitionChange,
+  onSelectNode,
+  onUndo,
+  undoDisabled,
+  onRedo,
+  redoDisabled,
+  onRestoreDefault,
+  restoreDefaultDisabled,
+  onValidate,
+  validateDisabled,
+  onSaveDraft,
+  saveDraftDisabled,
+  onPublish,
+  publishDisabled,
+}: {
+  definition: AIWorkflowDefinition
+  nodeSpecs: AIWorkflowNodeSpec[]
+  selectedNodeId: string
+  validation: ReturnType<typeof validateWorkflowDefinition>
+  toolbarExtra?: ReactNode
+  onDefinitionChange: (definition: AIWorkflowDefinition) => void
+  onSelectNode: (nodeId: string) => void
+  onUndo?: () => void
+  undoDisabled?: boolean
+  onRedo?: () => void
+  redoDisabled?: boolean
+  onRestoreDefault?: () => void
+  restoreDefaultDisabled?: boolean
+  onValidate?: () => void
+  validateDisabled?: boolean
+  onSaveDraft?: () => void
+  saveDraftDisabled?: boolean
+  onPublish?: () => void
+  publishDisabled?: boolean
+}) {
+  const context = useClientContext()
+  const workflowDocument = useService(WorkflowDocument)
+  const selectService = useService(WorkflowSelectService)
+
+  useEffect(() => {
+    const disposable = selectService.onSelectionChanged(() => {
+      const selectedNode = selectService.selectedNodes[0]
+      if (selectedNode) {
+        onSelectNode(selectedNode.id)
+      }
+    })
+    return () => disposable.dispose()
+  }, [onSelectNode, selectService])
+
+  const emitCurrentDefinition = () => {
+    onDefinitionChange(context.document.toJSON() as AIWorkflowDefinition)
+  }
+
+  const addNode = async (spec: AIWorkflowNodeSpec) => {
+    const nextNode = createWorkflowNodeFromSpec(spec, definition.nodes, nextNodePosition(definition))
+    const created = workflowDocument.createWorkflowNodeByType(
+      spec.type,
+      nextNode.meta?.position,
+      nextNode as WorkflowNodeJSON
+    )
+    await selectService.selectNodeAndScrollToView(created)
+    onSelectNode(created.id)
+    emitCurrentDefinition()
+  }
+
+  const selectNode = (nodeId: string) => {
+    const node = workflowDocument.getAllNodes().find((item) => item.id === nodeId)
+    if (node) {
+      selectService.selectNodeAndFocus(node)
     }
-    onDefinitionChange(next)
+    onSelectNode(nodeId)
   }
 
-  const addNode = (spec: AIWorkflowNodeSpec) => {
-    const nextNode = createWorkflowNodeFromSpec(spec, localDefinition.nodes, nextNodePosition(localDefinition))
-    const next = {
-      ...localDefinition,
-      nodes: [...localDefinition.nodes, nextNode],
-    }
-    setSelectedNodeId(nextNode.id)
-    emitDefinition(next, true)
+  const updateNodeData = (nodeId: string, data: WorkflowNodeData) => {
+    const next = updateWorkflowNodeData(definition, nodeId, data)
+    context.operation.fromJSON(next as WorkflowJSON)
+    onDefinitionChange(context.document.toJSON() as AIWorkflowDefinition)
   }
 
-  const updateNodeData = (
-    nodeId: string,
-    data: WorkflowNodeData
-  ) => {
-    emitDefinition(updateWorkflowNodeData(localDefinition, nodeId, data))
-  }
-
-  const deleteNode = (nodeId: string) => {
-    const next = deleteWorkflowNode(localDefinition, nodeId)
-    const nextNodes = next.nodes
-    setSelectedNodeId(nextNodes[0]?.id ?? "")
-    emitDefinition(next, true)
+  const removeNode = (nodeId: string) => {
+    const next = deleteWorkflowNode(definition, nodeId)
+    context.operation.fromJSON(next as WorkflowJSON)
+    const nextSelectedNodeId = next.nodes[0]?.id ?? ""
+    onSelectNode(nextSelectedNodeId)
+    onDefinitionChange(context.document.toJSON() as AIWorkflowDefinition)
   }
 
   return (
-    <div className="flex min-h-[640px] flex-1 overflow-hidden border bg-background">
+    <div className="relative isolate flex min-h-[640px] flex-1 overflow-hidden border bg-background">
       <WorkflowNodePalette nodeSpecs={nodeSpecs} onAddNode={addNode} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <WorkflowEditorToolbar
           validation={validation}
-          nodeCount={localDefinition.nodes.length}
-          edgeCount={localDefinition.edges.length}
+          nodeCount={definition.nodes.length}
+          edgeCount={definition.edges.length}
           toolbarExtra={toolbarExtra}
           onUndo={onUndo}
           undoDisabled={undoDisabled}
@@ -138,19 +226,17 @@ export function WorkflowEditor({
           publishDisabled={publishDisabled}
         />
         <div className="min-h-0 flex-1">
-          <FreeLayoutEditorProvider key={editorKey} {...editorProps}>
-            <EditorRenderer className="h-full w-full" />
-          </FreeLayoutEditorProvider>
+          <EditorRenderer className="h-full w-full" />
         </div>
       </div>
 
       <WorkflowConfigSidebar
-        definition={localDefinition}
+        definition={definition}
         nodeSpecs={nodeSpecs}
         selectedNodeId={selectedNodeId}
-        onSelectNode={setSelectedNodeId}
+        onSelectNode={selectNode}
         onChangeNodeData={updateNodeData}
-        onDeleteNode={deleteNode}
+        onDeleteNode={removeNode}
       />
     </div>
   )

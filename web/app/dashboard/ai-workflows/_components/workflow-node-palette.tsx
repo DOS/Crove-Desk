@@ -12,7 +12,7 @@ export function WorkflowNodePalette({
   onAddNode: (spec: AIWorkflowNodeSpec) => void
 }) {
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r bg-muted/20">
+    <aside className="relative z-50 flex w-60 shrink-0 flex-col border-r bg-muted/20">
       <div className="border-b px-3 py-2">
         <div className="text-sm font-medium">节点</div>
       </div>
