@@ -284,7 +284,9 @@ describe("workflow definition mutations", () => {
         }),
         workflowNode("end_1", "end", { x: 480, y: 0 }),
       ],
-      edges: [workflowEdge("condition_1", "end_1")],
+      edges: [
+        workflowEdge("condition_1", "end_1", { sourcePortID: "default" }),
+      ],
     }
 
     const updated = upsertConditionBranch(definition, "condition_1", {
@@ -300,8 +302,11 @@ describe("workflow definition mutations", () => {
 
     assert.deepEqual(plain(updated.nodes[0].data.config.branches.map((branch) => branch.id)), ["default", "vip"])
 
-    const deleted = deleteConditionBranch(updated, "condition_1", "default")
-    assert.deepEqual(plain(deleted.nodes[0].data.config.branches.map((branch) => branch.id)), ["vip"])
+    updated.edges.push(workflowEdge("condition_1", "end_1", { sourcePortID: "vip" }))
+
+    const deleted = deleteConditionBranch(updated, "condition_1", "vip")
+    assert.deepEqual(plain(deleted.nodes[0].data.config.branches.map((branch) => branch.id)), ["default"])
+    assert.deepEqual(plain(deleted.edges.map((edge) => edge.sourcePortID)), ["default"])
   })
 
   it("adds FlowGram source ports for condition edges without removing existing lines", async () => {

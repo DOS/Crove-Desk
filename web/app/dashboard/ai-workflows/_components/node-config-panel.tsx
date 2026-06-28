@@ -26,12 +26,27 @@ export type WorkflowBranchSummary = {
   targetName?: string
 }
 
+const CONDITION_OPERATOR_OPTIONS = [
+  { value: "eq", label: "等于" },
+  { value: "neq", label: "不等于" },
+  { value: "contains", label: "包含" },
+  { value: "not_contains", label: "不包含" },
+  { value: "gt", label: "大于" },
+  { value: "gte", label: "大于等于" },
+  { value: "lt", label: "小于" },
+  { value: "lte", label: "小于等于" },
+  { value: "exists", label: "存在" },
+  { value: "empty", label: "为空" },
+]
+
 export function NodeConfigPanel({
   node,
   nodeSpec,
   nodes,
   availableVariables,
   showHeader = true,
+  showConditionBranches = true,
+  showConfigJSON = true,
   onChange,
   onDelete,
 }: {
@@ -41,6 +56,8 @@ export function NodeConfigPanel({
   availableVariables?: WorkflowVariableRef[]
   branchSummaries?: WorkflowBranchSummary[]
   showHeader?: boolean
+  showConditionBranches?: boolean
+  showConfigJSON?: boolean
   onChange: (nodeId: string, data: AIWorkflowDefinition["nodes"][number]["data"]) => void
   onDelete?: (nodeId: string) => void
 }) {
@@ -174,7 +191,7 @@ export function NodeConfigPanel({
           </div>
         ) : null}
 
-        {node.type === "condition" || branches.length > 0 ? (
+        {showConditionBranches && (node.type === "condition" || branches.length > 0) ? (
           <ConditionBranchesEditor
             branches={branches}
             nodes={nodes}
@@ -186,29 +203,132 @@ export function NodeConfigPanel({
           />
         ) : null}
 
-        <div className="space-y-2">
-          <Label htmlFor={`node-config-${node.id}`}>配置 JSON</Label>
-          <Textarea
-            id={`node-config-${node.id}`}
-            value={configText}
-            className="min-h-36 font-mono text-xs"
-            spellCheck={false}
-            onChange={(event) => {
-              const next = event.target.value
-              setConfigText(next)
-              try {
-                const parsed = JSON.parse(next || "{}")
-                if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-                  updateData({ config: parsed as Record<string, unknown> })
+        {showConfigJSON ? (
+          <div className="space-y-2">
+            <Label htmlFor={`node-config-${node.id}`}>配置 JSON</Label>
+            <Textarea
+              id={`node-config-${node.id}`}
+              value={configText}
+              className="min-h-36 font-mono text-xs"
+              spellCheck={false}
+              onChange={(event) => {
+                const next = event.target.value
+                setConfigText(next)
+                try {
+                  const parsed = JSON.parse(next || "{}")
+                  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                    updateData({ config: parsed as Record<string, unknown> })
+                  }
+                } catch {
+                  // The textarea keeps the draft while the user fixes invalid JSON.
                 }
-              } catch {
-                // The textarea keeps the draft while the user fixes invalid JSON.
-              }
-            }}
-          />
-          {configError ? <div className="text-xs text-destructive">{configError}</div> : null}
-        </div>
+              }}
+            />
+            {configError ? <div className="text-xs text-destructive">{configError}</div> : null}
+          </div>
+        ) : null}
       </div>
+    </div>
+  )
+}
+
+export function ConditionBranchConfigPanel({
+  node,
+  nodes,
+  branchId,
+  variables,
+  onChange,
+  onDelete,
+}: {
+  node: AIWorkflowDefinition["nodes"][number]
+  nodes: AIWorkflowDefinition["nodes"]
+  branchId: string
+  variables: WorkflowVariableRef[]
+  onChange: (nodeId: string, data: AIWorkflowDefinition["nodes"][number]["data"]) => void
+  onDelete: (branchId: string) => void
+}) {
+  const config = normalizeNodeConfig(node.data?.config)
+  const branches = config.branches ?? []
+  const branch = branches.find((item) => item.id === branchId)
+  const targetOptions = buildTargetOptions(nodes, node.id)
+
+  if (!branch) {
+    return (
+      <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">
+        条件分支不存在
+      </div>
+    )
+  }
+
+  const updateBranch = (nextBranch: WorkflowConditionBranch) => {
+    onChange(node.id, {
+      ...(node.data ?? {}),
+      config: {
+        ...config,
+        branches: branches.map((item) => (item.id === nextBranch.id ? nextBranch : item)),
+      },
+    })
+  }
+
+  return (
+    <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
+      <div className="space-y-2">
+        <Label htmlFor={`condition-branch-name-${node.id}-${branch.id}`}>分支名称</Label>
+        <Input
+          id={`condition-branch-name-${node.id}-${branch.id}`}
+          value={branch.name ?? ""}
+          placeholder={branch.id}
+          onChange={(event) => updateBranch({ ...branch, name: event.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>目标节点</Label>
+        <OptionCombobox
+          value={branch.targetNodeId}
+          options={targetOptions}
+          placeholder="选择目标节点"
+          onChange={(targetNodeId) => updateBranch({ ...branch, targetNodeId })}
+        />
+      </div>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={branch.default === true}
+          className="size-4"
+          onChange={(event) => updateBranch({
+            ...branch,
+            default: event.target.checked,
+            condition: event.target.checked ? undefined : branch.condition,
+          })}
+        />
+        默认分支
+      </label>
+
+      {branch.default ? (
+        <div className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+          默认分支不需要条件表达式，会在其他条件不匹配时执行。
+        </div>
+      ) : (
+        <ConditionFields
+          branch={branch}
+          variables={variables}
+          onChange={updateBranch}
+        />
+      )}
+
+      {branch.default ? null : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
+          onClick={() => onDelete(branch.id)}
+        >
+          删除条件
+        </Button>
+      )}
     </div>
   )
 }
@@ -230,24 +350,7 @@ function ConditionBranchesEditor({
   onChange: (branch: WorkflowConditionBranch) => void
   onDelete: (branchId: string) => void
 }) {
-  const targetOptions = nodes
-    .filter((node) => node.id !== currentNodeId && node.type !== "start")
-    .map((node) => ({
-      value: node.id,
-      label: node.data?.title || node.type || node.id,
-    }))
-  const operatorOptions = [
-    { value: "eq", label: "等于" },
-    { value: "neq", label: "不等于" },
-    { value: "contains", label: "包含" },
-    { value: "not_contains", label: "不包含" },
-    { value: "gt", label: "大于" },
-    { value: "gte", label: "大于等于" },
-    { value: "lt", label: "小于" },
-    { value: "lte", label: "小于等于" },
-    { value: "exists", label: "存在" },
-    { value: "empty", label: "为空" },
-  ]
+  const targetOptions = buildTargetOptions(nodes, currentNodeId)
 
   return (
     <div className="space-y-3">
@@ -264,7 +367,6 @@ function ConditionBranchesEditor({
       ) : null}
       <div className="space-y-3">
         {branches.map((branch) => {
-          const condition = branch.condition ?? {}
           return (
             <div key={branch.id} className="space-y-3 rounded-md border p-3">
               <div className="flex items-center justify-between gap-2">
@@ -312,45 +414,7 @@ function ConditionBranchesEditor({
               </label>
 
               {branch.default ? null : (
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label>左值</Label>
-                    <VariableSelector
-                      value={isRefValue(condition.left) ? condition.left : undefined}
-                      variables={variables}
-                      placeholder="选择变量"
-                      onChange={(left) => onChange({
-                        ...branch,
-                        condition: { ...condition, left },
-                      })}
-                    />
-                  </div>
-                  <div className="grid grid-cols-[1fr_1fr] gap-2">
-                    <div className="space-y-1.5">
-                      <Label>操作符</Label>
-                      <OptionCombobox
-                        value={condition.operator ?? ""}
-                        options={operatorOptions}
-                        placeholder="选择操作符"
-                        onChange={(operator) => onChange({
-                          ...branch,
-                          condition: { ...condition, operator },
-                        })}
-                      />
-                    </div>
-                    <div className={cn("space-y-1.5", ["exists", "empty"].includes(condition.operator ?? "") && "opacity-50")}>
-                      <Label>右值</Label>
-                      <Input
-                        value={stringifyConditionRight(condition.right)}
-                        disabled={["exists", "empty"].includes(condition.operator ?? "")}
-                        onChange={(event) => onChange({
-                          ...branch,
-                          condition: { ...condition, right: event.target.value },
-                        })}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <ConditionFields branch={branch} variables={variables} onChange={onChange} />
               )}
             </div>
           )
@@ -358,6 +422,69 @@ function ConditionBranchesEditor({
       </div>
     </div>
   )
+}
+
+function ConditionFields({
+  branch,
+  variables,
+  onChange,
+}: {
+  branch: WorkflowConditionBranch
+  variables: WorkflowVariableRef[]
+  onChange: (branch: WorkflowConditionBranch) => void
+}) {
+  const condition = branch.condition ?? {}
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label>左值</Label>
+        <VariableSelector
+          value={isRefValue(condition.left) ? condition.left : undefined}
+          variables={variables}
+          placeholder="选择变量"
+          onChange={(left) => onChange({
+            ...branch,
+            condition: { ...condition, left },
+          })}
+        />
+      </div>
+      <div className="grid grid-cols-[1fr_1fr] gap-2">
+        <div className="space-y-1.5">
+          <Label>操作符</Label>
+          <OptionCombobox
+            value={condition.operator ?? ""}
+            options={CONDITION_OPERATOR_OPTIONS}
+            placeholder="选择操作符"
+            onChange={(operator) => onChange({
+              ...branch,
+              condition: { ...condition, operator },
+            })}
+          />
+        </div>
+        <div className={cn("space-y-1.5", ["exists", "empty"].includes(condition.operator ?? "") && "opacity-50")}>
+          <Label>右值</Label>
+          <Input
+            value={stringifyConditionRight(condition.right)}
+            disabled={["exists", "empty"].includes(condition.operator ?? "")}
+            onChange={(event) => onChange({
+              ...branch,
+              condition: { ...condition, right: event.target.value },
+            })}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function buildTargetOptions(nodes: AIWorkflowDefinition["nodes"], currentNodeId: string) {
+  return nodes
+    .filter((node) => node.id !== currentNodeId && node.type !== "start")
+    .map((node) => ({
+      value: node.id,
+      label: node.data?.title || node.type || node.id,
+    }))
 }
 
 function stringifyConditionRight(value: unknown) {

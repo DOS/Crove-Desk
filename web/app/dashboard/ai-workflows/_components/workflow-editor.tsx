@@ -16,7 +16,7 @@ import {
 
 import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
 
-import { useFlowgramEditorProps } from "./flowgram-editor-provider"
+import { useFlowgramEditorProps, type SelectedWorkflowBranch } from "./flowgram-editor-provider"
 import { WorkflowConfigPanel } from "./workflow-config-sidebar"
 import { WorkflowEditorToolbar } from "./workflow-editor-toolbar"
 import { WorkflowNodePalette } from "./workflow-node-palette"
@@ -65,6 +65,7 @@ export function WorkflowEditor({
 }) {
   const [localDefinition, setLocalDefinition] = useState(definition)
   const [selectedNodeId, setSelectedNodeId] = useState("")
+  const [selectedBranch, setSelectedBranch] = useState<SelectedWorkflowBranch | null>(null)
 
   const validation = useMemo(
     () => validateWorkflowDefinition(localDefinition, nodeSpecs),
@@ -74,9 +75,18 @@ export function WorkflowEditor({
   const editorProps = useFlowgramEditorProps({
     definition: localDefinition,
     nodeSpecs,
+    selectedBranch,
     onDefinitionChange: (next) => {
       setLocalDefinition(next)
       onDefinitionChange(next)
+    },
+    onSelectBranch: (branch) => {
+      if (!branch) {
+        setSelectedBranch(null)
+        return
+      }
+      setSelectedNodeId(branch.nodeId)
+      setSelectedBranch(branch)
     },
   })
 
@@ -86,13 +96,18 @@ export function WorkflowEditor({
         definition={localDefinition}
         nodeSpecs={nodeSpecs}
         selectedNodeId={selectedNodeId}
+        selectedBranch={selectedBranch}
         validation={validation}
         toolbarExtra={toolbarExtra}
         onDefinitionChange={(next) => {
           setLocalDefinition(next)
           onDefinitionChange(next)
         }}
-        onSelectNode={setSelectedNodeId}
+        onSelectNode={(nodeId) => {
+          setSelectedNodeId(nodeId)
+          setSelectedBranch(null)
+        }}
+        onSelectBranch={setSelectedBranch}
         onUndo={onUndo}
         undoDisabled={undoDisabled}
         onRedo={onRedo}
@@ -114,10 +129,12 @@ function WorkflowEditorInner({
   definition,
   nodeSpecs,
   selectedNodeId,
+  selectedBranch,
   validation,
   toolbarExtra,
   onDefinitionChange,
   onSelectNode,
+  onSelectBranch,
   onUndo,
   undoDisabled,
   onRedo,
@@ -134,10 +151,12 @@ function WorkflowEditorInner({
   definition: AIWorkflowDefinition
   nodeSpecs: AIWorkflowNodeSpec[]
   selectedNodeId: string
+  selectedBranch: SelectedWorkflowBranch | null
   validation: ReturnType<typeof validateWorkflowDefinition>
   toolbarExtra?: ReactNode
   onDefinitionChange: (definition: AIWorkflowDefinition) => void
   onSelectNode: (nodeId: string) => void
+  onSelectBranch: (branch: SelectedWorkflowBranch | null) => void
   onUndo?: () => void
   undoDisabled?: boolean
   onRedo?: () => void
@@ -216,6 +235,7 @@ function WorkflowEditorInner({
   const closeConfigPanel = () => {
     selectService.clear()
     onSelectNode("")
+    onSelectBranch(null)
   }
 
   return (
@@ -255,7 +275,9 @@ function WorkflowEditorInner({
         definition={definition}
         nodeSpecs={nodeSpecs}
         selectedNodeId={selectedNodeId}
+        selectedBranch={selectedBranch}
         onClose={closeConfigPanel}
+        onSelectBranch={onSelectBranch}
         onChangeNodeData={updateNodeData}
         onDeleteNode={removeNode}
       />

@@ -5,9 +5,11 @@ import { XIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
 
-import { NodeConfigPanel } from "./node-config-panel"
+import type { SelectedWorkflowBranch } from "./flowgram-editor-provider"
+import { ConditionBranchConfigPanel, NodeConfigPanel } from "./node-config-panel"
 import {
   getAvailableVariables,
+  normalizeNodeConfig,
   type WorkflowNodeData,
 } from "./workflow-utils"
 
@@ -15,14 +17,18 @@ export function WorkflowConfigPanel({
   definition,
   nodeSpecs,
   selectedNodeId,
+  selectedBranch,
   onClose,
+  onSelectBranch,
   onChangeNodeData,
   onDeleteNode,
 }: {
   definition: AIWorkflowDefinition
   nodeSpecs: AIWorkflowNodeSpec[]
   selectedNodeId: string
+  selectedBranch: SelectedWorkflowBranch | null
   onClose: () => void
+  onSelectBranch: (branch: SelectedWorkflowBranch | null) => void
   onChangeNodeData: (nodeId: string, data: WorkflowNodeData) => void
   onDeleteNode: (nodeId: string) => void
 }) {
@@ -33,9 +39,24 @@ export function WorkflowConfigPanel({
   const availableVariables = selectedNode
     ? getAvailableVariables(definition, selectedNode.id, nodeSpecs)
     : []
+  const selectedBranchItem = selectedNode && selectedBranch?.nodeId === selectedNode.id
+    ? normalizeNodeConfig(selectedNode.data?.config).branches?.find((branch) => branch.id === selectedBranch.branchId) ?? null
+    : null
 
   if (!selectedNode) {
     return null
+  }
+
+  const deleteSelectedBranch = (branchId: string) => {
+    const config = normalizeNodeConfig(selectedNode.data?.config)
+    onChangeNodeData(selectedNode.id, {
+      ...(selectedNode.data ?? {}),
+      config: {
+        ...config,
+        branches: (config.branches ?? []).filter((branch) => branch.id !== branchId),
+      },
+    })
+    onSelectBranch(null)
   }
 
   return (
@@ -43,9 +64,11 @@ export function WorkflowConfigPanel({
       <section className="pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden rounded-lg border bg-background shadow-2xl">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b px-4 py-3">
           <div className="min-w-0">
-            <div className="text-sm font-medium">属性</div>
+            <div className="text-sm font-medium">{selectedBranchItem ? "条件属性" : "属性"}</div>
             <div className="mt-0.5 truncate text-xs text-muted-foreground">
-              {selectedNode.data?.title || selectedNodeSpec?.title || selectedNode.type}
+              {selectedBranchItem
+                ? selectedBranchItem.name || selectedBranchItem.id
+                : selectedNode.data?.title || selectedNodeSpec?.title || selectedNode.type}
             </div>
           </div>
           <Button
@@ -60,15 +83,28 @@ export function WorkflowConfigPanel({
           </Button>
         </div>
         <div className="min-h-0 flex-1">
-          <NodeConfigPanel
-            node={selectedNode}
-            nodeSpec={selectedNodeSpec}
-            nodes={definition.nodes}
-            availableVariables={availableVariables}
-            showHeader={false}
-            onChange={onChangeNodeData}
-            onDelete={onDeleteNode}
-          />
+          {selectedBranchItem && selectedBranch ? (
+            <ConditionBranchConfigPanel
+              node={selectedNode}
+              nodes={definition.nodes}
+              branchId={selectedBranch.branchId}
+              variables={availableVariables}
+              onChange={onChangeNodeData}
+              onDelete={deleteSelectedBranch}
+            />
+          ) : (
+            <NodeConfigPanel
+              node={selectedNode}
+              nodeSpec={selectedNodeSpec}
+              nodes={definition.nodes}
+              availableVariables={availableVariables}
+              showHeader={false}
+              showConditionBranches={selectedNode.type !== "condition"}
+              showConfigJSON={selectedNode.type !== "condition"}
+              onChange={onChangeNodeData}
+              onDelete={onDeleteNode}
+            />
+          )}
         </div>
       </section>
     </div>

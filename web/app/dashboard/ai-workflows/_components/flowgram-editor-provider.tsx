@@ -20,16 +20,25 @@ import {
   syncConditionBranchTargetsFromEdges,
 } from "./workflow-utils"
 
+export type SelectedWorkflowBranch = {
+  nodeId: string
+  branchId: string
+}
+
 export function useFlowgramEditorProps({
   definition,
   nodeSpecs,
+  selectedBranch,
   readonly = false,
   onDefinitionChange,
+  onSelectBranch,
 }: {
   definition: AIWorkflowDefinition
   nodeSpecs: AIWorkflowNodeSpec[]
+  selectedBranch?: SelectedWorkflowBranch | null
   readonly?: boolean
   onDefinitionChange?: (definition: AIWorkflowDefinition) => void
+  onSelectBranch?: (branch: SelectedWorkflowBranch | null) => void
 }) {
   return useMemo<FreeLayoutProps>(
     () => {
@@ -41,7 +50,6 @@ export function useFlowgramEditorProps({
           disableScrollBar: true,
         },
         initialData: initialData as WorkflowJSON,
-        nodeRegistries: buildFlowgramNodeRegistries(nodeSpecs),
         fromNodeJSON(_node, json) {
           return json
         },
@@ -51,6 +59,7 @@ export function useFlowgramEditorProps({
         materials: {
           renderDefaultNode: FlowgramNodeRenderer,
         },
+        nodeRegistries: buildFlowgramNodeRegistries(nodeSpecs, selectedBranch, onSelectBranch),
         nodeEngine: {
           enable: true,
         },
@@ -114,7 +123,7 @@ export function useFlowgramEditorProps({
         ],
       }
     },
-    [definition, nodeSpecs, onDefinitionChange, readonly]
+    [definition, nodeSpecs, onDefinitionChange, onSelectBranch, readonly, selectedBranch]
   )
 }
 

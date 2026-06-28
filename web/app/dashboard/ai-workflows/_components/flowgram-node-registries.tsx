@@ -1,4 +1,4 @@
-import { Field, type WorkflowNodeRegistry } from "@flowgram.ai/free-layout-editor"
+import { Field, type WorkflowNodeRegistry, useNodeRender } from "@flowgram.ai/free-layout-editor"
 import { PlusIcon, XIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -8,8 +8,13 @@ import {
   normalizeNodeConfig,
   type WorkflowConditionBranch,
 } from "./workflow-utils"
+import type { SelectedWorkflowBranch } from "./flowgram-editor-provider"
 
-export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): WorkflowNodeRegistry[] {
+export function buildFlowgramNodeRegistries(
+  nodeSpecs: AIWorkflowNodeSpec[],
+  selectedBranch?: SelectedWorkflowBranch | null,
+  onSelectBranch?: (branch: SelectedWorkflowBranch | null) => void
+): WorkflowNodeRegistry[] {
   const seen = new Set<string>()
   const specs = nodeSpecs.length > 0
     ? nodeSpecs
@@ -36,7 +41,14 @@ export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): Wo
         defaultPorts: defaultPortsForNodeType(spec.type),
       },
       formMeta: {
-        render: () => <FlowgramNodeForm nodeType={spec.type} fallbackTitle={spec.title || spec.type} />,
+        render: () => (
+          <FlowgramNodeForm
+            nodeType={spec.type}
+            fallbackTitle={spec.title || spec.type}
+            selectedBranch={selectedBranch}
+            onSelectBranch={onSelectBranch}
+          />
+        ),
       },
     }))
 }
@@ -44,12 +56,26 @@ export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): Wo
 function FlowgramNodeForm({
   nodeType,
   fallbackTitle,
+  selectedBranch,
+  onSelectBranch,
 }: {
   nodeType: string
   fallbackTitle: string
+  selectedBranch?: SelectedWorkflowBranch | null
+  onSelectBranch?: (branch: SelectedWorkflowBranch | null) => void
 }) {
+  const { node } = useNodeRender()
+  const nodeId = String(node.id ?? "")
+
   if (nodeType === "condition") {
-    return <ConditionNodeForm fallbackTitle={fallbackTitle} />
+    return (
+      <ConditionNodeForm
+        fallbackTitle={fallbackTitle}
+        nodeId={nodeId}
+        selectedBranch={selectedBranch}
+        onSelectBranch={onSelectBranch}
+      />
+    )
   }
 
   return (
@@ -79,7 +105,17 @@ function defaultPortsForNodeType(type: string) {
   return [{ type: "input" as const }, { type: "output" as const }]
 }
 
-function ConditionNodeForm({ fallbackTitle }: { fallbackTitle: string }) {
+function ConditionNodeForm({
+  fallbackTitle,
+  nodeId,
+  selectedBranch,
+  onSelectBranch,
+}: {
+  fallbackTitle: string
+  nodeId: string
+  selectedBranch?: SelectedWorkflowBranch | null
+  onSelectBranch?: (branch: SelectedWorkflowBranch | null) => void
+}) {
   return (
     <div className="flex w-full flex-col">
       <Field<string> name="title">
@@ -101,6 +137,9 @@ function ConditionNodeForm({ fallbackTitle }: { fallbackTitle: string }) {
           }
           const deleteBranch = (branchId: string) => {
             updateBranches(branches.filter((branch) => branch.id !== branchId))
+            if (selectedBranch?.nodeId === nodeId && selectedBranch.branchId === branchId) {
+              onSelectBranch?.(null)
+            }
           }
 
           return (
@@ -109,7 +148,16 @@ function ConditionNodeForm({ fallbackTitle }: { fallbackTitle: string }) {
                 {branches.map((branch, index) => (
                   <div
                     key={branch.id}
-                    className="relative flex min-h-10 items-center gap-2 rounded-md bg-[#eef1f7] px-3 text-xs transition-colors before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-[#4e40e5] hover:bg-[#e6eaff]"
+                    className={[
+                      "relative flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-3 text-xs transition-colors before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-[#4e40e5]",
+                      selectedBranch?.nodeId === nodeId && selectedBranch.branchId === branch.id
+                        ? "bg-[#dfe4ff] text-[#3327b9] ring-1 ring-inset ring-[#4e40e5]/45 before:w-1"
+                        : "bg-[#eef1f7] hover:bg-[#e6eaff]",
+                    ].join(" ")}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onSelectBranch?.({ nodeId, branchId: branch.id })
+                    }}
                   >
                     <span className="min-w-0 flex-1 truncate font-medium text-foreground/90">
                       {branch.name || (branch.default ? "默认分支" : branch.id)}
