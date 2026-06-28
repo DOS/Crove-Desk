@@ -6,6 +6,7 @@ import {
   RotateCcwIcon,
   SaveIcon,
   SendIcon,
+  SparklesIcon,
   Undo2Icon,
 } from "lucide-react"
 
@@ -23,6 +24,8 @@ export function WorkflowEditorToolbar({
   undoDisabled = false,
   onRedo,
   redoDisabled = false,
+  onAutoLayout,
+  autoLayoutDisabled = false,
   onRestoreDefault,
   restoreDefaultDisabled = false,
   onValidate,
@@ -40,6 +43,8 @@ export function WorkflowEditorToolbar({
   undoDisabled?: boolean
   onRedo?: () => void
   redoDisabled?: boolean
+  onAutoLayout?: () => void
+  autoLayoutDisabled?: boolean
   onRestoreDefault?: () => void
   restoreDefaultDisabled?: boolean
   onValidate?: () => void
@@ -73,6 +78,10 @@ export function WorkflowEditorToolbar({
         </Button>
         <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={redoDisabled} onClick={onRedo}>
           重做
+        </Button>
+        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={autoLayoutDisabled} onClick={onAutoLayout}>
+          <SparklesIcon className="size-3.5" />
+          自动布局
         </Button>
         <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={restoreDefaultDisabled} onClick={onRestoreDefault}>
           <RotateCcwIcon className="size-3.5" />

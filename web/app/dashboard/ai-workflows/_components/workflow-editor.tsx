@@ -10,6 +10,7 @@ import {
   type WorkflowJSON,
   type WorkflowNodeJSON,
   useClientContext,
+  usePlaygroundTools,
   useService,
 } from "@flowgram.ai/free-layout-editor"
 
@@ -151,8 +152,10 @@ function WorkflowEditorInner({
   publishDisabled?: boolean
 }) {
   const context = useClientContext()
+  const playgroundTools = usePlaygroundTools()
   const workflowDocument = useService(WorkflowDocument)
   const selectService = useService(WorkflowSelectService)
+  const [autoLayouting, setAutoLayouting] = useState(false)
 
   useEffect(() => {
     const disposable = selectService.onSelectionChanged(() => {
@@ -192,6 +195,24 @@ function WorkflowEditorInner({
     onDefinitionChange(context.document.toJSON() as AIWorkflowDefinition)
   }
 
+  const autoLayout = async () => {
+    if (autoLayouting || definition.nodes.length < 2) {
+      return
+    }
+    setAutoLayouting(true)
+    try {
+      await playgroundTools.autoLayout({
+        enableAnimation: true,
+        animationDuration: 240,
+        disableFitView: true,
+      })
+      playgroundTools.fitView(true)
+      emitCurrentDefinition()
+    } finally {
+      setAutoLayouting(false)
+    }
+  }
+
   const closeConfigPanel = () => {
     selectService.clear()
     onSelectNode("")
@@ -214,6 +235,8 @@ function WorkflowEditorInner({
           undoDisabled={undoDisabled}
           onRedo={onRedo}
           redoDisabled={redoDisabled}
+          onAutoLayout={() => void autoLayout()}
+          autoLayoutDisabled={autoLayouting || definition.nodes.length < 2}
           onRestoreDefault={onRestoreDefault}
           restoreDefaultDisabled={restoreDefaultDisabled}
           onValidate={onValidate}
