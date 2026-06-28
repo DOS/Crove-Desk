@@ -425,15 +425,15 @@ func defaultAgentWorkflowDefinition() dsl.Definition {
 	return dsl.Definition{
 		SchemaVersion: dsl.SchemaVersion,
 		Nodes: []dsl.Node{
-			workflowNode("start_1", workflowregistry.NodeTypeStart, "开始", 0, 520, nil, nil),
-			workflowNode("understanding_1", workflowregistry.NodeTypeConversationUnderstanding, "会话理解", 320, 520, workflowInputs("userMessage", "start_1", "userMessage"), nil),
-			workflowNode("policy_1", workflowregistry.NodeTypeReplyPolicy, "回复策略", 640, 520, map[string]dsl.Value{
+			workflowNode("start_1", workflowregistry.NodeTypeStart, "开始", 180, 285.5, nil, nil),
+			workflowNode("understanding_1", workflowregistry.NodeTypeConversationUnderstanding, "会话理解", 640, 285.5, workflowInputs("userMessage", "start_1", "userMessage"), nil),
+			workflowNode("policy_1", workflowregistry.NodeTypeReplyPolicy, "回复策略", 1100, 285.5, map[string]dsl.Value{
 				"userMessage":   dsl.RefValue("start_1", "userMessage"),
 				"messageIntent": dsl.RefValue("understanding_1", "messageIntent"),
 				"answerScope":   dsl.RefValue("understanding_1", "answerScope"),
 				"riskSignals":   dsl.RefValue("understanding_1", "riskSignals"),
 			}, nil),
-			workflowNode("policy_route_1", workflowregistry.NodeTypeCondition, "策略分流", 960, 520, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+			workflowNode("policy_route_1", workflowregistry.NodeTypeCondition, "策略分流", 1560, 125.5, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
 				workflowConditionBranch("direct", "直接回复", "policy_reply_1", "policy_1", "action", "eq", "direct_reply"),
 				workflowConditionBranch("clarify", "追问澄清", "policy_reply_1", "policy_1", "action", "eq", "clarify"),
 				workflowConditionBranch("end_conversation", "结束语", "policy_reply_1", "policy_1", "action", "eq", "end_conversation"),
@@ -442,70 +442,70 @@ func defaultAgentWorkflowDefinition() dsl.Definition {
 				workflowConditionBranch("knowledge", "知识库回复", "retrieve_1", "policy_1", "action", "eq", "retrieve_knowledge"),
 				{ID: "default", Name: "默认澄清", TargetNodeID: "policy_reply_1", Default: true},
 			}}),
-			workflowNode("policy_reply_1", workflowregistry.NodeTypeSendReply, "发送策略回复", 1280, 0, workflowInputs("replyText", "policy_1", "replyText"), nil),
-			workflowNode("handoff_1", workflowregistry.NodeTypeHandoffToHuman, "转人工", 1280, 220, workflowInputs("reason", "start_1", "userMessage"), nil),
-			workflowNode("handoff_end_1", workflowregistry.NodeTypeEnd, "结束", 1600, 220, nil, nil),
-			workflowNode("draft_ticket_1", workflowregistry.NodeTypePrepareTicketDraft, "整理工单草稿", 1280, 440, workflowInputs("issue", "start_1", "userMessage"), nil),
-			workflowNode("ticket_confirm_prompt_1", workflowregistry.NodeTypeLLMReply, "建单确认文案", 1600, 440, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": "我已整理工单草稿。请回复“确认”创建工单，或回复“取消”放弃。"}),
-			workflowNode("ticket_confirm_1", workflowregistry.NodeTypeHumanConfirm, "确认建单", 1920, 440, workflowInputs("prompt", "ticket_confirm_prompt_1", "replyText"), nil),
-			workflowNode("ticket_confirm_route_1", workflowregistry.NodeTypeCondition, "建单确认分流", 2240, 440, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+			workflowNode("policy_reply_1", workflowregistry.NodeTypeSendReply, "发送策略回复", 4320, 98.5, workflowInputs("replyText", "policy_1", "replyText"), nil),
+			workflowNode("handoff_1", workflowregistry.NodeTypeHandoffToHuman, "转人工", 2020, 0, workflowInputs("reason", "start_1", "userMessage"), nil),
+			workflowNode("handoff_end_1", workflowregistry.NodeTypeEnd, "结束", 2480, 0, nil, nil),
+			workflowNode("draft_ticket_1", workflowregistry.NodeTypePrepareTicketDraft, "整理工单草稿", 2020, 379, workflowInputs("issue", "start_1", "userMessage"), nil),
+			workflowNode("ticket_confirm_prompt_1", workflowregistry.NodeTypeLLMReply, "建单确认文案", 2480, 379, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": "我已整理工单草稿。请回复“确认”创建工单，或回复“取消”放弃。"}),
+			workflowNode("ticket_confirm_1", workflowregistry.NodeTypeHumanConfirm, "确认建单", 2940, 379, workflowInputs("prompt", "ticket_confirm_prompt_1", "replyText"), nil),
+			workflowNode("ticket_confirm_route_1", workflowregistry.NodeTypeCondition, "建单确认分流", 3400, 329, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
 				workflowConditionBranch("confirmed", "已确认", "create_ticket_1", "ticket_confirm_1", "confirmed", "is_true", nil),
 				{ID: "default", Name: "取消或未确认", TargetNodeID: "ticket_cancel_reply_1", Default: true},
 			}}),
-			workflowNode("create_ticket_1", workflowregistry.NodeTypeCreateTicket, "创建工单", 2560, 320, map[string]dsl.Value{
+			workflowNode("create_ticket_1", workflowregistry.NodeTypeCreateTicket, "创建工单", 3860, 285.5, map[string]dsl.Value{
 				"ticketDraft": dsl.RefValue("draft_ticket_1", "ticketDraft"),
 				"confirmed":   dsl.RefValue("ticket_confirm_1", "confirmed"),
 			}, nil),
-			workflowNode("ticket_result_reply_1", workflowregistry.NodeTypeSendReply, "发送建单结果", 2880, 320, workflowInputs("replyText", "create_ticket_1", "message"), nil),
-			workflowNode("ticket_cancel_reply_1", workflowregistry.NodeTypeLLMReply, "取消建单提示", 2560, 560, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": "已取消创建工单。你可以继续补充问题，我会继续帮你处理。"}),
-			workflowNode("send_ticket_cancel_1", workflowregistry.NodeTypeSendReply, "发送取消提示", 2880, 560, workflowInputs("replyText", "ticket_cancel_reply_1", "replyText"), nil),
-			workflowNode("retrieve_1", workflowregistry.NodeTypeKnowledgeRetrieve, "知识检索", 1280, 860, workflowInputs("query", "start_1", "userMessage"), nil),
-			workflowNode("answerability_1", workflowregistry.NodeTypeAnswerabilityGate, "可回答判断", 1600, 860, map[string]dsl.Value{
+			workflowNode("ticket_result_reply_1", workflowregistry.NodeTypeSendReply, "发送建单结果", 4320, 285.5, workflowInputs("replyText", "create_ticket_1", "message"), nil),
+			workflowNode("ticket_cancel_reply_1", workflowregistry.NodeTypeLLMReply, "取消建单提示", 3860, 472.5, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": "已取消创建工单。你可以继续补充问题，我会继续帮你处理。"}),
+			workflowNode("send_ticket_cancel_1", workflowregistry.NodeTypeSendReply, "发送取消提示", 4320, 472.5, workflowInputs("replyText", "ticket_cancel_reply_1", "replyText"), nil),
+			workflowNode("retrieve_1", workflowregistry.NodeTypeKnowledgeRetrieve, "知识检索", 2480, 753, workflowInputs("query", "start_1", "userMessage"), nil),
+			workflowNode("answerability_1", workflowregistry.NodeTypeAnswerabilityGate, "可回答判断", 2940, 753, map[string]dsl.Value{
 				"userMessage":    dsl.RefValue("start_1", "userMessage"),
 				"knowledgeItems": dsl.RefValue("retrieve_1", "items"),
 			}, nil),
-			workflowNode("answerability_route_1", workflowregistry.NodeTypeCondition, "可回答分流", 1920, 860, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+			workflowNode("answerability_route_1", workflowregistry.NodeTypeCondition, "可回答分流", 3400, 703, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
 				workflowConditionBranch("answerable", "可以回答", "reply_1", "answerability_1", "answerability", "eq", "answerable"),
 				{ID: "default", Name: "兜底追问", TargetNodeID: "fallback_reply_1", Default: true},
 			}}),
-			workflowNode("reply_1", workflowregistry.NodeTypeLLMReply, "AI 回复", 2240, 780, map[string]dsl.Value{
+			workflowNode("reply_1", workflowregistry.NodeTypeLLMReply, "AI 回复", 3860, 659.5, map[string]dsl.Value{
 				"userMessage":    dsl.RefValue("start_1", "userMessage"),
 				"knowledgeItems": dsl.RefValue("retrieve_1", "items"),
 			}, nil),
-			workflowNode("send_1", workflowregistry.NodeTypeSendReply, "发送回复", 2560, 780, workflowInputs("replyText", "reply_1", "replyText"), nil),
-			workflowNode("fallback_reply_1", workflowregistry.NodeTypeLLMReply, "兜底追问", 2240, 1040, map[string]dsl.Value{
+			workflowNode("send_1", workflowregistry.NodeTypeSendReply, "发送回复", 4320, 659.5, workflowInputs("replyText", "reply_1", "replyText"), nil),
+			workflowNode("fallback_reply_1", workflowregistry.NodeTypeLLMReply, "兜底追问", 3860, 846.5, map[string]dsl.Value{
 				"userMessage":    dsl.RefValue("start_1", "userMessage"),
 				"knowledgeItems": dsl.RefValue("retrieve_1", "items"),
 			}, nil),
-			workflowNode("send_fallback_1", workflowregistry.NodeTypeSendReply, "发送兜底", 2560, 1040, workflowInputs("replyText", "fallback_reply_1", "replyText"), nil),
-			workflowNode("end_1", workflowregistry.NodeTypeEnd, "结束", 3200, 780, nil, nil),
+			workflowNode("send_fallback_1", workflowregistry.NodeTypeSendReply, "发送兜底", 4320, 846.5, workflowInputs("replyText", "fallback_reply_1", "replyText"), nil),
+			workflowNode("end_1", workflowregistry.NodeTypeEnd, "结束", 4780, 472.5, nil, nil),
 		},
 		Edges: []dsl.Edge{
 			workflowEdge("start_1", "understanding_1"),
 			workflowEdge("understanding_1", "policy_1"),
 			workflowEdge("policy_1", "policy_route_1"),
-			workflowEdge("policy_route_1", "policy_reply_1"),
-			workflowEdge("policy_route_1", "handoff_1"),
-			workflowEdge("policy_route_1", "draft_ticket_1"),
-			workflowEdge("policy_route_1", "retrieve_1"),
+			workflowPortEdge("policy_route_1", "policy_reply_1", "direct"),
+			workflowPortEdge("policy_route_1", "handoff_1", "handoff"),
+			workflowPortEdge("policy_route_1", "draft_ticket_1", "ticket"),
+			workflowPortEdge("policy_route_1", "retrieve_1", "knowledge"),
 			workflowEdge("policy_reply_1", "end_1"),
 			workflowEdge("handoff_1", "handoff_end_1"),
 			workflowEdge("draft_ticket_1", "ticket_confirm_prompt_1"),
 			workflowEdge("ticket_confirm_prompt_1", "ticket_confirm_1"),
 			workflowEdge("ticket_confirm_1", "ticket_confirm_route_1"),
-			workflowEdge("ticket_confirm_route_1", "create_ticket_1"),
-			workflowEdge("ticket_confirm_route_1", "ticket_cancel_reply_1"),
+			workflowPortEdge("ticket_confirm_route_1", "create_ticket_1", "confirmed"),
+			workflowPortEdge("ticket_confirm_route_1", "ticket_cancel_reply_1", "default"),
 			workflowEdge("create_ticket_1", "ticket_result_reply_1"),
 			workflowEdge("ticket_result_reply_1", "end_1"),
 			workflowEdge("ticket_cancel_reply_1", "send_ticket_cancel_1"),
 			workflowEdge("send_ticket_cancel_1", "end_1"),
 			workflowEdge("retrieve_1", "answerability_1"),
 			workflowEdge("answerability_1", "answerability_route_1"),
-			workflowEdge("answerability_route_1", "reply_1"),
-			workflowEdge("answerability_route_1", "fallback_reply_1"),
+			workflowPortEdge("answerability_route_1", "reply_1", "answerable"),
+			workflowPortEdge("answerability_route_1", "fallback_reply_1", "default"),
 			workflowEdge("reply_1", "send_1"),
-			workflowEdge("fallback_reply_1", "send_fallback_1"),
 			workflowEdge("send_1", "end_1"),
+			workflowEdge("fallback_reply_1", "send_fallback_1"),
 			workflowEdge("send_fallback_1", "end_1"),
 		},
 	}
@@ -543,6 +543,10 @@ func workflowConditionBranch(id string, name string, targetNodeID string, nodeID
 
 func workflowEdge(source string, target string) dsl.Edge {
 	return dsl.Edge{SourceNodeID: source, TargetNodeID: target}
+}
+
+func workflowPortEdge(source string, target string, sourcePortID string) dsl.Edge {
+	return dsl.Edge{SourceNodeID: source, TargetNodeID: target, SourcePortID: sourcePortID}
 }
 
 func mustMarshalWorkflowConfig(value any) json.RawMessage {
