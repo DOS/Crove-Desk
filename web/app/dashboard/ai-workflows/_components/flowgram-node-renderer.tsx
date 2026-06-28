@@ -29,9 +29,10 @@ export function FlowgramNodeRenderer(props: WorkflowNodeProps) {
         selected ? "border-(--g-selection-background)" : "border-transparent"
       )}
       style={{ padding: 0 }}
-      portPrimaryColor="var(--g-selection-background)"
+      portClassName="workflow-node-port"
+      portPrimaryColor="#2575FC"
       portSecondaryColor="#c9cdd4"
-      portBackgroundColor="hsl(var(--background))"
+      portBackgroundColor="#FFFFFF"
     >
       {form?.render()}
     </WorkflowNodeRenderer>
