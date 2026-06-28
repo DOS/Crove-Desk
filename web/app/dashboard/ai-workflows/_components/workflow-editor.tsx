@@ -15,6 +15,7 @@ import {
 } from "@flowgram.ai/free-layout-editor"
 
 import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
+import { cn } from "@/lib/utils"
 
 import { useFlowgramEditorProps } from "./flowgram-editor-provider"
 import {
@@ -264,11 +265,16 @@ function WorkflowEditorInner({
   return (
     <div
       data-workflow-editor-root
-      className="relative isolate flex h-full min-h-0 w-full flex-1 overflow-hidden border bg-background"
+      className="relative isolate h-full min-h-0 w-full flex-1 overflow-hidden border bg-[var(--g-editor-background)]"
     >
       <WorkflowNodePalette nodeSpecs={nodeSpecs} onAddNode={addNode} />
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div
+        className={cn(
+          "absolute left-[17.5rem] top-3 z-50 max-w-[calc(100%-18.25rem)]",
+          selectedNodeId ? "right-[23.25rem]" : "right-3"
+        )}
+      >
         <WorkflowEditorToolbar
           validation={validation}
           nodeCount={definition.nodes.length}
@@ -294,10 +300,9 @@ function WorkflowEditorInner({
           onPublish={onPublish}
           publishDisabled={publishDisabled}
         />
-        <div className="relative min-h-0 flex-1 overflow-hidden">
-          <EditorRenderer className="h-full w-full" />
-        </div>
       </div>
+
+      <EditorRenderer className="h-full w-full" />
 
       <WorkflowConfigPanel
         definition={definition}

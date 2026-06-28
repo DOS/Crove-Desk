@@ -86,31 +86,8 @@ export function useFlowgramEditorProps({
         plugins: () => [
           createMinimapPlugin({
             disableLayer: true,
-            canvasStyle: {
-              canvasWidth: 150,
-              canvasHeight: 84,
-              canvasPadding: 48,
-              canvasBackground: "rgba(245, 245, 245, 1)",
-              canvasBorderRadius: 8,
-              viewportBackground: "rgba(235, 235, 235, 1)",
-              viewportBorderRadius: 4,
-              viewportBorderColor: "rgba(201, 201, 201, 1)",
-              viewportBorderWidth: 1,
-              viewportBorderDashLength: 2,
-              nodeColor: "rgba(255, 255, 255, 1)",
-              nodeBorderRadius: 2,
-              nodeBorderWidth: 0.145,
-              nodeBorderColor: "rgba(6, 7, 9, 0.10)",
-              overlayColor: "rgba(255, 255, 255, 0)",
-            },
           }),
-          createFreeSnapPlugin({
-            edgeColor: "#00B2B2",
-            alignColor: "#00B2B2",
-            edgeLineWidth: 1,
-            alignLineWidth: 1,
-            alignCrossWidth: 8,
-          }),
+          createFreeSnapPlugin({}),
         ],
       }
     },

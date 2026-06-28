@@ -69,12 +69,12 @@ export function WorkflowEditorToolbar({
   publishDisabled?: boolean
 }) {
   return (
-    <div className="relative z-50 flex h-10 shrink-0 items-center justify-between border-b bg-background px-2">
-      <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-h-10 max-w-full items-center justify-between gap-3 rounded-md border bg-background/95 px-2 py-1 shadow-sm backdrop-blur">
+      <div className="flex min-w-0 shrink items-center gap-2">
         <span
           className={cn(
             "inline-flex items-center gap-1 rounded-sm px-2 py-1 text-xs",
-            validation.valid ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+            validation.valid ? "bg-muted text-muted-foreground" : "bg-amber-50 text-amber-700"
           )}
         >
           <CheckCircle2Icon className="size-3" />
@@ -84,9 +84,9 @@ export function WorkflowEditorToolbar({
           {nodeCount} 个节点 / {edgeCount} 条连线
         </span>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
         {toolbarExtra}
-        <div className="flex h-7 items-center rounded-lg border bg-muted/30 p-0.5">
+        <div className="flex h-7 shrink-0 items-center rounded-md border bg-muted/30 p-0.5">
           <WorkflowToolbarIconButton label="缩小" onClick={onZoomOut}>
             <MinusIcon className="size-3.5" />
           </WorkflowToolbarIconButton>
@@ -115,29 +115,29 @@ export function WorkflowEditorToolbar({
             <Maximize2Icon className="size-3.5" />
           </WorkflowToolbarIconButton>
         </div>
-        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={undoDisabled} onClick={onUndo}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 px-2 text-xs" disabled={undoDisabled} onClick={onUndo}>
           <Undo2Icon className="size-3.5" />
           撤销
         </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={redoDisabled} onClick={onRedo}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 px-2 text-xs" disabled={redoDisabled} onClick={onRedo}>
           重做
         </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={autoLayoutDisabled} onClick={onAutoLayout}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 px-2 text-xs" disabled={autoLayoutDisabled} onClick={onAutoLayout}>
           <SparklesIcon className="size-3.5" />
           自动布局
         </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={restoreDefaultDisabled} onClick={onRestoreDefault}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 px-2 text-xs" disabled={restoreDefaultDisabled} onClick={onRestoreDefault}>
           <RotateCcwIcon className="size-3.5" />
           恢复默认
         </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={validateDisabled} onClick={onValidate}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 px-2 text-xs" disabled={validateDisabled} onClick={onValidate}>
           检查
         </Button>
-        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={saveDraftDisabled} onClick={onSaveDraft}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 px-2 text-xs" disabled={saveDraftDisabled} onClick={onSaveDraft}>
           <SaveIcon className="size-3.5" />
           保存
         </Button>
-        <Button type="button" size="sm" className="h-7 px-2 text-xs" disabled={publishDisabled} onClick={onPublish}>
+        <Button type="button" size="sm" className="h-7 shrink-0 px-2 text-xs" disabled={publishDisabled} onClick={onPublish}>
           <SendIcon className="size-3.5" />
           发布
         </Button>

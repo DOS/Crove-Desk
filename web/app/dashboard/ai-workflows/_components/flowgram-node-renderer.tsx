@@ -25,13 +25,13 @@ export function FlowgramNodeRenderer(props: WorkflowNodeProps) {
     <WorkflowNodeRenderer
       node={props.node}
       className={cn(
-        "w-[360px] overflow-visible rounded-lg border bg-background shadow-[0_2px_6px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.02)] transition-colors",
-        selected ? "border-[#4e40e5]" : "border-[rgba(6,7,9,0.15)]"
+        "w-[320px] overflow-visible rounded-md border bg-background shadow-sm transition-colors",
+        selected ? "border-[var(--g-selection-background)]" : "border-border"
       )}
       style={{ padding: 0 }}
-      portPrimaryColor="#4e40e5"
-      portSecondaryColor="#d0d5dd"
-      portBackgroundColor="#fff"
+      portPrimaryColor="var(--g-selection-background)"
+      portSecondaryColor="#c9cdd4"
+      portBackgroundColor="hsl(var(--background))"
     >
       {form?.render()}
     </WorkflowNodeRenderer>

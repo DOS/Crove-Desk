@@ -70,12 +70,12 @@ function FlowgramNodeForm({
     <div className="flex w-full flex-col">
       <Field<string> name="title">
         {({ field }) => (
-          <div className="border-b px-4 py-3 text-sm font-medium leading-5">
+          <div className="border-b px-3 py-2.5 text-sm font-medium leading-5">
             {field.value || fallbackTitle}
           </div>
         )}
       </Field>
-      <div className="px-4 py-3 text-xs text-muted-foreground">{nodeType}</div>
+      <div className="px-3 py-2 text-xs text-muted-foreground">{nodeType}</div>
     </div>
   )
 }
@@ -106,7 +106,7 @@ function ConditionNodeForm({
     <div className="flex w-full flex-col">
       <Field<string> name="title">
         {({ field }) => (
-          <div className="border-b px-4 py-3 text-sm font-medium leading-5">
+          <div className="border-b px-3 py-2.5 text-sm font-medium leading-5">
             {field.value || fallbackTitle}
           </div>
         )}
@@ -129,16 +129,16 @@ function ConditionNodeForm({
           }
 
           return (
-            <div className="px-4 py-3">
+            <div className="px-3 py-2.5">
               <div className="space-y-2">
                 {branches.map((branch, index) => (
                   <div
                     key={branch.id}
                     className={[
-                      "relative flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-3 text-xs transition-colors before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-[#4e40e5]",
+                      "relative flex min-h-9 cursor-pointer items-center gap-2 rounded-sm border px-2.5 text-xs transition-colors",
                       selectedBranch?.nodeId === nodeId && selectedBranch.branchId === branch.id
-                        ? "bg-[#dfe4ff] text-[#3327b9] ring-1 ring-inset ring-[#4e40e5]/45 before:w-1"
-                        : "bg-[#eef1f7] hover:bg-[#e6eaff]",
+                        ? "border-[var(--g-selection-background)] bg-muted"
+                        : "border-transparent bg-muted/60 hover:bg-muted",
                     ].join(" ")}
                     onPointerDownCapture={(event) => {
                       event.stopPropagation()
@@ -154,7 +154,7 @@ function ConditionNodeForm({
                     <span className="min-w-0 flex-1 truncate font-medium text-foreground/90">
                       {branch.name || (branch.default ? "默认分支" : branch.id)}
                     </span>
-                    <span className="shrink-0 rounded-sm bg-[#e7e9f3] px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    <span className="shrink-0 rounded-sm border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                       {branch.default ? "else" : index === 0 ? "if" : "elseif"}
                     </span>
                     {branch.default ? null : (

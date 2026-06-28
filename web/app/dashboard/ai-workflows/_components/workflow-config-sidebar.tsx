@@ -61,7 +61,7 @@ export function WorkflowConfigPanel({
 
   return (
     <div className="pointer-events-none absolute inset-y-3 right-3 z-50 flex w-[360px] max-w-[calc(100%-1.5rem)]">
-      <section className="pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden rounded-lg border bg-background shadow-2xl">
+      <section className="pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden rounded-md border bg-background/95 shadow-sm backdrop-blur">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b px-4 py-3">
           <div className="min-w-0">
             <div className="text-sm font-medium">{selectedBranchItem ? "条件属性" : "属性"}</div>
