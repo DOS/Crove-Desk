@@ -2,11 +2,13 @@
 
 import { createContext, useContext } from "react"
 
-import type { WorkflowPortEntity } from "@flowgram.ai/free-layout-editor"
+import type { WorkflowLineEntity, WorkflowPortEntity } from "@flowgram.ai/free-layout-editor"
 
 export type WorkflowPortAddRequest = {
-  port: WorkflowPortEntity
-  event: React.MouseEvent<HTMLDivElement>
+  sourcePort: WorkflowPortEntity
+  targetPort?: WorkflowPortEntity
+  line?: WorkflowLineEntity
+  event: React.MouseEvent
 }
 
 const WorkflowPortAddContext = createContext<((request: WorkflowPortAddRequest) => void) | null>(null)

@@ -40,7 +40,7 @@ export function FlowgramNodeRenderer(props: WorkflowNodeProps) {
           return
         }
         event.stopPropagation()
-        requestPortAdd?.({ port, event })
+        requestPortAdd?.({ sourcePort: port, event })
       }}
     >
       {form?.render()}

@@ -1,11 +1,10 @@
 "use client"
 
-import { useCallback } from "react"
-
 import type { LineRenderProps } from "@flowgram.ai/free-lines-plugin"
-import { WorkflowNodePanelService } from "@flowgram.ai/free-node-panel-plugin"
 import { PlusIcon } from "lucide-react"
-import { usePlayground, useService } from "@flowgram.ai/free-layout-editor"
+import { usePlayground } from "@flowgram.ai/free-layout-editor"
+
+import { useWorkflowPortAdd } from "./workflow-port-add-context"
 
 export function WorkflowLineAddButton({
   line,
@@ -14,33 +13,9 @@ export function WorkflowLineAddButton({
   color,
 }: LineRenderProps) {
   const playground = usePlayground()
-  const nodePanelService = useService<WorkflowNodePanelService>(WorkflowNodePanelService)
+  const requestPortAdd = useWorkflowPortAdd()
   const { fromPort, toPort } = line
   const visible = !line.disposed && !playground.config.readonly && (selected || hovered)
-
-  const openNodePanel = useCallback(() => {
-    if (!fromPort || !toPort) {
-      return
-    }
-    void nodePanelService.call({
-      panelPosition: {
-        x: line.center.labelX,
-        y: line.center.labelY,
-      },
-      fromPort,
-      toPort,
-      panelProps: {
-        fromPort,
-      },
-      enableBuildLine: true,
-      enableAutoOffset: true,
-      afterAddNode: (node) => {
-        if (node && !line.disposed) {
-          line.dispose()
-        }
-      },
-    })
-  }, [fromPort, line, nodePanelService, toPort])
 
   if (!visible) {
     return null
@@ -59,7 +34,15 @@ export function WorkflowLineAddButton({
       data-line-id={line.id}
       onClick={(event) => {
         event.stopPropagation()
-        openNodePanel()
+        if (!fromPort || !toPort) {
+          return
+        }
+        requestPortAdd?.({
+          sourcePort: fromPort,
+          targetPort: toPort,
+          line,
+          event,
+        })
       }}
     >
       <PlusIcon className="size-3.5" strokeWidth={2.4} />

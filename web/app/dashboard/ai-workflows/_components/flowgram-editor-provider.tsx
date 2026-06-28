@@ -9,7 +9,6 @@ import {
   type WorkflowJSON,
 } from "@flowgram.ai/free-layout-editor"
 import { createFreeLinesPlugin } from "@flowgram.ai/free-lines-plugin"
-import { createFreeNodePanelPlugin } from "@flowgram.ai/free-node-panel-plugin"
 import { createFreeSnapPlugin } from "@flowgram.ai/free-snap-plugin"
 import { createMinimapPlugin } from "@flowgram.ai/minimap-plugin"
 
@@ -18,7 +17,6 @@ import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
 import { FlowgramNodeRenderer } from "./flowgram-node-renderer"
 import { buildFlowgramNodeRegistries } from "./flowgram-node-registries"
 import { WorkflowLineAddButton } from "./workflow-line-add-button"
-import { WorkflowLineNodePanel } from "./workflow-line-node-panel"
 import {
   normalizeConditionPortsForFlowgram,
   syncConditionBranchTargetsFromEdges,
@@ -90,14 +88,6 @@ export function useFlowgramEditorProps({
         plugins: () => [
           createFreeLinesPlugin({
             renderInsideLine: WorkflowLineAddButton,
-          }),
-          createFreeNodePanelPlugin({
-            renderer: (props) => (
-              <WorkflowLineNodePanel
-                {...props}
-                nodeSpecs={nodeSpecs}
-              />
-            ),
           }),
           createMinimapPlugin({
             disableLayer: true,

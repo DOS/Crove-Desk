@@ -6,6 +6,7 @@ import {
   EditorRenderer,
   FreeLayoutEditorProvider,
   WorkflowDocument,
+  type WorkflowLineEntity,
   WorkflowLinesManager,
   WorkflowSelectService,
   type WorkflowJSON,
@@ -203,7 +204,13 @@ function WorkflowEditorInner({
   const selectService = useService(WorkflowSelectService)
   const editorRootRef = useRef<HTMLDivElement>(null)
   const [autoLayouting, setAutoLayouting] = useState(false)
-  const [nodeMenu, setNodeMenu] = useState<(WorkflowPortNodeMenuState & { port: WorkflowPortEntity }) | null>(null)
+  const [nodeMenu, setNodeMenu] = useState<(
+    WorkflowPortNodeMenuState & {
+      sourcePort: WorkflowPortEntity
+      targetPort?: WorkflowPortEntity
+      line?: WorkflowLineEntity
+    }
+  ) | null>(null)
   const zoomPercent = `${Math.round(playgroundTools.zoom * 100)}%`
 
   useEffect(() => {
@@ -223,7 +230,9 @@ function WorkflowEditorInner({
   const openNodeMenuFromPort = useCallback((request: WorkflowPortAddRequest) => {
     const rootRect = editorRootRef.current?.getBoundingClientRect()
     setNodeMenu({
-      port: request.port,
+      sourcePort: request.sourcePort,
+      targetPort: request.targetPort,
+      line: request.line,
       x: rootRect ? request.event.clientX - rootRect.left + 10 : request.event.clientX,
       y: rootRect ? request.event.clientY - rootRect.top - 10 : request.event.clientY,
     })
@@ -233,11 +242,11 @@ function WorkflowEditorInner({
     if (!nodeMenu) {
       return
     }
-    const sourcePort = nodeMenu.port
+    const sourcePort = nodeMenu.sourcePort
     const nextNode = createWorkflowNodeFromSpec(
       spec,
       context.document.toJSON().nodes ?? definition.nodes,
-      nextNodePositionFromPort(sourcePort)
+      nextNodePositionFromAddMenu(nodeMenu)
     )
     const created = workflowDocument.createWorkflowNodeByType(
       spec.type,
@@ -250,6 +259,17 @@ function WorkflowEditorInner({
       to: created.id,
       toPort: "",
     })
+    if (nodeMenu.targetPort) {
+      linesManager.createLine({
+        from: created.id,
+        fromPort: "",
+        to: nodeMenu.targetPort.node.id,
+        toPort: nodeMenu.targetPort.portID,
+      })
+      if (nodeMenu.line && !nodeMenu.line.disposed) {
+        nodeMenu.line.dispose()
+      }
+    }
     setNodeMenu(null)
     await selectService.selectNodeAndScrollToView(created)
     onSelectNode(created.id)
@@ -365,9 +385,21 @@ function WorkflowEditorInner({
   )
 }
 
-function nextNodePositionFromPort(port: WorkflowPortEntity) {
+function nextNodePositionFromAddMenu(
+  menu: WorkflowPortNodeMenuState & {
+    sourcePort: WorkflowPortEntity
+    targetPort?: WorkflowPortEntity
+    line?: WorkflowLineEntity
+  }
+) {
+  if (menu.line && !menu.line.disposed) {
+    return {
+      x: menu.line.center.labelX,
+      y: menu.line.center.labelY - 40,
+    }
+  }
   return {
-    x: port.point.x + 120,
-    y: port.point.y - 40,
+    x: menu.sourcePort.point.x + 120,
+    y: menu.sourcePort.point.y - 40,
   }
 }
