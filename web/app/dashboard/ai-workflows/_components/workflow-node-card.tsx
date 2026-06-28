@@ -24,7 +24,7 @@ export function WorkflowNodeCard({
           : "border-border/80 shadow-sm hover:border-border hover:shadow-md"
       )}
     >
-      <div className="overflow-hidden rounded-lg border border-transparent bg-[#FFFFFF]">
+      <div className="overflow-visible rounded-lg border border-transparent bg-[#FFFFFF]">
         <div className="flex items-center gap-2 px-3 pb-2 pt-3">
           <WorkflowNodeIcon icon={icon} />
           <div className="min-w-0 flex-1">
