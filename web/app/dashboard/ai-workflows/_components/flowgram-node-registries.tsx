@@ -42,8 +42,8 @@ export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): Wo
       meta: {
         defaultExpanded: true,
         isStart: spec.type === "start",
-        deleteDisable: spec.type === "start" || spec.type === "end",
-        copyDisable: spec.type === "start" || spec.type === "end",
+        deleteDisable: spec.type === "start",
+        copyDisable: spec.type === "start",
         defaultPorts: defaultPortsForNodeType(spec.type),
       },
       formMeta: {

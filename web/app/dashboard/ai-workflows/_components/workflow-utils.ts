@@ -199,7 +199,7 @@ export function deleteWorkflowNode(
   nodeId: string
 ): AIWorkflowDefinition {
   const node = definition.nodes.find((item) => item.id === nodeId)
-  if (!node || node.type === "start" || node.type === "end") {
+  if (!node || node.type === "start") {
     return definition
   }
   return {

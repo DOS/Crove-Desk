@@ -64,7 +64,7 @@ export function useFlowgramEditorProps({
         },
         canDeleteNode: (_ctx, node) => {
           const type = String(node.flowNodeType ?? "")
-          return type !== "start" && type !== "end"
+          return type !== "start"
         },
         canDeleteLine: () => !readonly,
         onContentChange: (ctx) => {

@@ -208,7 +208,9 @@ function WorkflowEditorInner({
 
   useEffect(() => {
     const disposable = selectService.onSelectionChanged(() => {
-      const selectedNode = selectService.selectedNodes[0]
+      const selectedNode = selectService.selectedNodes.length === 1
+        ? selectService.selectedNodes[0]
+        : null
       onSelectNode(selectedNode?.id ?? "")
     })
     return () => disposable.dispose()

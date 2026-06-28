@@ -252,7 +252,7 @@ describe("workflow definition mutations", () => {
     })
   })
 
-  it("deletes normal nodes and related edges while keeping start and end protected", async () => {
+  it("deletes non-start nodes and related edges while keeping start protected", async () => {
     const { deleteWorkflowNode } = await loadModule()
     const definition = {
       schemaVersion: 2,
@@ -270,6 +270,10 @@ describe("workflow definition mutations", () => {
 
     const protectedDefinition = deleteWorkflowNode(definition, "start_1")
     assert.deepEqual(protectedDefinition, definition)
+
+    const withoutEnd = deleteWorkflowNode(definition, "end_1")
+    assert.deepEqual(withoutEnd.nodes.map((node) => node.id), ["start_1", "reply_1"])
+    assert.deepEqual(withoutEnd.edges, [workflowEdge("start_1", "reply_1")])
   })
 
   it("upserts and deletes condition branches in node config", async () => {
