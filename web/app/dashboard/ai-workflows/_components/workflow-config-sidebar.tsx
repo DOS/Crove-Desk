@@ -126,7 +126,7 @@ export function WorkflowConfigPanel({
       >
         <span className="h-12 w-1 rounded-full bg-slate-300/80 transition-colors group-hover:bg-blue-400" />
       </div>
-      <section className="pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-[#f8fafc] shadow-lg backdrop-blur">
+      <section className="pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden rounded-lg border border-slate-300 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.18)] backdrop-blur">
         <div className="shrink-0 p-3 pb-2">
           <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
             <div className="px-3 py-3">
