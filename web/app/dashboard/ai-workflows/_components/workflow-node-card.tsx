@@ -7,20 +7,18 @@ export function WorkflowNodeCard({
   title,
   icon,
   selected,
-  width = "normal",
   children,
 }: {
   title: string
   icon: string
   selected: boolean
-  width?: "normal" | "wide"
   children?: ReactNode
 }) {
   return (
     <div
       className={cn(
         "group relative rounded-lg border bg-background p-0.5 transition-all",
-        width === "wide" ? "w-[320px]" : "w-[280px]",
+        "w-[242px]",
         selected
           ? "border-[var(--g-selection-background)] shadow-[0_8px_24px_rgba(20,24,38,0.14)]"
           : "border-border/80 shadow-sm hover:border-border hover:shadow-md"

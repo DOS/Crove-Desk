@@ -77,7 +77,6 @@ function FlowgramNodeForm({
           title={field.value || fallbackTitle}
           icon={icon}
           selected={selected}
-          width={nodeType === "condition" ? "wide" : "normal"}
         >
           {nodeType === "condition" ? (
             <Field<Record<string, unknown>> name="config">
