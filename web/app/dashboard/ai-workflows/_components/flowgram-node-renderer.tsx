@@ -8,9 +8,11 @@ import {
 import { useLayoutEffect } from "react"
 
 import { cn } from "@/lib/utils"
+import { useWorkflowPortAdd } from "./workflow-port-add-context"
 
 export function FlowgramNodeRenderer(props: WorkflowNodeProps) {
   const { selected, node, form } = useNodeRender()
+  const requestPortAdd = useWorkflowPortAdd()
   const nodeType = String(node.flowNodeType ?? "")
 
   useLayoutEffect(() => {
@@ -33,6 +35,13 @@ export function FlowgramNodeRenderer(props: WorkflowNodeProps) {
       portPrimaryColor="#2575FC"
       portSecondaryColor="#c9cdd4"
       portBackgroundColor="#FFFFFF"
+      onPortClick={(port, event) => {
+        if (port.portType !== "output" || typeof event === "function") {
+          return
+        }
+        event.stopPropagation()
+        requestPortAdd?.({ port, event })
+      }}
     >
       {form?.render()}
     </WorkflowNodeRenderer>

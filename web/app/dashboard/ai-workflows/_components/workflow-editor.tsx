@@ -6,9 +6,11 @@ import {
   EditorRenderer,
   FreeLayoutEditorProvider,
   WorkflowDocument,
+  WorkflowLinesManager,
   WorkflowSelectService,
   type WorkflowJSON,
   type WorkflowNodeJSON,
+  type WorkflowPortEntity,
   useClientContext,
   usePlaygroundTools,
   useService,
@@ -24,7 +26,14 @@ import {
 } from "./workflow-branch-selection"
 import { WorkflowConfigPanel } from "./workflow-config-sidebar"
 import { WorkflowEditorToolbar } from "./workflow-editor-toolbar"
-import { WorkflowNodePalette } from "./workflow-node-palette"
+import {
+  WorkflowPortAddProvider,
+  type WorkflowPortAddRequest,
+} from "./workflow-port-add-context"
+import {
+  WorkflowPortNodeMenu,
+  type WorkflowPortNodeMenuState,
+} from "./workflow-port-node-menu"
 import {
   createWorkflowNodeFromSpec,
   deleteWorkflowNode,
@@ -190,8 +199,11 @@ function WorkflowEditorInner({
   const context = useClientContext()
   const playgroundTools = usePlaygroundTools()
   const workflowDocument = useService(WorkflowDocument)
+  const linesManager = useService(WorkflowLinesManager)
   const selectService = useService(WorkflowSelectService)
+  const editorRootRef = useRef<HTMLDivElement>(null)
   const [autoLayouting, setAutoLayouting] = useState(false)
+  const [nodeMenu, setNodeMenu] = useState<(WorkflowPortNodeMenuState & { port: WorkflowPortEntity }) | null>(null)
   const zoomPercent = `${Math.round(playgroundTools.zoom * 100)}%`
 
   useEffect(() => {
@@ -206,13 +218,37 @@ function WorkflowEditorInner({
     onDefinitionChange(context.document.toJSON() as AIWorkflowDefinition)
   }
 
-  const addNode = async (spec: AIWorkflowNodeSpec) => {
-    const nextNode = createWorkflowNodeFromSpec(spec, definition.nodes, nextNodePosition(definition))
+  const openNodeMenuFromPort = useCallback((request: WorkflowPortAddRequest) => {
+    const rootRect = editorRootRef.current?.getBoundingClientRect()
+    setNodeMenu({
+      port: request.port,
+      x: rootRect ? request.event.clientX - rootRect.left + 10 : request.event.clientX,
+      y: rootRect ? request.event.clientY - rootRect.top - 10 : request.event.clientY,
+    })
+  }, [])
+
+  const addNodeFromPort = async (spec: AIWorkflowNodeSpec) => {
+    if (!nodeMenu) {
+      return
+    }
+    const sourcePort = nodeMenu.port
+    const nextNode = createWorkflowNodeFromSpec(
+      spec,
+      context.document.toJSON().nodes ?? definition.nodes,
+      nextNodePositionFromPort(sourcePort)
+    )
     const created = workflowDocument.createWorkflowNodeByType(
       spec.type,
       nextNode.meta?.position,
       nextNode as WorkflowNodeJSON
     )
+    linesManager.createLine({
+      from: sourcePort.node.id,
+      fromPort: sourcePort.portID,
+      to: created.id,
+      toPort: "",
+    })
+    setNodeMenu(null)
     await selectService.selectNodeAndScrollToView(created)
     onSelectNode(created.id)
     emitCurrentDefinition()
@@ -264,15 +300,14 @@ function WorkflowEditorInner({
 
   return (
     <div
+      ref={editorRootRef}
       data-workflow-editor-root
       className="relative isolate h-full min-h-0 w-full flex-1 overflow-hidden border bg-[var(--g-editor-background)]"
     >
-      <WorkflowNodePalette nodeSpecs={nodeSpecs} onAddNode={addNode} />
-
       <div
         className={cn(
-          "absolute left-[17.5rem] top-3 z-50 max-w-[calc(100%-18.25rem)]",
-          selectedNodeId && "max-w-[calc(100%-41rem)]"
+          "absolute left-3 top-3 z-50 max-w-[calc(100%-1.5rem)]",
+          selectedNodeId && "max-w-[calc(100%-25rem)]"
         )}
       >
         <WorkflowEditorToolbar
@@ -302,7 +337,17 @@ function WorkflowEditorInner({
         />
       </div>
 
-      <EditorRenderer className="h-full w-full" />
+      <WorkflowPortAddProvider onRequestAdd={openNodeMenuFromPort}>
+        <EditorRenderer className="h-full w-full" />
+      </WorkflowPortAddProvider>
+
+      <WorkflowPortNodeMenu
+        open={Boolean(nodeMenu)}
+        position={nodeMenu}
+        nodeSpecs={nodeSpecs}
+        onSelect={(spec) => void addNodeFromPort(spec)}
+        onClose={() => setNodeMenu(null)}
+      />
 
       <WorkflowConfigPanel
         definition={definition}
@@ -318,11 +363,9 @@ function WorkflowEditorInner({
   )
 }
 
-function nextNodePosition(definition: AIWorkflowDefinition) {
-  if (definition.nodes.length === 0) {
-    return { x: 80, y: 80 }
+function nextNodePositionFromPort(port: WorkflowPortEntity) {
+  return {
+    x: port.point.x + 120,
+    y: port.point.y - 40,
   }
-  const maxX = Math.max(...definition.nodes.map((node) => node.meta?.position?.x ?? 0))
-  const minY = Math.min(...definition.nodes.map((node) => node.meta?.position?.y ?? 80))
-  return { x: maxX + 320, y: Number.isFinite(minY) ? minY : 80 }
 }
