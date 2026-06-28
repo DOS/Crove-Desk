@@ -150,6 +150,15 @@ export function NodeConfigPanel({
           />
         </div>
 
+        {nodeSpec?.description ? (
+          <div className="space-y-2">
+            <Label>节点说明</Label>
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs leading-5 text-muted-foreground">
+              {nodeSpec.description}
+            </div>
+          </div>
+        ) : null}
+
         {inputSchema.length > 0 ? (
           <div className="space-y-3">
             <div className="text-sm font-medium">输入</div>

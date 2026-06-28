@@ -1,20 +1,17 @@
 import type { ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
-import type { AIWorkflowNodeSpec } from "@/lib/api/admin"
 import { WorkflowNodeIcon } from "./workflow-node-icon"
 
 export function WorkflowNodeCard({
   nodeType,
   title,
-  spec,
   selected,
   width = "normal",
   children,
 }: {
   nodeType: string
   title: string
-  spec?: AIWorkflowNodeSpec
   selected: boolean
   width?: "normal" | "wide"
   children?: ReactNode
@@ -38,11 +35,6 @@ export function WorkflowNodeCard({
             </div>
           </div>
         </div>
-        {spec?.description ? (
-          <div className="mx-3 mb-2 line-clamp-2 rounded-lg bg-muted/45 px-2 py-1.5 text-xs leading-4 text-muted-foreground">
-            {spec.description}
-          </div>
-        ) : null}
         {children ? <div className="border-t bg-muted/20 px-3 py-2.5">{children}</div> : null}
       </div>
     </div>

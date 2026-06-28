@@ -49,7 +49,6 @@ export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): Wo
           <FlowgramNodeForm
             nodeType={spec.type}
             fallbackTitle={spec.title || spec.type}
-            spec={spec}
           />
         ),
       },
@@ -59,11 +58,9 @@ export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): Wo
 function FlowgramNodeForm({
   nodeType,
   fallbackTitle,
-  spec,
 }: {
   nodeType: string
   fallbackTitle: string
-  spec?: AIWorkflowNodeSpec
 }) {
   const { node, selected } = useNodeRender()
   const nodeId = String(node.id ?? "")
@@ -74,7 +71,6 @@ function FlowgramNodeForm({
         <WorkflowNodeCard
           nodeType={nodeType}
           title={field.value || fallbackTitle}
-          spec={spec}
           selected={selected}
           width={nodeType === "condition" ? "wide" : "normal"}
         >
