@@ -106,7 +106,7 @@ function ConditionNodeForm({ fallbackTitle }: { fallbackTitle: string }) {
                 {branches.map((branch) => (
                   <div
                     key={branch.id}
-                    className="flex min-h-9 items-center gap-2 rounded-md bg-muted/40 px-3 text-xs hover:bg-muted/70"
+                    className="relative flex min-h-9 items-center gap-2 rounded-md bg-muted/40 px-3 pr-6 text-xs hover:bg-muted/70"
                   >
                     <span className="min-w-0 flex-1 truncate">
                       {branch.name || (branch.default ? "默认分支" : branch.id)}
@@ -119,10 +119,8 @@ function ConditionNodeForm({ fallbackTitle }: { fallbackTitle: string }) {
                     <span
                       data-port-id={branch.id}
                       data-port-type="output"
-                      className="flex size-4 shrink-0 items-center justify-center rounded-full border border-[#4e40e5]/70 bg-background"
-                    >
-                      <span className="size-2 rounded-full bg-[#4e40e5]" />
-                    </span>
+                      className="absolute -right-4 top-1/2 size-0"
+                    />
                   </div>
                 ))}
               </div>

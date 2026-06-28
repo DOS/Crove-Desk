@@ -25,7 +25,7 @@ export function FlowgramNodeRenderer(props: WorkflowNodeProps) {
     <WorkflowNodeRenderer
       node={props.node}
       className={cn(
-        "w-[360px] overflow-hidden rounded-lg border bg-background shadow-[0_2px_6px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.02)] transition-colors",
+        "w-[360px] overflow-visible rounded-lg border bg-background shadow-[0_2px_6px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.02)] transition-colors",
         selected ? "border-[#4e40e5]" : "border-[rgba(6,7,9,0.15)]"
       )}
       style={{ padding: 0 }}
