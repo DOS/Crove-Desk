@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, type PointerEvent as ReactPointerEvent } from "react"
 import { XIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,10 @@ import {
   normalizeNodeConfig,
   type WorkflowNodeData,
 } from "./workflow-utils"
+
+const PANEL_DEFAULT_WIDTH = 380
+const PANEL_MIN_WIDTH = 320
+const PANEL_MAX_WIDTH = 560
 
 export function WorkflowConfigPanel({
   definition,
@@ -34,6 +39,7 @@ export function WorkflowConfigPanel({
   onChangeNodeData: (nodeId: string, data: WorkflowNodeData) => void
   onDeleteNode: (nodeId: string) => void
 }) {
+  const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT_WIDTH)
   const selectedNode = definition.nodes.find((node) => node.id === selectedNodeId) ?? null
   const selectedNodeSpec = selectedNode
     ? nodeSpecs.find((spec) => spec.type === selectedNode.type)
@@ -87,9 +93,37 @@ export function WorkflowConfigPanel({
       title,
     })
   }
+  const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    const startX = event.clientX
+    const startWidth = panelWidth
+    const maxWidth = Math.max(PANEL_MIN_WIDTH, Math.min(PANEL_MAX_WIDTH, window.innerWidth - 320))
+
+    const resize = (moveEvent: PointerEvent) => {
+      const nextWidth = startWidth + startX - moveEvent.clientX
+      setPanelWidth(Math.min(Math.max(nextWidth, PANEL_MIN_WIDTH), maxWidth))
+    }
+    const stopResize = () => {
+      window.removeEventListener("pointermove", resize)
+      window.removeEventListener("pointerup", stopResize)
+    }
+
+    window.addEventListener("pointermove", resize)
+    window.addEventListener("pointerup", stopResize)
+  }
 
   return (
-    <div className="pointer-events-none absolute inset-y-3 right-3 z-50 flex w-[380px] max-w-[calc(100%-1.5rem)]">
+    <div
+      className="pointer-events-none absolute inset-y-3 right-3 z-50 flex max-w-[calc(100%-1.5rem)]"
+      style={{ width: panelWidth }}
+    >
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="调整属性面板宽度"
+        className="pointer-events-auto absolute inset-y-2 left-0 z-10 w-2 -translate-x-1 cursor-col-resize rounded-full after:absolute after:inset-y-2 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent hover:after:bg-blue-300"
+        onPointerDown={startResize}
+      />
       <section className="pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-[#f8fafc] shadow-lg backdrop-blur">
         <div className="shrink-0 p-3 pb-2">
           <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
