@@ -1,22 +1,31 @@
 import { Field, type WorkflowNodeRegistry, useNodeRender } from "@flowgram.ai/free-layout-editor"
-import { PlusIcon, XIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import type { AIWorkflowNodeSpec } from "@/lib/api/admin"
-import {
-  createConditionBranchID,
-  normalizeNodeConfig,
-  type WorkflowConditionBranch,
-} from "./workflow-utils"
-import { useWorkflowBranchSelection } from "./workflow-branch-selection"
+import { WorkflowConditionNodeContent } from "./workflow-condition-node-content"
+import { WorkflowNodeCard } from "./workflow-node-card"
+import { WorkflowSimpleNodeContent } from "./workflow-simple-node-content"
 
 export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): WorkflowNodeRegistry[] {
   const seen = new Set<string>()
   const specs = nodeSpecs.length > 0
     ? nodeSpecs
     : [
-        { type: "start", title: "开始" },
-        { type: "end", title: "结束" },
+        {
+          type: "start",
+          title: "开始",
+          description: "流程入口",
+          riskLevel: "low" as const,
+          interruptible: false,
+          requiresConfirmationPredecessor: false,
+        },
+        {
+          type: "end",
+          title: "结束",
+          description: "流程结束",
+          riskLevel: "low" as const,
+          interruptible: false,
+          requiresConfirmationPredecessor: false,
+        },
       ]
 
   return specs
@@ -41,6 +50,7 @@ export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): Wo
           <FlowgramNodeForm
             nodeType={spec.type}
             fallbackTitle={spec.title || spec.type}
+            spec={spec}
           />
         ),
       },
@@ -50,33 +60,41 @@ export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): Wo
 function FlowgramNodeForm({
   nodeType,
   fallbackTitle,
+  spec,
 }: {
   nodeType: string
   fallbackTitle: string
+  spec?: AIWorkflowNodeSpec
 }) {
-  const { node } = useNodeRender()
+  const { node, selected } = useNodeRender()
   const nodeId = String(node.id ?? "")
 
-  if (nodeType === "condition") {
-    return (
-      <ConditionNodeForm
-        fallbackTitle={fallbackTitle}
-        nodeId={nodeId}
-      />
-    )
-  }
-
   return (
-    <div className="flex w-full flex-col">
-      <Field<string> name="title">
-        {({ field }) => (
-          <div className="border-b px-3 py-2.5 text-sm font-medium leading-5">
-            {field.value || fallbackTitle}
-          </div>
-        )}
-      </Field>
-      <div className="px-3 py-2 text-xs text-muted-foreground">{nodeType}</div>
-    </div>
+    <Field<string> name="title">
+      {({ field }) => (
+        <WorkflowNodeCard
+          nodeType={nodeType}
+          title={field.value || fallbackTitle}
+          spec={spec}
+          selected={selected}
+          width={nodeType === "condition" ? "wide" : "normal"}
+        >
+          {nodeType === "condition" ? (
+            <Field<Record<string, unknown>> name="config">
+              {({ field: configField }) => (
+                <WorkflowConditionNodeContent
+                  configValue={configField.value}
+                  nodeId={nodeId}
+                  onChange={configField.onChange}
+                />
+              )}
+            </Field>
+          ) : (
+            <WorkflowSimpleNodeContent spec={spec} />
+          )}
+        </WorkflowNodeCard>
+      )}
+    </Field>
   )
 }
 
@@ -91,134 +109,4 @@ function defaultPortsForNodeType(type: string) {
     return [{ type: "input" as const }]
   }
   return [{ type: "input" as const }, { type: "output" as const }]
-}
-
-function ConditionNodeForm({
-  fallbackTitle,
-  nodeId,
-}: {
-  fallbackTitle: string
-  nodeId: string
-}) {
-  const { selectedBranch, onSelectBranch } = useWorkflowBranchSelection()
-
-  return (
-    <div className="flex w-full flex-col">
-      <Field<string> name="title">
-        {({ field }) => (
-          <div className="border-b px-3 py-2.5 text-sm font-medium leading-5">
-            {field.value || fallbackTitle}
-          </div>
-        )}
-      </Field>
-      <Field<Record<string, unknown>> name="config">
-        {({ field }) => {
-          const config = normalizeNodeConfig(field.value)
-          const branches = ensureConditionBranches(config.branches ?? [])
-          const updateBranches = (nextBranches: WorkflowConditionBranch[]) => {
-            field.onChange({
-              ...config,
-              branches: ensureConditionBranches(nextBranches),
-            })
-          }
-          const deleteBranch = (branchId: string) => {
-            updateBranches(branches.filter((branch) => branch.id !== branchId))
-            if (selectedBranch?.nodeId === nodeId && selectedBranch.branchId === branchId) {
-              onSelectBranch?.(null)
-            }
-          }
-
-          return (
-            <div className="px-3 py-2.5">
-              <div className="space-y-2">
-                {branches.map((branch, index) => (
-                  <div
-                    key={branch.id}
-                    className={[
-                      "relative flex min-h-9 cursor-pointer items-center gap-2 rounded-sm border px-2.5 text-xs transition-colors",
-                      selectedBranch?.nodeId === nodeId && selectedBranch.branchId === branch.id
-                        ? "border-[var(--g-selection-background)] bg-muted"
-                        : "border-transparent bg-muted/60 hover:bg-muted",
-                    ].join(" ")}
-                    onPointerDownCapture={(event) => {
-                      event.stopPropagation()
-                      onSelectBranch?.({ nodeId, branchId: branch.id })
-                    }}
-                    onMouseDownCapture={(event) => {
-                      event.stopPropagation()
-                    }}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                    }}
-                  >
-                    <span className="min-w-0 flex-1 truncate font-medium text-foreground/90">
-                      {branch.name || (branch.default ? "默认分支" : branch.id)}
-                    </span>
-                    <span className="shrink-0 rounded-sm border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      {branch.default ? "else" : index === 0 ? "if" : "elseif"}
-                    </span>
-                    {branch.default ? null : (
-                      <button
-                        type="button"
-                        className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                        aria-label={`删除条件 ${branch.name || branch.id}`}
-                        onPointerDownCapture={(event) => {
-                          event.stopPropagation()
-                        }}
-                        onMouseDownCapture={(event) => {
-                          event.stopPropagation()
-                        }}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          deleteBranch(branch.id)
-                        }}
-                      >
-                        <XIcon className="size-3.5" />
-                      </button>
-                    )}
-                    <span
-                      data-port-id={branch.id}
-                      data-port-type="output"
-                      className="absolute -right-4 top-1/2 size-0"
-                    />
-                  </div>
-                ))}
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="mt-2 h-7 px-2 text-xs text-muted-foreground"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  updateBranches([
-                    ...branches,
-                    {
-                      id: createConditionBranchID(branches),
-                      name: "新条件",
-                      targetNodeId: "",
-                      condition: { operator: "eq" },
-                    },
-                  ])
-                }}
-              >
-                <PlusIcon className="size-3.5" />
-                添加条件
-              </Button>
-            </div>
-          )
-        }}
-      </Field>
-    </div>
-  )
-}
-
-function ensureConditionBranches(branches: WorkflowConditionBranch[]) {
-  const normalized = branches.some((branch) => branch.default)
-    ? branches
-    : [...branches, { id: "default", name: "默认分支", targetNodeId: "", default: true }]
-  return [
-    ...normalized.filter((branch) => !branch.default),
-    ...normalized.filter((branch) => branch.default).slice(0, 1),
-  ]
 }
