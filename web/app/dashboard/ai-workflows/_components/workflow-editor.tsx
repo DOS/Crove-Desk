@@ -330,7 +330,7 @@ function WorkflowEditorInner({
     >
       <div
         className={cn(
-          "absolute left-3 top-3 z-50 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-2",
+          "absolute left-3 top-3 z-50 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-1.5",
           selectedNodeId && "max-w-[calc(100%-25rem)]"
         )}
       >
@@ -356,7 +356,7 @@ function WorkflowEditorInner({
         />
       </div>
 
-      <div className="absolute bottom-3 left-3 z-50">
+      <div className="absolute bottom-4 left-4 z-50">
         <WorkflowCanvasControls
           zoomPercent={zoomPercent}
           onZoomIn={() => playgroundTools.zoomin(true)}
