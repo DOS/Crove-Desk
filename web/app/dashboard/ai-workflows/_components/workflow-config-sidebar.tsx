@@ -135,7 +135,7 @@ export function WorkflowConfigPanel({
                   <WorkflowNodeIcon
                     icon={panelIcon}
                     size="sm"
-                    className="rounded-md bg-slate-100 text-slate-600 shadow-none"
+                    className="rounded-md bg-[#2575FC] text-white shadow-none"
                   />
                   <div className="min-w-0 flex-1">
                     <Input
