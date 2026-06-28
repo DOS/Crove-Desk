@@ -49,7 +49,7 @@ export function WorkflowLineAddButton({
   return (
     <button
       type="button"
-      className="absolute flex size-6 items-center justify-center rounded-full border border-white bg-white text-[#2575FC] shadow-sm transition-transform hover:scale-105"
+      className="absolute flex size-6 items-center justify-center rounded-full border border-white bg-white text-[#2575FC] shadow-sm transition-transform" // hover:scale-105
       style={{
         transform: `translate(-50%, -50%) translate(${line.center.labelX}px, ${line.center.labelY}px)`,
         color,
