@@ -2,7 +2,7 @@ import type { ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
 import type { AIWorkflowNodeSpec } from "@/lib/api/admin"
-import { getWorkflowNodeAccentClass, getWorkflowNodeMeta } from "./workflow-node-meta"
+import { getWorkflowNodeMeta } from "./workflow-node-meta"
 import { WorkflowNodeIcon } from "./workflow-node-icon"
 
 export function WorkflowNodeCard({
@@ -40,14 +40,6 @@ export function WorkflowNodeCard({
               {title}
             </div>
             <div className="mt-0.5 flex items-center gap-1.5">
-              <span
-                className={cn(
-                  "inline-flex h-4 shrink-0 items-center rounded-md border px-1.5 text-[10px] font-medium leading-none",
-                  getWorkflowNodeAccentClass(meta.tone)
-                )}
-              >
-                {meta.label}
-              </span>
               <span className="min-w-0 truncate text-[11px] leading-4 text-muted-foreground">
                 {nodeType}
               </span>
