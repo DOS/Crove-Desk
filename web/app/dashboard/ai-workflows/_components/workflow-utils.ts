@@ -241,18 +241,32 @@ export function deleteConditionBranch(
     return definition
   }
   const config = normalizeNodeConfig(node.data?.config)
-  return updateWorkflowNodeData(definition, nodeId, {
+  const nextDefinition = updateWorkflowNodeData(definition, nodeId, {
     ...(node.data ?? {}),
     config: {
       ...config,
       branches: (config.branches ?? []).filter((branch) => branch.id !== branchId),
     },
   })
+  return {
+    ...nextDefinition,
+    edges: nextDefinition.edges.filter((edge) => !(edge.sourceNodeID === nodeId && edge.sourcePortID === branchId)),
+  }
 }
 
 export function normalizeConditionPortsForFlowgram(
   definition: AIWorkflowDefinition
 ): AIWorkflowDefinition {
+  const branchIdsByNodeId = new Map<string, Set<string>>()
+  for (const node of definition.nodes) {
+    if (node.type !== "condition") {
+      continue
+    }
+    const config = normalizeNodeConfig(node.data?.config)
+    const branches = ensureConditionBranches(config.branches ?? [])
+    branchIdsByNodeId.set(node.id, new Set(branches.map((branch) => branch.id)))
+  }
+
   return {
     ...definition,
     nodes: definition.nodes.map((node) => {
@@ -271,7 +285,13 @@ export function normalizeConditionPortsForFlowgram(
         },
       }
     }),
-    edges: definition.edges.map((edge) => {
+    edges: definition.edges.filter((edge) => {
+      if (!edge.sourcePortID) {
+        return true
+      }
+      const branchIds = branchIdsByNodeId.get(edge.sourceNodeID)
+      return !branchIds || branchIds.has(edge.sourcePortID)
+    }).map((edge) => {
       const source = definition.nodes.find((node) => node.id === edge.sourceNodeID)
       if (!source || source.type !== "condition" || edge.sourcePortID) {
         return edge

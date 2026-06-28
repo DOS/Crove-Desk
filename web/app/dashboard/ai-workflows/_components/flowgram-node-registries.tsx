@@ -1,5 +1,5 @@
 import { Field, type WorkflowNodeRegistry } from "@flowgram.ai/free-layout-editor"
-import { PlusIcon } from "lucide-react"
+import { PlusIcon, XIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import type { AIWorkflowNodeSpec } from "@/lib/api/admin"
@@ -99,6 +99,9 @@ function ConditionNodeForm({ fallbackTitle }: { fallbackTitle: string }) {
               branches: ensureConditionBranches(nextBranches),
             })
           }
+          const deleteBranch = (branchId: string) => {
+            updateBranches(branches.filter((branch) => branch.id !== branchId))
+          }
 
           return (
             <div className="px-4 py-3">
@@ -114,6 +117,19 @@ function ConditionNodeForm({ fallbackTitle }: { fallbackTitle: string }) {
                     <span className="shrink-0 rounded-sm bg-[#e7e9f3] px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                       {branch.default ? "else" : index === 0 ? "if" : "elseif"}
                     </span>
+                    {branch.default ? null : (
+                      <button
+                        type="button"
+                        className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                        aria-label={`删除条件 ${branch.name || branch.id}`}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          deleteBranch(branch.id)
+                        }}
+                      >
+                        <XIcon className="size-3.5" />
+                      </button>
+                    )}
                     <span
                       data-port-id={branch.id}
                       data-port-type="output"

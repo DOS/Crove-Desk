@@ -274,15 +274,17 @@ function ConditionBranchesEditor({
                   className="h-8"
                   onChange={(event) => onChange({ ...branch, name: event.target.value })}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
-                  onClick={() => onDelete(branch.id)}
-                >
-                  删除
-                </Button>
+                {branch.default ? null : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
+                    onClick={() => onDelete(branch.id)}
+                  >
+                    删除
+                  </Button>
+                )}
               </div>
 
               <div className="space-y-1.5">
