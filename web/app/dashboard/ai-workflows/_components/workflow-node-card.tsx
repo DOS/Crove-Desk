@@ -2,7 +2,6 @@ import type { ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
 import type { AIWorkflowNodeSpec } from "@/lib/api/admin"
-import { getWorkflowNodeMeta } from "./workflow-node-meta"
 import { WorkflowNodeIcon } from "./workflow-node-icon"
 
 export function WorkflowNodeCard({
@@ -20,8 +19,6 @@ export function WorkflowNodeCard({
   width?: "normal" | "wide"
   children?: ReactNode
 }) {
-  const meta = getWorkflowNodeMeta(nodeType)
-
   return (
     <div
       className={cn(
@@ -34,7 +31,7 @@ export function WorkflowNodeCard({
     >
       <div className="overflow-hidden rounded-lg border border-transparent bg-background">
         <div className="flex items-center gap-2 px-3 pb-2 pt-3">
-          <WorkflowNodeIcon type={nodeType} tone={meta.tone} />
+          <WorkflowNodeIcon type={nodeType} />
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-semibold leading-5 text-foreground">
               {title}
