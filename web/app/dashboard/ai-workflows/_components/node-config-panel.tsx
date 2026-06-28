@@ -248,7 +248,7 @@ export function ConditionBranchConfigPanel({
       </ConfigCard>
 
       {branch.default ? (
-        <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
+        <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
           默认分支不需要条件表达式，会在其他条件不匹配时执行。
         </div>
       ) : (
@@ -309,7 +309,7 @@ function ConditionBranchesEditor({
       <div className="space-y-2">
         {branches.map((branch) => {
           return (
-            <div key={branch.id} className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/60 p-2.5">
+            <div key={branch.id} className="space-y-2 rounded-md border border-slate-200 bg-slate-50/60 p-2.5">
               <div className="flex items-center justify-between gap-2">
                 <span className="inline-flex h-5 shrink-0 items-center rounded-full border border-slate-200 bg-white px-2 font-mono text-[10px] font-semibold text-slate-600">
                   {branch.default ? "ELSE" : "IF"}
@@ -443,7 +443,7 @@ function ConfigCard({
   children: ReactNode
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+    <section className="overflow-hidden rounded-md border border-slate-200 bg-white">
       <div className="flex min-h-10 items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
         <div className="min-w-0">
           <div className="truncate text-[13px] font-semibold text-slate-900">{title}</div>

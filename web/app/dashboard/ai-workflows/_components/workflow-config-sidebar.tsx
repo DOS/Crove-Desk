@@ -124,9 +124,9 @@ export function WorkflowConfigPanel({
         className="pointer-events-auto absolute inset-y-2 left-0 z-10 w-2 -translate-x-1 cursor-col-resize rounded-full after:absolute after:inset-y-2 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent hover:after:bg-blue-300"
         onPointerDown={startResize}
       />
-      <section className="pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-[#f8fafc] shadow-lg backdrop-blur">
+      <section className="pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-[#f8fafc] shadow-lg backdrop-blur">
         <div className="shrink-0 p-3 pb-2">
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
             <div className="px-3 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 flex-1 items-center gap-2.5">
