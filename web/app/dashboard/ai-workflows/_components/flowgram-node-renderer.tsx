@@ -10,7 +10,7 @@ import { useLayoutEffect } from "react"
 import { cn } from "@/lib/utils"
 
 export function FlowgramNodeRenderer(props: WorkflowNodeProps) {
-  const { node, form } = useNodeRender()
+  const { selected, node, form } = useNodeRender()
   const nodeType = String(node.flowNodeType ?? "")
 
   useLayoutEffect(() => {
@@ -24,7 +24,10 @@ export function FlowgramNodeRenderer(props: WorkflowNodeProps) {
   return (
     <WorkflowNodeRenderer
       node={props.node}
-      className={cn("overflow-visible")}
+      className={cn(
+        "overflow-visible rounded-2xl border transition-colors",
+        selected ? "border-(--g-selection-background)" : "border-transparent"
+      )}
       style={{ padding: 0 }}
       portPrimaryColor="var(--g-selection-background)"
       portSecondaryColor="#c9cdd4"
