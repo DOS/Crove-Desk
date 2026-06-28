@@ -49,7 +49,7 @@ export function WorkflowConfigPanel({
     : selectedNode?.data?.title || selectedNodeSpec?.title || selectedNode?.type || ""
   const panelMeta = selectedBranchItem ? "条件分支" : selectedNode?.type || ""
   const panelDescription = selectedBranchItem
-    ? "配置该条件分支的匹配规则和目标节点。"
+    ? ""
     : selectedNodeSpec?.description || ""
   const panelIcon = selectedBranchItem ? "GitBranchIcon" : selectedNodeSpec?.icon
 
