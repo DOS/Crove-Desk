@@ -160,9 +160,6 @@ export function NodeConfigPanel({
                       })
                     }}
                   />
-                  {input.description ? (
-                    <div className="text-xs text-muted-foreground">{input.description}</div>
-                  ) : null}
                 </div>
               )
             })}

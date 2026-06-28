@@ -23,6 +23,7 @@ import { useI18n } from "@/i18n/provider"
 export type ComboboxOption = {
   value: string
   label: string
+  description?: string
 }
 
 type OptionComboboxProps = {
@@ -75,21 +76,28 @@ export function OptionCombobox({
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={`${option.label} ${option.value}`}
+                  value={`${option.label} ${option.value} ${option.description ?? ""}`}
                   onSelect={() => {
                     onChange(option.value)
                     setOpen(false)
                   }}
                 >
                   <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center">
+                    <div className="flex min-w-0 items-start">
                       <CheckIcon
                         className={cn(
-                          "mr-2 size-4 shrink-0",
+                          "mr-2 mt-0.5 size-4 shrink-0",
                           option.value === value ? "opacity-100" : "opacity-0"
                         )}
                       />
-                      <span className="truncate">{option.label}</span>
+                      <span className="min-w-0">
+                        <span className="block truncate">{option.label}</span>
+                        {option.description ? (
+                          <span className="mt-0.5 line-clamp-2 text-xs leading-4 text-muted-foreground">
+                            {option.description}
+                          </span>
+                        ) : null}
+                      </span>
                     </div>
                     {renderOptionAction ? (
                       <div

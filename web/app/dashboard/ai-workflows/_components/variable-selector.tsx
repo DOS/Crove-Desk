@@ -25,6 +25,7 @@ export function VariableSelector({
   const options = variables.map((variable) => ({
     value: `${variable.nodeId}.${variable.field}`,
     label: `${variable.nodeName}.${variable.label || variable.field}`,
+    description: variable.description,
   }))
 
   return (
