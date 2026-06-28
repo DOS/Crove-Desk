@@ -106,13 +106,13 @@ function ConditionNodeForm({ fallbackTitle }: { fallbackTitle: string }) {
                 {branches.map((branch) => (
                   <div
                     key={branch.id}
-                    className="relative flex min-h-9 items-center gap-2 rounded-md bg-muted/40 px-3 pr-6 text-xs hover:bg-muted/70"
+                    className="relative flex min-h-10 items-center gap-2 rounded-md bg-[#eef1f7] px-3 py-2 pr-6 text-xs transition-colors before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-[#4e40e5] hover:bg-[#e6eaff]"
                   >
-                    <span className="min-w-0 flex-1 truncate">
+                    <span className="min-w-0 flex-1 truncate font-medium text-foreground/90">
                       {branch.name || (branch.default ? "默认分支" : branch.id)}
                     </span>
                     {branch.default ? (
-                      <span className="shrink-0 rounded bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      <span className="shrink-0 rounded-sm bg-[#e7e9f3] px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                         else
                       </span>
                     ) : null}
