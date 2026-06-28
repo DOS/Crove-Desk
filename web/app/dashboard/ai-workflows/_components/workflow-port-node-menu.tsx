@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react"
 
+import { ScrollArea } from "@/components/ui/scroll-area"
 import type { AIWorkflowNodeSpec } from "@/lib/api/admin"
 import { WorkflowNodeIcon } from "./workflow-node-icon"
 
@@ -70,31 +71,33 @@ export function WorkflowPortNodeMenu({
       <div className="border-b border-slate-100 px-3 pb-2 pt-1 text-xs font-medium text-slate-500">
         添加节点
       </div>
-      <div className="max-h-80 overflow-y-auto p-1.5">
-        {insertableNodeSpecs.map((spec) => (
-          <button
-            key={spec.type}
-            type="button"
-            className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-slate-50"
-            onClick={(event) => {
-              event.stopPropagation()
-              onSelect(spec)
-            }}
-          >
-            <WorkflowNodeIcon icon={spec.icon} size="sm" className="mt-0.5" />
-            <span className="min-w-0">
-              <span className="block truncate font-medium text-slate-900">
-                {spec.title || spec.type}
-              </span>
-              {spec.description ? (
-                <span className="line-clamp-2 text-xs text-slate-500">
-                  {spec.description}
+      <ScrollArea className="h-80 max-h-[min(20rem,calc(100vh-8rem))]">
+        <div className="p-1.5">
+          {insertableNodeSpecs.map((spec) => (
+            <button
+              key={spec.type}
+              type="button"
+              className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-slate-50"
+              onClick={(event) => {
+                event.stopPropagation()
+                onSelect(spec)
+              }}
+            >
+              <WorkflowNodeIcon icon={spec.icon} size="sm" className="mt-0.5" />
+              <span className="min-w-0">
+                <span className="block truncate font-medium text-slate-900">
+                  {spec.title || spec.type}
                 </span>
-              ) : null}
-            </span>
-          </button>
-        ))}
-      </div>
+                {spec.description ? (
+                  <span className="line-clamp-2 text-xs text-slate-500">
+                    {spec.description}
+                  </span>
+                ) : null}
+              </span>
+            </button>
+          ))}
+        </div>
+      </ScrollArea>
     </div>
   )
 }
