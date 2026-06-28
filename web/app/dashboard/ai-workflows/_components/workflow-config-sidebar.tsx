@@ -110,7 +110,6 @@ export function WorkflowConfigPanel({
               availableVariables={availableVariables}
               showHeader={false}
               showConditionBranches={selectedNode.type !== "condition"}
-              showConfigJSON={selectedNode.type !== "condition"}
               onChange={onChangeNodeData}
               onDelete={onDeleteNode}
             />
