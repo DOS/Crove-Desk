@@ -18,7 +18,7 @@ export function WorkflowNodeCard({
   spec?: AIWorkflowNodeSpec
   selected: boolean
   width?: "normal" | "wide"
-  children: ReactNode
+  children?: ReactNode
 }) {
   const meta = getWorkflowNodeMeta(nodeType)
 
@@ -46,7 +46,7 @@ export function WorkflowNodeCard({
             {spec.description}
           </div>
         ) : null}
-        <div className="border-t bg-muted/20 px-3 py-2.5">{children}</div>
+        {children ? <div className="border-t bg-muted/20 px-3 py-2.5">{children}</div> : null}
       </div>
     </div>
   )

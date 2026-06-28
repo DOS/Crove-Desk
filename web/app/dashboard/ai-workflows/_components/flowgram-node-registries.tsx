@@ -3,7 +3,6 @@ import { Field, type WorkflowNodeRegistry, useNodeRender } from "@flowgram.ai/fr
 import type { AIWorkflowNodeSpec } from "@/lib/api/admin"
 import { WorkflowConditionNodeContent } from "./workflow-condition-node-content"
 import { WorkflowNodeCard } from "./workflow-node-card"
-import { WorkflowSimpleNodeContent } from "./workflow-simple-node-content"
 
 export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): WorkflowNodeRegistry[] {
   const seen = new Set<string>()
@@ -89,9 +88,7 @@ function FlowgramNodeForm({
                 />
               )}
             </Field>
-          ) : (
-            <WorkflowSimpleNodeContent spec={spec} />
-          )}
+          ) : null}
         </WorkflowNodeCard>
       )}
     </Field>
