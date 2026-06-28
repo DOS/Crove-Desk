@@ -95,21 +95,21 @@ export function WorkflowConfigPanel({
           <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
             <div className="px-3 py-3">
               <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2.5">
-                <WorkflowNodeIcon
-                  icon={panelIcon}
-                  size="sm"
-                  className="rounded-md bg-slate-100 text-slate-600 shadow-none"
-                />
-                <div className="min-w-0">
-                  <Input
-                    value={panelTitle}
-                    placeholder={selectedBranchItem ? selectedBranchItem.id : selectedNodeSpec?.title || selectedNode.type}
-                    className="h-6 border-transparent bg-transparent px-0 text-sm font-semibold leading-5 text-slate-900 shadow-none hover:border-transparent focus-visible:ring-0"
-                    onChange={(event) => updatePanelTitle(event.target.value)}
+                <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                  <WorkflowNodeIcon
+                    icon={panelIcon}
+                    size="sm"
+                    className="rounded-md bg-slate-100 text-slate-600 shadow-none"
                   />
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      value={panelTitle}
+                      placeholder={selectedBranchItem ? selectedBranchItem.id : selectedNodeSpec?.title || selectedNode.type}
+                      className="h-7 w-full rounded-md border-slate-200 bg-slate-50 px-2 text-sm font-semibold leading-5 text-slate-900 shadow-none transition-colors hover:border-slate-300 hover:bg-white focus-visible:border-blue-300 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-100"
+                      onChange={(event) => updatePanelTitle(event.target.value)}
+                    />
+                  </div>
                 </div>
-              </div>
                 <Button
                   type="button"
                   variant="ghost"
@@ -132,9 +132,6 @@ export function WorkflowConfigPanel({
                 <div className="flex flex-wrap gap-1.5">
                   <span className="inline-flex h-6 items-center rounded-full border border-slate-200 bg-slate-50 px-2 font-mono text-[11px] text-slate-600">
                     {panelMeta}
-                  </span>
-                  <span className="inline-flex h-6 items-center rounded-full border border-blue-100 bg-blue-50 px-2 text-[11px] text-blue-700">
-                    可配置
                   </span>
                 </div>
               </div>
