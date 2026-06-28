@@ -69,7 +69,7 @@ export function WorkflowEditorToolbar({
   publishDisabled?: boolean
 }) {
   return (
-    <div className="flex min-h-10 max-w-full items-center justify-between gap-3 rounded-md border bg-background/95 px-2 py-1 shadow-sm backdrop-blur">
+    <div className="inline-flex min-h-10 w-fit max-w-full items-center gap-3 rounded-md border bg-background/95 px-2 py-1 shadow-sm backdrop-blur">
       <div className="flex min-w-0 shrink items-center gap-2">
         <span
           className={cn(

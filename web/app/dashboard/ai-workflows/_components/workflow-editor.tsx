@@ -272,7 +272,7 @@ function WorkflowEditorInner({
       <div
         className={cn(
           "absolute left-[17.5rem] top-3 z-50 max-w-[calc(100%-18.25rem)]",
-          selectedNodeId ? "right-[23.25rem]" : "right-3"
+          selectedNodeId && "max-w-[calc(100%-41rem)]"
         )}
       >
         <WorkflowEditorToolbar
