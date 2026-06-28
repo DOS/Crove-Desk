@@ -121,9 +121,11 @@ export function WorkflowConfigPanel({
         role="separator"
         aria-orientation="vertical"
         aria-label="调整属性面板宽度"
-        className="pointer-events-auto absolute inset-y-2 left-0 z-10 w-2 -translate-x-1 cursor-col-resize rounded-full after:absolute after:inset-y-2 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent hover:after:bg-blue-300"
+        className="group pointer-events-auto absolute inset-y-2 left-0 z-10 flex w-3 -translate-x-1.5 cursor-col-resize items-center justify-center"
         onPointerDown={startResize}
-      />
+      >
+        <span className="h-12 w-1 rounded-full bg-slate-300/80 transition-colors group-hover:bg-blue-400" />
+      </div>
       <section className="pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-[#f8fafc] shadow-lg backdrop-blur">
         <div className="shrink-0 p-3 pb-2">
           <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
