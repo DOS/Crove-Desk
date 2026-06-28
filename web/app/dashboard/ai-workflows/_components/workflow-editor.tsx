@@ -27,6 +27,7 @@ import {
 } from "./workflow-branch-selection"
 import { WorkflowCanvasControls } from "./workflow-canvas-controls"
 import { WorkflowConfigPanel } from "./workflow-config-sidebar"
+import { WorkflowEditorStatus } from "./workflow-editor-status"
 import { WorkflowEditorToolbar } from "./workflow-editor-toolbar"
 import {
   WorkflowPortAddProvider,
@@ -329,14 +330,11 @@ function WorkflowEditorInner({
     >
       <div
         className={cn(
-          "absolute left-3 top-3 z-50 max-w-[calc(100%-1.5rem)]",
+          "absolute left-3 top-3 z-50 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-2",
           selectedNodeId && "max-w-[calc(100%-25rem)]"
         )}
       >
         <WorkflowEditorToolbar
-          validation={validation}
-          nodeCount={definition.nodes.length}
-          edgeCount={definition.edges.length}
           toolbarExtra={toolbarExtra}
           onUndo={onUndo}
           undoDisabled={undoDisabled}
@@ -350,6 +348,11 @@ function WorkflowEditorInner({
           saveDraftDisabled={saveDraftDisabled}
           onPublish={onPublish}
           publishDisabled={publishDisabled}
+        />
+        <WorkflowEditorStatus
+          validation={validation}
+          nodeCount={definition.nodes.length}
+          edgeCount={definition.edges.length}
         />
       </div>
 

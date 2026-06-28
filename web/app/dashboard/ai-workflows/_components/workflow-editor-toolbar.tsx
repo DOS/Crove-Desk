@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react"
 import {
-  CheckCircle2Icon,
   RotateCcwIcon,
   SaveIcon,
   SendIcon,
@@ -10,14 +9,8 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-
-import type { WorkflowDraftValidation } from "./workflow-utils"
 
 export function WorkflowEditorToolbar({
-  validation,
-  nodeCount,
-  edgeCount,
   toolbarExtra,
   onUndo,
   undoDisabled = false,
@@ -32,9 +25,6 @@ export function WorkflowEditorToolbar({
   onPublish,
   publishDisabled = false,
 }: {
-  validation: WorkflowDraftValidation
-  nodeCount: number
-  edgeCount: number
   toolbarExtra?: ReactNode
   onUndo?: () => void
   undoDisabled?: boolean
@@ -50,21 +40,7 @@ export function WorkflowEditorToolbar({
   publishDisabled?: boolean
 }) {
   return (
-    <div className="inline-flex min-h-10 w-fit max-w-full items-center gap-3 rounded-md bg-background/95 px-2 py-1 shadow-sm backdrop-blur">
-      <div className="flex min-w-0 shrink items-center gap-2">
-        <span
-          className={cn(
-            "inline-flex items-center gap-1 rounded-sm px-2 py-1 text-xs",
-            validation.valid ? "bg-muted text-muted-foreground" : "bg-amber-50 text-amber-700"
-          )}
-        >
-          <CheckCircle2Icon className="size-3" />
-          {validation.valid ? "本地检查通过" : `${validation.errors.length} 个本地问题`}
-        </span>
-        <span className="truncate text-xs text-muted-foreground">
-          {nodeCount} 个节点 / {edgeCount} 条连线
-        </span>
-      </div>
+    <div className="inline-flex min-h-10 w-fit max-w-full items-center rounded-md bg-background/95 px-2 py-1 shadow-sm backdrop-blur">
       <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
         {toolbarExtra}
         <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 px-2 text-xs" disabled={undoDisabled} onClick={onUndo}>
