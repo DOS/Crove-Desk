@@ -70,7 +70,6 @@ import {
   IMConversationServiceMode,
   Status,
 } from "@/lib/generated/enums"
-import { useWorkflowDefinitionHistory } from "../../ai-workflows/_components/use-workflow-definition-history"
 import { WorkflowEditor } from "../../ai-workflows/_components/workflow-editor"
 
 type DirectToolItem = CreateAIAgentPayload["directTools"][number]
@@ -154,16 +153,8 @@ export function AIAgentConfigWorkbench({
   const [selectedSkillIds, setSelectedSkillIds] = useState<number[]>([])
   const [directTools, setDirectTools] = useState<DirectToolItem[]>([])
 
-  const {
-    definition,
-    revision: workflowRevision,
-    canUndo: canUndoWorkflow,
-    canRedo: canRedoWorkflow,
-    replace: replaceWorkflowHistory,
-    update: updateWorkflowDefinition,
-    undo: undoWorkflowDefinition,
-    redo: redoWorkflowDefinition,
-  } = useWorkflowDefinitionHistory(fallbackDefinition)
+  const [definition, setDefinition] = useState<AIWorkflowDefinition>(fallbackDefinition)
+  const [workflowRevision, setWorkflowRevision] = useState(0)
 
   const [aiConfigs, setAIConfigs] = useState<AIConfig[]>([])
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([])
@@ -181,8 +172,9 @@ export function AIAgentConfigWorkbench({
   }, [agentId])
 
   const replaceWorkflowDefinition = useCallback((nextDefinition: AIWorkflowDefinition) => {
-    replaceWorkflowHistory(nextDefinition)
-  }, [replaceWorkflowHistory])
+    setDefinition(nextDefinition)
+    setWorkflowRevision((current) => current + 1)
+  }, [])
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -823,11 +815,8 @@ export function AIAgentConfigWorkbench({
                   key={workflowRevision}
                   definition={definition}
                   nodeSpecs={nodeSpecs}
-                  onDefinitionChange={updateWorkflowDefinition}
-                  onUndo={undoWorkflowDefinition}
-                  undoDisabled={!canUndoWorkflow || savingWorkflow || loading}
-                  onRedo={redoWorkflowDefinition}
-                  redoDisabled={!canRedoWorkflow || savingWorkflow || loading}
+                  onDefinitionChange={setDefinition}
+                  historyDisabled={savingWorkflow || loading}
                   onRestoreDefault={restoreDefaultWorkflow}
                   restoreDefaultDisabled={savingWorkflow || loading}
                   onValidate={validateWorkflowDraft}

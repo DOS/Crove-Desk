@@ -13,6 +13,7 @@ import {
   type WorkflowNodeJSON,
   type WorkflowPortEntity,
   useClientContext,
+  useUndoRedo,
   usePlaygroundTools,
   useService,
 } from "@flowgram.ai/free-layout-editor"
@@ -51,10 +52,7 @@ export function WorkflowEditor({
   onDefinitionChange,
   onRestoreDefault,
   restoreDefaultDisabled = false,
-  onUndo,
-  undoDisabled = false,
-  onRedo,
-  redoDisabled = false,
+  historyDisabled = false,
   onValidate,
   validateDisabled = false,
   onSaveDraft,
@@ -68,10 +66,7 @@ export function WorkflowEditor({
   onDefinitionChange: (definition: AIWorkflowDefinition) => void
   onRestoreDefault?: () => void
   restoreDefaultDisabled?: boolean
-  onUndo?: () => void
-  undoDisabled?: boolean
-  onRedo?: () => void
-  redoDisabled?: boolean
+  historyDisabled?: boolean
   onValidate?: () => void
   validateDisabled?: boolean
   onSaveDraft?: () => void
@@ -136,10 +131,7 @@ export function WorkflowEditor({
             }
           }}
           onSelectBranch={handleSelectBranch}
-          onUndo={onUndo}
-          undoDisabled={undoDisabled}
-          onRedo={onRedo}
-          redoDisabled={redoDisabled}
+          historyDisabled={historyDisabled}
           onRestoreDefault={onRestoreDefault}
           restoreDefaultDisabled={restoreDefaultDisabled}
           onValidate={onValidate}
@@ -164,10 +156,7 @@ function WorkflowEditorInner({
   onDefinitionChange,
   onSelectNode,
   onSelectBranch,
-  onUndo,
-  undoDisabled,
-  onRedo,
-  redoDisabled,
+  historyDisabled,
   onRestoreDefault,
   restoreDefaultDisabled,
   onValidate,
@@ -186,10 +175,7 @@ function WorkflowEditorInner({
   onDefinitionChange: (definition: AIWorkflowDefinition) => void
   onSelectNode: (nodeId: string) => void
   onSelectBranch: (branch: SelectedWorkflowBranch | null) => void
-  onUndo?: () => void
-  undoDisabled?: boolean
-  onRedo?: () => void
-  redoDisabled?: boolean
+  historyDisabled?: boolean
   onRestoreDefault?: () => void
   restoreDefaultDisabled?: boolean
   onValidate?: () => void
@@ -201,6 +187,7 @@ function WorkflowEditorInner({
 }) {
   const context = useClientContext()
   const playgroundTools = usePlaygroundTools()
+  const undoRedo = useUndoRedo()
   const workflowDocument = useService(WorkflowDocument)
   const linesManager = useService(WorkflowLinesManager)
   const selectService = useService(WorkflowSelectService)
@@ -227,6 +214,16 @@ function WorkflowEditorInner({
 
   const emitCurrentDefinition = () => {
     onDefinitionChange(context.document.toJSON() as AIWorkflowDefinition)
+  }
+
+  const undo = async () => {
+    await undoRedo.undo()
+    emitCurrentDefinition()
+  }
+
+  const redo = async () => {
+    await undoRedo.redo()
+    emitCurrentDefinition()
   }
 
   const openNodeMenuFromPort = useCallback((request: WorkflowPortAddRequest) => {
@@ -336,10 +333,10 @@ function WorkflowEditorInner({
       >
         <WorkflowEditorToolbar
           toolbarExtra={toolbarExtra}
-          onUndo={onUndo}
-          undoDisabled={undoDisabled}
-          onRedo={onRedo}
-          redoDisabled={redoDisabled}
+          onUndo={() => void undo()}
+          undoDisabled={historyDisabled || !undoRedo.canUndo}
+          onRedo={() => void redo()}
+          redoDisabled={historyDisabled || !undoRedo.canRedo}
           onRestoreDefault={onRestoreDefault}
           restoreDefaultDisabled={restoreDefaultDisabled}
           onValidate={onValidate}
