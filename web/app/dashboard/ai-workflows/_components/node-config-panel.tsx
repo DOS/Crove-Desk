@@ -130,27 +130,6 @@ export function NodeConfigPanel({
         </div>
       ) : null}
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-3">
-        <ConfigCard
-          title="基础信息"
-          meta={nodeSpec?.description ? "说明" : undefined}
-        >
-          <div className="space-y-2">
-            <Label htmlFor={`node-title-${node.id}`} className="text-xs text-slate-600">
-              标题
-            </Label>
-            <Input
-              id={`node-title-${node.id}`}
-              value={node.data?.title ?? ""}
-              placeholder={nodeSpec?.title || node.type}
-              className={cardInputClassName}
-              onChange={(event) => updateData({ title: event.target.value })}
-            />
-          </div>
-          {nodeSpec?.description ? (
-            <p className="mt-3 text-xs leading-5 text-slate-500">{nodeSpec.description}</p>
-          ) : null}
-        </ConfigCard>
-
         {inputSchema.length > 0 ? (
           <ConfigCard title="输入" meta={`${inputSchema.length} 项`}>
             <div className="space-y-3">
@@ -239,21 +218,8 @@ export function ConditionBranchConfigPanel({
 
   return (
     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-3">
-      <ConfigCard title="基础信息" meta={branch.default ? "默认" : "条件"}>
+      <ConfigCard title="分支目标" meta={branch.default ? "默认" : "条件"}>
         <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor={`condition-branch-name-${node.id}-${branch.id}`} className="text-xs text-slate-600">
-              分支名称
-            </Label>
-            <Input
-              id={`condition-branch-name-${node.id}-${branch.id}`}
-              value={branch.name ?? ""}
-              placeholder={branch.id}
-              className={cardInputClassName}
-              onChange={(event) => updateBranch({ ...branch, name: event.target.value })}
-            />
-          </div>
-
           <div className="space-y-1.5">
             <Label className="text-xs text-slate-600">目标节点</Label>
             <OptionCombobox

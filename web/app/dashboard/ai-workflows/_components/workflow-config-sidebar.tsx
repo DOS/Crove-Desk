@@ -3,6 +3,7 @@
 import { XIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
 
 import type { SelectedWorkflowBranch } from "./workflow-branch-selection"
@@ -67,6 +68,25 @@ export function WorkflowConfigPanel({
     })
     onSelectBranch(null)
   }
+  const updatePanelTitle = (title: string) => {
+    if (selectedBranchItem && selectedBranch) {
+      const config = normalizeNodeConfig(selectedNode.data?.config)
+      onChangeNodeData(selectedNode.id, {
+        ...(selectedNode.data ?? {}),
+        config: {
+          ...config,
+          branches: (config.branches ?? []).map((branch) => (
+            branch.id === selectedBranch.branchId ? { ...branch, name: title } : branch
+          )),
+        },
+      })
+      return
+    }
+    onChangeNodeData(selectedNode.id, {
+      ...(selectedNode.data ?? {}),
+      title,
+    })
+  }
 
   return (
     <div className="pointer-events-none absolute inset-y-3 right-3 z-50 flex w-[380px] max-w-[calc(100%-1.5rem)]">
@@ -81,9 +101,12 @@ export function WorkflowConfigPanel({
                   className="rounded-md bg-slate-100 text-slate-600 shadow-none"
                 />
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold leading-5 text-slate-900">
-                    {panelTitle}
-                  </div>
+                  <Input
+                    value={panelTitle}
+                    placeholder={selectedBranchItem ? selectedBranchItem.id : selectedNodeSpec?.title || selectedNode.type}
+                    className="h-6 border-transparent bg-transparent px-0 text-sm font-semibold leading-5 text-slate-900 shadow-none hover:border-transparent focus-visible:ring-0"
+                    onChange={(event) => updatePanelTitle(event.target.value)}
+                  />
                   {panelDescription ? (
                     <div className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
                       {panelDescription}
