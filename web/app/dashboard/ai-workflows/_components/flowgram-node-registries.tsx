@@ -8,13 +8,9 @@ import {
   normalizeNodeConfig,
   type WorkflowConditionBranch,
 } from "./workflow-utils"
-import type { SelectedWorkflowBranch } from "./flowgram-editor-provider"
+import { useWorkflowBranchSelection } from "./workflow-branch-selection"
 
-export function buildFlowgramNodeRegistries(
-  nodeSpecs: AIWorkflowNodeSpec[],
-  selectedBranch?: SelectedWorkflowBranch | null,
-  onSelectBranch?: (branch: SelectedWorkflowBranch | null) => void
-): WorkflowNodeRegistry[] {
+export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): WorkflowNodeRegistry[] {
   const seen = new Set<string>()
   const specs = nodeSpecs.length > 0
     ? nodeSpecs
@@ -45,8 +41,6 @@ export function buildFlowgramNodeRegistries(
           <FlowgramNodeForm
             nodeType={spec.type}
             fallbackTitle={spec.title || spec.type}
-            selectedBranch={selectedBranch}
-            onSelectBranch={onSelectBranch}
           />
         ),
       },
@@ -56,13 +50,9 @@ export function buildFlowgramNodeRegistries(
 function FlowgramNodeForm({
   nodeType,
   fallbackTitle,
-  selectedBranch,
-  onSelectBranch,
 }: {
   nodeType: string
   fallbackTitle: string
-  selectedBranch?: SelectedWorkflowBranch | null
-  onSelectBranch?: (branch: SelectedWorkflowBranch | null) => void
 }) {
   const { node } = useNodeRender()
   const nodeId = String(node.id ?? "")
@@ -72,8 +62,6 @@ function FlowgramNodeForm({
       <ConditionNodeForm
         fallbackTitle={fallbackTitle}
         nodeId={nodeId}
-        selectedBranch={selectedBranch}
-        onSelectBranch={onSelectBranch}
       />
     )
   }
@@ -108,14 +96,12 @@ function defaultPortsForNodeType(type: string) {
 function ConditionNodeForm({
   fallbackTitle,
   nodeId,
-  selectedBranch,
-  onSelectBranch,
 }: {
   fallbackTitle: string
   nodeId: string
-  selectedBranch?: SelectedWorkflowBranch | null
-  onSelectBranch?: (branch: SelectedWorkflowBranch | null) => void
 }) {
+  const { selectedBranch, onSelectBranch } = useWorkflowBranchSelection()
+
   return (
     <div className="flex w-full flex-col">
       <Field<string> name="title">
@@ -154,9 +140,15 @@ function ConditionNodeForm({
                         ? "bg-[#dfe4ff] text-[#3327b9] ring-1 ring-inset ring-[#4e40e5]/45 before:w-1"
                         : "bg-[#eef1f7] hover:bg-[#e6eaff]",
                     ].join(" ")}
-                    onClick={(event) => {
+                    onPointerDownCapture={(event) => {
                       event.stopPropagation()
                       onSelectBranch?.({ nodeId, branchId: branch.id })
+                    }}
+                    onMouseDownCapture={(event) => {
+                      event.stopPropagation()
+                    }}
+                    onClick={(event) => {
+                      event.stopPropagation()
                     }}
                   >
                     <span className="min-w-0 flex-1 truncate font-medium text-foreground/90">
@@ -170,6 +162,12 @@ function ConditionNodeForm({
                         type="button"
                         className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                         aria-label={`删除条件 ${branch.name || branch.id}`}
+                        onPointerDownCapture={(event) => {
+                          event.stopPropagation()
+                        }}
+                        onMouseDownCapture={(event) => {
+                          event.stopPropagation()
+                        }}
                         onClick={(event) => {
                           event.stopPropagation()
                           deleteBranch(branch.id)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 
 import {
   EditorRenderer,
@@ -16,7 +16,11 @@ import {
 
 import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
 
-import { useFlowgramEditorProps, type SelectedWorkflowBranch } from "./flowgram-editor-provider"
+import { useFlowgramEditorProps } from "./flowgram-editor-provider"
+import {
+  WorkflowBranchSelectionProvider,
+  type SelectedWorkflowBranch,
+} from "./workflow-branch-selection"
 import { WorkflowConfigPanel } from "./workflow-config-sidebar"
 import { WorkflowEditorToolbar } from "./workflow-editor-toolbar"
 import { WorkflowNodePalette } from "./workflow-node-palette"
@@ -66,6 +70,7 @@ export function WorkflowEditor({
   const [localDefinition, setLocalDefinition] = useState(definition)
   const [selectedNodeId, setSelectedNodeId] = useState("")
   const [selectedBranch, setSelectedBranch] = useState<SelectedWorkflowBranch | null>(null)
+  const branchSelectAtRef = useRef(0)
 
   const validation = useMemo(
     () => validateWorkflowDefinition(localDefinition, nodeSpecs),
@@ -75,53 +80,64 @@ export function WorkflowEditor({
   const editorProps = useFlowgramEditorProps({
     definition: localDefinition,
     nodeSpecs,
-    selectedBranch,
     onDefinitionChange: (next) => {
       setLocalDefinition(next)
       onDefinitionChange(next)
     },
-    onSelectBranch: (branch) => {
+  })
+
+  const handleSelectBranch = useCallback(
+    (branch: SelectedWorkflowBranch | null) => {
       if (!branch) {
         setSelectedBranch(null)
         return
       }
+      branchSelectAtRef.current = Date.now()
       setSelectedNodeId(branch.nodeId)
       setSelectedBranch(branch)
     },
-  })
+    []
+  )
 
   return (
-    <FreeLayoutEditorProvider {...editorProps}>
-      <WorkflowEditorInner
-        definition={localDefinition}
-        nodeSpecs={nodeSpecs}
-        selectedNodeId={selectedNodeId}
-        selectedBranch={selectedBranch}
-        validation={validation}
-        toolbarExtra={toolbarExtra}
-        onDefinitionChange={(next) => {
-          setLocalDefinition(next)
-          onDefinitionChange(next)
-        }}
-        onSelectNode={(nodeId) => {
-          setSelectedNodeId(nodeId)
-          setSelectedBranch(null)
-        }}
-        onSelectBranch={setSelectedBranch}
-        onUndo={onUndo}
-        undoDisabled={undoDisabled}
-        onRedo={onRedo}
-        redoDisabled={redoDisabled}
-        onRestoreDefault={onRestoreDefault}
-        restoreDefaultDisabled={restoreDefaultDisabled}
-        onValidate={onValidate}
-        validateDisabled={validateDisabled}
-        onSaveDraft={onSaveDraft}
-        saveDraftDisabled={saveDraftDisabled}
-        onPublish={onPublish}
-        publishDisabled={publishDisabled}
-      />
-    </FreeLayoutEditorProvider>
+    <WorkflowBranchSelectionProvider
+      selectedBranch={selectedBranch}
+      onSelectBranch={handleSelectBranch}
+    >
+      <FreeLayoutEditorProvider {...editorProps}>
+        <WorkflowEditorInner
+          definition={localDefinition}
+          nodeSpecs={nodeSpecs}
+          selectedNodeId={selectedNodeId}
+          selectedBranch={selectedBranch}
+          validation={validation}
+          toolbarExtra={toolbarExtra}
+          onDefinitionChange={(next) => {
+            setLocalDefinition(next)
+            onDefinitionChange(next)
+          }}
+          onSelectNode={(nodeId) => {
+            setSelectedNodeId(nodeId)
+            if (!nodeId || Date.now() - branchSelectAtRef.current > 160) {
+              setSelectedBranch(null)
+            }
+          }}
+          onSelectBranch={handleSelectBranch}
+          onUndo={onUndo}
+          undoDisabled={undoDisabled}
+          onRedo={onRedo}
+          redoDisabled={redoDisabled}
+          onRestoreDefault={onRestoreDefault}
+          restoreDefaultDisabled={restoreDefaultDisabled}
+          onValidate={onValidate}
+          validateDisabled={validateDisabled}
+          onSaveDraft={onSaveDraft}
+          saveDraftDisabled={saveDraftDisabled}
+          onPublish={onPublish}
+          publishDisabled={publishDisabled}
+        />
+      </FreeLayoutEditorProvider>
+    </WorkflowBranchSelectionProvider>
   )
 }
 

@@ -5,7 +5,7 @@ import { XIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
 
-import type { SelectedWorkflowBranch } from "./flowgram-editor-provider"
+import type { SelectedWorkflowBranch } from "./workflow-branch-selection"
 import { ConditionBranchConfigPanel, NodeConfigPanel } from "./node-config-panel"
 import {
   getAvailableVariables,
