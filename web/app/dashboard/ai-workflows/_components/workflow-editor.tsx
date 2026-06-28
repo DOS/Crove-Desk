@@ -191,6 +191,7 @@ function WorkflowEditorInner({
   const workflowDocument = useService(WorkflowDocument)
   const selectService = useService(WorkflowSelectService)
   const [autoLayouting, setAutoLayouting] = useState(false)
+  const zoomPercent = `${Math.round(playgroundTools.zoom * 100)}%`
 
   useEffect(() => {
     const disposable = selectService.onSelectionChanged(() => {
@@ -248,6 +249,12 @@ function WorkflowEditorInner({
     }
   }
 
+  const resetZoom = () => {
+    context.playground.config.updateConfig({
+      zoom: 1,
+    })
+  }
+
   const closeConfigPanel = () => {
     selectService.clear()
     onSelectNode("")
@@ -273,6 +280,11 @@ function WorkflowEditorInner({
           redoDisabled={redoDisabled}
           onAutoLayout={() => void autoLayout()}
           autoLayoutDisabled={autoLayouting || definition.nodes.length < 2}
+          zoomPercent={zoomPercent}
+          onZoomIn={() => playgroundTools.zoomin(true)}
+          onZoomOut={() => playgroundTools.zoomout(true)}
+          onResetZoom={resetZoom}
+          onFitView={() => playgroundTools.fitView(true)}
           onRestoreDefault={onRestoreDefault}
           restoreDefaultDisabled={restoreDefaultDisabled}
           onValidate={onValidate}
