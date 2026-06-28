@@ -39,11 +39,6 @@ export function WorkflowNodeCard({
             <div className="truncate text-sm font-semibold leading-5 text-foreground">
               {title}
             </div>
-            <div className="mt-0.5 flex items-center gap-1.5">
-              <span className="min-w-0 truncate text-[11px] leading-4 text-muted-foreground">
-                {nodeType}
-              </span>
-            </div>
           </div>
         </div>
         {spec?.description ? (

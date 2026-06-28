@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { Trash2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -61,24 +61,6 @@ export function NodeConfigPanel({
   onChange: (nodeId: string, data: AIWorkflowDefinition["nodes"][number]["data"]) => void
   onDelete?: (nodeId: string) => void
 }) {
-  const [configText, setConfigText] = useState("{}")
-
-  useEffect(() => {
-    setConfigText(JSON.stringify(node?.data?.config ?? {}, null, 2))
-  }, [node?.id, node?.data?.config])
-
-  const configError = useMemo(() => {
-    if (!node) {
-      return ""
-    }
-    try {
-      const parsed = JSON.parse(configText || "{}")
-      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? "" : "配置必须是 JSON 对象"
-    } catch {
-      return "JSON 格式错误"
-    }
-  }, [configText, node])
-
   if (!node) {
     return (
       <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">
@@ -149,6 +131,16 @@ export function NodeConfigPanel({
       ) : null}
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
         <div className="space-y-2">
+          <Label htmlFor={`node-type-${node.id}`}>节点类型</Label>
+          <Input
+            id={`node-type-${node.id}`}
+            value={node.type}
+            readOnly
+            className="font-mono text-xs text-muted-foreground"
+          />
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor={`node-title-${node.id}`}>标题</Label>
           <Input
             id={`node-title-${node.id}`}
@@ -204,30 +196,59 @@ export function NodeConfigPanel({
         ) : null}
 
         {showConfigJSON ? (
-          <div className="space-y-2">
-            <Label htmlFor={`node-config-${node.id}`}>配置 JSON</Label>
-            <Textarea
-              id={`node-config-${node.id}`}
-              value={configText}
-              className="min-h-36 font-mono text-xs"
-              spellCheck={false}
-              onChange={(event) => {
-                const next = event.target.value
-                setConfigText(next)
-                try {
-                  const parsed = JSON.parse(next || "{}")
-                  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-                    updateData({ config: parsed as Record<string, unknown> })
-                  }
-                } catch {
-                  // The textarea keeps the draft while the user fixes invalid JSON.
-                }
-              }}
-            />
-            {configError ? <div className="text-xs text-destructive">{configError}</div> : null}
-          </div>
+          <NodeConfigJSONField
+            key={`${node.id}:${JSON.stringify(node.data?.config ?? {})}`}
+            nodeId={node.id}
+            config={node.data?.config ?? {}}
+            onChange={(nextConfig) => updateData({ config: nextConfig })}
+          />
         ) : null}
       </div>
+    </div>
+  )
+}
+
+function NodeConfigJSONField({
+  nodeId,
+  config,
+  onChange,
+}: {
+  nodeId: string
+  config: Record<string, unknown>
+  onChange: (config: Record<string, unknown>) => void
+}) {
+  const [configText, setConfigText] = useState(() => JSON.stringify(config, null, 2))
+  const configError = useMemo(() => {
+    try {
+      const parsed = JSON.parse(configText || "{}")
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? "" : "配置必须是 JSON 对象"
+    } catch {
+      return "JSON 格式错误"
+    }
+  }, [configText])
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={`node-config-${nodeId}`}>配置 JSON</Label>
+      <Textarea
+        id={`node-config-${nodeId}`}
+        value={configText}
+        className="min-h-36 font-mono text-xs"
+        spellCheck={false}
+        onChange={(event) => {
+          const next = event.target.value
+          setConfigText(next)
+          try {
+            const parsed = JSON.parse(next || "{}")
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+              onChange(parsed as Record<string, unknown>)
+            }
+          } catch {
+            // The textarea keeps the draft while the user fixes invalid JSON.
+          }
+        }}
+      />
+      {configError ? <div className="text-xs text-destructive">{configError}</div> : null}
     </div>
   )
 }
