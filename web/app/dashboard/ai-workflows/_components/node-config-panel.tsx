@@ -104,7 +104,7 @@ export function NodeConfigPanel({
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="space-y-3 px-3 pb-3">
       {showHeader ? (
         <div className="border-b px-4 py-3">
           <div className="flex items-start justify-between gap-2">
@@ -129,7 +129,7 @@ export function NodeConfigPanel({
           </div>
         </div>
       ) : null}
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-3">
+      <div className="space-y-3">
         {inputSchema.length > 0 ? (
           <ConfigCard title="输入" meta={`${inputSchema.length} 项`}>
             <div className="space-y-3">
@@ -217,7 +217,7 @@ export function ConditionBranchConfigPanel({
   }
 
   return (
-    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-3">
+    <div className="space-y-3 px-3 pb-3">
       <ConfigCard title="分支目标" meta={branch.default ? "默认" : "条件"}>
         <div className="space-y-3">
           <div className="space-y-1.5">
