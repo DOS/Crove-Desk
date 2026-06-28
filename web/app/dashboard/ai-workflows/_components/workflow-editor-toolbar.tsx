@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react"
 import {
+  Redo2Icon,
   RotateCcwIcon,
   SaveIcon,
   SendIcon,
@@ -48,6 +49,7 @@ export function WorkflowEditorToolbar({
           撤销
         </Button>
         <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 px-2 text-xs" disabled={redoDisabled} onClick={onRedo}>
+          <Redo2Icon className="size-3.5" />
           重做
         </Button>
         <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 px-2 text-xs" disabled={restoreDefaultDisabled} onClick={onRestoreDefault}>
