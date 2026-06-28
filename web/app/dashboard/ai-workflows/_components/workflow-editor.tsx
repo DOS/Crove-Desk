@@ -25,6 +25,7 @@ import {
   WorkflowBranchSelectionProvider,
   type SelectedWorkflowBranch,
 } from "./workflow-branch-selection"
+import { WorkflowCanvasControls } from "./workflow-canvas-controls"
 import { WorkflowConfigPanel } from "./workflow-config-sidebar"
 import { WorkflowEditorToolbar } from "./workflow-editor-toolbar"
 import {
@@ -341,13 +342,6 @@ function WorkflowEditorInner({
           undoDisabled={undoDisabled}
           onRedo={onRedo}
           redoDisabled={redoDisabled}
-          onAutoLayout={() => void autoLayout()}
-          autoLayoutDisabled={autoLayouting || definition.nodes.length < 2}
-          zoomPercent={zoomPercent}
-          onZoomIn={() => playgroundTools.zoomin(true)}
-          onZoomOut={() => playgroundTools.zoomout(true)}
-          onResetZoom={resetZoom}
-          onFitView={() => playgroundTools.fitView(true)}
           onRestoreDefault={onRestoreDefault}
           restoreDefaultDisabled={restoreDefaultDisabled}
           onValidate={onValidate}
@@ -356,6 +350,18 @@ function WorkflowEditorInner({
           saveDraftDisabled={saveDraftDisabled}
           onPublish={onPublish}
           publishDisabled={publishDisabled}
+        />
+      </div>
+
+      <div className="absolute bottom-3 left-3 z-50">
+        <WorkflowCanvasControls
+          zoomPercent={zoomPercent}
+          onZoomIn={() => playgroundTools.zoomin(true)}
+          onZoomOut={() => playgroundTools.zoomout(true)}
+          onResetZoom={resetZoom}
+          onFitView={() => playgroundTools.fitView(true)}
+          onAutoLayout={() => void autoLayout()}
+          autoLayoutDisabled={autoLayouting || definition.nodes.length < 2}
         />
       </div>
 
