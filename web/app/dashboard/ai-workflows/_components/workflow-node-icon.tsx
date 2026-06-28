@@ -18,7 +18,7 @@ export function WorkflowNodeIcon({
   return (
     <span
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground shadow-sm",
+        "flex shrink-0 items-center justify-center rounded-lg bg-[#2575FC] text-white shadow-sm",
         size === "md" ? "size-7" : "size-6",
         className
       )}
