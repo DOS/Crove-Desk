@@ -15,11 +15,13 @@ export function VariableSelector({
   variables,
   onChange,
   placeholder = "选择变量",
+  triggerClassName,
 }: {
   value?: WorkflowVariableSelector
   variables: WorkflowVariableRef[]
   onChange: (value: WorkflowVariableSelector) => void
   placeholder?: string
+  triggerClassName?: string
 }) {
   const selected = value ? `${refNodeId(value)}.${refField(value)}` : ""
   const options = variables.map((variable) => ({
@@ -33,6 +35,7 @@ export function VariableSelector({
       value={selected}
       options={options}
       placeholder={placeholder}
+      triggerClassName={triggerClassName}
       onChange={(next) => {
         const variable = variables.find((item) => `${item.nodeId}.${item.field}` === next)
         if (variable) {

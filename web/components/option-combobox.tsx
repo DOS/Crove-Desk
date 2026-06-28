@@ -33,6 +33,7 @@ type OptionComboboxProps = {
   searchPlaceholder?: string
   emptyText?: string
   disabled?: boolean
+  triggerClassName?: string
   onChange: (value: string) => void
   renderOptionAction?: (option: ComboboxOption) => ReactNode
 }
@@ -44,6 +45,7 @@ export function OptionCombobox({
   searchPlaceholder,
   emptyText,
   disabled = false,
+  triggerClassName,
   onChange,
   renderOptionAction,
 }: OptionComboboxProps) {
@@ -59,7 +61,7 @@ export function OptionCombobox({
           <Button
             variant="outline"
             role="combobox"
-            className="m-0 w-full justify-between font-normal"
+            className={cn("m-0 w-full justify-between font-normal", triggerClassName)}
             disabled={disabled}
           />
         }

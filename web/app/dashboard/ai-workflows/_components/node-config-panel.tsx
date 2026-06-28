@@ -1,5 +1,6 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { Trash2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -36,6 +37,9 @@ const CONDITION_OPERATOR_OPTIONS = [
   { value: "exists", label: "存在" },
   { value: "empty", label: "为空" },
 ]
+
+const cardInputClassName = "h-8 rounded-md border-slate-200 bg-white text-xs shadow-none"
+const cardComboboxClassName = "h-8 rounded-md border-slate-200 bg-white text-xs shadow-none"
 
 export function NodeConfigPanel({
   node,
@@ -125,25 +129,36 @@ export function NodeConfigPanel({
           </div>
         </div>
       ) : null}
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
-        <div className="space-y-2">
-          <Label htmlFor={`node-title-${node.id}`}>标题</Label>
-          <Input
-            id={`node-title-${node.id}`}
-            value={node.data?.title ?? ""}
-            placeholder={nodeSpec?.title || node.type}
-            onChange={(event) => updateData({ title: event.target.value })}
-          />
-        </div>
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-3">
+        <ConfigCard
+          title="基础信息"
+          meta={nodeSpec?.description ? "说明" : undefined}
+        >
+          <div className="space-y-2">
+            <Label htmlFor={`node-title-${node.id}`} className="text-xs text-slate-600">
+              标题
+            </Label>
+            <Input
+              id={`node-title-${node.id}`}
+              value={node.data?.title ?? ""}
+              placeholder={nodeSpec?.title || node.type}
+              className={cardInputClassName}
+              onChange={(event) => updateData({ title: event.target.value })}
+            />
+          </div>
+          {nodeSpec?.description ? (
+            <p className="mt-3 text-xs leading-5 text-slate-500">{nodeSpec.description}</p>
+          ) : null}
+        </ConfigCard>
 
         {inputSchema.length > 0 ? (
-          <div className="space-y-3">
-            <div className="text-sm font-medium">输入</div>
+          <ConfigCard title="输入" meta={`${inputSchema.length} 项`}>
+            <div className="space-y-3">
             {inputSchema.map((input) => {
               const value = inputsValues[input.name]
               return (
                 <div key={input.name} className="space-y-1.5">
-                  <Label className="flex items-center gap-1">
+                  <Label className="flex items-center gap-1 text-xs text-slate-600">
                     <span>{input.label || input.name}</span>
                     {input.required ? <span className="text-destructive">*</span> : null}
                   </Label>
@@ -151,6 +166,7 @@ export function NodeConfigPanel({
                     value={isRefValue(value) ? value : undefined}
                     variables={availableVariables ?? []}
                     placeholder="选择变量"
+                    triggerClassName={cardComboboxClassName}
                     onChange={(next) => {
                       updateData({
                         inputsValues: {
@@ -163,7 +179,8 @@ export function NodeConfigPanel({
                 </div>
               )
             })}
-          </div>
+            </div>
+          </ConfigCard>
         ) : null}
 
         {showConditionBranches && (node.type === "condition" || branches.length > 0) ? (
@@ -221,51 +238,57 @@ export function ConditionBranchConfigPanel({
   }
 
   return (
-    <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
-      <div className="space-y-2">
-        <Label htmlFor={`condition-branch-name-${node.id}-${branch.id}`}>分支名称</Label>
-        <Input
-          id={`condition-branch-name-${node.id}-${branch.id}`}
-          value={branch.name ?? ""}
-          placeholder={branch.id}
-          onChange={(event) => updateBranch({ ...branch, name: event.target.value })}
-        />
-      </div>
+    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-3">
+      <ConfigCard title="基础信息" meta={branch.default ? "默认" : "条件"}>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor={`condition-branch-name-${node.id}-${branch.id}`} className="text-xs text-slate-600">
+              分支名称
+            </Label>
+            <Input
+              id={`condition-branch-name-${node.id}-${branch.id}`}
+              value={branch.name ?? ""}
+              placeholder={branch.id}
+              className={cardInputClassName}
+              onChange={(event) => updateBranch({ ...branch, name: event.target.value })}
+            />
+          </div>
 
-      <div className="space-y-2">
-        <Label>目标节点</Label>
-        <OptionCombobox
-          value={branch.targetNodeId}
-          options={targetOptions}
-          placeholder="选择目标节点"
-          onChange={(targetNodeId) => updateBranch({ ...branch, targetNodeId })}
-        />
-      </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-slate-600">目标节点</Label>
+            <OptionCombobox
+              value={branch.targetNodeId}
+              options={targetOptions}
+              placeholder="选择目标节点"
+              triggerClassName={cardComboboxClassName}
+              onChange={(targetNodeId) => updateBranch({ ...branch, targetNodeId })}
+            />
+          </div>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={branch.default === true}
-          className="size-4"
-          onChange={(event) => updateBranch({
-            ...branch,
-            default: event.target.checked,
-            condition: event.target.checked ? undefined : branch.condition,
-          })}
-        />
-        默认分支
-      </label>
+          <label className="flex items-center gap-2 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              checked={branch.default === true}
+              className="size-3.5"
+              onChange={(event) => updateBranch({
+                ...branch,
+                default: event.target.checked,
+                condition: event.target.checked ? undefined : branch.condition,
+              })}
+            />
+            默认分支
+          </label>
+        </div>
+      </ConfigCard>
 
       {branch.default ? (
-        <div className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+        <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
           默认分支不需要条件表达式，会在其他条件不匹配时执行。
         </div>
       ) : (
-        <ConditionFields
-          branch={branch}
-          variables={variables}
-          onChange={updateBranch}
-        />
+        <ConfigCard title="条件表达式">
+          <ConditionFields branch={branch} variables={variables} onChange={updateBranch} />
+        </ConfigCard>
       )}
 
       {branch.default ? null : (
@@ -273,7 +296,7 @@ export function ConditionBranchConfigPanel({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
+          className="h-8 px-2 text-xs text-slate-500 hover:text-destructive"
           onClick={() => onDelete(branch.id)}
         >
           删除条件
@@ -303,27 +326,32 @@ function ConditionBranchesEditor({
   const targetOptions = buildTargetOptions(nodes, currentNodeId)
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-medium">条件分支</div>
-        <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={onAdd}>
+    <ConfigCard
+      title="条件分支"
+      meta={`${branches.length} 项`}
+      action={
+        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onAdd}>
           添加
         </Button>
-      </div>
+      }
+    >
       {branches.length === 0 ? (
-        <div className="rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">
+        <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-500">
           暂无分支。条件节点需要至少一个默认分支或条件分支。
         </div>
       ) : null}
-      <div className="space-y-3">
+      <div className="space-y-2">
         {branches.map((branch) => {
           return (
-            <div key={branch.id} className="space-y-3 rounded-md border p-3">
+            <div key={branch.id} className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/60 p-2.5">
               <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex h-5 shrink-0 items-center rounded-full border border-slate-200 bg-white px-2 font-mono text-[10px] font-semibold text-slate-600">
+                  {branch.default ? "ELSE" : "IF"}
+                </span>
                 <Input
                   value={branch.name ?? ""}
                   placeholder={branch.id}
-                  className="h-8"
+                  className={cn(cardInputClassName, "min-w-0 flex-1 border-transparent bg-white font-medium")}
                   onChange={(event) => onChange({ ...branch, name: event.target.value })}
                 />
                 {branch.default ? null : (
@@ -331,7 +359,7 @@ function ConditionBranchesEditor({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
+                    className="h-7 px-2 text-xs text-slate-500 hover:text-destructive"
                     onClick={() => onDelete(branch.id)}
                   >
                     删除
@@ -339,21 +367,22 @@ function ConditionBranchesEditor({
                 )}
               </div>
 
-              <div className="space-y-1.5">
-                <Label>目标节点</Label>
+              <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-2">
+                <Label className="text-xs text-slate-500">目标节点</Label>
                 <OptionCombobox
                   value={branch.targetNodeId}
                   options={targetOptions}
                   placeholder="选择目标节点"
+                  triggerClassName={cardComboboxClassName}
                   onChange={(targetNodeId) => onChange({ ...branch, targetNodeId })}
                 />
               </div>
 
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex items-center gap-2 text-xs text-slate-500">
                 <input
                   type="checkbox"
                   checked={branch.default === true}
-                  className="size-4"
+                  className="size-3.5"
                   onChange={(event) => onChange({
                     ...branch,
                     default: event.target.checked,
@@ -364,13 +393,15 @@ function ConditionBranchesEditor({
               </label>
 
               {branch.default ? null : (
-                <ConditionFields branch={branch} variables={variables} onChange={onChange} />
+                <div className="border-t border-slate-200 pt-2">
+                  <ConditionFields branch={branch} variables={variables} onChange={onChange} compact />
+                </div>
               )}
             </div>
           )
         })}
       </div>
-    </div>
+    </ConfigCard>
   )
 }
 
@@ -378,45 +409,51 @@ function ConditionFields({
   branch,
   variables,
   onChange,
+  compact = false,
 }: {
   branch: WorkflowConditionBranch
   variables: WorkflowVariableRef[]
   onChange: (branch: WorkflowConditionBranch) => void
+  compact?: boolean
 }) {
   const condition = branch.condition ?? {}
 
   return (
-    <div className="space-y-3">
-      <div className="space-y-1.5">
-        <Label>左值</Label>
+    <div className={cn("space-y-3", compact && "space-y-2")}>
+      <div className={cn("space-y-1.5", compact && "grid grid-cols-[64px_minmax(0,1fr)] items-center gap-2 space-y-0")}>
+        <Label className="text-xs text-slate-500">左值</Label>
         <VariableSelector
           value={isRefValue(condition.left) ? condition.left : undefined}
           variables={variables}
           placeholder="选择变量"
+          triggerClassName={cardComboboxClassName}
           onChange={(left) => onChange({
             ...branch,
             condition: { ...condition, left },
           })}
         />
       </div>
-      <div className="grid grid-cols-[1fr_1fr] gap-2">
-        <div className="space-y-1.5">
-          <Label>操作符</Label>
+      <div className={cn("grid grid-cols-[1fr_1fr] gap-2", compact && "grid-cols-[64px_minmax(0,1fr)_96px] items-center")}>
+        {compact ? <Label className="text-xs text-slate-500">判断</Label> : null}
+        <div className={cn("space-y-1.5", compact && "space-y-0")}>
+          {compact ? null : <Label className="text-xs text-slate-500">操作符</Label>}
           <OptionCombobox
             value={condition.operator ?? ""}
             options={CONDITION_OPERATOR_OPTIONS}
             placeholder="选择操作符"
+            triggerClassName={cardComboboxClassName}
             onChange={(operator) => onChange({
               ...branch,
               condition: { ...condition, operator },
             })}
           />
         </div>
-        <div className={cn("space-y-1.5", ["exists", "empty"].includes(condition.operator ?? "") && "opacity-50")}>
-          <Label>右值</Label>
+        <div className={cn("space-y-1.5", compact && "space-y-0", ["exists", "empty"].includes(condition.operator ?? "") && "opacity-50")}>
+          {compact ? null : <Label className="text-xs text-slate-500">右值</Label>}
           <Input
             value={stringifyConditionRight(condition.right)}
             disabled={["exists", "empty"].includes(condition.operator ?? "")}
+            className={cardInputClassName}
             onChange={(event) => onChange({
               ...branch,
               condition: { ...condition, right: event.target.value },
@@ -425,6 +462,33 @@ function ConditionFields({
         </div>
       </div>
     </div>
+  )
+}
+
+function ConfigCard({
+  title,
+  meta,
+  action,
+  children,
+}: {
+  title: string
+  meta?: string
+  action?: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="flex min-h-10 items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
+        <div className="min-w-0">
+          <div className="truncate text-[13px] font-semibold text-slate-900">{title}</div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {meta ? <span className="text-xs text-slate-500">{meta}</span> : null}
+          {action}
+        </div>
+      </div>
+      <div className="p-3">{children}</div>
+    </section>
   )
 }
 
