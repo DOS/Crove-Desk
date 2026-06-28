@@ -42,6 +42,13 @@ export function WorkflowConfigPanel({
   const selectedBranchItem = selectedNode && selectedBranch?.nodeId === selectedNode.id
     ? normalizeNodeConfig(selectedNode.data?.config).branches?.find((branch) => branch.id === selectedBranch.branchId) ?? null
     : null
+  const panelTitle = selectedBranchItem
+    ? selectedBranchItem.name || selectedBranchItem.id
+    : selectedNode?.data?.title || selectedNodeSpec?.title || selectedNode?.type || ""
+  const panelMeta = selectedBranchItem ? "条件分支" : selectedNode?.type || ""
+  const panelDescription = selectedBranchItem
+    ? "配置该条件分支的匹配规则和目标节点。"
+    : selectedNodeSpec?.description || ""
 
   if (!selectedNode) {
     return null
@@ -64,12 +71,15 @@ export function WorkflowConfigPanel({
       <section className="pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden rounded-md border bg-background/95 shadow-sm backdrop-blur">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b px-4 py-3">
           <div className="min-w-0">
-            <div className="text-sm font-medium">{selectedBranchItem ? "条件属性" : "属性"}</div>
-            <div className="mt-0.5 truncate text-xs text-muted-foreground">
-              {selectedBranchItem
-                ? selectedBranchItem.name || selectedBranchItem.id
-                : selectedNode.data?.title || selectedNodeSpec?.title || selectedNode.type}
-            </div>
+            <div className="truncate text-sm font-medium">{panelTitle}</div>
+            {panelMeta ? (
+              <div className="mt-1 truncate font-mono text-xs text-muted-foreground">{panelMeta}</div>
+            ) : null}
+            {panelDescription ? (
+              <div className="mt-2 line-clamp-3 text-xs leading-5 text-muted-foreground">
+                {panelDescription}
+              </div>
+            ) : null}
           </div>
           <Button
             type="button"

@@ -131,16 +131,6 @@ export function NodeConfigPanel({
       ) : null}
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
         <div className="space-y-2">
-          <Label htmlFor={`node-type-${node.id}`}>节点类型</Label>
-          <Input
-            id={`node-type-${node.id}`}
-            value={node.type}
-            readOnly
-            className="font-mono text-xs text-muted-foreground"
-          />
-        </div>
-
-        <div className="space-y-2">
           <Label htmlFor={`node-title-${node.id}`}>标题</Label>
           <Input
             id={`node-title-${node.id}`}
@@ -149,15 +139,6 @@ export function NodeConfigPanel({
             onChange={(event) => updateData({ title: event.target.value })}
           />
         </div>
-
-        {nodeSpec?.description ? (
-          <div className="space-y-2">
-            <Label>节点说明</Label>
-            <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs leading-5 text-muted-foreground">
-              {nodeSpec.description}
-            </div>
-          </div>
-        ) : null}
 
         {inputSchema.length > 0 ? (
           <div className="space-y-3">
