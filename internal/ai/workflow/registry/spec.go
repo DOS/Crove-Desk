@@ -44,6 +44,7 @@ type NodeSpec struct {
 	Type                            string               `json:"type"`
 	Title                           string               `json:"title"`
 	Description                     string               `json:"description"`
+	Icon                            string               `json:"icon"`
 	RiskLevel                       NodeRiskLevel        `json:"riskLevel"`
 	Interruptible                   bool                 `json:"interruptible"`
 	RequiresConfirmationPredecessor bool                 `json:"requiresConfirmationPredecessor"`

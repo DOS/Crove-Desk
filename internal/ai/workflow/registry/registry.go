@@ -25,6 +25,7 @@ func DefaultRegistry() *Registry {
 			Type:        NodeTypeStart,
 			Title:       "Start",
 			Description: "Conversation workflow entry.",
+			Icon:        "PlayCircleIcon",
 			RiskLevel:   NodeRiskLevelLow,
 			OutputSchema: []VariableSpec{
 				output("conversationId", VariableTypeInteger, "Conversation ID."),
@@ -38,6 +39,7 @@ func DefaultRegistry() *Registry {
 			Type:        NodeTypeConversationUnderstanding,
 			Title:       "Conversation Understanding",
 			Description: "Classify customer message intent and answer scope before retrieval.",
+			Icon:        "MessageCircleIcon",
 			RiskLevel:   NodeRiskLevelLow,
 			InputSchema: []VariableSpec{
 				requiredInput("userMessage", VariableTypeString, "Current user message content."),
@@ -75,6 +77,7 @@ func DefaultRegistry() *Registry {
 			Type:        NodeTypeReplyPolicy,
 			Title:       "Reply Policy",
 			Description: "Decide the next customer-service action from understanding output and agent policy.",
+			Icon:        "ShieldCheckIcon",
 			RiskLevel:   NodeRiskLevelLow,
 			InputSchema: []VariableSpec{
 				requiredInput("messageIntent", VariableTypeString, "Detected customer message intent."),
@@ -115,6 +118,7 @@ func DefaultRegistry() *Registry {
 			Type:        NodeTypeKnowledgeRetrieve,
 			Title:       "Knowledge Retrieve",
 			Description: "Retrieve knowledge for the current user message.",
+			Icon:        "BookOpenIcon",
 			RiskLevel:   NodeRiskLevelLow,
 			InputSchema: []VariableSpec{
 				requiredInput("query", VariableTypeString, "Search query."),
@@ -131,6 +135,7 @@ func DefaultRegistry() *Registry {
 			Type:        NodeTypeAnswerabilityGate,
 			Title:       "Answerability Gate",
 			Description: "Decide whether retrieved knowledge is enough to answer.",
+			Icon:        "HelpCircleIcon",
 			RiskLevel:   NodeRiskLevelLow,
 			InputSchema: []VariableSpec{
 				requiredInput("userMessage", VariableTypeString, "Current user message content."),
@@ -148,6 +153,7 @@ func DefaultRegistry() *Registry {
 			Type:        NodeTypeLLMReply,
 			Title:       "LLM Reply",
 			Description: "Generate a reply or structured analysis with the configured model.",
+			Icon:        "BotIcon",
 			RiskLevel:   NodeRiskLevelMedium,
 			InputSchema: []VariableSpec{
 				requiredInput("userMessage", VariableTypeString, "Current user message content."),
@@ -161,6 +167,7 @@ func DefaultRegistry() *Registry {
 			Type:        NodeTypeCondition,
 			Title:       "Condition",
 			Description: "Route by controlled workflow variables.",
+			Icon:        "GitBranchIcon",
 			RiskLevel:   NodeRiskLevelLow,
 			OutputSchema: []VariableSpec{
 				output("matched", VariableTypeBoolean, "Whether the condition matched."),
@@ -170,6 +177,7 @@ func DefaultRegistry() *Registry {
 			Type:        NodeTypeAnalyzeConversation,
 			Title:       "Analyze Conversation",
 			Description: "Analyze intent, risk, and recommended next action.",
+			Icon:        "SearchIcon",
 			RiskLevel:   NodeRiskLevelLow,
 			InputSchema: []VariableSpec{
 				requiredInput("userMessage", VariableTypeString, "Current user message content."),
@@ -185,6 +193,7 @@ func DefaultRegistry() *Registry {
 			Type:        NodeTypePrepareTicketDraft,
 			Title:       "Prepare Ticket Draft",
 			Description: "Build a ticket draft from conversation context.",
+			Icon:        "ClipboardListIcon",
 			RiskLevel:   NodeRiskLevelMedium,
 			InputSchema: []VariableSpec{
 				requiredInput("issue", VariableTypeString, "Issue summary."),
@@ -197,6 +206,7 @@ func DefaultRegistry() *Registry {
 			Type:          NodeTypeHumanConfirm,
 			Title:         "Human Confirm",
 			Description:   "Interrupt and wait for explicit user confirmation.",
+			Icon:          "UserCheckIcon",
 			RiskLevel:     NodeRiskLevelMedium,
 			Interruptible: true,
 			InputSchema: []VariableSpec{
@@ -211,6 +221,7 @@ func DefaultRegistry() *Registry {
 			Type:                            NodeTypeCreateTicket,
 			Title:                           "Create Ticket",
 			Description:                     "Create a ticket from a confirmed draft.",
+			Icon:                            "TicketIcon",
 			RiskLevel:                       NodeRiskLevelHigh,
 			RequiresConfirmationPredecessor: true,
 			InputSchema: []VariableSpec{
@@ -228,6 +239,7 @@ func DefaultRegistry() *Registry {
 			Type:        NodeTypeHandoffToHuman,
 			Title:       "Handoff To Human",
 			Description: "Transfer the conversation to human support.",
+			Icon:        "HeadphonesIcon",
 			RiskLevel:   NodeRiskLevelHigh,
 			InputSchema: []VariableSpec{
 				requiredInput("reason", VariableTypeString, "Handoff reason."),
@@ -252,6 +264,7 @@ func DefaultRegistry() *Registry {
 			Type:        NodeTypeSendReply,
 			Title:       "Send Reply",
 			Description: "Return or commit customer-visible reply text.",
+			Icon:        "SendIcon",
 			RiskLevel:   NodeRiskLevelLow,
 			InputSchema: []VariableSpec{
 				requiredInput("replyText", VariableTypeString, "Customer-visible reply text."),
@@ -265,6 +278,7 @@ func DefaultRegistry() *Registry {
 			Type:        NodeTypeEnd,
 			Title:       "End",
 			Description: "End workflow execution.",
+			Icon:        "FlagIcon",
 			RiskLevel:   NodeRiskLevelLow,
 			OutputSchema: []VariableSpec{
 				output("status", VariableTypeString, "Workflow terminal status."),

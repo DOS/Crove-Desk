@@ -24,7 +24,7 @@ export function WorkflowNodePalette({
               className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-muted"
               onClick={() => onAddNode(spec)}
             >
-              <WorkflowNodeIcon type={spec.type} size="sm" className="mt-0.5" />
+              <WorkflowNodeIcon icon={spec.icon} size="sm" className="mt-0.5" />
               <span className="min-w-0">
                 <span className="block truncate font-medium">{spec.title || spec.type}</span>
                 <span className="line-clamp-2 text-xs text-muted-foreground">{spec.description}</span>

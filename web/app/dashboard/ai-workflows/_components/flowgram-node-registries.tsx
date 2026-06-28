@@ -13,6 +13,7 @@ export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): Wo
           type: "start",
           title: "开始",
           description: "流程入口",
+          icon: "PlayCircleIcon",
           riskLevel: "low" as const,
           interruptible: false,
           requiresConfirmationPredecessor: false,
@@ -21,6 +22,7 @@ export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): Wo
           type: "end",
           title: "结束",
           description: "流程结束",
+          icon: "FlagIcon",
           riskLevel: "low" as const,
           interruptible: false,
           requiresConfirmationPredecessor: false,
@@ -47,9 +49,10 @@ export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): Wo
       formMeta: {
         render: () => (
           <FlowgramNodeForm
-            nodeType={spec.type}
-            fallbackTitle={spec.title || spec.type}
-          />
+          nodeType={spec.type}
+          fallbackTitle={spec.title || spec.type}
+          icon={spec.icon}
+        />
         ),
       },
     }))
@@ -58,9 +61,11 @@ export function buildFlowgramNodeRegistries(nodeSpecs: AIWorkflowNodeSpec[]): Wo
 function FlowgramNodeForm({
   nodeType,
   fallbackTitle,
+  icon,
 }: {
   nodeType: string
   fallbackTitle: string
+  icon: string
 }) {
   const { node, selected } = useNodeRender()
   const nodeId = String(node.id ?? "")
@@ -69,8 +74,8 @@ function FlowgramNodeForm({
     <Field<string> name="title">
       {({ field }) => (
         <WorkflowNodeCard
-          nodeType={nodeType}
           title={field.value || fallbackTitle}
+          icon={icon}
           selected={selected}
           width={nodeType === "condition" ? "wide" : "normal"}
         >

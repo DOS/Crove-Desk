@@ -19,6 +19,9 @@ func TestBuildAIWorkflowNodeSpecsIncludesVariableContracts(t *testing.T) {
 		switch spec.Type {
 		case workflowregistry.NodeTypeStart:
 			startFound = true
+			if spec.Icon != "PlayCircleIcon" {
+				t.Fatalf("expected start icon PlayCircleIcon, got %q", spec.Icon)
+			}
 			if !hasResponseVariable(spec.OutputSchema, "userMessage") {
 				t.Fatalf("expected start output userMessage, got %#v", spec.OutputSchema)
 			}

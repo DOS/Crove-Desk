@@ -76,6 +76,7 @@ func BuildAIWorkflowNodeSpecs(list []workflowregistry.NodeSpec) []response.AIWor
 			Type:                            item.Type,
 			Title:                           item.Title,
 			Description:                     item.Description,
+			Icon:                            item.Icon,
 			RiskLevel:                       item.RiskLevel,
 			Interruptible:                   item.Interruptible,
 			RequiresConfirmationPredecessor: item.RequiresConfirmationPredecessor,

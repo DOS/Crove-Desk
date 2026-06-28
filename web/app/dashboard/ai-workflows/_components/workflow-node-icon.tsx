@@ -1,17 +1,19 @@
 import { cn } from "@/lib/utils"
-import { getWorkflowNodeMeta } from "./workflow-node-meta"
+import { FileTextIcon, type LucideIcon } from "lucide-react"
+import * as LucideIcons from "lucide-react"
+
+const lucideIconComponents = LucideIcons as unknown as Record<string, LucideIcon>
 
 export function WorkflowNodeIcon({
-  type,
+  icon,
   size = "md",
   className,
 }: {
-  type: string
+  icon?: string
   size?: "sm" | "md"
   className?: string
 }) {
-  const meta = getWorkflowNodeMeta(type)
-  const Icon = meta.icon
+  const Icon = icon ? lucideIconComponents[icon] ?? FileTextIcon : FileTextIcon
 
   return (
     <span
