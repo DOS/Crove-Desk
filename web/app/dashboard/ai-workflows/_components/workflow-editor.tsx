@@ -346,11 +346,6 @@ function WorkflowEditorInner({
           onPublish={onPublish}
           publishDisabled={publishDisabled}
         />
-        <WorkflowEditorStatus
-          validation={validation}
-          nodeCount={definition.nodes.length}
-          edgeCount={definition.edges.length}
-        />
       </div>
 
       <div className="absolute bottom-4 left-4 z-50">
@@ -362,6 +357,14 @@ function WorkflowEditorInner({
           onFitView={() => playgroundTools.fitView(true)}
           onAutoLayout={() => void autoLayout()}
           autoLayoutDisabled={autoLayouting || definition.nodes.length < 2}
+        />
+      </div>
+
+      <div className="absolute bottom-4 right-4 z-50">
+        <WorkflowEditorStatus
+          validation={validation}
+          nodeCount={definition.nodes.length}
+          edgeCount={definition.edges.length}
         />
       </div>
 
