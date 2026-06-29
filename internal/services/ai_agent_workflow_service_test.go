@@ -89,6 +89,9 @@ func TestAIAgentServiceCreatesDefaultWorkflow(t *testing.T) {
 	if !workflowEdgeExists(stored, "create_ticket_1", "ticket_result_reply_1") {
 		t.Fatalf("expected create_ticket to flow into a customer-visible result reply")
 	}
+	assertConditionBranchesHavePortEdges(t, stored, "policy_route_1")
+	assertConditionBranchesHavePortEdges(t, stored, "ticket_confirm_route_1")
+	assertConditionBranchesHavePortEdges(t, stored, "answerability_route_1")
 }
 
 func TestAIWorkflowServiceDefaultAgentWorkflowDefinitionIsValid(t *testing.T) {
@@ -303,6 +306,24 @@ func conditionBranches(t *testing.T, def dsl.Definition, nodeID string) []dsl.Co
 	}
 	t.Fatalf("condition node not found: %s", nodeID)
 	return nil
+}
+
+func assertConditionBranchesHavePortEdges(t *testing.T, def dsl.Definition, nodeID string) {
+	t.Helper()
+	for _, branch := range conditionBranches(t, def, nodeID) {
+		if !workflowPortEdgeExists(def, nodeID, branch.TargetNodeID, branch.ID) {
+			t.Fatalf("expected condition branch %s.%s to have port edge to %s", nodeID, branch.ID, branch.TargetNodeID)
+		}
+	}
+}
+
+func workflowPortEdgeExists(def dsl.Definition, sourceID string, targetID string, sourcePortID string) bool {
+	for _, edge := range def.Edges {
+		if edge.SourceNodeID == sourceID && edge.TargetNodeID == targetID && edge.SourcePortID == sourcePortID {
+			return true
+		}
+	}
+	return false
 }
 
 func workflowEdgeExists(def dsl.Definition, sourceID string, targetID string) bool {

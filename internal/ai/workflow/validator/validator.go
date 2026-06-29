@@ -285,7 +285,7 @@ func (v *definitionValidator) validateConditions() {
 			} else if _, ok := v.nodesByID[targetNodeID]; !ok {
 				v.addError(branchField+".targetNodeId", "condition branch target node does not exist: "+targetNodeID)
 			}
-			if !v.hasEdgeTo(strings.TrimSpace(node.ID), targetNodeID) {
+			if !v.hasConditionBranchEdge(strings.TrimSpace(node.ID), targetNodeID, branchID) {
 				v.addError(branchField+".targetNodeId", "condition branch target must have an outgoing edge: "+targetNodeID)
 			}
 			if branch.Default {
@@ -441,12 +441,14 @@ func (v *definitionValidator) hasPath(sourceID string, targetID string, visiting
 	return false
 }
 
-func (v *definitionValidator) hasEdgeTo(sourceID string, targetID string) bool {
-	if sourceID == "" || targetID == "" {
+func (v *definitionValidator) hasConditionBranchEdge(sourceID string, targetID string, sourcePortID string) bool {
+	if sourceID == "" || targetID == "" || sourcePortID == "" {
 		return true
 	}
 	for _, edge := range v.def.Edges {
-		if strings.TrimSpace(edge.SourceNodeID) == sourceID && strings.TrimSpace(edge.TargetNodeID) == targetID {
+		if strings.TrimSpace(edge.SourceNodeID) == sourceID &&
+			strings.TrimSpace(edge.TargetNodeID) == targetID &&
+			strings.TrimSpace(edge.SourcePortID) == sourcePortID {
 			return true
 		}
 	}

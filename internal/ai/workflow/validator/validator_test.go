@@ -176,6 +176,24 @@ func TestValidateDefinitionRejectsConditionBranchTargetWithoutEdge(t *testing.T)
 	}
 }
 
+func TestValidateDefinitionRejectsConditionBranchTargetWithoutPortEdge(t *testing.T) {
+	def := conditionDefinition()
+	def.Edges = []dsl.Edge{
+		edge("start_1", "condition_1"),
+		edge("condition_1", "end_1"),
+		portEdge("condition_1", "end_1", "default"),
+	}
+
+	result := validator.ValidateDefinition(def, registry.DefaultRegistry())
+
+	if result.Valid {
+		t.Fatalf("expected condition branch target without matching port edge to be invalid")
+	}
+	if !hasValidationMessage(result, "condition branch target must have an outgoing edge") {
+		t.Fatalf("expected branch port edge error, got %#v", result.Errors)
+	}
+}
+
 func TestValidateDefinitionRejectsUnknownConditionVariable(t *testing.T) {
 	def := conditionDefinition()
 	var config dsl.ConditionConfig
@@ -240,8 +258,8 @@ func conditionDefinition() dsl.Definition {
 		},
 		Edges: []dsl.Edge{
 			edge("start_1", "condition_1"),
-			edge("condition_1", "end_1"),
-			edge("condition_1", "end_1"),
+			portEdge("condition_1", "end_1", "hello"),
+			portEdge("condition_1", "end_1", "default"),
 		},
 	}
 }
@@ -261,6 +279,10 @@ func node(id string, nodeType string, inputValues map[string]dsl.Value, config a
 
 func edge(source string, target string) dsl.Edge {
 	return dsl.Edge{SourceNodeID: source, TargetNodeID: target}
+}
+
+func portEdge(source string, target string, sourcePortID string) dsl.Edge {
+	return dsl.Edge{SourceNodeID: source, TargetNodeID: target, SourcePortID: sourcePortID}
 }
 
 func inputs(name string, value dsl.Value) map[string]dsl.Value {
