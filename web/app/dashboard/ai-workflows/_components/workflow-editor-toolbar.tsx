@@ -45,6 +45,7 @@ export function WorkflowEditorToolbar({
     <div className="inline-flex min-h-9 w-fit max-w-full items-center rounded-md bg-white/95 px-1.5 py-1 shadow-sm backdrop-blur">
       <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto overflow-y-hidden">
         {toolbarExtra}
+        <span className="mx-1 h-4 w-px shrink-0 bg-slate-200" />
         <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 px-2 text-xs text-slate-700 hover:bg-slate-100 hover:text-slate-950" disabled={undoDisabled} onClick={onUndo}>
           <Undo2Icon className="size-3.5" />
           撤销
@@ -53,6 +54,7 @@ export function WorkflowEditorToolbar({
           <Redo2Icon className="size-3.5" />
           重做
         </Button>
+        <span className="mx-1 h-4 w-px shrink-0 bg-slate-200" />
         <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 px-2 text-xs text-slate-700 hover:bg-slate-100 hover:text-slate-950" disabled={restoreDefaultDisabled} onClick={onRestoreDefault}>
           <RotateCcwIcon className="size-3.5" />
           恢复默认
