@@ -92,6 +92,24 @@ func TestAIAgentServiceCreatesDefaultWorkflow(t *testing.T) {
 	assertConditionBranchesHavePortEdges(t, stored, "policy_route_1")
 	assertConditionBranchesHavePortEdges(t, stored, "ticket_confirm_route_1")
 	assertConditionBranchesHavePortEdges(t, stored, "answerability_route_1")
+	assertConditionBranchOrder(t, stored, "policy_route_1", []string{
+		"handoff",
+		"direct",
+		"clarify",
+		"end_conversation",
+		"ticket",
+		"knowledge",
+		"default",
+	})
+	assertConditionPortEdgeOrder(t, stored, "policy_route_1", []string{
+		"handoff",
+		"direct",
+		"clarify",
+		"end_conversation",
+		"ticket",
+		"knowledge",
+		"default",
+	})
 }
 
 func TestAIWorkflowServiceDefaultAgentWorkflowDefinitionIsValid(t *testing.T) {
@@ -313,6 +331,37 @@ func assertConditionBranchesHavePortEdges(t *testing.T, def dsl.Definition, node
 	for _, branch := range conditionBranches(t, def, nodeID) {
 		if !workflowPortEdgeExists(def, nodeID, branch.TargetNodeID, branch.ID) {
 			t.Fatalf("expected condition branch %s.%s to have port edge to %s", nodeID, branch.ID, branch.TargetNodeID)
+		}
+	}
+}
+
+func assertConditionBranchOrder(t *testing.T, def dsl.Definition, nodeID string, want []string) {
+	t.Helper()
+	branches := conditionBranches(t, def, nodeID)
+	if len(branches) != len(want) {
+		t.Fatalf("expected %s branch order %v, got %#v", nodeID, want, branches)
+	}
+	for index, branch := range branches {
+		if branch.ID != want[index] {
+			t.Fatalf("expected %s branch order %v, got branch %d = %s", nodeID, want, index, branch.ID)
+		}
+	}
+}
+
+func assertConditionPortEdgeOrder(t *testing.T, def dsl.Definition, nodeID string, want []string) {
+	t.Helper()
+	got := make([]string, 0, len(want))
+	for _, edge := range def.Edges {
+		if edge.SourceNodeID == nodeID {
+			got = append(got, edge.SourcePortID)
+		}
+	}
+	if len(got) != len(want) {
+		t.Fatalf("expected %s port edge order %v, got %v", nodeID, want, got)
+	}
+	for index, sourcePortID := range got {
+		if sourcePortID != want[index] {
+			t.Fatalf("expected %s port edge order %v, got edge %d = %s", nodeID, want, index, sourcePortID)
 		}
 	}
 }
