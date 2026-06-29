@@ -94,7 +94,7 @@ function WorkflowConditionBranchRow({
       className={cn(
         "relative flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs transition-colors",
         selected
-          ? "border-[var(--g-selection-background)] bg-background shadow-sm"
+          ? "border-(--g-selection-background) bg-background shadow-sm"
           : "border-border/50 bg-background/70 hover:border-border hover:bg-background"
       )}
       onPointerDownCapture={(event) => {
