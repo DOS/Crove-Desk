@@ -15,6 +15,8 @@ import {
   createConditionBranchID,
   isRefValue,
   normalizeNodeConfig,
+  refField,
+  refNodeId,
   type WorkflowConditionBranch,
   type WorkflowVariableRef,
 } from "./workflow-utils"
@@ -383,6 +385,11 @@ function ConditionFields({
   compact?: boolean
 }) {
   const condition = branch.condition ?? {}
+  const selectedVariable = isRefValue(condition.left)
+    ? variables.find((item) => item.nodeId === refNodeId(condition.left) && item.field === refField(condition.left))
+    : undefined
+  const valueOptions = selectedVariable?.valueOptions ?? []
+  const rightDisabled = ["exists", "empty"].includes(condition.operator ?? "")
 
   return (
     <div className={cn("space-y-3", compact && "space-y-2")}>
@@ -414,17 +421,37 @@ function ConditionFields({
             })}
           />
         </div>
-        <div className={cn("space-y-1.5", compact && "space-y-0", ["exists", "empty"].includes(condition.operator ?? "") && "opacity-50")}>
+        <div className={cn("space-y-1.5", compact && "space-y-0", rightDisabled && "opacity-50")}>
           {compact ? null : <Label className="text-xs text-slate-500">右值</Label>}
-          <Input
-            value={stringifyConditionRight(condition.right)}
-            disabled={["exists", "empty"].includes(condition.operator ?? "")}
-            className={cardInputClassName}
-            onChange={(event) => onChange({
-              ...branch,
-              condition: { ...condition, right: event.target.value },
-            })}
-          />
+          {valueOptions.length > 0 && !rightDisabled ? (
+            <OptionCombobox
+              value={stringifyConditionRight(condition.right)}
+              options={valueOptions.map((option) => ({
+                value: stringifyConditionRight(option.value),
+                label: option.label || stringifyConditionRight(option.value),
+                description: option.description,
+              }))}
+              placeholder="选择取值"
+              triggerClassName={cardComboboxClassName}
+              onChange={(nextValue) => {
+                const selectedOption = valueOptions.find((option) => stringifyConditionRight(option.value) === nextValue)
+                onChange({
+                  ...branch,
+                  condition: { ...condition, right: selectedOption?.value ?? nextValue },
+                })
+              }}
+            />
+          ) : (
+            <Input
+              value={stringifyConditionRight(condition.right)}
+              disabled={rightDisabled}
+              className={cardInputClassName}
+              onChange={(event) => onChange({
+                ...branch,
+                condition: { ...condition, right: event.target.value },
+              })}
+            />
+          )}
         </div>
       </div>
     </div>

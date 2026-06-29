@@ -65,6 +65,13 @@ export type WorkflowVariableRef = {
   valueOptions?: WorkflowVariableValueOption[]
 }
 
+export type WorkflowVariableOption = {
+  value: string
+  label: string
+  subtitle: string
+  description: string
+}
+
 export type WorkflowNodeSpec = AIWorkflowNodeSpec
 
 export type WorkflowDraftValidation = {
@@ -90,6 +97,17 @@ export function refNodeId(value: WorkflowValue | undefined): string {
 
 export function refField(value: WorkflowValue | undefined): string {
   return isRefValue(value) ? value.content[1] : ""
+}
+
+export function buildVariableOption(variable: WorkflowVariableRef): WorkflowVariableOption {
+  const ref = `${variable.nodeId}.${variable.field}`
+  const label = `${variable.nodeName} / ${variable.label || variable.field}`
+  return {
+    value: ref,
+    label,
+    subtitle: [ref, variable.type].filter(Boolean).join(" · "),
+    description: variable.description,
+  }
 }
 
 export function getNodeTitle(

@@ -226,6 +226,26 @@ describe("getAvailableVariables", () => {
   })
 })
 
+describe("workflow variable display helpers", () => {
+  it("builds business-first variable options with technical details", async () => {
+    const { buildVariableOption } = await loadModule()
+
+    assert.deepEqual(plain(buildVariableOption({
+      nodeId: "start_1",
+      nodeName: "开始",
+      field: "userMessage",
+      label: "用户消息",
+      type: "string",
+      description: "客户本轮发送的消息内容",
+    })), {
+      value: "start_1.userMessage",
+      label: "开始 / 用户消息",
+      subtitle: "start_1.userMessage · string",
+      description: "客户本轮发送的消息内容",
+    })
+  })
+})
+
 describe("workflow definition mutations", () => {
   it("updates node data without changing unrelated nodes", async () => {
     const { updateWorkflowNodeData } = await loadModule()

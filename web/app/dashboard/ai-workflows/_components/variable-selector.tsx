@@ -3,6 +3,7 @@
 import { OptionCombobox } from "@/components/option-combobox"
 
 import {
+  buildVariableOption,
   createRefValue,
   refField,
   refNodeId,
@@ -24,11 +25,7 @@ export function VariableSelector({
   triggerClassName?: string
 }) {
   const selected = value ? `${refNodeId(value)}.${refField(value)}` : ""
-  const options = variables.map((variable) => ({
-    value: `${variable.nodeId}.${variable.field}`,
-    label: `${variable.nodeName}.${variable.label || variable.field}`,
-    description: variable.description,
-  }))
+  const options = variables.map(buildVariableOption)
 
   return (
     <OptionCombobox

@@ -158,7 +158,7 @@ export function WorkflowConfigPanel({
                 </Button>
               </div>
               {panelDescription ? (
-                <div className="mt-1 pl-9 text-xs leading-5 text-slate-500">
+                <div className="mt-1 text-xs leading-5 text-slate-500">
                   {panelDescription}
                 </div>
               ) : null}

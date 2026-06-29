@@ -23,6 +23,7 @@ import { useI18n } from "@/i18n/provider"
 export type ComboboxOption = {
   value: string
   label: string
+  subtitle?: string
   description?: string
 }
 
@@ -78,7 +79,7 @@ export function OptionCombobox({
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={`${option.label} ${option.value} ${option.description ?? ""}`}
+                  value={`${option.label} ${option.value} ${option.subtitle ?? ""} ${option.description ?? ""}`}
                   onSelect={() => {
                     onChange(option.value)
                     setOpen(false)
@@ -94,6 +95,11 @@ export function OptionCombobox({
                       />
                       <span className="min-w-0">
                         <span className="block truncate">{option.label}</span>
+                        {option.subtitle ? (
+                          <span className="mt-0.5 block truncate font-mono text-[11px] leading-4 text-slate-500">
+                            {option.subtitle}
+                          </span>
+                        ) : null}
                         {option.description ? (
                           <span className="mt-0.5 line-clamp-2 text-xs leading-4 text-muted-foreground">
                             {option.description}

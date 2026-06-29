@@ -2,6 +2,19 @@ package registry
 
 import "testing"
 
+func TestDefaultRegistryVariablesHaveBusinessLabels(t *testing.T) {
+	for _, spec := range DefaultRegistry().List() {
+		for _, variable := range append(spec.InputSchema, spec.OutputSchema...) {
+			if variable.Label == "" {
+				t.Fatalf("%s.%s is missing business label", spec.Type, variable.Name)
+			}
+			if variable.Description == "" || variable.Description == variable.Name {
+				t.Fatalf("%s.%s is missing readable description", spec.Type, variable.Name)
+			}
+		}
+	}
+}
+
 func TestDefaultRegistryExposesStartOutputs(t *testing.T) {
 	spec, ok := DefaultRegistry().Get(NodeTypeStart)
 	if !ok {
