@@ -27,6 +27,7 @@ import (
 const maxWorkflowSteps = 128
 
 var workflowHTMLTagPattern = regexp.MustCompile(`<[^>]+>`)
+var workflowTemplateVariablePattern = regexp.MustCompile(`\{\{\s*([a-zA-Z0-9_]+)\s*\}\}`)
 
 type Input struct {
 	Definition   dsl.Definition
@@ -624,16 +625,26 @@ func (e *Executor) executePrepareTicketDraft(ctx context.Context, state *runStat
 		return err
 	}
 	state.setNodeVars(node.ID, map[string]any{
-		"ticketDraft": map[string]any{
-			"ready":             result.Ready,
-			"title":             strings.TrimSpace(result.Title),
-			"description":       strings.TrimSpace(result.Description),
-			"missingFields":     result.MissingFields,
-			"followUpQuestions": result.FollowUpQuestions,
-			"conversationFacts": result.ConversationFacts,
-		},
+		"ticketDraft":       ticketDraftWorkflowOutput(result),
+		"ready":             result.Ready,
+		"title":             strings.TrimSpace(result.Title),
+		"description":       strings.TrimSpace(result.Description),
+		"missingFields":     result.MissingFields,
+		"followUpQuestions": result.FollowUpQuestions,
+		"conversationFacts": result.ConversationFacts,
 	})
 	return nil
+}
+
+func ticketDraftWorkflowOutput(result graphs.PrepareTicketDraftResult) map[string]any {
+	return map[string]any{
+		"ready":             result.Ready,
+		"title":             strings.TrimSpace(result.Title),
+		"description":       strings.TrimSpace(result.Description),
+		"missingFields":     result.MissingFields,
+		"followUpQuestions": result.FollowUpQuestions,
+		"conversationFacts": result.ConversationFacts,
+	}
 }
 
 func (e *Executor) executeAnalyzeConversation(ctx context.Context, state *runState, node dsl.Node) error {
@@ -761,7 +772,7 @@ func (e *Executor) executeAnswerabilityGate(state *runState, node dsl.Node) erro
 
 func (e *Executor) executeLLMReply(ctx context.Context, state *runState, node dsl.Node) error {
 	if staticReply := strings.TrimSpace(readStringConfig(node.Data.Config, "staticReply")); staticReply != "" {
-		state.setNodeVars(node.ID, map[string]any{"replyText": staticReply})
+		state.setNodeVars(node.ID, map[string]any{"replyText": renderWorkflowTemplate(staticReply, state.resolvedInputs(node))})
 		return nil
 	}
 	userPrompt := strings.TrimSpace(toString(state.resolveInput(node, "userMessage")))
@@ -942,11 +953,16 @@ func (s *runState) resolveInput(node dsl.Node, inputName string) any {
 	return s.resolveValue(value)
 }
 
-func (s *runState) nodeInputPreview(node dsl.Node) map[string]any {
+func (s *runState) resolvedInputs(node dsl.Node) map[string]any {
 	inputs := make(map[string]any, len(node.Data.InputsValues))
 	for name, value := range node.Data.InputsValues {
 		inputs[name] = s.resolveValue(value)
 	}
+	return inputs
+}
+
+func (s *runState) nodeInputPreview(node dsl.Node) map[string]any {
+	inputs := s.resolvedInputs(node)
 	ret := map[string]any{
 		"inputs": inputs,
 	}
@@ -959,6 +975,49 @@ func (s *runState) nodeInputPreview(node dsl.Node) map[string]any {
 		}
 	}
 	return ret
+}
+
+func renderWorkflowTemplate(template string, values map[string]any) string {
+	if strings.TrimSpace(template) == "" || len(values) == 0 {
+		return template
+	}
+	return workflowTemplateVariablePattern.ReplaceAllStringFunc(template, func(match string) string {
+		parts := workflowTemplateVariablePattern.FindStringSubmatch(match)
+		if len(parts) < 2 {
+			return match
+		}
+		name := strings.TrimSpace(parts[1])
+		value, ok := values[name]
+		if !ok {
+			return ""
+		}
+		return workflowTemplateValueString(value)
+	})
+}
+
+func workflowTemplateValueString(value any) string {
+	switch v := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return strings.TrimSpace(v)
+	case []string:
+		return strings.TrimSpace(strings.Join(v, "\n"))
+	case []any:
+		parts := make([]string, 0, len(v))
+		for _, item := range v {
+			if text := workflowTemplateValueString(item); text != "" {
+				parts = append(parts, text)
+			}
+		}
+		return strings.Join(parts, "\n")
+	default:
+		raw, err := json.Marshal(v)
+		if err != nil {
+			return strings.TrimSpace(fmt.Sprint(v))
+		}
+		return strings.TrimSpace(string(raw))
+	}
 }
 
 func (s *runState) nodeOutputPreview(nodeID string) map[string]any {

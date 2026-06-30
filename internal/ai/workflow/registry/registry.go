@@ -200,6 +200,11 @@ func DefaultRegistry() *Registry {
 			},
 			OutputSchema: []VariableSpec{
 				output("ticketDraft", "工单草稿", VariableTypeObject, "根据会话内容整理出的待确认工单草稿。"),
+				output("ready", "草稿就绪", VariableTypeBoolean, "工单草稿是否已具备创建所需的关键信息。"),
+				output("title", "工单标题", VariableTypeString, "工单草稿标题。"),
+				output("description", "工单描述", VariableTypeString, "工单草稿描述。"),
+				output("missingFields", "缺失字段", VariableTypeStringArray, "仍需客户补充的字段列表。"),
+				output("followUpQuestions", "追问问题", VariableTypeStringArray, "用于补齐工单信息的追问问题。"),
 			},
 		},
 		NodeSpec{

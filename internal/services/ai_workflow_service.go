@@ -446,19 +446,32 @@ func defaultAgentWorkflowDefinition() dsl.Definition {
 			workflowNode("policy_reply_1", workflowregistry.NodeTypeSendReply, "发送策略回复", 4320, 98.5, workflowInputs("replyText", "policy_1", "replyText"), nil),
 			workflowNode("handoff_end_1", workflowregistry.NodeTypeEnd, "结束", 2480, 0, nil, nil),
 			workflowNode("draft_ticket_1", workflowregistry.NodeTypePrepareTicketDraft, "整理工单草稿", 2020, 379, workflowInputs("issue", "start_1", "userMessage"), nil),
-			workflowNode("ticket_confirm_prompt_1", workflowregistry.NodeTypeLLMReply, "建单确认文案", 2480, 379, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": "我已整理工单草稿。请回复“确认”创建工单，或回复“取消”放弃。"}),
-			workflowNode("ticket_confirm_1", workflowregistry.NodeTypeHumanConfirm, "确认建单", 2940, 379, workflowInputs("prompt", "ticket_confirm_prompt_1", "replyText"), nil),
-			workflowNode("ticket_confirm_route_1", workflowregistry.NodeTypeCondition, "建单确认分流", 3400, 329, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+			workflowNode("ticket_draft_route_1", workflowregistry.NodeTypeCondition, "草稿就绪分流", 2480, 329, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				workflowConditionBranch("ready", "草稿完整", "ticket_confirm_prompt_1", "draft_ticket_1", "ready", "is_true", nil),
+				{ID: "default", Name: "补充信息", TargetNodeID: "ticket_followup_reply_1", Default: true},
+			}}),
+			workflowNode("ticket_confirm_prompt_1", workflowregistry.NodeTypeLLMReply, "建单确认文案", 2940, 285.5, map[string]dsl.Value{
+				"userMessage":       dsl.RefValue("start_1", "userMessage"),
+				"ticketTitle":       dsl.RefValue("draft_ticket_1", "title"),
+				"ticketDescription": dsl.RefValue("draft_ticket_1", "description"),
+			}, map[string]any{"staticReply": "我已整理工单草稿，请确认是否创建：\n标题：{{ticketTitle}}\n描述：{{ticketDescription}}\n请回复“确认”创建工单，或回复“取消”放弃。"}),
+			workflowNode("ticket_confirm_1", workflowregistry.NodeTypeHumanConfirm, "确认建单", 3400, 285.5, workflowInputs("prompt", "ticket_confirm_prompt_1", "replyText"), nil),
+			workflowNode("ticket_confirm_route_1", workflowregistry.NodeTypeCondition, "建单确认分流", 3860, 235.5, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
 				workflowConditionBranch("confirmed", "已确认", "create_ticket_1", "ticket_confirm_1", "confirmed", "is_true", nil),
 				{ID: "default", Name: "取消或未确认", TargetNodeID: "ticket_cancel_reply_1", Default: true},
 			}}),
-			workflowNode("create_ticket_1", workflowregistry.NodeTypeCreateTicket, "创建工单", 3860, 285.5, map[string]dsl.Value{
+			workflowNode("create_ticket_1", workflowregistry.NodeTypeCreateTicket, "创建工单", 4780, 192, map[string]dsl.Value{
 				"ticketDraft": dsl.RefValue("draft_ticket_1", "ticketDraft"),
 				"confirmed":   dsl.RefValue("ticket_confirm_1", "confirmed"),
 			}, nil),
-			workflowNode("ticket_result_reply_1", workflowregistry.NodeTypeSendReply, "发送建单结果", 4320, 285.5, workflowInputs("replyText", "create_ticket_1", "message"), nil),
-			workflowNode("ticket_cancel_reply_1", workflowregistry.NodeTypeLLMReply, "取消建单提示", 3860, 472.5, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": "已取消创建工单。你可以继续补充问题，我会继续帮你处理。"}),
-			workflowNode("send_ticket_cancel_1", workflowregistry.NodeTypeSendReply, "发送取消提示", 4320, 472.5, workflowInputs("replyText", "ticket_cancel_reply_1", "replyText"), nil),
+			workflowNode("ticket_result_reply_1", workflowregistry.NodeTypeSendReply, "发送建单结果", 5240, 192, workflowInputs("replyText", "create_ticket_1", "message"), nil),
+			workflowNode("ticket_cancel_reply_1", workflowregistry.NodeTypeLLMReply, "取消建单提示", 4320, 379, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": "已取消创建工单。你可以继续补充问题，我会继续帮你处理。"}),
+			workflowNode("send_ticket_cancel_1", workflowregistry.NodeTypeSendReply, "发送取消提示", 4780, 379, workflowInputs("replyText", "ticket_cancel_reply_1", "replyText"), nil),
+			workflowNode("ticket_followup_reply_1", workflowregistry.NodeTypeLLMReply, "追问工单信息", 3860, 1033.5, map[string]dsl.Value{
+				"userMessage":       dsl.RefValue("start_1", "userMessage"),
+				"followUpQuestions": dsl.RefValue("draft_ticket_1", "followUpQuestions"),
+			}, map[string]any{"staticReply": "为了创建工单，还需要补充以下信息：\n{{followUpQuestions}}"}),
+			workflowNode("send_ticket_followup_1", workflowregistry.NodeTypeSendReply, "发送工单追问", 4780, 1033.5, workflowInputs("replyText", "ticket_followup_reply_1", "replyText"), nil),
 			workflowNode("retrieve_1", workflowregistry.NodeTypeKnowledgeRetrieve, "知识检索", 2480, 753, workflowInputs("query", "start_1", "userMessage"), nil),
 			workflowNode("answerability_1", workflowregistry.NodeTypeAnswerabilityGate, "可回答判断", 2940, 753, map[string]dsl.Value{
 				"userMessage":    dsl.RefValue("start_1", "userMessage"),
@@ -478,7 +491,7 @@ func defaultAgentWorkflowDefinition() dsl.Definition {
 				"knowledgeItems": dsl.RefValue("retrieve_1", "items"),
 			}, nil),
 			workflowNode("send_fallback_1", workflowregistry.NodeTypeSendReply, "发送兜底", 4320, 846.5, workflowInputs("replyText", "fallback_reply_1", "replyText"), nil),
-			workflowNode("end_1", workflowregistry.NodeTypeEnd, "结束", 4780, 472.5, nil, nil),
+			workflowNode("end_1", workflowregistry.NodeTypeEnd, "结束", 5700, 472.5, nil, nil),
 		},
 		Edges: []dsl.Edge{
 			workflowEdge("start_1", "understanding_1"),
@@ -493,7 +506,9 @@ func defaultAgentWorkflowDefinition() dsl.Definition {
 			workflowPortEdge("policy_route_1", "policy_reply_1", "default"),
 			workflowEdge("policy_reply_1", "end_1"),
 			workflowEdge("handoff_1", "handoff_end_1"),
-			workflowEdge("draft_ticket_1", "ticket_confirm_prompt_1"),
+			workflowEdge("draft_ticket_1", "ticket_draft_route_1"),
+			workflowPortEdge("ticket_draft_route_1", "ticket_confirm_prompt_1", "ready"),
+			workflowPortEdge("ticket_draft_route_1", "ticket_followup_reply_1", "default"),
 			workflowEdge("ticket_confirm_prompt_1", "ticket_confirm_1"),
 			workflowEdge("ticket_confirm_1", "ticket_confirm_route_1"),
 			workflowPortEdge("ticket_confirm_route_1", "create_ticket_1", "confirmed"),
@@ -502,6 +517,8 @@ func defaultAgentWorkflowDefinition() dsl.Definition {
 			workflowEdge("ticket_result_reply_1", "end_1"),
 			workflowEdge("ticket_cancel_reply_1", "send_ticket_cancel_1"),
 			workflowEdge("send_ticket_cancel_1", "end_1"),
+			workflowEdge("ticket_followup_reply_1", "send_ticket_followup_1"),
+			workflowEdge("send_ticket_followup_1", "end_1"),
 			workflowEdge("retrieve_1", "answerability_1"),
 			workflowEdge("answerability_1", "answerability_route_1"),
 			workflowPortEdge("answerability_route_1", "reply_1", "answerable"),

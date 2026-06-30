@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"agent-desk/internal/ai/workflow/dsl"
@@ -84,12 +85,15 @@ func TestAIAgentServiceCreatesDefaultWorkflow(t *testing.T) {
 	assertConditionBranchToNodeType(t, stored, "policy_route_1", workflowregistry.NodeTypeSendReply, "eq", "direct_reply")
 	assertConditionBranchToNodeType(t, stored, "policy_route_1", workflowregistry.NodeTypeHandoffToHuman, "eq", "handoff_to_human")
 	assertConditionBranchToNodeType(t, stored, "policy_route_1", workflowregistry.NodeTypePrepareTicketDraft, "eq", "prepare_ticket")
+	assertConditionBranchToNodeID(t, stored, "ticket_draft_route_1", "ticket_confirm_prompt_1", "is_true", nil)
+	assertDefaultBranchToNodeID(t, stored, "ticket_draft_route_1", "ticket_followup_reply_1")
 	assertConditionBranchToNodeID(t, stored, "answerability_route_1", "reply_1", "eq", "answerable")
 	assertDefaultBranchToNodeID(t, stored, "answerability_route_1", "fallback_reply_1")
 	if !workflowEdgeExists(stored, "create_ticket_1", "ticket_result_reply_1") {
 		t.Fatalf("expected create_ticket to flow into a customer-visible result reply")
 	}
 	assertConditionBranchesHavePortEdges(t, stored, "policy_route_1")
+	assertConditionBranchesHavePortEdges(t, stored, "ticket_draft_route_1")
 	assertConditionBranchesHavePortEdges(t, stored, "ticket_confirm_route_1")
 	assertConditionBranchesHavePortEdges(t, stored, "answerability_route_1")
 	assertConditionBranchOrder(t, stored, "policy_route_1", []string{
@@ -132,6 +136,25 @@ func TestAIWorkflowServiceDefaultAgentWorkflowDefinitionIsValid(t *testing.T) {
 	}
 	if !workflowHasNodeType(definition, workflowregistry.NodeTypeCreateTicket) {
 		t.Fatalf("expected default workflow to include ticket creation node")
+	}
+}
+
+func TestAIWorkflowServiceDefaultAgentWorkflowTicketPromptIncludesDraftFields(t *testing.T) {
+	definition := AIWorkflowService.DefaultAgentWorkflowDefinition()
+	prompt := workflowNodeByID(t, definition, "ticket_confirm_prompt_1")
+	if _, ok := prompt.Data.InputsValues["ticketTitle"]; !ok {
+		t.Fatalf("expected ticket confirm prompt to map ticketTitle")
+	}
+	if _, ok := prompt.Data.InputsValues["ticketDescription"]; !ok {
+		t.Fatalf("expected ticket confirm prompt to map ticketDescription")
+	}
+	config := map[string]any{}
+	if err := json.Unmarshal(prompt.Data.Config, &config); err != nil {
+		t.Fatalf("unmarshal prompt config: %v", err)
+	}
+	staticReply, _ := config["staticReply"].(string)
+	if !strings.Contains(staticReply, "{{ticketTitle}}") || !strings.Contains(staticReply, "{{ticketDescription}}") {
+		t.Fatalf("expected prompt template to include ticket title and description, got %q", staticReply)
 	}
 }
 
@@ -271,6 +294,17 @@ func nodeTypeByID(def dsl.Definition, nodeID string) string {
 		}
 	}
 	return ""
+}
+
+func workflowNodeByID(t *testing.T, def dsl.Definition, nodeID string) dsl.Node {
+	t.Helper()
+	for _, node := range def.Nodes {
+		if node.ID == nodeID {
+			return node
+		}
+	}
+	t.Fatalf("workflow node not found: %s", nodeID)
+	return dsl.Node{}
 }
 
 func assertConditionBranchToNodeType(t *testing.T, def dsl.Definition, sourceID string, targetType string, operator string, right any) {

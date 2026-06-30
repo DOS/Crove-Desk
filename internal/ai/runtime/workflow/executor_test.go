@@ -239,6 +239,58 @@ func TestExecutorPrepareTicketDraftOutputsDraftVariable(t *testing.T) {
 	assertPath(t, result.NodePath, []string{"start_1", "draft_1", "draft_route_1", "ready_end"})
 }
 
+func TestExecutorPrepareTicketDraftRoutesIncompleteDraftToFollowUp(t *testing.T) {
+	db := setupWorkflowExecutorHandoffDB(t)
+	aiAgent := createWorkflowExecutorHandoffAIAgent(t, db, "1")
+	conversation := createWorkflowExecutorHandoffConversation(t, db, aiAgent.ID)
+	userMessage := createWorkflowExecutorCustomerMessage(t, db, conversation.ID, "")
+
+	result, err := NewExecutor().Execute(context.Background(), Input{
+		Definition:   ticketDraftReadyWorkflowDefinition(),
+		Conversation: conversation,
+		UserMessage:  userMessage,
+		AIAgent:      aiAgent,
+	})
+	if err != nil {
+		t.Fatalf("execute workflow: %v", err)
+	}
+	if result.Interrupted {
+		t.Fatalf("expected incomplete draft to avoid confirmation interrupt")
+	}
+	if !strings.Contains(result.ReplyText, "Please provide") {
+		t.Fatalf("expected follow-up questions in reply, got %q", result.ReplyText)
+	}
+	assertPath(t, result.NodePath, []string{"start_1", "draft_1", "draft_route_1", "followup_1", "send_followup_1", "end_1"})
+}
+
+func TestExecutorTicketConfirmationPromptIncludesDraftTitleAndDescription(t *testing.T) {
+	db := setupWorkflowExecutorHandoffDB(t)
+	aiAgent := createWorkflowExecutorHandoffAIAgent(t, db, "1")
+	conversation := createWorkflowExecutorHandoffConversation(t, db, aiAgent.ID)
+	userMessage := createWorkflowExecutorCustomerMessage(t, db, conversation.ID, "订单支付失败，请帮我登记工单")
+
+	result, err := NewExecutor().Execute(context.Background(), Input{
+		Definition:   ticketDraftReadyWorkflowDefinition(),
+		Conversation: conversation,
+		UserMessage:  userMessage,
+		AIAgent:      aiAgent,
+	})
+	if err != nil {
+		t.Fatalf("execute workflow: %v", err)
+	}
+	if !result.Interrupted {
+		t.Fatalf("expected ready draft to interrupt for confirmation")
+	}
+	if len(result.Interrupts) != 1 {
+		t.Fatalf("expected one interrupt, got %#v", result.Interrupts)
+	}
+	prompt := result.Interrupts[0].InfoPreview
+	if !strings.Contains(prompt, "订单支付失败") || !strings.Contains(prompt, "Issue: 订单支付失败") {
+		t.Fatalf("expected confirmation prompt to include draft title and description, got %q", prompt)
+	}
+	assertPath(t, result.NodePath, []string{"start_1", "draft_1", "draft_route_1", "prompt_1", "confirm_1"})
+}
+
 func TestExecutorPolicyFirstWorkflowRoutesGreetingToDirectReply(t *testing.T) {
 	result, err := NewExecutor().Execute(context.Background(), Input{
 		Definition: policyFirstWorkflowDefinition(),
@@ -508,6 +560,40 @@ func conditionalReplyDefinition() dsl.Definition {
 			wfTestEdge("normal_reply", "send_normal", "edge_normal_send"),
 			wfTestEdge("send_vip", "end_1", "edge_send_vip_end"),
 			wfTestEdge("send_normal", "end_1", "edge_send_normal_end"),
+		},
+	)
+}
+
+func ticketDraftReadyWorkflowDefinition() dsl.Definition {
+	return wfTestDefinition(
+		[]dsl.Node{
+			wfTestNode("start_1", workflowregistry.NodeTypeStart, "Start", nil, nil),
+			wfTestNode("draft_1", workflowregistry.NodeTypePrepareTicketDraft, "Draft", wfTestInputs("issue", "start_1", "userMessage"), nil),
+			wfTestNode("draft_route_1", workflowregistry.NodeTypeCondition, "Draft Route", nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				wfTestConditionBranch("ready", "Ready", "prompt_1", "draft_1", "ready", "is_true", nil),
+				{ID: "default", Name: "Need More Info", TargetNodeID: "followup_1", Default: true},
+			}}),
+			wfTestNode("prompt_1", workflowregistry.NodeTypeLLMReply, "Prompt", map[string]dsl.Value{
+				"userMessage":       dsl.RefValue("start_1", "userMessage"),
+				"ticketTitle":       dsl.RefValue("draft_1", "title"),
+				"ticketDescription": dsl.RefValue("draft_1", "description"),
+			}, map[string]any{"staticReply": "请确认创建工单：\n标题：{{ticketTitle}}\n描述：{{ticketDescription}}"}),
+			wfTestNode("confirm_1", workflowregistry.NodeTypeHumanConfirm, "Confirm", wfTestInputs("prompt", "prompt_1", "replyText"), nil),
+			wfTestNode("followup_1", workflowregistry.NodeTypeLLMReply, "Follow Up", map[string]dsl.Value{
+				"userMessage":       dsl.RefValue("start_1", "userMessage"),
+				"followUpQuestions": dsl.RefValue("draft_1", "followUpQuestions"),
+			}, map[string]any{"staticReply": "{{followUpQuestions}}"}),
+			wfTestNode("send_followup_1", workflowregistry.NodeTypeSendReply, "Send Follow Up", wfTestInputs("replyText", "followup_1", "replyText"), nil),
+			wfTestNode("end_1", workflowregistry.NodeTypeEnd, "End", nil, nil),
+		},
+		[]dsl.Edge{
+			wfTestEdge("start_1", "draft_1", "edge_start_draft"),
+			wfTestEdge("draft_1", "draft_route_1", "edge_draft_route"),
+			wfTestEdge("draft_route_1", "prompt_1", "ready"),
+			wfTestEdge("draft_route_1", "followup_1", "default"),
+			wfTestEdge("prompt_1", "confirm_1", "edge_prompt_confirm"),
+			wfTestEdge("followup_1", "send_followup_1", "edge_followup_send"),
+			wfTestEdge("send_followup_1", "end_1", "edge_followup_end"),
 		},
 	)
 }
