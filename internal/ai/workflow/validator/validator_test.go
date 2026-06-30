@@ -213,6 +213,42 @@ func TestValidateDefinitionRejectsUnknownConditionVariable(t *testing.T) {
 	}
 }
 
+func TestValidateDefinitionRejectsKnowledgeRetrieveWithoutKnowledgeBases(t *testing.T) {
+	def := knowledgeRetrieveDefinition(nil)
+
+	result := validator.ValidateDefinition(def, registry.DefaultRegistry())
+
+	if result.Valid {
+		t.Fatalf("expected knowledge_retrieve without knowledge bases to be invalid")
+	}
+	if !hasValidationMessage(result, "需要选择至少一个知识库") {
+		t.Fatalf("expected missing knowledge base error, got %#v", result.Errors)
+	}
+}
+
+func TestValidateDefinitionRejectsKnowledgeRetrieveWithInvalidKnowledgeBaseID(t *testing.T) {
+	def := knowledgeRetrieveDefinition(map[string]any{"knowledgeBaseIds": []int64{0, -1}})
+
+	result := validator.ValidateDefinition(def, registry.DefaultRegistry())
+
+	if result.Valid {
+		t.Fatalf("expected invalid knowledge base id to be invalid")
+	}
+	if !hasValidationMessage(result, "知识库 ID 必须大于 0") {
+		t.Fatalf("expected invalid knowledge base id error, got %#v", result.Errors)
+	}
+}
+
+func TestValidateDefinitionAcceptsKnowledgeRetrieveWithKnowledgeBases(t *testing.T) {
+	def := knowledgeRetrieveDefinition(map[string]any{"knowledgeBaseIds": []int64{1, 2}})
+
+	result := validator.ValidateDefinition(def, registry.DefaultRegistry())
+
+	if !result.Valid {
+		t.Fatalf("expected knowledge_retrieve with knowledge bases to be valid, got %#v", result.Errors)
+	}
+}
+
 func minimalDefinition() dsl.Definition {
 	return dsl.Definition{
 		SchemaVersion: dsl.SchemaVersion,
@@ -224,6 +260,21 @@ func minimalDefinition() dsl.Definition {
 		Edges: []dsl.Edge{
 			edge("start_1", "reply_1"),
 			edge("reply_1", "end_1"),
+		},
+	}
+}
+
+func knowledgeRetrieveDefinition(config any) dsl.Definition {
+	return dsl.Definition{
+		SchemaVersion: dsl.SchemaVersion,
+		Nodes: []dsl.Node{
+			node("start_1", "start", nil, nil),
+			node("retrieve_1", "knowledge_retrieve", inputs("query", dsl.RefValue("start_1", "userMessage")), config),
+			node("end_1", "end", nil, nil),
+		},
+		Edges: []dsl.Edge{
+			edge("start_1", "retrieve_1"),
+			edge("retrieve_1", "end_1"),
 		},
 	}
 }

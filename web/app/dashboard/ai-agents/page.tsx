@@ -151,32 +151,6 @@ export default function DashboardAIAgentsPage() {
         },
       },
       {
-        key: "knowledge",
-        label: t("aiAgent.columnKnowledge"),
-        render: (item) => {
-          const knowledgeIds = item.knowledgeIds ?? [];
-          const knowledgeBaseNames = item.knowledgeBaseNames ?? [];
-          return (
-            <div className="flex flex-wrap gap-1">
-              {knowledgeIds.length === 0 ? (
-                <span className="text-sm text-muted-foreground">
-                  {t("aiAgent.notConfigured")}
-                </span>
-              ) : (
-                knowledgeBaseNames.map((name, index) => (
-                  <Badge
-                    key={knowledgeIds[index] ?? `${item.id}-${index}`}
-                    variant="secondary"
-                  >
-                    {name}
-                  </Badge>
-                ))
-              )}
-            </div>
-          );
-        },
-      },
-      {
         key: "skills",
         label: t("aiAgent.columnSkills"),
         render: (item) => {

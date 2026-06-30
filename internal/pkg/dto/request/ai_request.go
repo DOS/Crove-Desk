@@ -54,7 +54,6 @@ type CreateAIAgentRequest struct {
 	HandoffMode         enums.AIAgentHandoffMode        `json:"handoffMode"`
 	FallbackMode        enums.AIAgentFallbackMode       `json:"fallbackMode"`
 	FallbackMessage     string                          `json:"fallbackMessage"`
-	KnowledgeIDs        []int64                         `json:"knowledgeIds"`
 	SkillIDs            []int64                         `json:"skillIds"`
 	DirectTools         []AIAgentMCPToolRequest         `json:"directTools"`
 }

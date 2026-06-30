@@ -32,7 +32,6 @@ func DefaultRegistry() *Registry {
 				output("messageId", "消息 ID", VariableTypeInteger, "客户本轮消息的内部编号。"),
 				output("aiAgentId", "AI Agent ID", VariableTypeInteger, "当前处理会话的 AI Agent 编号。"),
 				output("userMessage", "用户消息", VariableTypeString, "客户本轮发送的原始消息内容。"),
-				output("knowledgeBaseIds", "知识库 ID 列表", VariableTypeIntegerArray, "当前 AI Agent 已绑定的知识库编号列表。"),
 			},
 		},
 		NodeSpec{
@@ -120,6 +119,14 @@ func DefaultRegistry() *Registry {
 			Description: "Retrieve knowledge for the current user message.",
 			Icon:        "BookOpenIcon",
 			RiskLevel:   NodeRiskLevelLow,
+			ConfigSchema: map[string]any{
+				"knowledgeBaseIds": map[string]any{
+					"type":        string(VariableTypeIntegerArray),
+					"label":       "知识库",
+					"required":    true,
+					"description": "本节点检索时使用的知识库列表，按顺序表示优先级。",
+				},
+			},
 			InputSchema: []VariableSpec{
 				requiredInput("query", "检索问题", VariableTypeString, "用于检索知识库的客户问题或查询文本。"),
 			},

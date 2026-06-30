@@ -2,9 +2,14 @@ package services
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"agent-desk/internal/ai/rag"
+	"agent-desk/internal/ai/workflow/dsl"
+	workflowregistry "agent-desk/internal/ai/workflow/registry"
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/dto"
 	"agent-desk/internal/pkg/dto/request"
@@ -128,12 +133,12 @@ func (s *knowledgeBaseService) DeleteKnowledgeBase(id int64) error {
 		return errorsx.InvalidParamI18n("error.e0283")
 	}
 
-	referencingAgents := repositories.AIAgentRepository.FindByKnowledgeBaseID(sqls.DB(), id)
-	if len(referencingAgents) > 0 {
-		if len(referencingAgents) == 1 {
-			return errorsx.ForbiddenI18n("error.knowledgeBase.referencedByAgent", referencingAgents[0].Name)
+	referencingWorkflows := s.findWorkflowReferencesByKnowledgeBaseID(id)
+	if len(referencingWorkflows) > 0 {
+		if len(referencingWorkflows) == 1 {
+			return errorsx.Forbidden(fmt.Sprintf("知识库正在被流程「%s」使用，请先从知识检索节点中移除", referencingWorkflows[0]))
 		}
-		return errorsx.ForbiddenI18n("error.knowledgeBase.referencedByAgents", len(referencingAgents))
+		return errorsx.Forbidden(fmt.Sprintf("知识库正在被 %d 个流程使用，请先从知识检索节点中移除", len(referencingWorkflows)))
 	}
 
 	if err := sqls.WithTransaction(func(ctx *sqls.TxContext) error {
@@ -149,6 +154,86 @@ func (s *knowledgeBaseService) DeleteKnowledgeBase(id int64) error {
 	}
 
 	return rag.Index.RemoveKnowledgeBaseIndex(context.Background(), id)
+}
+
+func (s *knowledgeBaseService) findWorkflowReferencesByKnowledgeBaseID(id int64) []string {
+	names := make(map[string]struct{})
+	workflows := repositories.AIWorkflowRepository.Find(sqls.DB(), sqls.NewCnd().Eq("status", enums.StatusOk))
+	workflowNames := make(map[int64]string, len(workflows))
+	for _, workflow := range workflows {
+		name := strings.TrimSpace(workflow.Name)
+		if name == "" {
+			name = fmt.Sprintf("ID %d", workflow.ID)
+		}
+		workflowNames[workflow.ID] = name
+		if workflowDefinitionUsesKnowledgeBase(workflow.DraftDefinition, id) {
+			names[name] = struct{}{}
+		}
+	}
+	versions := repositories.AIWorkflowVersionRepository.Find(sqls.DB(), sqls.NewCnd())
+	for _, version := range versions {
+		if !workflowDefinitionUsesKnowledgeBase(version.Definition, id) {
+			continue
+		}
+		name := workflowNames[version.WorkflowID]
+		if strings.TrimSpace(name) == "" {
+			name = fmt.Sprintf("ID %d", version.WorkflowID)
+		}
+		names[name] = struct{}{}
+	}
+	ret := make([]string, 0, len(names))
+	for name := range names {
+		ret = append(ret, name)
+	}
+	return ret
+}
+
+func workflowDefinitionUsesKnowledgeBase(definition string, id int64) bool {
+	definition = strings.TrimSpace(definition)
+	if definition == "" {
+		return false
+	}
+	var def dsl.Definition
+	if err := json.Unmarshal([]byte(definition), &def); err != nil {
+		return false
+	}
+	for _, node := range def.Nodes {
+		if strings.TrimSpace(node.Type) != workflowregistry.NodeTypeKnowledgeRetrieve {
+			continue
+		}
+		for _, knowledgeBaseID := range knowledgeBaseIDsFromWorkflowNodeConfig(node.Data.Config) {
+			if knowledgeBaseID == id {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func knowledgeBaseIDsFromWorkflowNodeConfig(raw json.RawMessage) []int64 {
+	if len(raw) == 0 {
+		return nil
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		return nil
+	}
+	items, ok := cfg["knowledgeBaseIds"].([]any)
+	if !ok {
+		return nil
+	}
+	ret := make([]int64, 0, len(items))
+	for _, item := range items {
+		switch value := item.(type) {
+		case float64:
+			ret = append(ret, int64(value))
+		case int64:
+			ret = append(ret, value)
+		case int:
+			ret = append(ret, int64(value))
+		}
+	}
+	return ret
 }
 
 func (s *knowledgeBaseService) UpdateSort(ids []int64) error {

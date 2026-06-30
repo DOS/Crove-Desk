@@ -23,8 +23,8 @@ func TestDefaultRegistryExposesStartOutputs(t *testing.T) {
 	if !hasVariable(spec.OutputSchema, "userMessage", VariableTypeString) {
 		t.Fatalf("expected start output userMessage:string, got %#v", spec.OutputSchema)
 	}
-	if !hasVariable(spec.OutputSchema, "knowledgeBaseIds", VariableTypeIntegerArray) {
-		t.Fatalf("expected start output knowledgeBaseIds:array<int>, got %#v", spec.OutputSchema)
+	if hasVariableName(spec.OutputSchema, "knowledgeBaseIds") {
+		t.Fatalf("did not expect start output knowledgeBaseIds after knowledge binding moved to retrieve node, got %#v", spec.OutputSchema)
 	}
 }
 
@@ -38,6 +38,9 @@ func TestDefaultRegistryExposesKnowledgeRetrieveInputsAndOutputs(t *testing.T) {
 	}
 	if !hasVariable(spec.OutputSchema, "items", VariableTypeObjectArray) {
 		t.Fatalf("expected knowledge_retrieve output items:array<object>, got %#v", spec.OutputSchema)
+	}
+	if spec.ConfigSchema == nil {
+		t.Fatalf("expected knowledge_retrieve config schema")
 	}
 }
 

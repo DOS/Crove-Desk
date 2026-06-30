@@ -1,11 +1,7 @@
 package repositories
 
 import (
-	"strconv"
-
 	"agent-desk/internal/models"
-	"agent-desk/internal/pkg/enums"
-
 	"agent-desk/internal/pkg/httpx/params"
 
 	"github.com/mlogclub/simple/sqls"
@@ -111,17 +107,4 @@ func (r *aIAgentRepository) FindByIds(db *gorm.DB, ids []int64) []models.AIAgent
 	var list []models.AIAgent
 	db.Where("id IN ?", ids).Find(&list)
 	return list
-}
-
-func (r *aIAgentRepository) FindByKnowledgeBaseID(db *gorm.DB, knowledgeBaseID int64) (list []models.AIAgent) {
-	id := strconv.FormatInt(knowledgeBaseID, 10)
-	db.Where(
-		"(knowledge_ids = ? OR knowledge_ids LIKE ? OR knowledge_ids LIKE ? OR knowledge_ids LIKE ?) AND status <> ?",
-		id,
-		id+",%",
-		"%,"+id,
-		"%,"+id+",%",
-		enums.StatusDeleted,
-	).Find(&list)
-	return
 }

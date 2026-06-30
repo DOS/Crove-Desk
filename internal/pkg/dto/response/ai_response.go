@@ -85,8 +85,6 @@ type AIAgentResponse struct {
 	FallbackMode        enums.AIAgentFallbackMode       `json:"fallbackMode"`
 	FallbackModeName    string                          `json:"fallbackModeName"`
 	FallbackMessage     string                          `json:"fallbackMessage"`
-	KnowledgeIDs        []int64                         `json:"knowledgeIds"`
-	KnowledgeBaseNames  []string                        `json:"knowledgeBaseNames"`
 	SkillIDs            []int64                         `json:"skillIds"`
 	Skills              []AIAgentSkillResponse          `json:"skills"`
 	DirectTools         []AIAgentMCPToolResponse        `json:"directTools"`

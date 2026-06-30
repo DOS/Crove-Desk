@@ -1,10 +1,12 @@
 package services
 
 import (
-	"fmt"
+	"encoding/json"
 	"strings"
 	"testing"
 
+	"agent-desk/internal/ai/workflow/dsl"
+	workflowregistry "agent-desk/internal/ai/workflow/registry"
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/enums"
@@ -25,34 +27,48 @@ func TestBuildKnowledgeBaseModelUsesLowerDefaultScoreThreshold(t *testing.T) {
 	}
 }
 
-func TestDeleteKnowledgeBaseRejectsAIAgentReference(t *testing.T) {
+func TestDeleteKnowledgeBaseRejectsWorkflowDraftReference(t *testing.T) {
 	setupKnowledgeBaseServiceTestDB(t)
 	kb := createKnowledgeBaseServiceTestBase(t, "Referenced KB")
 	otherKB := createKnowledgeBaseServiceTestBase(t, "Other KB")
-	if err := repositories.AIAgentRepository.Create(sqls.DB(), &models.AIAgent{
-		Name:         "Support Agent",
-		Status:       enums.StatusOk,
-		KnowledgeIDs: "12",
-	}); err != nil {
-		t.Fatalf("create unrelated ai agent: %v", err)
-	}
-	if err := repositories.AIAgentRepository.Create(sqls.DB(), &models.AIAgent{
-		Name:         "Knowledge Agent",
-		Status:       enums.StatusOk,
-		KnowledgeIDs: fmt.Sprintf("12,%d,%d", kb.ID, otherKB.ID),
-	}); err != nil {
-		t.Fatalf("create ai agent: %v", err)
-	}
+	createKnowledgeBaseServiceTestWorkflow(t, "Support Workflow", knowledgeBaseServiceTestWorkflowDefinition([]int64{12, otherKB.ID}))
+	createKnowledgeBaseServiceTestWorkflow(t, "Knowledge Workflow", knowledgeBaseServiceTestWorkflowDefinition([]int64{12, kb.ID, otherKB.ID}))
 
 	err := KnowledgeBaseService.DeleteKnowledgeBase(kb.ID)
 	if err == nil {
-		t.Fatal("DeleteKnowledgeBase() error is nil, want referenced knowledge base error")
+		t.Fatal("DeleteKnowledgeBase() error is nil, want referenced workflow error")
 	}
-	if got := err.Error(); !strings.Contains(got, "Knowledge Agent") {
-		t.Fatalf("DeleteKnowledgeBase() error = %q, want agent name", got)
+	if got := err.Error(); !strings.Contains(got, "Knowledge Workflow") {
+		t.Fatalf("DeleteKnowledgeBase() error = %q, want workflow name", got)
 	}
 	if repositories.KnowledgeBaseRepository.Get(sqls.DB(), kb.ID) == nil {
-		t.Fatal("knowledge base was deleted despite ai agent reference")
+		t.Fatal("knowledge base was deleted despite workflow reference")
+	}
+}
+
+func TestDeleteKnowledgeBaseRejectsWorkflowVersionReference(t *testing.T) {
+	setupKnowledgeBaseServiceTestDB(t)
+	kb := createKnowledgeBaseServiceTestBase(t, "Version KB")
+	workflow := createKnowledgeBaseServiceTestWorkflow(t, "Published Workflow", knowledgeBaseServiceTestWorkflowDefinition([]int64{999}))
+	raw, err := json.Marshal(knowledgeBaseServiceTestWorkflowDefinition([]int64{kb.ID}))
+	if err != nil {
+		t.Fatalf("marshal workflow version definition: %v", err)
+	}
+	if err := repositories.AIWorkflowVersionRepository.Create(sqls.DB(), &models.AIWorkflowVersion{
+		WorkflowID: workflow.ID,
+		Version:    1,
+		Status:     enums.StatusOk,
+		Definition: string(raw),
+	}); err != nil {
+		t.Fatalf("create workflow version: %v", err)
+	}
+
+	err = KnowledgeBaseService.DeleteKnowledgeBase(kb.ID)
+	if err == nil {
+		t.Fatal("DeleteKnowledgeBase() error is nil, want referenced workflow version error")
+	}
+	if got := err.Error(); !strings.Contains(got, "Published Workflow") {
+		t.Fatalf("DeleteKnowledgeBase() error = %q, want workflow name", got)
 	}
 }
 
@@ -103,10 +119,65 @@ func setupKnowledgeBaseServiceTestDB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite db: %v", err)
 	}
-	if err := db.AutoMigrate(&models.KnowledgeBase{}, &models.KnowledgeDocument{}, &models.KnowledgeFAQ{}, &models.KnowledgeChunk{}, &models.AIAgent{}); err != nil {
+	if err := db.AutoMigrate(&models.KnowledgeBase{}, &models.KnowledgeDocument{}, &models.KnowledgeFAQ{}, &models.KnowledgeChunk{}, &models.AIAgent{}, &models.AIWorkflow{}, &models.AIWorkflowVersion{}); err != nil {
 		t.Fatalf("auto migrate: %v", err)
 	}
 	sqls.SetDB(db)
+}
+
+func createKnowledgeBaseServiceTestWorkflow(t *testing.T, name string, definition dsl.Definition) *models.AIWorkflow {
+	t.Helper()
+	raw, err := json.Marshal(definition)
+	if err != nil {
+		t.Fatalf("marshal workflow definition: %v", err)
+	}
+	item := &models.AIWorkflow{
+		Name:            name,
+		Status:          enums.StatusOk,
+		DraftDefinition: string(raw),
+	}
+	if err := repositories.AIWorkflowRepository.Create(sqls.DB(), item); err != nil {
+		t.Fatalf("create workflow: %v", err)
+	}
+	return item
+}
+
+func knowledgeBaseServiceTestWorkflowDefinition(knowledgeBaseIDs []int64) dsl.Definition {
+	return dsl.Definition{
+		SchemaVersion: dsl.SchemaVersion,
+		Nodes: []dsl.Node{
+			{
+				ID:   "start_1",
+				Type: workflowregistry.NodeTypeStart,
+			},
+			{
+				ID:   "retrieve_1",
+				Type: workflowregistry.NodeTypeKnowledgeRetrieve,
+				Data: dsl.NodeData{
+					Config: mustKnowledgeBaseServiceTestJSON(map[string]any{"knowledgeBaseIds": knowledgeBaseIDs}),
+					InputsValues: map[string]dsl.Value{
+						"query": dsl.RefValue("start_1", "userMessage"),
+					},
+				},
+			},
+			{
+				ID:   "end_1",
+				Type: workflowregistry.NodeTypeEnd,
+			},
+		},
+		Edges: []dsl.Edge{
+			{SourceNodeID: "start_1", TargetNodeID: "retrieve_1"},
+			{SourceNodeID: "retrieve_1", TargetNodeID: "end_1"},
+		},
+	}
+}
+
+func mustKnowledgeBaseServiceTestJSON(value any) json.RawMessage {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		panic(err)
+	}
+	return raw
 }
 
 func createKnowledgeBaseServiceTestBase(t *testing.T, name string) *models.KnowledgeBase {

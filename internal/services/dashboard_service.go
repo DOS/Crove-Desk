@@ -274,23 +274,6 @@ func (s *dashboardService) buildAlerts(now time.Time, db *gorm.DB, aiAgents []mo
 		})
 	}
 
-	var aiAgentWithoutKnowledgeCount int64
-	for _, item := range aiAgents {
-		if strings.TrimSpace(item.KnowledgeIDs) == "" {
-			aiAgentWithoutKnowledgeCount++
-		}
-	}
-	if aiAgentWithoutKnowledgeCount > 0 {
-		alerts = append(alerts, response.DashboardAlertResponse{
-			ID:          "ai-no-knowledge",
-			Level:       "info",
-			Title:       dashboardText(locale, "alert.aiNoKnowledge.title"),
-			Description: dashboardText(locale, "alert.aiNoKnowledge.description"),
-			Count:       aiAgentWithoutKnowledgeCount,
-			Link:        "/dashboard/ai-agents",
-		})
-	}
-
 	sort.Slice(alerts, func(i, j int) bool {
 		if alerts[i].Count == alerts[j].Count {
 			return alerts[i].ID < alerts[j].ID

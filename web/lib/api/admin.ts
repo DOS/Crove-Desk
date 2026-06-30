@@ -227,8 +227,6 @@ export type AIAgent = {
   fallbackMode: number
   fallbackModeName: string
   fallbackMessage: string
-  knowledgeIds: number[]
-  knowledgeBaseNames: string[]
   skillIds: number[]
   skills: { id: number; name: string }[]
   directTools: {
@@ -262,7 +260,6 @@ export type CreateAIAgentPayload = {
   handoffMode: number
   fallbackMode: number
   fallbackMessage: string
-  knowledgeIds: number[]
   skillIds: number[]
   directTools: {
     toolCode: string

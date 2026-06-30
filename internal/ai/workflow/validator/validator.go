@@ -53,6 +53,7 @@ type definitionValidator struct {
 func (v *definitionValidator) validate() {
 	v.validateNodes()
 	v.validateEdges()
+	v.validateKnowledgeRetrieveConfigs()
 	v.validateReachability()
 	v.validateConfirmationGuards()
 	v.validateVariableMappings()
@@ -304,6 +305,58 @@ func (v *definitionValidator) validateConditions() {
 			v.addError(field, "condition node must include exactly one default branch")
 		}
 	}
+}
+
+func (v *definitionValidator) validateKnowledgeRetrieveConfigs() {
+	for index, node := range v.def.Nodes {
+		if strings.TrimSpace(node.Type) != registry.NodeTypeKnowledgeRetrieve {
+			continue
+		}
+		field := fmt.Sprintf("nodes[%d].config.knowledgeBaseIds", index)
+		ids, ok := readKnowledgeBaseIDsFromConfig(node.Data.Config)
+		if !ok || len(ids) == 0 {
+			v.addError(field, "知识检索节点需要选择至少一个知识库")
+			continue
+		}
+		for _, id := range ids {
+			if id <= 0 {
+				v.addError(field, "知识库 ID 必须大于 0")
+				break
+			}
+		}
+	}
+}
+
+func readKnowledgeBaseIDsFromConfig(raw json.RawMessage) ([]int64, bool) {
+	if len(raw) == 0 {
+		return nil, false
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		return nil, false
+	}
+	rawIDs, ok := cfg["knowledgeBaseIds"]
+	if !ok {
+		return nil, false
+	}
+	values, ok := rawIDs.([]any)
+	if !ok {
+		return nil, false
+	}
+	ret := make([]int64, 0, len(values))
+	for _, value := range values {
+		switch v := value.(type) {
+		case float64:
+			ret = append(ret, int64(v))
+		case int64:
+			ret = append(ret, v)
+		case int:
+			ret = append(ret, int64(v))
+		default:
+			return nil, false
+		}
+	}
+	return ret, true
 }
 
 func (v *definitionValidator) validateCondition(field string, sourceNodeID string, condition *dsl.Condition) {

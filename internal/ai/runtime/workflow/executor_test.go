@@ -298,7 +298,6 @@ func TestExecutorPolicyFirstWorkflowRoutesGreetingToDirectReply(t *testing.T) {
 			Content: "<p>你好。</p>",
 		},
 		AIAgent: models.AIAgent{
-			KnowledgeIDs:    "1",
 			FallbackMessage: "我暂时没有找到足够准确的信息。",
 		},
 	})
@@ -330,7 +329,6 @@ func TestExecutorPolicyFirstWorkflowRoutesBusinessQuestionToKnowledge(t *testing
 			Content: "你们价格是多少？",
 		},
 		AIAgent: models.AIAgent{
-			KnowledgeIDs:    "1",
 			FallbackMessage: "我暂时没有找到足够准确的信息。",
 		},
 	})
@@ -340,6 +338,24 @@ func TestExecutorPolicyFirstWorkflowRoutesBusinessQuestionToKnowledge(t *testing
 	assertPath(t, result.NodePath, []string{"start_1", "understanding_1", "policy_1", "policy_route_1", "retrieve_end"})
 }
 
+func TestExecutorKnowledgeRetrieveRequiresNodeKnowledgeBases(t *testing.T) {
+	_, err := NewExecutor().Execute(context.Background(), Input{
+		Definition: knowledgeRetrieveWorkflowDefinition(nil),
+		UserMessage: models.Message{
+			Content: "产品价格",
+		},
+		AIAgent: models.AIAgent{
+			KnowledgeIDs: "1,2",
+		},
+	})
+	if err == nil {
+		t.Fatalf("expected knowledge retrieve without node knowledge bases to fail")
+	}
+	if !strings.Contains(err.Error(), "knowledge retrieve node requires knowledgeBaseIds") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestExecutorLLMReplyUsesAgentFallbackWhenDeclaredKnowledgeIsEmpty(t *testing.T) {
 	result, err := NewExecutor().Execute(context.Background(), Input{
 		Definition: emptyKnowledgeReplyDefinition(),
@@ -347,7 +363,6 @@ func TestExecutorLLMReplyUsesAgentFallbackWhenDeclaredKnowledgeIsEmpty(t *testin
 			Content: "产品功能",
 		},
 		AIAgent: models.AIAgent{
-			KnowledgeIDs:    "1",
 			FallbackMode:    enums.AIAgentFallbackModeNoAnswer,
 			FallbackMessage: "我暂时没有找到足够准确的信息。你可以补充更具体的问题，我再继续帮你查。",
 			SystemPrompt:    "不要编造事实。",
@@ -560,6 +575,20 @@ func conditionalReplyDefinition() dsl.Definition {
 			wfTestEdge("normal_reply", "send_normal", "edge_normal_send"),
 			wfTestEdge("send_vip", "end_1", "edge_send_vip_end"),
 			wfTestEdge("send_normal", "end_1", "edge_send_normal_end"),
+		},
+	)
+}
+
+func knowledgeRetrieveWorkflowDefinition(config any) dsl.Definition {
+	return wfTestDefinition(
+		[]dsl.Node{
+			wfTestNode("start_1", workflowregistry.NodeTypeStart, "Start", nil, nil),
+			wfTestNode("retrieve_1", workflowregistry.NodeTypeKnowledgeRetrieve, "Retrieve", wfTestInputs("query", "start_1", "userMessage"), config),
+			wfTestNode("end_1", workflowregistry.NodeTypeEnd, "End", nil, nil),
+		},
+		[]dsl.Edge{
+			wfTestEdge("start_1", "retrieve_1", "edge_start_retrieve"),
+			wfTestEdge("retrieve_1", "end_1", "edge_retrieve_end"),
 		},
 	)
 }

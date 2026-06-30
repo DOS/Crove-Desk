@@ -22,7 +22,6 @@ func TestAIAgentServiceCreatesDefaultWorkflow(t *testing.T) {
 	setupAIAgentWorkflowTestDB(t)
 	operator := aiAgentWorkflowTestOperator()
 	aiConfigID := createAIAgentWorkflowTestConfig(t)
-	knowledgeID := createAIAgentWorkflowTestKnowledgeBase(t)
 
 	item, err := AIAgentService.CreateAIAgent(request.CreateAIAgentRequest{
 		Name:         "workflow agent",
@@ -30,7 +29,6 @@ func TestAIAgentServiceCreatesDefaultWorkflow(t *testing.T) {
 		ServiceMode:  enums.IMConversationServiceModeAIOnly,
 		HandoffMode:  enums.AIAgentHandoffModeWaitPool,
 		FallbackMode: enums.AIAgentFallbackModeNoAnswer,
-		KnowledgeIDs: []int64{knowledgeID},
 	}, operator)
 	if err != nil {
 		t.Fatalf("CreateAIAgent() error = %v", err)
@@ -54,8 +52,8 @@ func TestAIAgentServiceCreatesDefaultWorkflow(t *testing.T) {
 		t.Fatalf("expected default draft definition")
 	}
 	validation := workflowvalidator.ValidateDefinition(stored, workflowregistry.DefaultRegistry())
-	if !validation.Valid {
-		t.Fatalf("expected default workflow to be valid, got %#v", validation.Errors)
+	if validation.Valid || !workflowValidationHasMessage(validation, "需要选择至少一个知识库") {
+		t.Fatalf("expected default workflow to require node knowledge bases, got %#v", validation.Errors)
 	}
 	if nodeTypeByID(stored, "understanding_1") != workflowregistry.NodeTypeConversationUnderstanding {
 		t.Fatalf("expected default workflow to include conversation understanding, got nodes: %#v", stored.Nodes)
@@ -116,14 +114,14 @@ func TestAIAgentServiceCreatesDefaultWorkflow(t *testing.T) {
 	})
 }
 
-func TestAIWorkflowServiceDefaultAgentWorkflowDefinitionIsValid(t *testing.T) {
+func TestAIWorkflowServiceDefaultAgentWorkflowDefinitionRequiresKnowledgeRetrieveConfiguration(t *testing.T) {
 	definition := AIWorkflowService.DefaultAgentWorkflowDefinition()
 	if definition.SchemaVersion != dsl.SchemaVersion || nodeTypeByID(definition, "start_1") != workflowregistry.NodeTypeStart {
 		t.Fatalf("expected default workflow definition")
 	}
 	validation := workflowvalidator.ValidateDefinition(definition, workflowregistry.DefaultRegistry())
-	if !validation.Valid {
-		t.Fatalf("expected default workflow definition to be valid, got %#v", validation.Errors)
+	if validation.Valid || !workflowValidationHasMessage(validation, "需要选择至少一个知识库") {
+		t.Fatalf("expected default workflow definition to require node knowledge bases, got %#v", validation.Errors)
 	}
 	if nodeTypeByID(definition, "understanding_1") != workflowregistry.NodeTypeConversationUnderstanding {
 		t.Fatalf("expected default workflow to include conversation understanding, got nodes: %#v", definition.Nodes)
@@ -167,7 +165,6 @@ func TestAIWorkflowServicePublishAgentWorkflowBindsAgentVersion(t *testing.T) {
 	setupAIAgentWorkflowTestDB(t)
 	operator := aiAgentWorkflowTestOperator()
 	aiConfigID := createAIAgentWorkflowTestConfig(t)
-	knowledgeID := createAIAgentWorkflowTestKnowledgeBase(t)
 
 	agent, err := AIAgentService.CreateAIAgent(request.CreateAIAgentRequest{
 		Name:         "workflow agent without version",
@@ -175,7 +172,6 @@ func TestAIWorkflowServicePublishAgentWorkflowBindsAgentVersion(t *testing.T) {
 		ServiceMode:  enums.IMConversationServiceModeAIOnly,
 		HandoffMode:  enums.AIAgentHandoffModeWaitPool,
 		FallbackMode: enums.AIAgentFallbackModeNoAnswer,
-		KnowledgeIDs: []int64{knowledgeID},
 	}, operator)
 	if err != nil {
 		t.Fatalf("CreateAIAgent() error = %v", err)
@@ -281,6 +277,15 @@ func aiAgentWorkflowTestOperator() *dto.AuthPrincipal {
 func workflowHasNodeType(def dsl.Definition, nodeType string) bool {
 	for _, node := range def.Nodes {
 		if node.Type == nodeType {
+			return true
+		}
+	}
+	return false
+}
+
+func workflowValidationHasMessage(result workflowvalidator.Result, message string) bool {
+	for _, item := range result.Errors {
+		if strings.Contains(item.Message, message) {
 			return true
 		}
 	}

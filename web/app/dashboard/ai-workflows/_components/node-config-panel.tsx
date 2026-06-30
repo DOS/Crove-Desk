@@ -1,13 +1,14 @@
 "use client"
 
-import type { ReactNode } from "react"
-import { Trash2Icon } from "lucide-react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { ArrowDownIcon, ArrowUpIcon, Trash2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { OptionCombobox } from "@/components/option-combobox"
-import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
+import { fetchKnowledgeBasesAll, type AIWorkflowDefinition, type AIWorkflowNodeSpec, type KnowledgeBase } from "@/lib/api/admin"
+import { Status } from "@/lib/generated/enums"
 import { cn } from "@/lib/utils"
 
 import { VariableSelector } from "./variable-selector"
@@ -177,6 +178,13 @@ export function NodeConfigPanel({
           outputContent={outputFields}
         />
 
+        {node.type === "knowledge_retrieve" ? (
+          <KnowledgeRetrieveConfigPanel
+            config={config}
+            onChange={(nextConfig) => updateConfig(nextConfig)}
+          />
+        ) : null}
+
         {showConditionBranches && (node.type === "condition" || branches.length > 0) ? (
           <ConditionBranchesEditor
             branches={branches}
@@ -274,6 +282,136 @@ export function ConditionBranchConfigPanel({
         )}
       </div>
     </div>
+  )
+}
+
+function KnowledgeRetrieveConfigPanel({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>
+  onChange: (config: Record<string, unknown>) => void
+}) {
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([])
+  const [knowledgeToAdd, setKnowledgeToAdd] = useState("")
+  const selectedKnowledgeIds = normalizeKnowledgeBaseIds(config.knowledgeBaseIds)
+  const knowledgeOptions = useMemo(
+    () => knowledgeBases.map((item) => ({ value: String(item.id), label: item.name })),
+    [knowledgeBases]
+  )
+  const selectedKnowledgeOptions = selectedKnowledgeIds
+    .map((id) => knowledgeOptions.find((option) => Number(option.value) === id))
+    .filter((option): option is { value: string; label: string } => Boolean(option))
+
+  useEffect(() => {
+    let cancelled = false
+    fetchKnowledgeBasesAll({ status: Status.Ok })
+      .then((items) => {
+        if (!cancelled) {
+          setKnowledgeBases(items ?? [])
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setKnowledgeBases([])
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const updateKnowledgeBaseIds = (ids: number[]) => {
+    onChange({ ...config, knowledgeBaseIds: uniquePositiveNumbers(ids) })
+  }
+  const addKnowledgeBase = () => {
+    const id = Number(knowledgeToAdd)
+    if (!Number.isFinite(id) || id <= 0 || selectedKnowledgeIds.includes(id)) return
+    updateKnowledgeBaseIds([...selectedKnowledgeIds, id])
+    setKnowledgeToAdd("")
+  }
+  const moveKnowledgeBase = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction
+    if (targetIndex < 0 || targetIndex >= selectedKnowledgeIds.length) return
+    const next = [...selectedKnowledgeIds]
+    const current = next[index]
+    next[index] = next[targetIndex]
+    next[targetIndex] = current
+    updateKnowledgeBaseIds(next)
+  }
+
+  return (
+    <InspectorSection title="节点配置" meta={`${selectedKnowledgeIds.length} 个知识库`}>
+      <InspectorRow label="知识库" required>
+        <div className="space-y-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+            <OptionCombobox
+              value={knowledgeToAdd}
+              options={knowledgeOptions.filter((option) => !selectedKnowledgeIds.includes(Number(option.value)))}
+              placeholder="选择知识库"
+              searchPlaceholder="搜索知识库"
+              emptyText="没有可用知识库"
+              triggerClassName={inspectorComboboxClassName}
+              onChange={setKnowledgeToAdd}
+            />
+            <Button type="button" variant="outline" size="sm" className="h-8" onClick={addKnowledgeBase}>
+              添加
+            </Button>
+          </div>
+
+          <div className="divide-y divide-slate-100 rounded-md border border-slate-200">
+            {selectedKnowledgeOptions.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-slate-500">
+                未选择知识库，流程发布校验不会通过。
+              </div>
+            ) : (
+              selectedKnowledgeOptions.map((option, index) => (
+                <div key={option.value} className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5">
+                  <span className="inline-flex h-5 items-center justify-center rounded-sm border border-slate-200 bg-slate-50 font-mono text-xs text-slate-500">
+                    {index + 1}
+                  </span>
+                  <div className="truncate text-sm text-slate-700">{option.label}</div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7"
+                      disabled={index === 0}
+                      onClick={() => moveKnowledgeBase(index, -1)}
+                      aria-label="上移知识库"
+                    >
+                      <ArrowUpIcon className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7"
+                      disabled={index === selectedKnowledgeOptions.length - 1}
+                      onClick={() => moveKnowledgeBase(index, 1)}
+                      aria-label="下移知识库"
+                    >
+                      <ArrowDownIcon className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 text-slate-500 hover:text-destructive"
+                      onClick={() => updateKnowledgeBaseIds(selectedKnowledgeIds.filter((id) => id !== Number(option.value)))}
+                      aria-label="移除知识库"
+                    >
+                      <Trash2Icon className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </InspectorRow>
+    </InspectorSection>
   )
 }
 
@@ -638,4 +776,19 @@ function stringifyConditionRight(value: unknown) {
     return value
   }
   return JSON.stringify(value)
+}
+
+function normalizeKnowledgeBaseIds(value: unknown) {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  return uniquePositiveNumbers(
+    value
+      .map((item) => Number(item))
+      .filter((item) => Number.isFinite(item))
+  )
+}
+
+function uniquePositiveNumbers(input: number[]) {
+  return Array.from(new Set(input.filter((item) => item > 0)))
 }

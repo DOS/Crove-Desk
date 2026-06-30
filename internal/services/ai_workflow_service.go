@@ -472,7 +472,7 @@ func defaultAgentWorkflowDefinition() dsl.Definition {
 				"followUpQuestions": dsl.RefValue("draft_ticket_1", "followUpQuestions"),
 			}, map[string]any{"staticReply": "为了创建工单，还需要补充以下信息：\n{{followUpQuestions}}"}),
 			workflowNode("send_ticket_followup_1", workflowregistry.NodeTypeSendReply, "发送工单追问", 4780, 1033.5, workflowInputs("replyText", "ticket_followup_reply_1", "replyText"), nil),
-			workflowNode("retrieve_1", workflowregistry.NodeTypeKnowledgeRetrieve, "知识检索", 2480, 753, workflowInputs("query", "start_1", "userMessage"), nil),
+			workflowNode("retrieve_1", workflowregistry.NodeTypeKnowledgeRetrieve, "知识检索", 2480, 753, workflowInputs("query", "start_1", "userMessage"), map[string]any{"knowledgeBaseIds": []int64{}}),
 			workflowNode("answerability_1", workflowregistry.NodeTypeAnswerabilityGate, "可回答判断", 2940, 753, map[string]dsl.Value{
 				"userMessage":    dsl.RefValue("start_1", "userMessage"),
 				"knowledgeItems": dsl.RefValue("retrieve_1", "items"),

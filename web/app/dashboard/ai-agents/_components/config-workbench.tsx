@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
   BotMessageSquareIcon,
   GitBranchIcon,
   HistoryIcon,
@@ -44,7 +42,6 @@ import {
   fetchAIWorkflowNodeSpecs,
   fetchAIWorkflowVersions,
   fetchAgentTeamsAll,
-  fetchKnowledgeBasesAll,
   fetchMCPCatalog,
   fetchSkillDefinitionsAll,
   publishAIAgentWorkflow,
@@ -58,7 +55,6 @@ import {
   type AIWorkflowVersion,
   type AdminAgentTeam,
   type CreateAIAgentPayload,
-  type KnowledgeBase,
   type MCPToolCatalogItem,
   type MCPToolSourceType,
   type SkillDefinition,
@@ -148,7 +144,6 @@ export function AIAgentConfigWorkbench({
   const [handoffMode, setHandoffMode] = useState(String(AIAgentHandoffMode.WaitPool))
   const [fallbackMode, setFallbackMode] = useState(String(AIAgentFallbackMode.NoAnswer))
   const [fallbackMessage, setFallbackMessage] = useState("")
-  const [selectedKnowledgeIds, setSelectedKnowledgeIds] = useState<number[]>([])
   const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>([])
   const [selectedSkillIds, setSelectedSkillIds] = useState<number[]>([])
   const [directTools, setDirectTools] = useState<DirectToolItem[]>([])
@@ -157,11 +152,9 @@ export function AIAgentConfigWorkbench({
   const [workflowRevision, setWorkflowRevision] = useState(0)
 
   const [aiConfigs, setAIConfigs] = useState<AIConfig[]>([])
-  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([])
   const [agentTeams, setAgentTeams] = useState<AdminAgentTeam[]>([])
   const [skills, setSkills] = useState<SkillDefinition[]>([])
   const [toolCatalog, setToolCatalog] = useState<MCPToolCatalogItem[]>([])
-  const [knowledgeToAdd, setKnowledgeToAdd] = useState("")
   const [teamToAdd, setTeamToAdd] = useState("")
   const [skillToAdd, setSkillToAdd] = useState("")
   const [directToolGroupToAdd, setDirectToolGroupToAdd] = useState("")
@@ -183,7 +176,6 @@ export function AIAgentConfigWorkbench({
         specs,
         defaultDefinition,
         configs,
-        bases,
         teams,
         skillList,
         catalog,
@@ -191,7 +183,6 @@ export function AIAgentConfigWorkbench({
         fetchAIWorkflowNodeSpecs(),
         fetchAIWorkflowDefaultDefinition().catch(() => fallbackDefinition),
         fetchAIConfigsAll({ modelType: AIModelType.LLM }),
-        fetchKnowledgeBasesAll({ status: Status.Ok }),
         fetchAgentTeamsAll(),
         fetchSkillDefinitionsAll({ status: Status.Ok }),
         fetchMCPCatalog(),
@@ -199,7 +190,6 @@ export function AIAgentConfigWorkbench({
 
       setNodeSpecs(specs ?? [])
       setAIConfigs(configs ?? [])
-      setKnowledgeBases(bases ?? [])
       setAgentTeams(teams ?? [])
       setSkills(skillList ?? [])
       setToolCatalog(catalog ?? [])
@@ -217,7 +207,6 @@ export function AIAgentConfigWorkbench({
         setHandoffMode(String(AIAgentHandoffMode.WaitPool))
         setFallbackMode(String(AIAgentFallbackMode.NoAnswer))
         setFallbackMessage("")
-        setSelectedKnowledgeIds([])
         setSelectedTeamIds([])
         setSelectedSkillIds([])
         setDirectTools([])
@@ -247,7 +236,6 @@ export function AIAgentConfigWorkbench({
       setHandoffMode(String(agentDetail.handoffMode || AIAgentHandoffMode.WaitPool))
       setFallbackMode(String(agentDetail.fallbackMode || AIAgentFallbackMode.NoAnswer))
       setFallbackMessage(agentDetail.fallbackMessage || "")
-      setSelectedKnowledgeIds(agentDetail.knowledgeIds ?? [])
       setSelectedTeamIds((agentDetail.teams ?? []).map((team) => team.id))
       setSelectedSkillIds(agentDetail.skillIds ?? [])
       setDirectTools(agentDetail.directTools ?? [])
@@ -289,10 +277,6 @@ export function AIAgentConfigWorkbench({
   const aiConfigOptions = useMemo(
     () => aiConfigs.map((item) => ({ value: String(item.id), label: `${item.name} · ${item.modelName}` })),
     [aiConfigs]
-  )
-  const knowledgeOptions = useMemo(
-    () => knowledgeBases.map((item) => ({ value: String(item.id), label: item.name })),
-    [knowledgeBases]
   )
   const teamOptions = useMemo(
     () => agentTeams.map((item) => ({ value: String(item.id), label: item.name })),
@@ -356,16 +340,6 @@ export function AIAgentConfigWorkbench({
     setNext([...current, id])
   }
 
-  function moveKnowledge(index: number, direction: -1 | 1) {
-    const targetIndex = index + direction
-    if (targetIndex < 0 || targetIndex >= selectedKnowledgeIds.length) return
-    const next = [...selectedKnowledgeIds]
-    const current = next[index]
-    next[index] = next[targetIndex]
-    next[targetIndex] = current
-    setSelectedKnowledgeIds(next)
-  }
-
   function addDirectTool(value: string) {
     const option = directToolOptions.find((item) => item.value === value)
     if (!option) return
@@ -390,7 +364,6 @@ export function AIAgentConfigWorkbench({
       handoffMode: Number(handoffMode),
       fallbackMode: Number(fallbackMode),
       fallbackMessage: fallbackMessage.trim(),
-      knowledgeIds: uniqueNumbers(selectedKnowledgeIds),
       skillIds: uniqueNumbers(selectedSkillIds),
       directTools,
     }
@@ -505,7 +478,6 @@ export function AIAgentConfigWorkbench({
     { key: "workflow", title: "会话流程", icon: <GitBranchIcon /> },
   ]
 
-  const selectedKnowledgeOptions = selectedOptions(selectedKnowledgeIds, knowledgeOptions)
   const selectedTeamOptions = selectedOptions(selectedTeamIds, teamOptions)
   const selectedSkillOptions = selectedOptions(selectedSkillIds, skillOptions)
   const workflowPublished = isWorkflowPublished(agent)
@@ -680,59 +652,6 @@ export function AIAgentConfigWorkbench({
                   <FieldBlock label="描述">
                     <Textarea rows={4} value={description} onChange={(event) => setDescription(event.target.value)} />
                   </FieldBlock>
-                </ConfigSection>
-              ) : null}
-
-              {activeSection === "capabilities" ? (
-                <ConfigSection>
-                  <AddRow
-                    value={knowledgeToAdd}
-                    options={knowledgeOptions.filter((option) => !selectedKnowledgeIds.includes(Number(option.value)))}
-                    placeholder="选择知识库"
-                    onValueChange={setKnowledgeToAdd}
-                    onAdd={() => {
-                      addSelected(knowledgeToAdd, selectedKnowledgeIds, setSelectedKnowledgeIds)
-                      setKnowledgeToAdd("")
-                    }}
-                  />
-                  <div className="space-y-2 rounded-md border p-3">
-                    {selectedKnowledgeOptions.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">至少选择一个知识库。</div>
-                    ) : (
-                      selectedKnowledgeOptions.map((option, index) => (
-                        <div key={option.value} className="flex items-center gap-2">
-                          <Badge variant="secondary" className="min-w-8 justify-center">{index + 1}</Badge>
-                          <div className="flex-1 text-sm">{option.label}</div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon-sm"
-                            disabled={index === 0}
-                            onClick={() => moveKnowledge(index, -1)}
-                          >
-                            <ArrowUpIcon />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon-sm"
-                            disabled={index === selectedKnowledgeOptions.length - 1}
-                            onClick={() => moveKnowledge(index, 1)}
-                          >
-                            <ArrowDownIcon />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon-sm"
-                            onClick={() => setSelectedKnowledgeIds((current) => current.filter((id) => id !== Number(option.value)))}
-                          >
-                            <Trash2Icon />
-                          </Button>
-                        </div>
-                      ))
-                    )}
-                  </div>
                 </ConfigSection>
               ) : null}
 

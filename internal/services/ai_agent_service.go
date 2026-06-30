@@ -110,7 +110,6 @@ func (s *aIAgentService) UpdateAIAgent(req request.UpdateAIAgentRequest, operato
 		"handoff_mode":          item.HandoffMode,
 		"fallback_mode":         item.FallbackMode,
 		"fallback_message":      item.FallbackMessage,
-		"knowledge_ids":         item.KnowledgeIDs,
 		"skill_ids":             item.SkillIDs,
 		"allowed_mcp_tools":     item.AllowedMCPTools,
 		"update_user_id":        operator.UserID,
@@ -177,13 +176,6 @@ func (s *aIAgentService) buildAIAgentModel(id int64, req request.CreateAIAgentRe
 		return nil, errorsx.InvalidParamI18n("error.e0144")
 	}
 
-	knowledgeIDs, err := s.normalizeKnowledgeIDs(req.KnowledgeIDs)
-	if err != nil {
-		return nil, err
-	}
-	if len(knowledgeIDs) == 0 {
-		return nil, errorsx.InvalidParamI18n("error.e0320")
-	}
 	skillIDs, err := s.normalizeSkillIDs(req.SkillIDs)
 	if err != nil {
 		return nil, err
@@ -212,7 +204,6 @@ func (s *aIAgentService) buildAIAgentModel(id int64, req request.CreateAIAgentRe
 		HandoffMode:         req.HandoffMode,
 		FallbackMode:        req.FallbackMode,
 		FallbackMessage:     strings.TrimSpace(req.FallbackMessage),
-		KnowledgeIDs:        utils.JoinInt64s(knowledgeIDs),
 		SkillIDs:            utils.JoinInt64s(skillIDs),
 		AllowedMCPTools:     directToolsJSON,
 		WorkflowVersionID:   0,
@@ -240,29 +231,6 @@ func (s *aIAgentService) normalizeTeamIDs(input []int64) ([]int64, error) {
 		ret = append(ret, id)
 	}
 	slices.Sort(ret)
-	return ret, nil
-}
-
-func (s *aIAgentService) normalizeKnowledgeIDs(input []int64) ([]int64, error) {
-	ret := make([]int64, 0, len(input))
-	seen := make(map[int64]struct{})
-	for _, id := range input {
-		if id <= 0 {
-			continue
-		}
-		if _, exists := seen[id]; exists {
-			continue
-		}
-		kb := KnowledgeBaseService.Get(id)
-		if kb == nil || kb.Status == enums.StatusDeleted {
-			continue
-		}
-		// if kb.Status != enums.StatusOk {
-		// 	return nil, errorsx.InvalidParamI18n("error.e0285")
-		// }
-		seen[id] = struct{}{}
-		ret = append(ret, id)
-	}
 	return ret, nil
 }
 

@@ -8,7 +8,6 @@ import (
 	"agent-desk/internal/ai/runtime/traces"
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/enums"
-	"agent-desk/internal/pkg/utils"
 	"agent-desk/internal/repositories"
 
 	"github.com/mlogclub/simple/sqls"
@@ -20,7 +19,8 @@ const defaultRuntimeKnowledgeScoreThreshold = 0.3
 const defaultRuntimeKnowledgeMaxContextItems = 5
 
 type KnowledgeRetriever struct {
-	AIAgent models.AIAgent
+	AIAgent          models.AIAgent
+	knowledgeBaseIDs []int64
 }
 
 type KnowledgeRetrieveOptions struct {
@@ -52,8 +52,11 @@ type KnowledgeRetrieveResult struct {
 	Policies         []KnowledgeBaseRetrievePolicy
 }
 
-func NewKnowledgeRetriever(aiAgent models.AIAgent) *KnowledgeRetriever {
-	return &KnowledgeRetriever{AIAgent: aiAgent}
+func NewKnowledgeRetriever(aiAgent models.AIAgent, knowledgeBaseIDs []int64) *KnowledgeRetriever {
+	return &KnowledgeRetriever{
+		AIAgent:          aiAgent,
+		knowledgeBaseIDs: append([]int64(nil), knowledgeBaseIDs...),
+	}
 }
 
 func DefaultKnowledgeRetrieveOptions() KnowledgeRetrieveOptions {
@@ -63,8 +66,8 @@ func DefaultKnowledgeRetrieveOptions() KnowledgeRetrieveOptions {
 	}
 }
 
-func (r *KnowledgeRetriever) KnowledgeBaseIDs() []int64 {
-	return utils.SplitInt64s(r.AIAgent.KnowledgeIDs)
+func (r *KnowledgeRetriever) ConfiguredKnowledgeBaseIDs() []int64 {
+	return append([]int64(nil), r.knowledgeBaseIDs...)
 }
 
 func (r *KnowledgeRetriever) Retrieve(ctx context.Context, query string) ([]rag.RetrieveResult, *rag.RetrieveTrace, error) {
@@ -72,7 +75,7 @@ func (r *KnowledgeRetriever) Retrieve(ctx context.Context, query string) ([]rag.
 }
 
 func (r *KnowledgeRetriever) RetrieveByOptions(ctx context.Context, opts KnowledgeRetrieveOptions, query string) ([]rag.RetrieveResult, *rag.RetrieveTrace, error) {
-	ids := r.KnowledgeBaseIDs()
+	ids := r.ConfiguredKnowledgeBaseIDs()
 	return rag.Retrieve.RetrieveWithTrace(ctx, rag.RetrieveRequest{
 		Query:            query,
 		KnowledgeBaseIDs: ids,
@@ -87,7 +90,7 @@ func (r *KnowledgeRetriever) RetrieveContext(ctx context.Context, query string) 
 
 func (r *KnowledgeRetriever) RetrieveContextByOptions(ctx context.Context, opts KnowledgeRetrieveOptions, query string) (*KnowledgeRetrieveResult, error) {
 	query = strings.TrimSpace(query)
-	knowledgeBaseIDs := r.KnowledgeBaseIDs()
+	knowledgeBaseIDs := r.ConfiguredKnowledgeBaseIDs()
 	policies := r.resolvePolicies(knowledgeBaseIDs, opts)
 	contextMaxTokens := opts.ContextMaxTokens
 	if contextMaxTokens <= 0 {

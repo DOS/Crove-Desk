@@ -182,9 +182,7 @@ func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) respons
 		FallbackMode:        item.FallbackMode,
 		FallbackModeName:    enums.GetAIAgentFallbackModeLabel(item.FallbackMode),
 		FallbackMessage:     item.FallbackMessage,
-		KnowledgeIDs:        utils.SplitInt64s(item.KnowledgeIDs),
 		SkillIDs:            utils.SplitInt64s(item.SkillIDs),
-		KnowledgeBaseNames:  make([]string, 0),
 		Skills:              make([]response.AIAgentSkillResponse, 0),
 		Teams:               make([]response.AIAgentTeamResponse, 0),
 		DirectTools:         make([]response.AIAgentMCPToolResponse, 0),
@@ -207,11 +205,6 @@ func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) respons
 				ID:   team.ID,
 				Name: team.Name,
 			})
-		}
-	}
-	for _, id := range ret.KnowledgeIDs {
-		if knowledgeBase := services.KnowledgeBaseService.Get(id); knowledgeBase != nil {
-			ret.KnowledgeBaseNames = append(ret.KnowledgeBaseNames, knowledgeBase.Name)
 		}
 	}
 	for _, id := range ret.SkillIDs {

@@ -20,7 +20,6 @@ import (
 	"agent-desk/internal/pkg/dto"
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/enums"
-	"agent-desk/internal/pkg/utils"
 	"agent-desk/internal/services"
 )
 
@@ -270,7 +269,6 @@ func (e *Executor) executeNode(ctx context.Context, state *runState, node dsl.No
 			"messageId":         state.input.UserMessage.ID,
 			"aiAgentId":         state.input.AIAgent.ID,
 			"userMessage":       strings.TrimSpace(state.input.UserMessage.Content),
-			"knowledgeBaseIds":  utils.SplitInt64s(state.input.AIAgent.KnowledgeIDs),
 			"conversationState": state.input.Conversation.Status,
 		})
 	case workflowregistry.NodeTypeConversationUnderstanding:
@@ -732,7 +730,11 @@ func (e *Executor) executeHandoffToHuman(state *runState, node dsl.Node) error {
 
 func (e *Executor) executeKnowledgeRetrieve(ctx context.Context, state *runState, node dsl.Node) error {
 	query := strings.TrimSpace(toString(state.resolveInput(node, "query")))
-	retriever := retrievers.NewKnowledgeRetriever(state.input.AIAgent)
+	knowledgeBaseIDs := readInt64ArrayConfig(node.Data.Config, "knowledgeBaseIds")
+	if len(knowledgeBaseIDs) == 0 {
+		return fmt.Errorf("knowledge retrieve node requires knowledgeBaseIds")
+	}
+	retriever := retrievers.NewKnowledgeRetriever(state.input.AIAgent, knowledgeBaseIDs)
 	result, err := retriever.RetrieveContext(ctx, query)
 	if err != nil {
 		return err
@@ -784,7 +786,7 @@ func (e *Executor) executeLLMReply(ctx context.Context, state *runState, node ds
 	if prompt := strings.TrimSpace(readStringConfig(node.Data.Config, "prompt")); prompt != "" {
 		systemPrompt = strings.TrimSpace(systemPrompt + "\n\n" + prompt)
 	}
-	if _, declaresKnowledge := node.Data.InputsValues["knowledgeItems"]; declaresKnowledge && len(utils.SplitInt64s(state.input.AIAgent.KnowledgeIDs)) > 0 && !hasItems(state.resolveInput(node, "knowledgeItems")) {
+	if _, declaresKnowledge := node.Data.InputsValues["knowledgeItems"]; declaresKnowledge && !hasItems(state.resolveInput(node, "knowledgeItems")) {
 		state.setNodeVars(node.ID, map[string]any{"replyText": workflowKnowledgeFallbackReply(state.input.AIAgent)})
 		return nil
 	}
@@ -1086,6 +1088,32 @@ func readBoolConfig(raw json.RawMessage, key string) bool {
 		return false
 	}
 	return truthy(cfg[key])
+}
+
+func readInt64ArrayConfig(raw json.RawMessage, key string) []int64 {
+	if len(raw) == 0 {
+		return nil
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		return nil
+	}
+	items, ok := cfg[key].([]any)
+	if !ok {
+		return nil
+	}
+	ret := make([]int64, 0, len(items))
+	for _, item := range items {
+		switch value := item.(type) {
+		case float64:
+			ret = append(ret, int64(value))
+		case int64:
+			ret = append(ret, value)
+		case int:
+			ret = append(ret, int64(value))
+		}
+	}
+	return ret
 }
 
 func compareString(left any, right any) int {

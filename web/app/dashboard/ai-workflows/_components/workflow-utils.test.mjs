@@ -140,6 +140,27 @@ describe("validateWorkflowDefinition", () => {
 
     assert.deepEqual(plain(result), { valid: true, errors: [] })
   })
+
+  it("rejects knowledge retrieve nodes without node knowledge bases", async () => {
+    const { createRefValue, validateWorkflowDefinition } = await loadModule()
+
+    const result = validateWorkflowDefinition({
+      schemaVersion: 2,
+      nodes: [
+        workflowNode("start_1", "start"),
+        workflowNode("retrieve_1", "knowledge_retrieve", { x: 240, y: 0 }, {
+          title: "知识检索",
+          inputsValues: { query: createRefValue("start_1", "userMessage") },
+          config: { knowledgeBaseIds: [] },
+        }),
+        workflowNode("end_1", "end", { x: 480, y: 0 }),
+      ],
+      edges: [workflowEdge("start_1", "retrieve_1"), workflowEdge("retrieve_1", "end_1")],
+    })
+
+    assert.equal(result.valid, false)
+    assert.match(result.errors.join("\n"), /需要选择至少一个知识库/)
+  })
 })
 
 describe("createWorkflowNodeFromSpec", () => {

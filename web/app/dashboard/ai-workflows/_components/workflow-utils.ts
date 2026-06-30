@@ -179,6 +179,15 @@ export function validateWorkflowDefinition(
     if (!node.type?.trim()) {
       errors.push(`node type is required: ${node.id}`)
     }
+    if (node.type === "knowledge_retrieve") {
+      const config = normalizeNodeConfig(node.data?.config)
+      const knowledgeBaseIds = Array.isArray(config.knowledgeBaseIds) ? config.knowledgeBaseIds : []
+      if (knowledgeBaseIds.length === 0) {
+        errors.push(`${getNodeTitle(node, nodeSpecs)} 需要选择至少一个知识库`)
+      } else if (knowledgeBaseIds.some((id) => Number(id) <= 0)) {
+        errors.push(`${getNodeTitle(node, nodeSpecs)} 知识库 ID 必须大于 0`)
+      }
+    }
   }
 
   for (const edge of edges) {
