@@ -131,6 +131,14 @@ export function isBranchRowActionTarget(target: EventTarget | null): boolean {
   return typeof maybeElement?.closest === "function" && maybeElement.closest("button") !== null
 }
 
+export function shouldClearWorkflowSelectionOnPointerDown(target: EventTarget | null): boolean {
+  const maybeElement = target as { closest?: (selector: string) => Element | null } | null
+  if (typeof maybeElement?.closest !== "function") {
+    return false
+  }
+  return maybeElement.closest("[data-workflow-preserve-selection]") === null
+}
+
 export function getNodeTitle(
   node: AIWorkflowDefinition["nodes"][number] | undefined,
   specs: AIWorkflowNodeSpec[] = []

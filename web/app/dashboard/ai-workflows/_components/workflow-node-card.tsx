@@ -16,6 +16,7 @@ export function WorkflowNodeCard({
 }) {
   return (
     <div
+      data-workflow-preserve-selection
       className={cn(
         "group relative rounded-lg bg-[#FFFFFF] p-0.5 transition-all",
         "w-[242px]",

@@ -41,6 +41,7 @@ import {
 import {
   createWorkflowNodeFromSpec,
   deleteWorkflowNode,
+  shouldClearWorkflowSelectionOnPointerDown,
   updateWorkflowNodeData,
   validateWorkflowDefinition,
   type WorkflowNodeData,
@@ -319,13 +320,24 @@ function WorkflowEditorInner({
     onSelectBranch(null)
   }
 
+  const clearSelectionFromCanvas = () => {
+    setNodeMenu(null)
+    closeConfigPanel()
+  }
+
   return (
     <div
       ref={editorRootRef}
       data-workflow-editor-root
       className="relative isolate h-full min-h-0 w-full flex-1 overflow-hidden border bg-[var(--g-editor-background)]"
+      onPointerDownCapture={(event) => {
+        if (shouldClearWorkflowSelectionOnPointerDown(event.target)) {
+          clearSelectionFromCanvas()
+        }
+      }}
     >
       <div
+        data-workflow-preserve-selection
         className={cn(
           "absolute left-3 top-3 z-50 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-1.5",
           selectedNodeId && "max-w-[calc(100%-25rem)]"
@@ -348,7 +360,7 @@ function WorkflowEditorInner({
         />
       </div>
 
-      <div className="absolute bottom-4 left-4 z-50">
+      <div data-workflow-preserve-selection className="absolute bottom-4 left-4 z-50">
         <WorkflowCanvasControls
           zoomPercent={zoomPercent}
           onZoomIn={() => playgroundTools.zoomin(true)}
@@ -360,7 +372,7 @@ function WorkflowEditorInner({
         />
       </div>
 
-      <div className="absolute bottom-4 right-4 z-50">
+      <div data-workflow-preserve-selection className="absolute bottom-4 right-4 z-50">
         <WorkflowEditorStatus
           validation={validation}
           nodeCount={definition.nodes.length}

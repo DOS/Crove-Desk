@@ -101,6 +101,7 @@ export function WorkflowConfigPanel({
 
   return (
     <div
+      data-workflow-preserve-selection
       className="pointer-events-none absolute inset-y-3 right-3 z-50 flex max-w-[calc(100%-1.5rem)]"
       style={{ width: panelWidth }}
     >

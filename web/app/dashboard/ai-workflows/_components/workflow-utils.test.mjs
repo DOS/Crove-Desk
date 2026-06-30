@@ -277,6 +277,21 @@ describe("workflow branch interaction helpers", () => {
       },
     }), false)
   })
+
+  it("clears workflow selection only when clicking outside preserved regions", async () => {
+    const { shouldClearWorkflowSelectionOnPointerDown } = await loadModule()
+
+    assert.equal(shouldClearWorkflowSelectionOnPointerDown({
+      closest(selector) {
+        return selector === "[data-workflow-preserve-selection]" ? {} : null
+      },
+    }), false)
+    assert.equal(shouldClearWorkflowSelectionOnPointerDown({
+      closest() {
+        return null
+      },
+    }), true)
+  })
 })
 
 describe("workflow definition mutations", () => {

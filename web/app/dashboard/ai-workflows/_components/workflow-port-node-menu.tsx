@@ -61,6 +61,7 @@ export function WorkflowPortNodeMenu({
   return (
     <div
       ref={menuRef}
+      data-workflow-preserve-selection
       className="pointer-events-auto absolute z-[80] w-64 overflow-hidden rounded-lg border border-slate-200 bg-white py-1.5 shadow-[0_14px_35px_rgba(15,23,42,0.16)]"
       style={{
         left: position.x,
