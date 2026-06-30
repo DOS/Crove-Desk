@@ -25,7 +25,7 @@ export function WorkflowNodeCard({
       )}
     >
       <div className="overflow-visible rounded-lg border border-transparent bg-[#FFFFFF]">
-        <div className="flex items-center gap-2 px-3 pb-2 pt-3">
+        <div className="flex min-h-12 items-center gap-2 px-3 py-2.5">
           <WorkflowNodeIcon icon={icon} />
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-semibold leading-5 text-foreground">
