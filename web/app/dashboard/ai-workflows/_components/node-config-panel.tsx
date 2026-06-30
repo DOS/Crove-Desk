@@ -403,34 +403,11 @@ function KnowledgeRetrieveConfigPanel({
               </Command>
             </PopoverContent>
           </Popover>
-          <div className="divide-y divide-slate-100 rounded-md border border-slate-200">
-            {selectedKnowledgeOptions.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-slate-500">
-                未选择知识库，流程发布校验不会通过。
-              </div>
-            ) : (
-              selectedKnowledgeOptions.map((option, index) => (
-                <div key={option.value} className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5">
-                  <span className="inline-flex h-5 items-center justify-center rounded-sm border border-slate-200 bg-slate-50 font-mono text-xs text-slate-500">
-                    {index + 1}
-                  </span>
-                  <div className="truncate text-sm text-slate-700">{option.label}</div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-7 text-slate-500 hover:text-destructive"
-                      onClick={() => updateKnowledgeBaseIds(selectedKnowledgeIds.filter((id) => id !== Number(option.value)))}
-                      aria-label="移除知识库"
-                    >
-                      <Trash2Icon className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          {selectedKnowledgeOptions.length === 0 ? (
+            <div className="text-sm text-slate-500">
+              未选择知识库，流程发布校验不会通过。
+            </div>
+          ) : null}
         </div>
       </InspectorRow>
     </InspectorSection>
