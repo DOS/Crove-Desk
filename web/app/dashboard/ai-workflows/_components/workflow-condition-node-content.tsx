@@ -1,10 +1,12 @@
 import { PlusIcon, XIcon } from "lucide-react"
+import { useService, WorkflowLinesManager } from "@flowgram.ai/free-layout-editor"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useWorkflowBranchSelection } from "./workflow-branch-selection"
 import {
   createConditionBranchID,
+  isConditionBranchEdge,
   isBranchRowActionTarget,
   normalizeNodeConfig,
   type WorkflowConditionBranch,
@@ -19,6 +21,7 @@ export function WorkflowConditionNodeContent({
   nodeId: string
   onChange: (value: Record<string, unknown>) => void
 }) {
+  const linesManager = useService(WorkflowLinesManager)
   const { selectedBranch, onSelectBranch } = useWorkflowBranchSelection()
   const config = normalizeNodeConfig(configValue)
   const branches = ensureConditionBranches(config.branches ?? [])
@@ -30,6 +33,11 @@ export function WorkflowConditionNodeContent({
     })
   }
   const deleteBranch = (branchId: string) => {
+    linesManager.getAllLines().forEach((line) => {
+      if (isConditionBranchEdge(line.toJSON(), nodeId, branchId)) {
+        line.dispose()
+      }
+    })
     updateBranches(branches.filter((branch) => branch.id !== branchId))
     if (selectedBranch?.nodeId === nodeId && selectedBranch.branchId === branchId) {
       onSelectBranch?.(null)

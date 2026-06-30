@@ -381,6 +381,26 @@ describe("workflow definition mutations", () => {
     assert.deepEqual(plain(deleted.edges.map((edge) => edge.sourcePortID)), ["default"])
   })
 
+  it("matches condition branch lines by source node and branch port", async () => {
+    const { isConditionBranchEdge } = await loadModule()
+
+    assert.equal(isConditionBranchEdge(
+      workflowEdge("condition_1", "vip_reply", { sourcePortID: "vip" }),
+      "condition_1",
+      "vip"
+    ), true)
+    assert.equal(isConditionBranchEdge(
+      workflowEdge("condition_1", "default_reply", { sourcePortID: "default" }),
+      "condition_1",
+      "vip"
+    ), false)
+    assert.equal(isConditionBranchEdge(
+      workflowEdge("other_condition", "vip_reply", { sourcePortID: "vip" }),
+      "condition_1",
+      "vip"
+    ), false)
+  })
+
   it("adds FlowGram source ports for condition edges without removing existing lines", async () => {
     const { normalizeConditionPortsForFlowgram } = await loadModule()
     const definition = {

@@ -297,8 +297,16 @@ export function deleteConditionBranch(
   })
   return {
     ...nextDefinition,
-    edges: nextDefinition.edges.filter((edge) => !(edge.sourceNodeID === nodeId && edge.sourcePortID === branchId)),
+    edges: nextDefinition.edges.filter((edge) => !isConditionBranchEdge(edge, nodeId, branchId)),
   }
+}
+
+export function isConditionBranchEdge(
+  edge: { sourceNodeID?: unknown; sourcePortID?: unknown },
+  nodeId: string,
+  branchId: string
+): boolean {
+  return String(edge.sourceNodeID ?? "") === nodeId && String(edge.sourcePortID ?? "") === branchId
 }
 
 export function normalizeConditionPortsForFlowgram(
