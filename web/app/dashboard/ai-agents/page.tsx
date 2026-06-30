@@ -348,6 +348,7 @@ export default function DashboardAIAgentsPage() {
         defaultFullscreen
         bodyScrollable={false}
         headerClassName="sr-only"
+        closeOnEsc={false}
       >
         {configOpen ? (
           <AIAgentConfigWorkbench
