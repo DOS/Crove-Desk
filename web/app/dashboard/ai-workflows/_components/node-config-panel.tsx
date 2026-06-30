@@ -5,6 +5,7 @@ import { Trash2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { OptionCombobox } from "@/components/option-combobox"
 import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
 import { cn } from "@/lib/utils"
@@ -77,7 +78,6 @@ export function NodeConfigPanel({
   const canDelete = node.type !== "start" && node.type !== "end"
   const config = normalizeNodeConfig(node.data?.config)
   const branches = config.branches ?? []
-
   const updateData = (data: Partial<AIWorkflowDefinition["nodes"][number]["data"]>) => {
     onChange(node.id, {
       ...(node.data ?? {}),
@@ -85,6 +85,42 @@ export function NodeConfigPanel({
     })
   }
   const updateConfig = (nextConfig: Record<string, unknown>) => updateData({ config: nextConfig })
+  const inputFields = inputSchema.map((input) => {
+    const value = inputsValues[input.name]
+    return (
+      <InspectorField
+        key={input.name}
+        label={input.label || input.name}
+        required={input.required}
+        fieldName={input.name}
+        fieldType={input.type}
+      >
+        <VariableSelector
+          value={isRefValue(value) ? value : undefined}
+          variables={availableVariables ?? []}
+          placeholder="选择变量"
+          triggerClassName={inspectorComboboxClassName}
+          onChange={(next) => {
+            updateData({
+              inputsValues: {
+                ...inputsValues,
+                [input.name]: next,
+              },
+            })
+          }}
+        />
+        {input.description ? <InspectorHint>{input.description}</InspectorHint> : null}
+      </InspectorField>
+    )
+  })
+  const outputFields = outputSchema.map((output) => {
+    const item = buildVariableSpecDisplay(output)
+    return (
+      <InspectorField key={item.key} label={item.label} detail={item.subtitle}>
+        {item.description ? <InspectorHint>{item.description}</InspectorHint> : null}
+      </InspectorField>
+    )
+  })
   const updateBranch = (branch: WorkflowConditionBranch) => {
     const nextBranches = branches.some((item) => item.id === branch.id)
       ? branches.map((item) => (item.id === branch.id ? branch : item))
@@ -133,38 +169,13 @@ export function NodeConfigPanel({
         </div>
       ) : null}
       <div className="overflow-hidden border-y border-slate-200 bg-white">
-        {inputSchema.length > 0 ? (
-          <InspectorSection title="输入" meta={`${inputSchema.length} 项`}>
-            {inputSchema.map((input) => {
-              const value = inputsValues[input.name]
-              return (
-                <InspectorField
-                  key={input.name}
-                  label={input.label || input.name}
-                  required={input.required}
-                  fieldName={input.name}
-                  fieldType={input.type}
-                >
-                  <VariableSelector
-                    value={isRefValue(value) ? value : undefined}
-                    variables={availableVariables ?? []}
-                    placeholder="选择变量"
-                    triggerClassName={inspectorComboboxClassName}
-                    onChange={(next) => {
-                      updateData({
-                        inputsValues: {
-                          ...inputsValues,
-                          [input.name]: next,
-                        },
-                      })
-                    }}
-                  />
-                  {input.description ? <InspectorHint>{input.description}</InspectorHint> : null}
-                </InspectorField>
-              )
-            })}
-          </InspectorSection>
-        ) : null}
+        <InspectorParameterTabs
+          key={node.id}
+          inputCount={inputSchema.length}
+          outputCount={outputSchema.length}
+          inputContent={inputFields}
+          outputContent={outputFields}
+        />
 
         {showConditionBranches && (node.type === "condition" || branches.length > 0) ? (
           <ConditionBranchesEditor
@@ -176,19 +187,6 @@ export function NodeConfigPanel({
             onChange={updateBranch}
             onDelete={deleteBranch}
           />
-        ) : null}
-
-        {outputSchema.length > 0 ? (
-          <InspectorSection title="输出" meta={`${outputSchema.length} 项`}>
-            {outputSchema.map((output) => {
-              const item = buildVariableSpecDisplay(output)
-              return (
-                <InspectorField key={item.key} label={item.label} detail={item.subtitle}>
-                  {item.description ? <InspectorHint>{item.description}</InspectorHint> : null}
-                </InspectorField>
-              )
-            })}
-          </InspectorSection>
         ) : null}
       </div>
     </div>
@@ -461,6 +459,57 @@ function ConditionFields({
         </div>
       </div>
     </div>
+  )
+}
+
+function InspectorParameterTabs({
+  inputCount,
+  outputCount,
+  inputContent,
+  outputContent,
+}: {
+  inputCount: number
+  outputCount: number
+  inputContent: ReactNode
+  outputContent: ReactNode
+}) {
+  const tabs = [
+    inputCount > 0 ? { value: "input", label: "输入", count: inputCount, content: inputContent } : null,
+    outputCount > 0 ? { value: "output", label: "输出", count: outputCount, content: outputContent } : null,
+  ].filter((item): item is { value: string; label: string; count: number; content: ReactNode } => Boolean(item))
+
+  if (tabs.length === 0) {
+    return null
+  }
+
+  if (tabs.length === 1) {
+    return (
+      <InspectorSection title={tabs[0].label} meta={`${tabs[0].count} 项`}>
+        {tabs[0].content}
+      </InspectorSection>
+    )
+  }
+
+  return (
+    <section className="border-b border-slate-200 last:border-b-0">
+      <Tabs defaultValue={tabs[0].value} className="gap-0">
+        <div className="flex min-h-8 items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-3 py-0">
+          <TabsList variant="line" className="h-8 gap-3 p-0">
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value} className="h-8 rounded-none px-0 text-xs">
+                {tab.label}
+                <span className="font-mono text-[10px] text-slate-400">{tab.count}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+        {tabs.map((tab) => (
+          <TabsContent key={tab.value} value={tab.value} className="m-0">
+            {tab.content}
+          </TabsContent>
+        ))}
+      </Tabs>
+    </section>
   )
 }
 
