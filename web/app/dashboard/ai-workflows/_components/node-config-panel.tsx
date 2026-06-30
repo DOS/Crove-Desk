@@ -5,7 +5,6 @@ import { Trash2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { OptionCombobox } from "@/components/option-combobox"
 import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
 import { cn } from "@/lib/utils"
@@ -41,8 +40,8 @@ const CONDITION_OPERATOR_OPTIONS = [
   { value: "empty", label: "为空" },
 ]
 
-const cardInputClassName = "h-8 rounded-md border-slate-200 bg-white text-xs shadow-none"
-const cardComboboxClassName = "h-8 rounded-md border-slate-200 bg-white text-xs shadow-none"
+const inspectorInputClassName = "h-7 rounded-sm border-slate-200 bg-white px-2 text-xs shadow-none"
+const inspectorComboboxClassName = "h-7 rounded-sm border-slate-200 bg-white text-xs shadow-none"
 
 export function NodeConfigPanel({
   node,
@@ -108,7 +107,7 @@ export function NodeConfigPanel({
   }
 
   return (
-    <div className="space-y-3 px-3 pb-3">
+    <div className="pb-3">
       {showHeader ? (
         <div className="border-b px-4 py-3">
           <div className="flex items-start justify-between gap-2">
@@ -133,23 +132,24 @@ export function NodeConfigPanel({
           </div>
         </div>
       ) : null}
-      <div className="space-y-3">
+      <div className="overflow-hidden border-y border-slate-200 bg-white">
         {inputSchema.length > 0 ? (
-          <ConfigCard title="输入" meta={`${inputSchema.length} 项`}>
-            <div className="space-y-3">
+          <InspectorSection title="输入" meta={`${inputSchema.length} 项`}>
             {inputSchema.map((input) => {
               const value = inputsValues[input.name]
               return (
-                <div key={input.name} className="space-y-1.5">
-                  <Label className="flex items-center gap-1 text-xs text-slate-600">
-                    <span>{input.label || input.name}</span>
-                    {input.required ? <span className="text-destructive">*</span> : null}
-                  </Label>
+                <InspectorField
+                  key={input.name}
+                  label={input.label || input.name}
+                  required={input.required}
+                  fieldName={input.name}
+                  fieldType={input.type}
+                >
                   <VariableSelector
                     value={isRefValue(value) ? value : undefined}
                     variables={availableVariables ?? []}
                     placeholder="选择变量"
-                    triggerClassName={cardComboboxClassName}
+                    triggerClassName={inspectorComboboxClassName}
                     onChange={(next) => {
                       updateData({
                         inputsValues: {
@@ -159,11 +159,11 @@ export function NodeConfigPanel({
                       })
                     }}
                   />
-                </div>
+                  {input.description ? <InspectorHint>{input.description}</InspectorHint> : null}
+                </InspectorField>
               )
             })}
-            </div>
-          </ConfigCard>
+          </InspectorSection>
         ) : null}
 
         {showConditionBranches && (node.type === "condition" || branches.length > 0) ? (
@@ -179,22 +179,16 @@ export function NodeConfigPanel({
         ) : null}
 
         {outputSchema.length > 0 ? (
-          <ConfigCard title="输出" meta={`${outputSchema.length} 项`}>
-            <div className="space-y-2">
-              {outputSchema.map((output) => {
-                const item = buildVariableSpecDisplay(output)
-                return (
-                  <div key={item.key} className="rounded-md border border-slate-200 bg-slate-50/60 px-2.5 py-2">
-                    <div className="truncate text-xs font-medium text-slate-700">{item.label}</div>
-                    <div className="mt-1 truncate font-mono text-[11px] leading-4 text-slate-500">{item.subtitle}</div>
-                    {item.description ? (
-                      <div className="mt-1 text-xs leading-4 text-muted-foreground">{item.description}</div>
-                    ) : null}
-                  </div>
-                )
-              })}
-            </div>
-          </ConfigCard>
+          <InspectorSection title="输出" meta={`${outputSchema.length} 项`}>
+            {outputSchema.map((output) => {
+              const item = buildVariableSpecDisplay(output)
+              return (
+                <InspectorField key={item.key} label={item.label} detail={item.subtitle}>
+                  {item.description ? <InspectorHint>{item.description}</InspectorHint> : null}
+                </InspectorField>
+              )
+            })}
+          </InspectorSection>
         ) : null}
       </div>
     </div>
@@ -238,45 +232,48 @@ export function ConditionBranchConfigPanel({
   }
 
   return (
-    <div className="space-y-3 px-3 pb-3">
-      <ConfigCard title="分支目标" meta={branch.default ? "默认" : "条件"}>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-slate-600">目标节点</Label>
+    <div className="pb-3">
+      <div className="overflow-hidden border-y border-slate-200 bg-white">
+        <InspectorSection title="分支" meta={branch.default ? "默认" : "条件"}>
+          <InspectorRow label="目标节点">
             <OptionCombobox
               value={branch.targetNodeId}
               options={targetOptions}
               placeholder="选择目标节点"
-              triggerClassName={cardComboboxClassName}
+              triggerClassName={inspectorComboboxClassName}
               onChange={(targetNodeId) => updateBranch({ ...branch, targetNodeId })}
             />
-          </div>
+          </InspectorRow>
 
-          <label className="flex items-center gap-2 text-xs text-slate-600">
-            <input
-              type="checkbox"
-              checked={branch.default === true}
-              className="size-3.5"
-              onChange={(event) => updateBranch({
-                ...branch,
-                default: event.target.checked,
-                condition: event.target.checked ? undefined : branch.condition,
-              })}
-            />
-            默认分支
-          </label>
-        </div>
-      </ConfigCard>
+          <InspectorRow label="默认分支">
+            <label className="inline-flex h-7 items-center gap-2 text-xs text-slate-700">
+              <input
+                type="checkbox"
+                checked={branch.default === true}
+                className="size-3.5"
+                onChange={(event) => updateBranch({
+                  ...branch,
+                  default: event.target.checked,
+                  condition: event.target.checked ? undefined : branch.condition,
+                })}
+              />
+              其他条件不匹配时执行
+            </label>
+          </InspectorRow>
+        </InspectorSection>
 
-      {branch.default ? (
-        <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
-          默认分支不需要条件表达式，会在其他条件不匹配时执行。
-        </div>
-      ) : (
-        <ConfigCard title="条件表达式">
-          <ConditionFields branch={branch} variables={variables} onChange={updateBranch} />
-        </ConfigCard>
-      )}
+        {branch.default ? (
+          <InspectorSection title="条件表达式">
+            <div className="px-3 py-2 text-xs text-slate-500">
+              默认分支不需要条件表达式，会在其他条件不匹配时执行。
+            </div>
+          </InspectorSection>
+        ) : (
+          <InspectorSection title="条件表达式">
+            <ConditionFields branch={branch} variables={variables} onChange={updateBranch} />
+          </InspectorSection>
+        )}
+      </div>
     </div>
   )
 }
@@ -301,32 +298,32 @@ function ConditionBranchesEditor({
   const targetOptions = buildTargetOptions(nodes, currentNodeId)
 
   return (
-    <ConfigCard
+    <InspectorSection
       title="条件分支"
       meta={`${branches.length} 项`}
       action={
-        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onAdd}>
+        <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs text-slate-600" onClick={onAdd}>
           添加
         </Button>
       }
     >
       {branches.length === 0 ? (
-        <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-500">
+        <div className="px-3 py-3 text-xs text-slate-500">
           暂无分支。条件节点需要至少一个默认分支或条件分支。
         </div>
       ) : null}
-      <div className="space-y-2">
+      <div className="divide-y divide-slate-100">
         {branches.map((branch) => {
           return (
-            <div key={branch.id} className="space-y-2 rounded-md border border-slate-200 bg-slate-50/60 p-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex h-5 shrink-0 items-center rounded-full border border-slate-200 bg-white px-2 font-mono text-[10px] font-semibold text-slate-600">
+            <div key={branch.id} className="bg-white px-3 py-2">
+              <div className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-2">
+                <span className="inline-flex h-5 shrink-0 items-center justify-center rounded-sm border border-slate-200 bg-slate-50 px-1.5 font-mono text-[10px] font-semibold text-slate-600">
                   {branch.default ? "ELSE" : "IF"}
                 </span>
                 <Input
                   value={branch.name ?? ""}
                   placeholder={branch.id}
-                  className={cn(cardInputClassName, "min-w-0 flex-1 border-transparent bg-white font-medium")}
+                  className={cn(inspectorInputClassName, "min-w-0 border-transparent bg-transparent px-1 font-medium")}
                   onChange={(event) => onChange({ ...branch, name: event.target.value })}
                 />
                 {branch.default ? null : (
@@ -342,18 +339,18 @@ function ConditionBranchesEditor({
                 )}
               </div>
 
-              <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-2">
-                <Label className="text-xs text-slate-500">目标节点</Label>
+              <div className="mt-2 grid grid-cols-[72px_minmax(0,1fr)] items-center gap-2">
+                <div className="text-xs text-slate-500">目标节点</div>
                 <OptionCombobox
                   value={branch.targetNodeId}
                   options={targetOptions}
                   placeholder="选择目标节点"
-                  triggerClassName={cardComboboxClassName}
+                  triggerClassName={inspectorComboboxClassName}
                   onChange={(targetNodeId) => onChange({ ...branch, targetNodeId })}
                 />
               </div>
 
-              <label className="flex items-center gap-2 text-xs text-slate-500">
+              <label className="mt-2 flex items-center gap-2 pl-[72px] text-xs text-slate-500">
                 <input
                   type="checkbox"
                   checked={branch.default === true}
@@ -376,7 +373,7 @@ function ConditionBranchesEditor({
           )
         })}
       </div>
-    </ConfigCard>
+    </InspectorSection>
   )
 }
 
@@ -399,37 +396,35 @@ function ConditionFields({
   const rightDisabled = ["exists", "empty"].includes(condition.operator ?? "")
 
   return (
-    <div className={cn("space-y-3", compact && "space-y-2")}>
-      <div className={cn("space-y-1.5", compact && "grid grid-cols-[64px_minmax(0,1fr)] items-center gap-2 space-y-0")}>
-        <Label className="text-xs text-slate-500">左值</Label>
+    <div className={cn("divide-y divide-slate-100", compact && "divide-y-0")}>
+      <div className={cn("grid grid-cols-[92px_minmax(0,1fr)] items-start gap-2 px-3 py-2", compact && "grid-cols-[72px_minmax(0,1fr)] px-0 py-1")}>
+        <div className="pt-1.5 text-xs text-slate-500">左值</div>
         <VariableSelector
           value={isRefValue(condition.left) ? condition.left : undefined}
           variables={variables}
           placeholder="选择变量"
-          triggerClassName={cardComboboxClassName}
+          triggerClassName={inspectorComboboxClassName}
           onChange={(left) => onChange({
             ...branch,
             condition: { ...condition, left },
           })}
         />
       </div>
-      <div className={cn("grid grid-cols-[1fr_1fr] gap-2", compact && "grid-cols-[64px_minmax(0,1fr)_96px] items-center")}>
-        {compact ? <Label className="text-xs text-slate-500">判断</Label> : null}
-        <div className={cn("space-y-1.5", compact && "space-y-0")}>
-          {compact ? null : <Label className="text-xs text-slate-500">操作符</Label>}
+      <div className={cn("grid grid-cols-[92px_minmax(0,1fr)_minmax(0,1fr)] items-start gap-2 px-3 py-2", compact && "grid-cols-[72px_minmax(0,1fr)_96px] px-0 py-1")}>
+        <div className="pt-1.5 text-xs text-slate-500">判断</div>
+        <div>
           <OptionCombobox
             value={condition.operator ?? ""}
             options={CONDITION_OPERATOR_OPTIONS}
             placeholder="选择操作符"
-            triggerClassName={cardComboboxClassName}
+            triggerClassName={inspectorComboboxClassName}
             onChange={(operator) => onChange({
               ...branch,
               condition: { ...condition, operator },
             })}
           />
         </div>
-        <div className={cn("space-y-1.5", compact && "space-y-0", rightDisabled && "opacity-50")}>
-          {compact ? null : <Label className="text-xs text-slate-500">右值</Label>}
+        <div className={cn(rightDisabled && "opacity-50")}>
           {valueOptions.length > 0 && !rightDisabled ? (
             <OptionCombobox
               value={stringifyConditionRight(condition.right)}
@@ -439,7 +434,7 @@ function ConditionFields({
                 description: option.description,
               }))}
               placeholder="选择取值"
-              triggerClassName={cardComboboxClassName}
+              triggerClassName={inspectorComboboxClassName}
               onChange={(nextValue) => {
                 const selectedOption = valueOptions.find((option) => stringifyConditionRight(option.value) === nextValue)
                 onChange({
@@ -452,7 +447,7 @@ function ConditionFields({
             <Input
               value={stringifyConditionRight(condition.right)}
               disabled={rightDisabled}
-              className={cardInputClassName}
+              className={inspectorInputClassName}
               onChange={(event) => onChange({
                 ...branch,
                 condition: { ...condition, right: event.target.value },
@@ -465,7 +460,7 @@ function ConditionFields({
   )
 }
 
-function ConfigCard({
+function InspectorSection({
   title,
   meta,
   action,
@@ -477,19 +472,97 @@ function ConfigCard({
   children: ReactNode
 }) {
   return (
-    <section className="overflow-hidden rounded-md border border-slate-200 bg-white">
-      <div className="flex min-h-10 items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
+    <section className="border-b border-slate-200 last:border-b-0">
+      <div className="flex min-h-8 items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-3 py-1">
         <div className="min-w-0">
-          <div className="truncate text-[13px] font-semibold text-slate-900">{title}</div>
+          <div className="truncate text-[11px] font-semibold uppercase tracking-wide text-slate-500">{title}</div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {meta ? <span className="text-xs text-slate-500">{meta}</span> : null}
+          {meta ? <span className="font-mono text-[10px] text-slate-400">{meta}</span> : null}
           {action}
         </div>
       </div>
-      <div className="p-3">{children}</div>
+      <div>{children}</div>
     </section>
   )
+}
+
+function InspectorRow({
+  label,
+  detail,
+  required,
+  children,
+}: {
+  label: string
+  detail?: string
+  required?: boolean
+  children: ReactNode
+}) {
+  return (
+    <div className="grid grid-cols-[112px_minmax(0,1fr)] gap-3 border-b border-slate-100 px-3 py-2 last:border-b-0">
+      <div className="min-w-0 pt-1">
+        <div className="flex min-w-0 items-center gap-1">
+          <span className="truncate text-xs font-medium text-slate-700">{label}</span>
+          {required ? <span className="text-[10px] text-destructive">*</span> : null}
+        </div>
+        {detail ? <div className="mt-0.5 truncate font-mono text-[10px] leading-4 text-slate-400">{detail}</div> : null}
+      </div>
+      <div className="min-w-0">{children}</div>
+    </div>
+  )
+}
+
+function InspectorField({
+  label,
+  detail,
+  fieldName,
+  fieldType,
+  required,
+  children,
+}: {
+  label: string
+  detail?: string
+  fieldName?: string
+  fieldType?: string
+  required?: boolean
+  children: ReactNode
+}) {
+  const metaItems = [
+    fieldName ? { label: "字段", value: fieldName } : null,
+    fieldType ? { label: "类型", value: fieldType } : null,
+  ].filter((item): item is { label: string; value: string } => Boolean(item))
+
+  return (
+    <div className="border-b border-slate-100 px-3 py-2.5 last:border-b-0">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-start gap-1">
+            <span className="min-w-0 break-words text-xs font-medium leading-4 text-slate-700">{label}</span>
+            {required ? <span className="shrink-0 text-[10px] text-destructive">*</span> : null}
+          </div>
+          {detail ? <div className="mt-1 break-all font-mono text-[10px] leading-4 text-slate-400">{detail}</div> : null}
+        </div>
+      </div>
+      {metaItems.length > 0 ? (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {metaItems.map((item) => (
+            <span
+              key={item.label}
+              className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-sm border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] leading-4 text-slate-500"
+            >
+              <span className="shrink-0 text-slate-400">{item.label}</span>
+              <span className="min-w-0 break-all">{item.value}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <div className="mt-2 min-w-0">{children}</div>
+    </div>
+  )
+}
+
+function InspectorHint({ children }: { children: ReactNode }) {
+  return <div className="mt-1.5 text-xs leading-4 text-slate-500">{children}</div>
 }
 
 function buildTargetOptions(nodes: AIWorkflowDefinition["nodes"], currentNodeId: string) {

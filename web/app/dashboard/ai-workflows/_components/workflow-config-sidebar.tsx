@@ -115,42 +115,42 @@ export function WorkflowConfigPanel({
         <span className="h-12 w-1 rounded-full bg-slate-300/80 transition-colors group-hover:bg-blue-400" />
       </div>
       <section className="pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden rounded-lg bg-white shadow-[0_18px_45px_rgba(15,23,42,0.18)] backdrop-blur">
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="py-3">
-            <div className="px-4 pb-3">
-              <div className="flex min-w-0 items-center justify-between gap-3">
-                <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                  <WorkflowNodeIcon
-                    icon={panelIcon}
-                    size="sm"
-                    className="rounded-md shadow-none"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <Input
-                      value={panelTitle}
-                      placeholder={selectedBranchItem ? selectedBranchItem.id : selectedNodeSpec?.title || selectedNode.type}
-                      className="h-7 w-full rounded-md border-transparent bg-transparent px-1 text-sm font-semibold leading-5 text-slate-900 shadow-none transition-colors hover:border-slate-200 hover:bg-slate-50 focus-visible:border-blue-300 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-100"
-                      onChange={(event) => updatePanelTitle(event.target.value)}
-                    />
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 shrink-0 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                  aria-label="关闭属性面板"
-                  onClick={onClose}
-                >
-                  <XIcon className="size-4" />
-                </Button>
+        <div className="shrink-0 border-b border-slate-200 px-4 py-3">
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+              <WorkflowNodeIcon
+                icon={panelIcon}
+                size="sm"
+                className="rounded-md shadow-none"
+              />
+              <div className="min-w-0 flex-1">
+                <Input
+                  value={panelTitle}
+                  placeholder={selectedBranchItem ? selectedBranchItem.id : selectedNodeSpec?.title || selectedNode.type}
+                  className="h-7 w-full rounded-md border-transparent bg-transparent px-1 text-sm font-semibold leading-5 text-slate-900 shadow-none transition-colors hover:border-slate-200 hover:bg-slate-50 focus-visible:border-blue-300 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-blue-100"
+                  onChange={(event) => updatePanelTitle(event.target.value)}
+                />
               </div>
-              {panelDescription ? (
-                <div className="mt-1 text-xs leading-5 text-slate-500">
-                  {panelDescription}
-                </div>
-              ) : null}
             </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 shrink-0 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+              aria-label="关闭属性面板"
+              onClick={onClose}
+            >
+              <XIcon className="size-4" />
+            </Button>
+          </div>
+          {panelDescription ? (
+            <div className="mt-1 text-xs leading-5 text-slate-500">
+              {panelDescription}
+            </div>
+          ) : null}
+        </div>
+        <ScrollArea className="min-h-0 flex-1">
+          <div>
             {selectedBranchItem && selectedBranch ? (
               <ConditionBranchConfigPanel
                 node={selectedNode}
