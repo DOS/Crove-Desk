@@ -1,10 +1,23 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
-import { ArrowDownIcon, ArrowUpIcon, Trash2Icon } from "lucide-react"
+import { ArrowDownIcon, ArrowUpIcon, CheckIcon, ChevronsUpDownIcon, Trash2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 import { Input } from "@/components/ui/input"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { OptionCombobox } from "@/components/option-combobox"
 import { fetchKnowledgeBasesAll, type AIWorkflowDefinition, type AIWorkflowNodeSpec, type KnowledgeBase } from "@/lib/api/admin"
@@ -293,7 +306,7 @@ function KnowledgeRetrieveConfigPanel({
   onChange: (config: Record<string, unknown>) => void
 }) {
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([])
-  const [knowledgeToAdd, setKnowledgeToAdd] = useState("")
+  const [open, setOpen] = useState(false)
   const selectedKnowledgeIds = normalizeKnowledgeBaseIds(config.knowledgeBaseIds)
   const knowledgeOptions = useMemo(
     () => knowledgeBases.map((item) => ({ value: String(item.id), label: item.name })),
@@ -324,11 +337,14 @@ function KnowledgeRetrieveConfigPanel({
   const updateKnowledgeBaseIds = (ids: number[]) => {
     onChange({ ...config, knowledgeBaseIds: uniquePositiveNumbers(ids) })
   }
-  const addKnowledgeBase = () => {
-    const id = Number(knowledgeToAdd)
-    if (!Number.isFinite(id) || id <= 0 || selectedKnowledgeIds.includes(id)) return
+  const toggleKnowledgeBase = (value: string) => {
+    const id = Number(value)
+    if (!Number.isFinite(id) || id <= 0) return
+    if (selectedKnowledgeIds.includes(id)) {
+      updateKnowledgeBaseIds(selectedKnowledgeIds.filter((item) => item !== id))
+      return
+    }
     updateKnowledgeBaseIds([...selectedKnowledgeIds, id])
-    setKnowledgeToAdd("")
   }
   const moveKnowledgeBase = (index: number, direction: -1 | 1) => {
     const targetIndex = index + direction
@@ -344,21 +360,59 @@ function KnowledgeRetrieveConfigPanel({
     <InspectorSection title="节点配置" meta={`${selectedKnowledgeIds.length} 个知识库`}>
       <InspectorRow label="知识库" required>
         <div className="space-y-2">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-            <OptionCombobox
-              value={knowledgeToAdd}
-              options={knowledgeOptions.filter((option) => !selectedKnowledgeIds.includes(Number(option.value)))}
-              placeholder="选择知识库"
-              searchPlaceholder="搜索知识库"
-              emptyText="没有可用知识库"
-              triggerClassName={inspectorComboboxClassName}
-              onChange={setKnowledgeToAdd}
-            />
-            <Button type="button" variant="outline" size="sm" className="h-8" onClick={addKnowledgeBase}>
-              添加
-            </Button>
-          </div>
-
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  className={cn("m-0 w-full justify-between font-normal", inspectorComboboxClassName)}
+                />
+              }
+            >
+              <span className="truncate">
+                {selectedKnowledgeOptions.length === 0
+                  ? "选择知识库"
+                  : selectedKnowledgeOptions.length === 1
+                    ? selectedKnowledgeOptions[0].label
+                    : `已选择 ${selectedKnowledgeOptions.length} 个知识库`}
+              </span>
+              <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-(--radix-popover-trigger-width) p-0"
+              align="start"
+              data-workflow-preserve-selection
+            >
+              <Command>
+                <CommandInput placeholder="搜索知识库" />
+                <CommandList>
+                  <CommandEmpty>没有可用知识库</CommandEmpty>
+                  <CommandGroup>
+                    {knowledgeOptions.map((option) => {
+                      const selected = selectedKnowledgeIds.includes(Number(option.value))
+                      return (
+                        <CommandItem
+                          key={option.value}
+                          value={`${option.label} ${option.value}`}
+                          onSelect={() => toggleKnowledgeBase(option.value)}
+                        >
+                          <CheckIcon
+                            className={cn(
+                              "mr-2 size-4 shrink-0",
+                              selected ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <span className="truncate">{option.label}</span>
+                        </CommandItem>
+                      )
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
           <div className="divide-y divide-slate-100 rounded-md border border-slate-200">
             {selectedKnowledgeOptions.length === 0 ? (
               <div className="px-3 py-2 text-sm text-slate-500">
