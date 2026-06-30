@@ -493,12 +493,15 @@ function InspectorParameterTabs({
   return (
     <section className="border-b border-slate-200 last:border-b-0">
       <Tabs defaultValue={tabs[0].value} className="gap-0">
-        <div className="flex min-h-8 items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-3 py-0">
-          <TabsList variant="line" className="h-8 gap-3 p-0">
+        <div className="flex min-h-9 items-center border-b border-slate-100 bg-slate-100 px-3 py-1">
+          <TabsList variant="line" className="h-6 gap-1 rounded-none bg-transparent p-0">
             {tabs.map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value} className="h-8 rounded-none px-0 text-sm">
-                {tab.label}
-                <span className="font-mono text-xs text-slate-400">{tab.count}</span>
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+              >
+                <span>{tab.label}</span>
+                <span className="ml-1.5 font-mono text-xs text-slate-400 data-active:text-slate-500">{tab.count}</span>
               </TabsTrigger>
             ))}
           </TabsList>
