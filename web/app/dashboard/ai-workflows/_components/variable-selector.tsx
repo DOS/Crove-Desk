@@ -33,6 +33,7 @@ export function VariableSelector({
       options={options}
       placeholder={placeholder}
       triggerClassName={triggerClassName}
+      preserveExternalSelection
       onChange={(next) => {
         const variable = variables.find((item) => `${item.nodeId}.${item.field}` === next)
         if (variable) {

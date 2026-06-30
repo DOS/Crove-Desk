@@ -35,6 +35,7 @@ type OptionComboboxProps = {
   emptyText?: string
   disabled?: boolean
   triggerClassName?: string
+  preserveExternalSelection?: boolean
   onChange: (value: string) => void
   renderOptionAction?: (option: ComboboxOption) => ReactNode
 }
@@ -47,6 +48,7 @@ export function OptionCombobox({
   emptyText,
   disabled = false,
   triggerClassName,
+  preserveExternalSelection = false,
   onChange,
   renderOptionAction,
 }: OptionComboboxProps) {
@@ -70,7 +72,11 @@ export function OptionCombobox({
         <span className="truncate">{selectedLabel}</span>
         <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
       </PopoverTrigger>
-      <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
+      <PopoverContent
+        className="w-(--radix-popover-trigger-width) p-0"
+        align="start"
+        data-workflow-preserve-selection={preserveExternalSelection ? true : undefined}
+      >
         <Command>
           <CommandInput placeholder={searchPlaceholder ?? t("common.searchKeyword")} />
           <CommandList>

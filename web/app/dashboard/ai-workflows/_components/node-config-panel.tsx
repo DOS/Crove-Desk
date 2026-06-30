@@ -241,6 +241,7 @@ export function ConditionBranchConfigPanel({
               options={targetOptions}
               placeholder="选择目标节点"
               triggerClassName={inspectorComboboxClassName}
+              preserveExternalSelection
               onChange={(targetNodeId) => updateBranch({ ...branch, targetNodeId })}
             />
           </InspectorRow>
@@ -346,6 +347,7 @@ function ConditionBranchesEditor({
                   options={targetOptions}
                   placeholder="选择目标节点"
                   triggerClassName={inspectorComboboxClassName}
+                  preserveExternalSelection
                   onChange={(targetNodeId) => onChange({ ...branch, targetNodeId })}
                 />
               </div>
@@ -418,6 +420,7 @@ function ConditionFields({
             options={CONDITION_OPERATOR_OPTIONS}
             placeholder="选择操作符"
             triggerClassName={inspectorComboboxClassName}
+            preserveExternalSelection
             onChange={(operator) => onChange({
               ...branch,
               condition: { ...condition, operator },
@@ -435,6 +438,7 @@ function ConditionFields({
               }))}
               placeholder="选择取值"
               triggerClassName={inspectorComboboxClassName}
+              preserveExternalSelection
               onChange={(nextValue) => {
                 const selectedOption = valueOptions.find((option) => stringifyConditionRight(option.value) === nextValue)
                 onChange({
