@@ -41,8 +41,8 @@ const CONDITION_OPERATOR_OPTIONS = [
   { value: "empty", label: "为空" },
 ]
 
-const inspectorInputClassName = "h-7 rounded-sm border-slate-200 bg-white px-2 text-xs shadow-none"
-const inspectorComboboxClassName = "h-7 rounded-sm border-slate-200 bg-white text-xs shadow-none"
+const inspectorInputClassName = "h-8 rounded-sm border-slate-200 bg-white px-2 text-sm shadow-none"
+const inspectorComboboxClassName = "h-8 rounded-sm border-slate-200 bg-white text-sm shadow-none"
 
 export function NodeConfigPanel({
   node,
@@ -151,7 +151,7 @@ export function NodeConfigPanel({
               <div className="truncate text-sm font-medium">
                 {node.data?.title || nodeSpec?.title || node.type}
               </div>
-              <div className="mt-1 truncate text-xs text-muted-foreground">{node.id}</div>
+              <div className="mt-1 truncate text-sm text-muted-foreground">{node.id}</div>
             </div>
             {canDelete ? (
               <Button
@@ -245,7 +245,7 @@ export function ConditionBranchConfigPanel({
           </InspectorRow>
 
           <InspectorRow label="默认分支">
-            <label className="inline-flex h-7 items-center gap-2 text-xs text-slate-700">
+            <label className="inline-flex h-8 items-center gap-2 text-sm text-slate-700">
               <input
                 type="checkbox"
                 checked={branch.default === true}
@@ -263,7 +263,7 @@ export function ConditionBranchConfigPanel({
 
         {branch.default ? (
           <InspectorSection title="条件表达式">
-            <div className="px-3 py-2 text-xs text-slate-500">
+            <div className="px-3 py-2 text-sm text-slate-500">
               默认分支不需要条件表达式，会在其他条件不匹配时执行。
             </div>
           </InspectorSection>
@@ -301,13 +301,13 @@ function ConditionBranchesEditor({
       title="条件分支"
       meta={`${branches.length} 项`}
       action={
-        <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs text-slate-600" onClick={onAdd}>
+        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-sm text-slate-600" onClick={onAdd}>
           添加
         </Button>
       }
     >
       {branches.length === 0 ? (
-        <div className="px-3 py-3 text-xs text-slate-500">
+        <div className="px-3 py-3 text-sm text-slate-500">
           暂无分支。条件节点需要至少一个默认分支或条件分支。
         </div>
       ) : null}
@@ -316,7 +316,7 @@ function ConditionBranchesEditor({
           return (
             <div key={branch.id} className="bg-white px-3 py-2">
               <div className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-2">
-                <span className="inline-flex h-5 shrink-0 items-center justify-center rounded-sm border border-slate-200 bg-slate-50 px-1.5 font-mono text-[10px] font-semibold text-slate-600">
+                <span className="inline-flex h-5 shrink-0 items-center justify-center rounded-sm border border-slate-200 bg-slate-50 px-1.5 font-mono text-xs font-semibold text-slate-600">
                   {branch.default ? "ELSE" : "IF"}
                 </span>
                 <Input
@@ -330,7 +330,7 @@ function ConditionBranchesEditor({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-xs text-slate-500 hover:text-destructive"
+                    className="h-8 px-2 text-sm text-slate-500 hover:text-destructive"
                     onClick={() => onDelete(branch.id)}
                   >
                     删除
@@ -339,7 +339,7 @@ function ConditionBranchesEditor({
               </div>
 
               <div className="mt-2 grid grid-cols-[72px_minmax(0,1fr)] items-center gap-2">
-                <div className="text-xs text-slate-500">目标节点</div>
+                <div className="text-sm text-slate-500">目标节点</div>
                 <OptionCombobox
                   value={branch.targetNodeId}
                   options={targetOptions}
@@ -350,7 +350,7 @@ function ConditionBranchesEditor({
                 />
               </div>
 
-              <label className="mt-2 flex items-center gap-2 pl-[72px] text-xs text-slate-500">
+              <label className="mt-2 flex items-center gap-2 pl-[72px] text-sm text-slate-500">
                 <input
                   type="checkbox"
                   checked={branch.default === true}
@@ -398,7 +398,7 @@ function ConditionFields({
   return (
     <div className={cn("divide-y divide-slate-100", compact && "divide-y-0")}>
       <div className={cn("grid grid-cols-[92px_minmax(0,1fr)] items-start gap-2 px-3 py-2", compact && "grid-cols-[72px_minmax(0,1fr)] px-0 py-1")}>
-        <div className="pt-1.5 text-xs text-slate-500">左值</div>
+        <div className="pt-1.5 text-sm text-slate-500">左值</div>
         <VariableSelector
           value={isRefValue(condition.left) ? condition.left : undefined}
           variables={variables}
@@ -411,7 +411,7 @@ function ConditionFields({
         />
       </div>
       <div className={cn("grid grid-cols-[92px_minmax(0,1fr)_minmax(0,1fr)] items-start gap-2 px-3 py-2", compact && "grid-cols-[72px_minmax(0,1fr)_96px] px-0 py-1")}>
-        <div className="pt-1.5 text-xs text-slate-500">判断</div>
+        <div className="pt-1.5 text-sm text-slate-500">判断</div>
         <div>
           <OptionCombobox
             value={condition.operator ?? ""}
@@ -496,9 +496,9 @@ function InspectorParameterTabs({
         <div className="flex min-h-8 items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-3 py-0">
           <TabsList variant="line" className="h-8 gap-3 p-0">
             {tabs.map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value} className="h-8 rounded-none px-0 text-xs">
+              <TabsTrigger key={tab.value} value={tab.value} className="h-8 rounded-none px-0 text-sm">
                 {tab.label}
-                <span className="font-mono text-[10px] text-slate-400">{tab.count}</span>
+                <span className="font-mono text-xs text-slate-400">{tab.count}</span>
               </TabsTrigger>
             ))}
           </TabsList>
@@ -528,10 +528,10 @@ function InspectorSection({
     <section className="border-b border-slate-200 last:border-b-0">
       <div className="flex min-h-8 items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-3 py-1">
         <div className="min-w-0">
-          <div className="truncate text-[11px] font-semibold uppercase tracking-wide text-slate-500">{title}</div>
+          <div className="truncate text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {meta ? <span className="font-mono text-[10px] text-slate-400">{meta}</span> : null}
+          {meta ? <span className="font-mono text-xs text-slate-400">{meta}</span> : null}
           {action}
         </div>
       </div>
@@ -555,10 +555,10 @@ function InspectorRow({
     <div className="grid grid-cols-[112px_minmax(0,1fr)] gap-3 border-b border-slate-100 px-3 py-2 last:border-b-0">
       <div className="min-w-0 pt-1">
         <div className="flex min-w-0 items-center gap-1">
-          <span className="truncate text-xs font-medium text-slate-700">{label}</span>
-          {required ? <span className="text-[10px] text-destructive">*</span> : null}
+          <span className="truncate text-sm font-medium text-slate-700">{label}</span>
+          {required ? <span className="text-xs text-destructive">*</span> : null}
         </div>
-        {detail ? <div className="mt-0.5 truncate font-mono text-[10px] leading-4 text-slate-400">{detail}</div> : null}
+        {detail ? <div className="mt-0.5 truncate font-mono text-xs leading-5 text-slate-400">{detail}</div> : null}
       </div>
       <div className="min-w-0">{children}</div>
     </div>
@@ -590,10 +590,10 @@ function InspectorField({
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex min-w-0 items-start gap-1">
-            <span className="min-w-0 break-words text-xs font-medium leading-4 text-slate-700">{label}</span>
-            {required ? <span className="shrink-0 text-[10px] text-destructive">*</span> : null}
+            <span className="min-w-0 break-words text-sm font-medium leading-5 text-slate-700">{label}</span>
+            {required ? <span className="shrink-0 text-xs text-destructive">*</span> : null}
           </div>
-          {detail ? <div className="mt-1 break-all font-mono text-[10px] leading-4 text-slate-400">{detail}</div> : null}
+          {detail ? <div className="mt-1 break-all font-mono text-xs leading-5 text-slate-400">{detail}</div> : null}
         </div>
       </div>
       {metaItems.length > 0 ? (
@@ -601,7 +601,7 @@ function InspectorField({
           {metaItems.map((item) => (
             <span
               key={item.label}
-              className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-sm border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] leading-4 text-slate-500"
+              className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-sm border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-xs leading-5 text-slate-500"
             >
               <span className="shrink-0 text-slate-400">{item.label}</span>
               <span className="min-w-0 break-all">{item.value}</span>
@@ -615,7 +615,7 @@ function InspectorField({
 }
 
 function InspectorHint({ children }: { children: ReactNode }) {
-  return <div className="mt-1.5 text-xs leading-4 text-slate-500">{children}</div>
+  return <div className="mt-1.5 text-sm leading-5 text-slate-500">{children}</div>
 }
 
 function buildTargetOptions(nodes: AIWorkflowDefinition["nodes"], currentNodeId: string) {
