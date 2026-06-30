@@ -262,6 +262,23 @@ describe("workflow variable display helpers", () => {
   })
 })
 
+describe("workflow branch interaction helpers", () => {
+  it("detects branch row action targets inside buttons", async () => {
+    const { isBranchRowActionTarget } = await loadModule()
+
+    assert.equal(isBranchRowActionTarget({
+      closest(selector) {
+        return selector === "button" ? {} : null
+      },
+    }), true)
+    assert.equal(isBranchRowActionTarget({
+      closest() {
+        return null
+      },
+    }), false)
+  })
+})
+
 describe("workflow definition mutations", () => {
   it("updates node data without changing unrelated nodes", async () => {
     const { updateWorkflowNodeData } = await loadModule()

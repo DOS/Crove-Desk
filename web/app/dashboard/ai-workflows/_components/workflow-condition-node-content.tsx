@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 import { useWorkflowBranchSelection } from "./workflow-branch-selection"
 import {
   createConditionBranchID,
+  isBranchRowActionTarget,
   normalizeNodeConfig,
   type WorkflowConditionBranch,
 } from "./workflow-utils"
@@ -99,6 +100,9 @@ function WorkflowConditionBranchRow({
       )}
       onPointerDownCapture={(event) => {
         event.stopPropagation()
+        if (isBranchRowActionTarget(event.target)) {
+          return
+        }
         onSelect()
       }}
       onMouseDownCapture={(event) => {

@@ -126,6 +126,11 @@ export function buildVariableSpecDisplay(variable: WorkflowVariableSpec): Workfl
   }
 }
 
+export function isBranchRowActionTarget(target: EventTarget | null): boolean {
+  const maybeElement = target as { closest?: (selector: string) => Element | null } | null
+  return typeof maybeElement?.closest === "function" && maybeElement.closest("button") !== null
+}
+
 export function getNodeTitle(
   node: AIWorkflowDefinition["nodes"][number] | undefined,
   specs: AIWorkflowNodeSpec[] = []
