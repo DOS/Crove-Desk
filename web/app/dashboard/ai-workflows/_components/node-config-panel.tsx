@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 
 import { VariableSelector } from "./variable-selector"
 import {
+  buildVariableSpecDisplay,
   createConditionBranchID,
   isRefValue,
   normalizeNodeConfig,
@@ -73,6 +74,7 @@ export function NodeConfigPanel({
 
   const inputsValues = node.data?.inputsValues ?? {}
   const inputSchema = nodeSpec?.inputSchema ?? []
+  const outputSchema = nodeSpec?.outputSchema ?? []
   const canDelete = node.type !== "start" && node.type !== "end"
   const config = normalizeNodeConfig(node.data?.config)
   const branches = config.branches ?? []
@@ -174,6 +176,25 @@ export function NodeConfigPanel({
             onChange={updateBranch}
             onDelete={deleteBranch}
           />
+        ) : null}
+
+        {outputSchema.length > 0 ? (
+          <ConfigCard title="输出" meta={`${outputSchema.length} 项`}>
+            <div className="space-y-2">
+              {outputSchema.map((output) => {
+                const item = buildVariableSpecDisplay(output)
+                return (
+                  <div key={item.key} className="rounded-md border border-slate-200 bg-slate-50/60 px-2.5 py-2">
+                    <div className="truncate text-xs font-medium text-slate-700">{item.label}</div>
+                    <div className="mt-1 truncate font-mono text-[11px] leading-4 text-slate-500">{item.subtitle}</div>
+                    {item.description ? (
+                      <div className="mt-1 text-xs leading-4 text-muted-foreground">{item.description}</div>
+                    ) : null}
+                  </div>
+                )
+              })}
+            </div>
+          </ConfigCard>
         ) : null}
       </div>
     </div>

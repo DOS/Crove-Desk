@@ -244,6 +244,22 @@ describe("workflow variable display helpers", () => {
       description: "客户本轮发送的消息内容",
     })
   })
+
+  it("builds variable spec display rows for readonly node outputs", async () => {
+    const { buildVariableSpecDisplay } = await loadModule()
+
+    assert.deepEqual(plain(buildVariableSpecDisplay({
+      name: "replyText",
+      label: "回复内容",
+      type: "string",
+      description: "发送给客户的最终回复文本",
+    })), {
+      key: "replyText",
+      label: "回复内容",
+      subtitle: "replyText · string",
+      description: "发送给客户的最终回复文本",
+    })
+  })
 })
 
 describe("workflow definition mutations", () => {

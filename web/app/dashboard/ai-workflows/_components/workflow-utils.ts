@@ -72,6 +72,13 @@ export type WorkflowVariableOption = {
   description: string
 }
 
+export type WorkflowVariableSpecDisplay = {
+  key: string
+  label: string
+  subtitle: string
+  description: string
+}
+
 export type WorkflowNodeSpec = AIWorkflowNodeSpec
 
 export type WorkflowDraftValidation = {
@@ -107,6 +114,15 @@ export function buildVariableOption(variable: WorkflowVariableRef): WorkflowVari
     label,
     subtitle: [ref, variable.type].filter(Boolean).join(" · "),
     description: variable.description,
+  }
+}
+
+export function buildVariableSpecDisplay(variable: WorkflowVariableSpec): WorkflowVariableSpecDisplay {
+  return {
+    key: variable.name,
+    label: variable.label || variable.name,
+    subtitle: [variable.name, variable.type].filter(Boolean).join(" · "),
+    description: variable.description || "",
   }
 }
 
