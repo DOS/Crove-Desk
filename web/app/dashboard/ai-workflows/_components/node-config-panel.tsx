@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
-import { ArrowDownIcon, ArrowUpIcon, CheckIcon, ChevronsUpDownIcon, Trash2Icon } from "lucide-react"
+import { CheckIcon, ChevronsUpDownIcon, Trash2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -346,16 +346,6 @@ function KnowledgeRetrieveConfigPanel({
     }
     updateKnowledgeBaseIds([...selectedKnowledgeIds, id])
   }
-  const moveKnowledgeBase = (index: number, direction: -1 | 1) => {
-    const targetIndex = index + direction
-    if (targetIndex < 0 || targetIndex >= selectedKnowledgeIds.length) return
-    const next = [...selectedKnowledgeIds]
-    const current = next[index]
-    next[index] = next[targetIndex]
-    next[targetIndex] = current
-    updateKnowledgeBaseIds(next)
-  }
-
   return (
     <InspectorSection title="节点配置" meta={`${selectedKnowledgeIds.length} 个知识库`}>
       <InspectorRow label="知识库" required>
@@ -426,28 +416,6 @@ function KnowledgeRetrieveConfigPanel({
                   </span>
                   <div className="truncate text-sm text-slate-700">{option.label}</div>
                   <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-7"
-                      disabled={index === 0}
-                      onClick={() => moveKnowledgeBase(index, -1)}
-                      aria-label="上移知识库"
-                    >
-                      <ArrowUpIcon className="size-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-7"
-                      disabled={index === selectedKnowledgeOptions.length - 1}
-                      onClick={() => moveKnowledgeBase(index, 1)}
-                      aria-label="下移知识库"
-                    >
-                      <ArrowDownIcon className="size-3.5" />
-                    </Button>
                     <Button
                       type="button"
                       variant="ghost"
