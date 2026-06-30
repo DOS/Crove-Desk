@@ -27,7 +27,6 @@ export function WorkflowConfigPanel({
   selectedNodeId,
   selectedBranch,
   onClose,
-  onSelectBranch,
   onChangeNodeData,
   onDeleteNode,
 }: {
@@ -36,7 +35,6 @@ export function WorkflowConfigPanel({
   selectedNodeId: string
   selectedBranch: SelectedWorkflowBranch | null
   onClose: () => void
-  onSelectBranch: (branch: SelectedWorkflowBranch | null) => void
   onChangeNodeData: (nodeId: string, data: WorkflowNodeData) => void
   onDeleteNode: (nodeId: string) => void
 }) {
@@ -63,17 +61,6 @@ export function WorkflowConfigPanel({
     return null
   }
 
-  const deleteSelectedBranch = (branchId: string) => {
-    const config = normalizeNodeConfig(selectedNode.data?.config)
-    onChangeNodeData(selectedNode.id, {
-      ...(selectedNode.data ?? {}),
-      config: {
-        ...config,
-        branches: (config.branches ?? []).filter((branch) => branch.id !== branchId),
-      },
-    })
-    onSelectBranch(null)
-  }
   const updatePanelTitle = (title: string) => {
     if (selectedBranchItem && selectedBranch) {
       const config = normalizeNodeConfig(selectedNode.data?.config)
@@ -170,7 +157,6 @@ export function WorkflowConfigPanel({
                 branchId={selectedBranch.branchId}
                 variables={availableVariables}
                 onChange={onChangeNodeData}
-                onDelete={deleteSelectedBranch}
               />
             ) : (
               <NodeConfigPanel

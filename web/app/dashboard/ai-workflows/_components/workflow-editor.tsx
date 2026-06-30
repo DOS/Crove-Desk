@@ -386,7 +386,6 @@ function WorkflowEditorInner({
         selectedNodeId={selectedNodeId}
         selectedBranch={selectedBranch}
         onClose={closeConfigPanel}
-        onSelectBranch={onSelectBranch}
         onChangeNodeData={updateNodeData}
         onDeleteNode={removeNode}
       />

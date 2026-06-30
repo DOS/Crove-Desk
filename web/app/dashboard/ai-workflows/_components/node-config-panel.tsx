@@ -207,14 +207,12 @@ export function ConditionBranchConfigPanel({
   branchId,
   variables,
   onChange,
-  onDelete,
 }: {
   node: AIWorkflowDefinition["nodes"][number]
   nodes: AIWorkflowDefinition["nodes"]
   branchId: string
   variables: WorkflowVariableRef[]
   onChange: (nodeId: string, data: AIWorkflowDefinition["nodes"][number]["data"]) => void
-  onDelete: (branchId: string) => void
 }) {
   const config = normalizeNodeConfig(node.data?.config)
   const branches = config.branches ?? []
@@ -278,18 +276,6 @@ export function ConditionBranchConfigPanel({
         <ConfigCard title="条件表达式">
           <ConditionFields branch={branch} variables={variables} onChange={updateBranch} />
         </ConfigCard>
-      )}
-
-      {branch.default ? null : (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 text-xs text-slate-500 hover:text-destructive"
-          onClick={() => onDelete(branch.id)}
-        >
-          删除条件
-        </Button>
       )}
     </div>
   )
