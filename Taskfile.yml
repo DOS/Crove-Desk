@@ -1,0 +1,244 @@
+version: '3'
+
+vars:
+  APP: agent-desk
+  MAIN: ./cmd/server
+  WEB_DIR: web
+  DIST_DIR: dist
+  GO:
+    sh: 'printf "%s" "${GO:-go}"'
+  PNPM:
+    sh: 'printf "%s" "${PNPM:-pnpm}"'
+  DEV_PORT:
+    sh: 'printf "%s" "${DEV_PORT:-8083}"'
+  DEV_API_BASE_URL:
+    sh: 'printf "%s" "${DEV_API_BASE_URL:-http://127.0.0.1:${DEV_PORT:-8083}}"'
+  LANCEDB_VERSION:
+    sh: 'printf "%s" "${LANCEDB_VERSION:-v0.1.2}"'
+  LANCEDB_DOWNLOAD_SCRIPT:
+    sh: 'printf "%s" "${LANCEDB_DOWNLOAD_SCRIPT:-https://raw.githubusercontent.com/lancedb/lancedb-go/main/scripts/download-artifacts.sh}"'
+  LANCEDB:
+    sh: 'printf "%s" "${LANCEDB:-0}"'
+  UNAME_S:
+    sh: uname -s
+  UNAME_M:
+    sh: uname -m
+  BUILD_OUTPUT:
+    sh: |
+      suffix=""
+      ext=""
+      if [ "{{.LANCEDB}}" = "1" ]; then
+        suffix="-lancedb"
+      fi
+      if [ "$(${GO:-go} env GOOS)" = "windows" ]; then
+        ext=".exe"
+      fi
+      printf "%s/%s%s%s" "{{.DIST_DIR}}" "{{.APP}}" "$suffix" "$ext"
+  LANCEDB_ARCH:
+    sh: |
+      case "$(uname -m)" in
+        x86_64|amd64) printf amd64 ;;
+        arm64|aarch64) printf arm64 ;;
+        *) printf unsupported ;;
+      esac
+  LANCEDB_PLATFORM:
+    sh: |
+      case "$(uname -s)" in
+        Darwin) printf darwin ;;
+        Linux) printf linux ;;
+        MINGW*|MSYS*|CYGWIN*) printf windows ;;
+        *) printf unsupported ;;
+      esac
+  LANCEDB_PLATFORM_ARCH:
+    sh: |
+      case "$(uname -s)" in
+        Darwin) platform=darwin ;;
+        Linux) platform=linux ;;
+        MINGW*|MSYS*|CYGWIN*) platform=windows ;;
+        *) platform=unsupported ;;
+      esac
+      case "$(uname -m)" in
+        x86_64|amd64) arch=amd64 ;;
+        arm64|aarch64) arch=arm64 ;;
+        *) arch=unsupported ;;
+      esac
+      printf "%s_%s" "$platform" "$arch"
+  LANCEDB_NATIVE_LIB:
+    sh: |
+      case "$(uname -s)" in
+        Darwin) platform=darwin ;;
+        Linux) platform=linux ;;
+        MINGW*|MSYS*|CYGWIN*) platform=windows ;;
+        *) platform=unsupported ;;
+      esac
+      case "$(uname -m)" in
+        x86_64|amd64) arch=amd64 ;;
+        arm64|aarch64) arch=arm64 ;;
+        *) arch=unsupported ;;
+      esac
+      printf "%s/lib/%s_%s/liblancedb_go.a" "{{.ROOT_DIR}}" "$platform" "$arch"
+  LANCEDB_CGO_CFLAGS: '-I{{.ROOT_DIR}}/include'
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  dev:
+    desc: Start backend and frontend development servers
+    deps:
+      - task: _go-dev
+      - task: _web-dev
+
+  build:
+    desc: Build the current system into dist/; pass LANCEDB=1 for the current-platform LanceDB binary
+    cmds:
+      - |
+        if [ "{{.LANCEDB}}" = "1" ]; then
+          task _lancedb-check
+        fi
+      - task: _prepare-dist
+      - task: _web-build-spa
+      - |
+        echo "Building {{.BUILD_OUTPUT}}..."
+        if [ "{{.LANCEDB}}" = "1" ]; then
+          case "$(uname -s)" in
+            Darwin) system_ldflags="-framework Security -framework CoreFoundation" ;;
+            Linux) system_ldflags="-lm -ldl -lpthread" ;;
+            *) system_ldflags="" ;;
+          esac
+          CGO_ENABLED=1 CGO_CFLAGS="{{.LANCEDB_CGO_CFLAGS}}" CGO_LDFLAGS="{{.LANCEDB_NATIVE_LIB}} $system_ldflags" \
+            {{.GO}} build -tags lancedb -v -o "{{.BUILD_OUTPUT}}" {{.MAIN}}
+        else
+          {{.GO}} build -v -o "{{.BUILD_OUTPUT}}" {{.MAIN}}
+        fi
+
+  release:
+    desc: Build linux/darwin/windows release binaries into dist/; pass LANCEDB=1 for LanceDB release binaries
+    cmds:
+      - |
+        if [ "{{.LANCEDB}}" = "1" ]; then
+          task _lancedb-release-check
+        fi
+      - task: _prepare-dist
+      - task: _web-build-spa
+      - |
+        echo "Building release binaries in {{.DIST_DIR}}..."
+        if [ "{{.LANCEDB}}" = "1" ]; then
+          if [ ! -f "{{.ROOT_DIR}}/include/lancedb.h" ]; then
+            echo "Missing LanceDB header: {{.ROOT_DIR}}/include/lancedb.h"
+            exit 1
+          fi
+          build_lancedb() {
+            platform="$1"
+            arch="$2"
+            ext="$3"
+            system_ldflags="$4"
+            native_lib="{{.ROOT_DIR}}/lib/${platform}_${arch}/liblancedb_go.a"
+            output="{{.DIST_DIR}}/{{.APP}}-lancedb-${platform}-${arch}${ext}"
+            if [ ! -f "$native_lib" ]; then
+              echo "Missing LanceDB native library for ${platform}/${arch}: $native_lib"
+              echo "LanceDB release builds require matching native artifacts and a CGO-capable toolchain for each target platform."
+              exit 1
+            fi
+            echo "Building $output..."
+            CGO_ENABLED=1 CGO_CFLAGS="-I{{.ROOT_DIR}}/include" CGO_LDFLAGS="$native_lib $system_ldflags" \
+              GOOS="$platform" GOARCH="$arch" {{.GO}} build -tags lancedb -v -o "$output" {{.MAIN}}
+          }
+          build_lancedb linux amd64 "" "-lm -ldl -lpthread"
+          build_lancedb linux arm64 "" "-lm -ldl -lpthread"
+          build_lancedb darwin amd64 "" "-framework Security -framework CoreFoundation"
+          build_lancedb darwin arm64 "" "-framework Security -framework CoreFoundation"
+          build_lancedb windows amd64 ".exe" ""
+        else
+          GOOS=linux GOARCH=amd64 {{.GO}} build -v -o "{{.DIST_DIR}}/{{.APP}}-linux-amd64" {{.MAIN}}
+          GOOS=linux GOARCH=arm64 {{.GO}} build -v -o "{{.DIST_DIR}}/{{.APP}}-linux-arm64" {{.MAIN}}
+          GOOS=darwin GOARCH=amd64 {{.GO}} build -v -o "{{.DIST_DIR}}/{{.APP}}-darwin-amd64" {{.MAIN}}
+          GOOS=darwin GOARCH=arm64 {{.GO}} build -v -o "{{.DIST_DIR}}/{{.APP}}-darwin-arm64" {{.MAIN}}
+          GOOS=windows GOARCH=amd64 {{.GO}} build -v -o "{{.DIST_DIR}}/{{.APP}}-windows-amd64.exe" {{.MAIN}}
+        fi
+
+  generator:
+    desc: Run code generation
+    cmds:
+      - '{{.GO}} run ./cmd/generator/generator.go'
+
+  enums:
+    desc: Generate frontend enums
+    cmds:
+      - '{{.GO}} run ./cmd/enums/generator.go'
+
+  _web-build-spa:
+    cmds:
+      - 'cd {{.WEB_DIR}} && {{.PNPM}} build:sdk && {{.PNPM}} build'
+
+  _web-dev:
+    cmds:
+      - 'cd {{.WEB_DIR}} && NEXT_PUBLIC_API_BASE_URL="" NEXT_API_BASE_URL="{{.DEV_API_BASE_URL}}" {{.PNPM}} dev'
+
+  _go-dev:
+    cmds:
+      - task: _lancedb-check
+      - |
+        case "$(uname -s)" in
+          Darwin) system_ldflags="-framework Security -framework CoreFoundation" ;;
+          Linux) system_ldflags="-lm -ldl -lpthread" ;;
+          *) system_ldflags="" ;;
+        esac
+        AGENT_DESK_SERVER_PORT="{{.DEV_PORT}}" CGO_ENABLED=1 CGO_CFLAGS="{{.LANCEDB_CGO_CFLAGS}}" CGO_LDFLAGS="{{.LANCEDB_NATIVE_LIB}} $system_ldflags" \
+          {{.GO}} run -tags "dev lancedb" {{.MAIN}}
+
+  _prepare-dist:
+    cmds:
+      - 'mkdir -p {{.DIST_DIR}}'
+
+  _lancedb-artifacts:
+    cmds:
+      - |
+        if [ "{{.LANCEDB_PLATFORM}}" = "unsupported" ] || [ "{{.LANCEDB_ARCH}}" = "unsupported" ]; then
+          echo "Unsupported LanceDB platform: {{.UNAME_S}}/{{.UNAME_M}}"
+          exit 1
+        fi
+      - |
+        if [ -f "{{.LANCEDB_NATIVE_LIB}}" ] && [ -f "{{.ROOT_DIR}}/include/lancedb.h" ]; then
+          echo "LanceDB native artifacts already exist for {{.LANCEDB_PLATFORM_ARCH}}."
+        else
+          echo "Downloading LanceDB native artifacts {{.LANCEDB_VERSION}} for {{.LANCEDB_PLATFORM_ARCH}}..."
+          curl -sSL "{{.LANCEDB_DOWNLOAD_SCRIPT}}" | bash -s "{{.LANCEDB_VERSION}}"
+        fi
+
+  _lancedb-check:
+    cmds:
+      - task: _lancedb-artifacts
+      - |
+        if [ ! -f "{{.LANCEDB_NATIVE_LIB}}" ]; then
+          echo "Missing LanceDB native library: {{.LANCEDB_NATIVE_LIB}}"
+          exit 1
+        fi
+      - |
+        if [ ! -f "{{.ROOT_DIR}}/include/lancedb.h" ]; then
+          echo "Missing LanceDB header: {{.ROOT_DIR}}/include/lancedb.h"
+          exit 1
+        fi
+
+  _lancedb-release-check:
+    cmds:
+      - |
+        if [ ! -f "{{.ROOT_DIR}}/include/lancedb.h" ]; then
+          echo "Missing LanceDB header: {{.ROOT_DIR}}/include/lancedb.h"
+          exit 1
+        fi
+      - |
+        missing=0
+        for target in linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 windows_amd64; do
+          native_lib="{{.ROOT_DIR}}/lib/${target}/liblancedb_go.a"
+          if [ ! -f "$native_lib" ]; then
+            echo "Missing LanceDB native library: $native_lib"
+            missing=1
+          fi
+        done
+        if [ "$missing" = "1" ]; then
+          echo "LanceDB release builds require matching native artifacts and a CGO-capable toolchain for each target platform."
+          exit 1
+        fi

@@ -138,14 +138,7 @@ cd ..
 同时启动后端和前端开发服务：
 
 ```bash
-make dev
-```
-
-或分别启动：
-
-```bash
-make run-go
-make web-dev
+task dev
 ```
 
 开发环境默认入口：
@@ -193,21 +186,14 @@ make web-dev
 ## 常用命令
 
 ```bash
-make dev            # 同时启动后端和前端开发服务
-make run            # 构建前端 SPA 后启动后端
-make run-go         # 启动后端，自动确保 SPA 已构建
-make web-dev        # 启动前端开发服务
-make build          # 构建前端 SPA 和当前平台 Go 二进制
-make build-linux    # 构建 linux/amd64 二进制
-make release        # 构建常用平台二进制
-make web-build-spa  # 构建 web 静态 SPA 和嵌入式 SDK
-make test           # 运行 Go 测试，自动确保 SPA 已构建
-make check          # 运行 Go 测试、前端 typecheck 和 lint
-make generator      # 执行代码生成
-make enums          # 生成前端枚举
-make migration      # 执行 migration
-make testdata       # 初始化中文演示/测试数据
-make testdata TESTDATA_LANG=en  # 初始化英文演示/测试数据
+task dev            # 同时启动后端和前端开发服务
+task build          # 构建前端 SPA 和当前平台 Go 二进制
+task build LANCEDB=1  # 构建当前平台 LanceDB 二进制
+task release        # 构建常用平台二进制
+task release LANCEDB=1  # 构建 LanceDB 发布二进制
+task generator      # 执行代码生成
+task enums          # 生成前端枚举
+task --list         # 查看可用任务
 ```
 
 ## AI Agent 工作流

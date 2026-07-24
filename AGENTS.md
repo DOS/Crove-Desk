@@ -259,7 +259,7 @@ func BuildXxx(item *models.Xxx) *response.Xxx {
 ### 7.1 Code Generation
 
 - Entry point: `cmd/generator/generator.go`
-- Command: `make generator`
+- Command: `task generator`
 - Generation library: `github.com/mlogclub/codegen`
 - Registration method: `codegen.GetGenerateStruct(&models.XXX{})`
 - Generated files should be placed in the `generated` directory and named `*_gen.go`
@@ -269,7 +269,7 @@ Standard process:
 
 1. Define or modify the model
 2. Register it in the generator
-3. Run `make generator`
+3. Run `task generator`
 4. Add business logic in the handwritten layers
 5. Run tests and self-checks
 
@@ -417,7 +417,7 @@ httpx.WriteJSON(ctx, &web.PageResult{Results: results, Page: paging})
 - System constants should be defined uniformly under `/internal/pkg/enums`
 - Model statuses should preferably use `Status` from `/internal/pkg/enums/enums.go`; only add a new status enum when it does not meet the requirement
 - Enums shared by backend and frontend must follow [docs/design/specs/backend-frontend-enum-ast-spec.md](docs/design/specs/backend-frontend-enum-ast-spec.md)
-- Shared backend/frontend enums may only be defined in the backend; the frontend must generate results with `make enums`, and handwritten duplicate business enums are forbidden
+- Shared backend/frontend enums may only be defined in the backend; the frontend must generate results with `task enums`, and handwritten duplicate business enums are forbidden
 
 ## 9. Go Code Standards
 
@@ -475,7 +475,7 @@ httpx.WriteJSON(ctx, &web.PageResult{Results: results, Page: paging})
 ### 10.5 Enum Management
 
 - All frontend enums should be defined uniformly in `web/lib/enums.ts`
-- Enums are defined by the backend; frontend enums are generated with `make enums`
+- Enums are defined by the backend; frontend enums are generated with `task enums`
 
 ### 10.6 Dashboard List and Form Baseline
 
