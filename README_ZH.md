@@ -188,9 +188,9 @@ task dev
 ```bash
 task dev            # 同时启动后端和前端开发服务
 task build          # 构建前端 SPA 和当前平台 Go 二进制
-task build LANCEDB=1  # 构建当前平台 LanceDB 二进制
+task build:lancedb  # 构建当前平台 LanceDB 二进制
 task release        # 构建常用平台二进制
-task release LANCEDB=1  # 构建 LanceDB 发布二进制
+task release:lancedb  # 构建 LanceDB 发布二进制
 task generator      # 执行代码生成
 task enums          # 生成前端枚举
 task --list         # 查看可用任务

@@ -188,9 +188,9 @@ Default development URLs:
 ```bash
 task dev        # start backend and frontend development servers
 task build      # build the frontend SPA and current-platform Go binary into dist/
-task build LANCEDB=1  # build the current-platform LanceDB binary into dist/
+task build:lancedb  # build the current-platform LanceDB binary into dist/
 task release    # build linux/darwin/windows release binaries into dist/
-task release LANCEDB=1  # build LanceDB release binaries into dist/
+task release:lancedb  # build LanceDB release binaries into dist/
 task generator  # run code generation
 task enums      # generate frontend enums
 task --list     # show available tasks
