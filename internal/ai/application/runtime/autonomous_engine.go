@@ -132,14 +132,16 @@ func (e *AutonomousEngine) Run(ctx context.Context, req RunInput) (*RunResult, e
 		return nil, recordErr
 	}
 	trace, _ := json.Marshal(map[string]any{
-		"engine":               EngineCodeAutonomous,
-		"mode":                 autonomousExecutionMode(allowedTools),
-		"historyMessageCount":  historyCount,
-		"retrieverCount":       retrieverCount,
-		"skillID":              skillContext.SkillID(),
-		"skillRouteError":      skillContext.ErrorMessage,
-		"responsePolicyAction": responsePolicy.Action,
-		"debug":                req.Debug,
+		"engine":                 EngineCodeAutonomous,
+		"mode":                   autonomousExecutionMode(allowedTools),
+		"historyMessageCount":    historyCount,
+		"retrieverCount":         retrieverCount,
+		"skillID":                skillContext.SkillID(),
+		"skillRouteError":        skillContext.ErrorMessage,
+		"responsePolicyAction":   responsePolicy.Action,
+		"responsePolicyReason":   responsePolicy.Reason,
+		"responsePolicyEnforced": responsePolicy.Enforced,
+		"debug":                  req.Debug,
 	})
 	return &Summary{
 		Status:                "completed",
@@ -258,22 +260,11 @@ func evaluateAutonomousResponsePolicy(agent models.AIAgent, knowledgeContext str
 		return autonomousResponsePolicy{}
 	}
 	if retrieveErr != nil {
-		return autonomousKnowledgeFallbackPolicy(agent, "knowledge_retrieve_error")
+		return autonomousResponsePolicy{Action: "retrieval_unavailable", Reason: "knowledge_retrieve_error"}
 	}
-	return autonomousKnowledgeFallbackPolicy(agent, "knowledge_evidence_missing")
-}
-
-func autonomousKnowledgeFallbackPolicy(agent models.AIAgent, reason string) autonomousResponsePolicy {
-	if agent.FallbackMode == enums.AIAgentFallbackModeHandoff {
-		return autonomousResponsePolicy{
-			Enforced: true, Action: "handoff", Reason: reason, RequestHandoff: true,
-			ReplyText: autonomousKnowledgeFallbackReply(agent),
-		}
-	}
-	return autonomousResponsePolicy{
-		Enforced: true, Action: "clarify", Reason: reason,
-		ReplyText: autonomousKnowledgeFallbackReply(agent),
-	}
+	// Knowledge retrieval is an evidence signal, not a replacement for the
+	// model's ability to handle greetings and other non-factual conversation.
+	return autonomousResponsePolicy{Action: "evidence_required", Reason: "knowledge_evidence_missing"}
 }
 
 func autonomousToolFailurePolicy(agent models.AIAgent, reason string) autonomousResponsePolicy {
@@ -311,19 +302,6 @@ func autonomousHasConsecutiveToolFailures(calls []svc.EngineToolCallInput, minim
 		failures++
 	}
 	return failures >= minimum
-}
-
-func autonomousKnowledgeFallbackReply(agent models.AIAgent) string {
-	if reply := strings.TrimSpace(agent.FallbackMessage); reply != "" {
-		return reply
-	}
-	if agent.FallbackMode == 0 || agent.FallbackMode == enums.AIAgentFallbackModeSuggestRetry {
-		return "当前知识库里没有找到足够明确的信息，你可以换个更具体的问法再试一次。"
-	}
-	if agent.FallbackMode == enums.AIAgentFallbackModeHandoff {
-		return "当前知识库没有足够明确的信息，正在为你转接人工客服。"
-	}
-	return "当前知识库暂无明确信息。"
 }
 
 func (c autonomousSkillContext) SkillID() int64 {
@@ -598,11 +576,10 @@ func buildAutonomousSystemPrompt(agent models.AIAgent, hasKnowledgeBase bool, kn
 	if prompt == "" {
 		prompt = "You are a customer service assistant. Answer accurately, ask for clarification when evidence is insufficient, and do not invent facts."
 	}
-	if hasKnowledgeBase && strings.TrimSpace(knowledgeContext) == "" {
-		prompt += "\n\nNo supporting knowledge was retrieved. Do not invent an answer; ask a focused clarification question or offer human handoff."
-	}
 	if retrieveErr != nil {
-		prompt += "\n\nKnowledge retrieval is temporarily unavailable. Do not claim to have verified any policy or factual detail."
+		prompt += "\n\nKnowledge retrieval is temporarily unavailable for this message. You may answer greetings, acknowledgements, gratitude, farewells, and requests for clarification naturally. For product facts, policies, pricing, functions, procedures, timing, refunds, accounts, permissions, or after-sales questions, do not claim that any detail is verified. Explain that you cannot verify it now, ask one focused question when useful, or offer human handoff."
+	} else if hasKnowledgeBase && strings.TrimSpace(knowledgeContext) == "" {
+		prompt += "\n\nKnowledge retrieval found no supporting evidence for this message. You may answer greetings, acknowledgements, gratitude, farewells, and requests for clarification naturally. For product facts, policies, pricing, functions, procedures, timing, refunds, accounts, permissions, or after-sales questions, do not infer or invent an answer. State that the available information is insufficient, ask one focused question when useful, or offer human handoff."
 	}
 	return prompt
 }
@@ -672,13 +649,17 @@ func autonomousAdditionalSteps(req Request, retrieverCount int, retrieveErr erro
 			InputPreview: strings.TrimSpace(req.UserMessage.Content), OutputPreview: "retrieved context items: " + strconv.Itoa(retrieverCount), ErrorMessage: errorMessage,
 		})
 	}
-	if responsePolicy.Enforced {
+	if responsePolicy.Enforced || responsePolicy.Reason != "" {
 		policyCode := "knowledge_evidence"
 		if strings.HasPrefix(responsePolicy.Reason, "tool_") {
 			policyCode = "tool_failure"
 		}
+		status := "completed"
+		if !responsePolicy.Enforced {
+			status = "advisory"
+		}
 		steps = append(steps, svc.EngineStepInput{
-			StepType: "policy", StepCode: policyCode, Status: "completed",
+			StepType: "policy", StepCode: policyCode, Status: status,
 			InputPreview: responsePolicy.Reason, OutputPreview: responsePolicy.Action,
 		})
 	}

@@ -210,7 +210,7 @@ func TestAutonomousEngineInjectsSelectedSkillAndRecordsRoute(t *testing.T) {
 	}
 }
 
-func TestAutonomousEngineEnforcesKnowledgeFallbackPolicy(t *testing.T) {
+func TestAutonomousEngineLetsModelHandleGreetingWithoutKnowledgeEvidence(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{NamingStrategy: schema.NamingStrategy{TablePrefix: "t_", SingularTable: true}})
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
@@ -223,31 +223,71 @@ func TestAutonomousEngineEnforcesKnowledgeFallbackPolicy(t *testing.T) {
 	if err := db.Create(revision).Error; err != nil {
 		t.Fatalf("create revision: %v", err)
 	}
-	chatCalled := false
-	engine := newAutonomousEngineWithChat(func(context.Context, models.AIConfig, string, string) (*ai.ChatCompletionResult, error) {
-		chatCalled = true
-		return &ai.ChatCompletionResult{Content: "should not be used"}, nil
+	var systemPrompt string
+	engine := newAutonomousEngineWithChat(func(_ context.Context, _ models.AIConfig, system, _ string) (*ai.ChatCompletionResult, error) {
+		systemPrompt = system
+		return &ai.ChatCompletionResult{Content: "你好，有什么可以帮你？", ModelName: "test-model"}, nil
+	})
+	engine.retrieve = func(context.Context, models.AIAgent, string) (string, int, error) {
+		return "", 0, nil
+	}
+	summary, err := engine.Run(context.Background(), Request{
+		Conversation: models.Conversation{ID: 1}, UserMessage: models.Message{ID: 2, Content: "你好"},
+		AIAgent:  models.AIAgent{ID: 10, PublishedRevisionID: revision.ID, KnowledgeIDs: "100"},
+		AIConfig: models.AIConfig{ModelName: "test-model"},
+	})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if summary.ReplyText != "你好，有什么可以帮你？" {
+		t.Fatalf("unexpected model reply: %#v", summary)
+	}
+	if !strings.Contains(systemPrompt, "answer greetings") || !strings.Contains(systemPrompt, "Knowledge retrieval found no supporting evidence") {
+		t.Fatalf("missing no-evidence greeting instructions: %q", systemPrompt)
+	}
+	var steps []models.AgentStep
+	if err := db.Where("agent_run_id = ?", summary.AgentRunID).Find(&steps).Error; err != nil {
+		t.Fatalf("load steps: %v", err)
+	}
+	if len(steps) != 3 || steps[1].StepType != "knowledge" || steps[2].StepType != "policy" || steps[2].StepCode != "knowledge_evidence" || steps[2].Status != "advisory" || steps[2].OutputPreview != "evidence_required" {
+		t.Fatalf("expected model, knowledge and policy steps, got %#v", steps)
+	}
+}
+
+func TestAutonomousEngineInstructsModelNotToInventFactsWithoutKnowledgeEvidence(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{NamingStrategy: schema.NamingStrategy{TablePrefix: "t_", SingularTable: true}})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&models.AgentRevision{}, &models.AgentRun{}, &models.AgentStep{}); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	sqls.SetDB(db)
+	revision := &models.AgentRevision{AgentID: 13, Revision: 1}
+	if err := db.Create(revision).Error; err != nil {
+		t.Fatalf("create revision: %v", err)
+	}
+	var systemPrompt string
+	engine := newAutonomousEngineWithChat(func(_ context.Context, _ models.AIConfig, system, _ string) (*ai.ChatCompletionResult, error) {
+		systemPrompt = system
+		return &ai.ChatCompletionResult{Content: "我暂时没有查到保修期限的准确依据。请提供产品型号，我再继续查询。", ModelName: "test-model"}, nil
 	})
 	engine.retrieve = func(context.Context, models.AIAgent, string) (string, int, error) {
 		return "", 0, nil
 	}
 	summary, err := engine.Run(context.Background(), Request{
 		Conversation: models.Conversation{ID: 1}, UserMessage: models.Message{ID: 2, Content: "保修多久"},
-		AIAgent:  models.AIAgent{ID: 10, PublishedRevisionID: revision.ID, KnowledgeIDs: "100", FallbackMessage: "请提供产品型号，我再继续查询。"},
+		AIAgent:  models.AIAgent{ID: 13, PublishedRevisionID: revision.ID, KnowledgeIDs: "100"},
 		AIConfig: models.AIConfig{ModelName: "test-model"},
 	})
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
-	if chatCalled || summary.ReplyText != "请提供产品型号，我再继续查询。" {
-		t.Fatalf("knowledge fallback policy was not enforced: chatCalled=%t summary=%#v", chatCalled, summary)
+	if summary.ReplyText != "我暂时没有查到保修期限的准确依据。请提供产品型号，我再继续查询。" {
+		t.Fatalf("unexpected model reply: %#v", summary)
 	}
-	var steps []models.AgentStep
-	if err := db.Where("agent_run_id = ?", summary.AgentRunID).Find(&steps).Error; err != nil {
-		t.Fatalf("load steps: %v", err)
-	}
-	if len(steps) != 3 || steps[1].StepType != "knowledge" || steps[2].StepType != "policy" || steps[2].StepCode != "knowledge_evidence" {
-		t.Fatalf("expected model, knowledge and policy steps, got %#v", steps)
+	if !strings.Contains(systemPrompt, "product facts, policies, pricing") || !strings.Contains(systemPrompt, "do not infer or invent an answer") {
+		t.Fatalf("missing factual-answer evidence constraints: %q", systemPrompt)
 	}
 }
 
@@ -415,12 +455,19 @@ func TestParseAutonomousToolPolicyAndPerToolCount(t *testing.T) {
 	}
 }
 
-func TestAutonomousResponsePolicyRequestsHandoffOnlyWhenConfigured(t *testing.T) {
-	handoff := evaluateAutonomousResponsePolicy(models.AIAgent{KnowledgeIDs: "1", FallbackMode: enums.AIAgentFallbackModeHandoff}, "", nil)
+func TestAutonomousKnowledgeEvidencePolicyIsAdvisory(t *testing.T) {
+	policy := evaluateAutonomousResponsePolicy(models.AIAgent{KnowledgeIDs: "1", FallbackMode: enums.AIAgentFallbackModeHandoff}, "", nil)
+	if policy.Enforced || policy.RequestHandoff || policy.Action != "evidence_required" || policy.Reason != "knowledge_evidence_missing" {
+		t.Fatalf("unexpected knowledge evidence policy: %#v", policy)
+	}
+}
+
+func TestAutonomousToolFailurePolicyRequestsHandoffOnlyWhenConfigured(t *testing.T) {
+	handoff := autonomousToolFailurePolicy(models.AIAgent{FallbackMode: enums.AIAgentFallbackModeHandoff}, "tool_loop_error")
 	if !handoff.Enforced || !handoff.RequestHandoff || handoff.Action != "handoff" {
 		t.Fatalf("unexpected handoff policy: %#v", handoff)
 	}
-	clarify := evaluateAutonomousResponsePolicy(models.AIAgent{KnowledgeIDs: "1", FallbackMode: enums.AIAgentFallbackModeSuggestRetry}, "", nil)
+	clarify := autonomousToolFailurePolicy(models.AIAgent{FallbackMode: enums.AIAgentFallbackModeSuggestRetry}, "tool_loop_error")
 	if !clarify.Enforced || clarify.RequestHandoff || clarify.Action != "clarify" {
 		t.Fatalf("unexpected clarify policy: %#v", clarify)
 	}
