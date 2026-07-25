@@ -48,6 +48,123 @@ func TestChannelServiceAllowsAgentWithPublishedWorkflow(t *testing.T) {
 	}
 }
 
+func TestChannelServiceStoresAIAgentRolloutPercent(t *testing.T) {
+	db := setupChannelServiceTestDB(t)
+	agent := createChannelServiceTestAgent(t, db, 1001)
+	item, err := ChannelService.CreateChannel(request.CreateChannelRequest{
+		ChannelType: enums.ChannelTypeWeb, AIAgentID: agent.ID, AIAgentRolloutPercent: 25,
+		Name: "灰度渠道", Status: int(enums.StatusOk),
+	}, channelServiceTestOperator())
+	if err != nil || item == nil || item.AIAgentRolloutPercent != 25 {
+		t.Fatalf("expected persisted rollout percent, item=%#v err=%v", item, err)
+	}
+	if _, err := ChannelService.CreateChannel(request.CreateChannelRequest{
+		ChannelType: enums.ChannelTypeWeb, AIAgentID: agent.ID, AIAgentRolloutPercent: 101,
+		Name: "错误灰度渠道", Status: int(enums.StatusOk),
+	}, channelServiceTestOperator()); err == nil {
+		t.Fatal("expected invalid rollout percent to be rejected")
+	}
+}
+
+func TestChannelServiceRollsBackPreviousAIAgentRolloutPercent(t *testing.T) {
+	db := setupChannelServiceTestDB(t)
+	agent := createChannelServiceTestAgent(t, db, 1001)
+	channel, err := ChannelService.CreateChannel(request.CreateChannelRequest{
+		ChannelType: enums.ChannelTypeWeb, AIAgentID: agent.ID, AIAgentRolloutPercent: 20,
+		Name: "渠道灰度回滚", Status: int(enums.StatusOk),
+	}, channelServiceTestOperator())
+	if err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	if err := db.Model(&models.Channel{}).Where("id = ?", channel.ID).Update("previous_ai_agent_rollout_percent", 100).Error; err != nil {
+		t.Fatalf("set previous rollout: %v", err)
+	}
+	operator := channelServiceTestOperator()
+	if err := ChannelService.RollbackChannelAIAgentRollout(channel.ID, operator); err != nil {
+		t.Fatalf("RollbackChannelAIAgentRollout: %v", err)
+	}
+	updated := ChannelService.Get(channel.ID)
+	if updated == nil || updated.AIAgentRolloutPercent != 100 || updated.PreviousAIAgentRolloutPercent != 20 {
+		t.Fatalf("unexpected channel rollout rollback: %#v", updated)
+	}
+	if err := ChannelService.RollbackChannelAIAgentRollout(channel.ID, operator); err != nil {
+		t.Fatalf("second RollbackChannelAIAgentRollout: %v", err)
+	}
+	updated = ChannelService.Get(channel.ID)
+	if updated == nil || updated.AIAgentRolloutPercent != 20 || updated.PreviousAIAgentRolloutPercent != 100 {
+		t.Fatalf("unexpected channel rollout redo: %#v", updated)
+	}
+}
+
+func TestChannelServiceRejectsUnpublishedAutonomousRuntime(t *testing.T) {
+	db := setupChannelServiceTestDB(t)
+	agent := createChannelServiceTestAgent(t, db, 1001)
+	if err := db.Model(&models.AIAgent{}).Where("id = ?", agent.ID).Update("runtime_mode", enums.AIAgentRuntimeModeAutonomous).Error; err != nil {
+		t.Fatalf("set autonomous runtime mode: %v", err)
+	}
+
+	_, err := ChannelService.CreateChannel(request.CreateChannelRequest{
+		ChannelType: enums.ChannelTypeWeb,
+		AIAgentID:   agent.ID,
+		Name:        "官网客服",
+		Status:      int(enums.StatusOk),
+	}, channelServiceTestOperator())
+	if err == nil || !strings.Contains(err.Error(), "must be published") {
+		t.Fatalf("expected unpublished autonomous runtime error, got %v", err)
+	}
+}
+
+func TestChannelServiceAcceptsPublishedAutonomousRuntime(t *testing.T) {
+	db := setupChannelServiceTestDB(t)
+	agent := createChannelServiceTestAgent(t, db, 1001)
+	revision := &models.AgentRevision{AgentID: agent.ID, Revision: 1, Status: enums.StatusOk}
+	if err := db.Create(revision).Error; err != nil {
+		t.Fatalf("create agent revision: %v", err)
+	}
+	if err := db.Model(&models.AIAgent{}).Where("id = ?", agent.ID).Updates(map[string]any{
+		"runtime_mode":          enums.AIAgentRuntimeModeAutonomous,
+		"published_revision_id": revision.ID,
+	}).Error; err != nil {
+		t.Fatalf("set autonomous runtime mode: %v", err)
+	}
+	item, err := ChannelService.CreateChannel(request.CreateChannelRequest{
+		ChannelType: enums.ChannelTypeWeb, AIAgentID: agent.ID, Name: "自主客服", Status: int(enums.StatusOk),
+	}, channelServiceTestOperator())
+	if err != nil || item == nil {
+		t.Fatalf("create channel for autonomous runtime: item=%#v err=%v", item, err)
+	}
+}
+
+func TestChannelServiceRequiresBothHybridPublicationArtifacts(t *testing.T) {
+	db := setupChannelServiceTestDB(t)
+	agent := createChannelServiceTestAgent(t, db, 0)
+	revision := &models.AgentRevision{AgentID: agent.ID, Revision: 1, Status: enums.StatusOk}
+	if err := db.Create(revision).Error; err != nil {
+		t.Fatalf("create agent revision: %v", err)
+	}
+	if err := db.Model(&models.AIAgent{}).Where("id = ?", agent.ID).Updates(map[string]any{
+		"runtime_mode":          enums.AIAgentRuntimeModeHybrid,
+		"published_revision_id": revision.ID,
+	}).Error; err != nil {
+		t.Fatalf("set hybrid runtime mode: %v", err)
+	}
+	_, err := ChannelService.CreateChannel(request.CreateChannelRequest{
+		ChannelType: enums.ChannelTypeWeb, AIAgentID: agent.ID, Name: "混合客服", Status: int(enums.StatusOk),
+	}, channelServiceTestOperator())
+	if err == nil || !strings.Contains(err.Error(), "hybrid ai agent") {
+		t.Fatalf("expected hybrid publication error, got %v", err)
+	}
+	if err := db.Model(&models.AIAgent{}).Where("id = ?", agent.ID).Update("workflow_version_id", 1001).Error; err != nil {
+		t.Fatalf("set workflow version: %v", err)
+	}
+	item, err := ChannelService.CreateChannel(request.CreateChannelRequest{
+		ChannelType: enums.ChannelTypeWeb, AIAgentID: agent.ID, Name: "混合客服已发布", Status: int(enums.StatusOk),
+	}, channelServiceTestOperator())
+	if err != nil || item == nil {
+		t.Fatalf("create channel for hybrid runtime: item=%#v err=%v", item, err)
+	}
+}
+
 func setupChannelServiceTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	dbName := strings.NewReplacer("/", "_", " ", "_").Replace(t.Name())
@@ -66,7 +183,7 @@ func setupChannelServiceTestDB(t *testing.T) *gorm.DB {
 			_ = sqlDB.Close()
 		}
 	})
-	if err := db.AutoMigrate(&models.AIAgent{}, &models.Channel{}); err != nil {
+	if err := db.AutoMigrate(&models.AIAgent{}, &models.AgentRevision{}, &models.Channel{}); err != nil {
 		t.Fatalf("auto migrate: %v", err)
 	}
 	sqls.SetDB(db)

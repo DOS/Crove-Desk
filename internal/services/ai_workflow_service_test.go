@@ -83,6 +83,26 @@ func TestAIWorkflowServicePublishCreatesImmutableVersion(t *testing.T) {
 	}
 }
 
+func TestAIWorkflowServicePlaybookTemplatesAreValid(t *testing.T) {
+	templates := AIWorkflowService.ListPlaybookTemplates()
+	if len(templates) != 4 {
+		t.Fatalf("template count = %d, want 4", len(templates))
+	}
+	seen := make(map[string]struct{}, len(templates))
+	for _, item := range templates {
+		if item.Code == "" || item.Name == "" {
+			t.Fatalf("template identity is required: %#v", item)
+		}
+		if _, exists := seen[item.Code]; exists {
+			t.Fatalf("duplicate template code: %s", item.Code)
+		}
+		seen[item.Code] = struct{}{}
+		if result := AIWorkflowService.ValidateDefinition(item.Definition); !result.Valid {
+			t.Fatalf("template %s is invalid: %#v", item.Code, result.Errors)
+		}
+	}
+}
+
 func TestAIWorkflowServicePublishIncrementsVersion(t *testing.T) {
 	setupAIWorkflowTestDB(t)
 	operator := aiWorkflowTestOperator()

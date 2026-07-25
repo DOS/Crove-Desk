@@ -178,6 +178,7 @@ func registerDashboardChannelRoutes(group *gin.RouterGroup) {
 	group.POST("/delete", dashboard.ChannelPostDelete)
 	group.Any("/list", dashboard.ChannelAnyList)
 	group.POST("/reset_user_token_secret", dashboard.ChannelPostReset_user_token_secret)
+	group.POST("/rollback_ai_agent_rollout", dashboard.ChannelPostRollback_ai_agent_rollout)
 	group.POST("/update", dashboard.ChannelPostUpdate)
 	group.POST("/update_status", dashboard.ChannelPostUpdate_status)
 	group.Any("/wxwork/kf/accounts", dashboard.ChannelAnyWxworkKfAccounts)
@@ -217,6 +218,10 @@ func registerDashboardAIAgentRoutes(group *gin.RouterGroup) {
 	group.POST("/workflow/save", dashboard.AIWorkflowPostSaveAgent)
 	group.POST("/workflow/validate", dashboard.AIWorkflowPostValidate)
 	group.POST("/workflow/publish", dashboard.AIWorkflowPostPublishAgent)
+	group.POST("/publish", dashboard.AIAgentPostPublish)
+	group.POST("/rollback", dashboard.AIAgentPostRollback)
+	group.POST("/rollback_rollout", dashboard.AIAgentPostRollback_rollout)
+	group.Any("/:id/revision/list", dashboard.AIAgentAnyRevisionList)
 	group.GET("/:id", dashboard.AIAgentGetBy)
 	group.POST("/create", dashboard.AIAgentPostCreate)
 	group.POST("/delete", dashboard.AIAgentPostDelete)
@@ -230,11 +235,21 @@ func registerDashboardAIAgentRoutes(group *gin.RouterGroup) {
 func registerDashboardAIWorkflowRoutes(group *gin.RouterGroup) {
 	group.GET("/node-spec/list", dashboard.AIWorkflowGetNodeSpecList)
 	group.GET("/default-definition", dashboard.AIWorkflowGetDefaultDefinition)
+	group.GET("/template/list", dashboard.AIWorkflowGetTemplateList)
 	group.POST("/validate", dashboard.AIWorkflowPostValidate)
 	group.Any("/run/list", dashboard.AIWorkflowAnyRunList)
 	group.GET("/run/:id", dashboard.AIWorkflowGetRunBy)
 	group.Any("/version/list", dashboard.AIWorkflowAnyVersionList)
 	group.GET("/version/:id", dashboard.AIWorkflowGetVersionBy)
+}
+
+func registerDashboardAgentRunRoutes(group *gin.RouterGroup) {
+	group.Any("/metrics", dashboard.AgentRunAnyMetrics)
+	group.Any("/comparison", dashboard.AgentRunAnyComparison)
+	group.POST("/evaluate", dashboard.AgentRunPostEvaluate)
+	group.Any("/list", dashboard.AgentRunAnyList)
+	group.POST("/quality_feedback", dashboard.AgentRunPostSave_quality_feedback)
+	group.GET("/:id", dashboard.AgentRunGetBy)
 }
 
 func registerDashboardAIConfigRoutes(group *gin.RouterGroup) {

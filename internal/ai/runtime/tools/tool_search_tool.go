@@ -10,6 +10,7 @@ import (
 	"agent-desk/internal/ai/mcps"
 	"agent-desk/internal/ai/runtime/registry"
 	"agent-desk/internal/ai/runtime/tooling"
+	aitooling "agent-desk/internal/ai/tooling"
 	"agent-desk/internal/pkg/i18nx"
 	"agent-desk/internal/pkg/toolx"
 
@@ -167,11 +168,17 @@ func (t *ToolSearchTool) invokeTargetTool(ctx context.Context, toolCode string, 
 	if !containsToolCode(t.allowedToolCodes, toolCode) {
 		return "", i18nx.Errorf("error.e0279")
 	}
-	result, err := mcps.Runtime.CallTool(ctx, serverCode, toolName, cloneArguments(arguments))
+	// A workflow administrator's allow-list is the explicit approval boundary
+	// for MCP tools. The registry still enforces its call limit and normalizes
+	// the safety metadata used by future autonomous engines.
+	_, result, err := aitooling.DefaultMCPExecutor.Execute(ctx, toolCode, arguments, aitooling.Policy{
+		AllowedToolCodes: t.allowedToolCodes,
+		Confirmed:        true,
+	})
 	if err != nil {
 		return "", err
 	}
-	return buildToolCallResultSummary(result), nil
+	return aitooling.SanitizePreview(buildToolCallResultSummary(result)), nil
 }
 
 func (t *ToolSearchTool) loadAllowedCandidates(ctx context.Context) ([]toolSearchCandidate, error) {

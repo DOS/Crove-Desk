@@ -177,6 +177,8 @@ export type AdminChannel = {
   channelType: string
   channelId: string
   aiAgentId: number
+  aiAgentRolloutPercent: number
+	previousAiAgentRolloutPercent: number
   aiAgentName?: string
   name: string
   configJson: string
@@ -194,6 +196,7 @@ export type WxWorkKFAccount = {
 export type CreateAdminChannelPayload = {
   channelType: string
   aiAgentId: number
+  aiAgentRolloutPercent: number
   name: string
   configJson: string
   status: number
@@ -216,17 +219,26 @@ export type AIAgent = {
   statusName: string
   aiConfigId: number
   aiConfigName?: string
+	runtimeMode: "workflow" | "autonomous" | "hybrid"
+	runtimeModeName: string
+	maxSteps: number
+	contextWindow: number
+	toolPolicy: string
+	knowledgePolicy: string
   serviceMode: number
   serviceModeName: string
   systemPrompt: string
   welcomeMessage: string
   replyTimeoutSeconds: number
+  rolloutPercent: number
+  previousRolloutPercent: number
   teams: { id: number; name: string }[]
   handoffMode: number
   handoffModeName: string
   fallbackMode: number
   fallbackModeName: string
   fallbackMessage: string
+	knowledgeBaseIds: number[]
   skillIds: number[]
   skills: { id: number; name: string }[]
   directTools: {
@@ -238,6 +250,7 @@ export type AIAgent = {
     arguments?: Record<string, string>
   }[]
   workflowVersionId: number
+	publishedRevisionId: number
   workflowPublished: boolean
   workflowState: string
   workflowStateText: string
@@ -252,14 +265,21 @@ export type CreateAIAgentPayload = {
   name: string
   description: string
   aiConfigId: number
+  runtimeMode?: "workflow" | "autonomous" | "hybrid"
+	maxSteps?: number
+	contextWindow?: number
+	toolPolicy?: string
+	knowledgePolicy?: string
   serviceMode: number
   systemPrompt: string
   welcomeMessage: string
   replyTimeoutSeconds: number
+  rolloutPercent: number
   teamIds: number[]
   handoffMode: number
   fallbackMode: number
   fallbackMessage: string
+	knowledgeBaseIds: number[]
   skillIds: number[]
   directTools: {
     toolCode: string
@@ -273,6 +293,18 @@ export type CreateAIAgentPayload = {
 
 export type UpdateAIAgentPayload = CreateAIAgentPayload & {
   id: number
+}
+
+export type AgentRevision = {
+  id: number
+  agentId: number
+  revision: number
+  workflowVersionId: number
+  status: number
+  definitionHash: string
+  publishedAt: string
+  publishedById: number
+  publishedByName: string
 }
 
 export type AIWorkflowPosition = {
@@ -385,6 +417,13 @@ export type AIWorkflowNodeSpec = {
   inputSchema?: AIWorkflowVariableSpec[]
   outputSchema?: AIWorkflowVariableSpec[]
   defaultInputs?: Record<string, AIWorkflowValue>
+}
+
+export type AIWorkflowTemplate = {
+  code: string
+  name: string
+  description: string
+  definition: AIWorkflowDefinition
 }
 
 export type AIWorkflowValidationResult = {
@@ -568,6 +607,123 @@ export type AIWorkflowRun = {
   nodes?: AIWorkflowNodeRun[]
 }
 
+export type AgentRun = {
+  id: number
+  conversationId: number
+  aiAgentId: number
+  agentRevisionId: number
+  sourceMessageId: number
+  workflowRunId: number
+  engineCode: string
+  status: string
+  promptTokens: number
+  completionTokens: number
+  startedAt: string
+  endedAt: string
+  durationMs: number
+  errorMessage: string
+  traceData: string
+  createdAt: string
+  updatedAt: string
+  steps?: AgentStep[]
+  toolCalls?: AgentToolCall[]
+	qualityFeedback?: AgentRunQualityFeedback
+}
+
+export type AgentRunQualityFeedback = {
+	id: number
+	agentRunId: number
+	resolutionStatus: "unknown" | "resolved" | "unresolved"
+	evidenceStatus: "unknown" | "supported" | "unsupported"
+	comment: string
+	updateUserName: string
+	updatedAt: string
+}
+
+export type AgentRunMetrics = {
+  totalRuns: number
+  completedRuns: number
+  failedRuns: number
+  interruptedRuns: number
+  completionRate: number
+  toolCalls: number
+  toolSuccessRate: number
+  averageSteps: number
+  averageDurationMs: number
+  p95DurationMs: number
+  promptTokens: number
+  completionTokens: number
+	  handoffRate: number
+	  knowledgeFallbackRate: number
+	resumedInterrupts: number
+	resolvedInterrupts: number
+	interruptRecoveryRate: number
+	reviewedRuns: number
+	resolvedRuns: number
+	resolutionRate: number
+	unsupportedEvidenceRuns: number
+	unsupportedEvidenceRate: number
+}
+
+export type AgentRunEngineComparison = {
+	engineCode: string
+	metrics: AgentRunMetrics
+}
+
+export type AgentEvaluationCase = {
+  id: string
+  category?: string
+  message: string
+  history?: string[]
+  expect?: Record<string, unknown>
+}
+
+export type AgentEvaluationReport = {
+  engineCode: string
+  total: number
+  passed: number
+  results: {
+    caseId: string
+    category: string
+    engineCode: string
+    passed: boolean
+    replyText: string
+    interrupted: boolean
+    error?: string
+    finding?: string
+  }[]
+  csv: string
+}
+
+export type AgentStep = {
+  id: number
+  agentRunId: number
+  stepType: string
+  stepCode: string
+  status: string
+  inputPreview: string
+  outputPreview: string
+  errorMessage: string
+  startedAt: string
+  endedAt: string
+  durationMs: number
+}
+
+export type AgentToolCall = {
+  id: number
+  agentRunId: number
+  agentStepId: number
+  toolCode: string
+  riskLevel: string
+  requireConfirm: boolean
+  status: string
+  argumentsPreview: string
+  resultPreview: string
+  errorMessage: string
+  durationMs: number
+  createdAt: string
+}
+
 export type AdminAgentProfile = {
   id: number
   userId: number
@@ -744,6 +900,13 @@ export function updateChannel(payload: UpdateAdminChannelPayload) {
   })
 }
 
+export function rollbackChannelAIAgentRollout(id: number) {
+  return request<void>("/api/dashboard/channel/rollback_ai_agent_rollout", {
+    method: "POST",
+    body: JSON.stringify({ id }),
+  })
+}
+
 export function updateChannelStatus(id: number, status: number) {
   return request<void>("/api/dashboard/channel/update_status", {
     method: "POST",
@@ -800,6 +963,31 @@ export function updateAIAgent(payload: UpdateAIAgentPayload) {
   })
 }
 
+export function publishAIAgent(id: number) {
+  return request<void>("/api/dashboard/ai-agent/publish", {
+    method: "POST",
+    body: JSON.stringify({ id }),
+  })
+}
+
+export function fetchAIAgentRevisions(id: number) {
+  return request<AgentRevision[]>(`/api/dashboard/ai-agent/${id}/revision/list`)
+}
+
+export function rollbackAIAgent(id: number, revisionId: number) {
+  return request<void>("/api/dashboard/ai-agent/rollback", {
+    method: "POST",
+    body: JSON.stringify({ id, revisionId }),
+  })
+}
+
+export function rollbackAIAgentRollout(id: number) {
+  return request<void>("/api/dashboard/ai-agent/rollback_rollout", {
+    method: "POST",
+    body: JSON.stringify({ id }),
+  })
+}
+
 export function deleteAIAgent(id: number) {
   return request<void>("/api/dashboard/ai-agent/delete", {
     method: "POST",
@@ -837,7 +1025,11 @@ export function fetchAIWorkflowNodeSpecs() {
 }
 
 export function fetchAIWorkflowDefaultDefinition() {
-  return request<AIWorkflowDefinition>("/api/dashboard/ai-workflow/default-definition")
+	return request<AIWorkflowDefinition>("/api/dashboard/ai-workflow/default-definition")
+}
+
+export function fetchAIWorkflowTemplates() {
+  return request<AIWorkflowTemplate[]>("/api/dashboard/ai-workflow/template/list")
 }
 
 export function fetchAIWorkflowVersions(query?: Record<string, string | number | undefined>) {
@@ -1133,6 +1325,43 @@ export function fetchAIWorkflowRuns(
 
 export function fetchAIWorkflowRun(id: number) {
   return request<AIWorkflowRun>(`/api/dashboard/ai-workflow/run/${id}`)
+}
+
+export function fetchAgentRuns(query?: Record<string, string | number | undefined>) {
+  return request<PageResult<AgentRun>>(
+    `/api/dashboard/agent-run/list${toQueryString(query)}`
+  )
+}
+
+export function fetchAgentRun(id: number) {
+  return request<AgentRun>(`/api/dashboard/agent-run/${id}`)
+}
+
+export function fetchAgentRunMetrics(aiAgentId?: number) {
+  return request<AgentRunMetrics>(`/api/dashboard/agent-run/metrics${toQueryString(aiAgentId ? { aiAgentId } : undefined)}`)
+}
+
+export function fetchAgentRunEngineComparisons(aiAgentId?: number) {
+	return request<AgentRunEngineComparison[]>(`/api/dashboard/agent-run/comparison${toQueryString(aiAgentId ? { aiAgentId } : undefined)}`)
+}
+
+export function runAgentEvaluation(payload: { aiAgentId: number; engineCode: string; cases: AgentEvaluationCase[] }) {
+  return request<AgentEvaluationReport>("/api/dashboard/agent-run/evaluate", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}
+
+export function saveAgentRunQualityFeedback(payload: {
+	agentRunId: number
+	resolutionStatus: AgentRunQualityFeedback["resolutionStatus"]
+	evidenceStatus: AgentRunQualityFeedback["evidenceStatus"]
+	comment: string
+}) {
+	return request<void>("/api/dashboard/agent-run/quality_feedback", {
+		method: "POST",
+		body: JSON.stringify(payload),
+	})
 }
 
 export function updateSkillDefinitionStatus(id: number, status: number) {

@@ -42,6 +42,13 @@ type AIWorkflowRunAuditItem struct {
 	Agent    *models.AIAgent
 }
 
+type AIWorkflowTemplate struct {
+	Code        string
+	Name        string
+	Description string
+	Definition  dsl.Definition
+}
+
 func (s *aiWorkflowService) Get(id int64) *models.AIWorkflow {
 	if id <= 0 {
 		return nil
@@ -192,6 +199,46 @@ func (s *aiWorkflowService) ListNodeSpecs() []workflowregistry.NodeSpec {
 
 func (s *aiWorkflowService) DefaultAgentWorkflowDefinition() dsl.Definition {
 	return defaultAgentWorkflowDefinition()
+}
+
+func (s *aiWorkflowService) ListPlaybookTemplates() []AIWorkflowTemplate {
+	return []AIWorkflowTemplate{
+		{Code: "ticket-with-confirmation", Name: "创建工单", Description: "整理工单草稿，经客户确认后创建工单。", Definition: ticketWithConfirmationPlaybookDefinition()},
+		{Code: "identity-confirmation", Name: "身份确认", Description: "在执行后续业务前收集客户的明确确认。", Definition: identityConfirmationPlaybookDefinition()},
+		{Code: "complaint-escalation", Name: "投诉升级", Description: "投诉场景经客户确认后转入人工客服处理。", Definition: complaintEscalationPlaybookDefinition()},
+		{Code: "refund-request-preparation", Name: "退款申请准备", Description: "整理退款诉求，确认后转人工继续核验和处理。", Definition: refundRequestPreparationPlaybookDefinition()},
+	}
+}
+
+func ticketWithConfirmationPlaybookDefinition() dsl.Definition {
+	return dsl.Definition{SchemaVersion: dsl.SchemaVersion,
+		Nodes: []dsl.Node{
+			workflowNode("start_1", workflowregistry.NodeTypeStart, "开始", 180, 180, nil, nil),
+			workflowNode("draft_1", workflowregistry.NodeTypePrepareTicketDraft, "整理工单草稿", 600, 180, workflowInputs("issue", "start_1", "userMessage"), nil),
+			workflowNode("ready_route_1", workflowregistry.NodeTypeCondition, "草稿分流", 1020, 180, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				workflowConditionBranch("ready", "草稿完整", "prompt_1", "draft_1", "ready", "is_true", nil),
+				{ID: "default", Name: "补充信息", TargetNodeID: "followup_1", Default: true},
+			}}),
+			workflowNode("prompt_1", workflowregistry.NodeTypeLLMReply, "建单确认", 1440, 100, map[string]dsl.Value{"userMessage": dsl.RefValue("start_1", "userMessage"), "ticketTitle": dsl.RefValue("draft_1", "title"), "ticketDescription": dsl.RefValue("draft_1", "description")}, map[string]any{"staticReply": "我已整理工单草稿：{{ticketTitle}}。请确认是否创建。"}),
+			workflowNode("confirm_1", workflowregistry.NodeTypeHumanConfirm, "确认建单", 1860, 100, workflowInputs("prompt", "prompt_1", "replyText"), nil),
+			workflowNode("confirm_route_1", workflowregistry.NodeTypeCondition, "确认分流", 2280, 100, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				workflowConditionBranch("confirmed", "已确认", "create_1", "confirm_1", "confirmed", "is_true", nil),
+				{ID: "default", Name: "取消", TargetNodeID: "cancel_1", Default: true},
+			}}),
+			workflowNode("create_1", workflowregistry.NodeTypeCreateTicket, "创建工单", 2700, 20, map[string]dsl.Value{"ticketDraft": dsl.RefValue("draft_1", "ticketDraft"), "confirmed": dsl.RefValue("confirm_1", "confirmed")}, nil),
+			workflowNode("followup_1", workflowregistry.NodeTypeLLMReply, "补充信息", 1440, 330, map[string]dsl.Value{"userMessage": dsl.RefValue("start_1", "userMessage"), "followUpQuestions": dsl.RefValue("draft_1", "followUpQuestions")}, map[string]any{"staticReply": "创建工单前还需要补充：{{followUpQuestions}}"}),
+			workflowNode("cancel_1", workflowregistry.NodeTypeLLMReply, "取消提示", 2700, 200, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": "已取消创建工单。"}),
+			workflowNode("send_result_1", workflowregistry.NodeTypeSendReply, "发送建单结果", 3120, 20, workflowInputs("replyText", "create_1", "message"), nil),
+			workflowNode("send_followup_1", workflowregistry.NodeTypeSendReply, "发送补充提示", 1860, 330, workflowInputs("replyText", "followup_1", "replyText"), nil),
+			workflowNode("send_cancel_1", workflowregistry.NodeTypeSendReply, "发送取消提示", 3120, 200, workflowInputs("replyText", "cancel_1", "replyText"), nil),
+			workflowNode("end_1", workflowregistry.NodeTypeEnd, "结束", 3540, 180, nil, nil),
+		},
+		Edges: []dsl.Edge{
+			workflowEdge("start_1", "draft_1"), workflowEdge("draft_1", "ready_route_1"), workflowPortEdge("ready_route_1", "prompt_1", "ready"), workflowPortEdge("ready_route_1", "followup_1", "default"),
+			workflowEdge("prompt_1", "confirm_1"), workflowEdge("confirm_1", "confirm_route_1"), workflowPortEdge("confirm_route_1", "create_1", "confirmed"), workflowPortEdge("confirm_route_1", "cancel_1", "default"),
+			workflowEdge("create_1", "send_result_1"), workflowEdge("send_result_1", "end_1"), workflowEdge("followup_1", "send_followup_1"), workflowEdge("send_followup_1", "end_1"), workflowEdge("cancel_1", "send_cancel_1"), workflowEdge("send_cancel_1", "end_1"),
+		},
+	}
 }
 
 func (s *aiWorkflowService) ValidateDefinition(def dsl.Definition) workflowvalidator.Result {
@@ -390,11 +437,23 @@ func (s *aiWorkflowService) PublishAgentWorkflow(req request.PublishAIWorkflowRe
 		}); err != nil {
 			return err
 		}
+		agent := repositories.AIAgentRepository.Get(ctx.Tx, req.AgentID)
+		if agent == nil {
+			return errorsx.InvalidParamI18n("error.e0002")
+		}
+		if err := AIAgentService.validatePublishableAgent(ctx.Tx, agent); err != nil {
+			return err
+		}
+		revision, err := AgentRevisionService.PublishWorkflowSnapshot(ctx.Tx, agent, version, operator)
+		if err != nil {
+			return err
+		}
 		return repositories.AIAgentRepository.Updates(ctx.Tx, req.AgentID, map[string]any{
-			"workflow_version_id": version.ID,
-			"update_user_id":      operator.UserID,
-			"update_user_name":    operator.Username,
-			"updated_at":          now,
+			"workflow_version_id":   version.ID,
+			"published_revision_id": revision.ID,
+			"update_user_id":        operator.UserID,
+			"update_user_name":      operator.Username,
+			"updated_at":            now,
 		})
 	})
 	if err != nil {
@@ -434,7 +493,7 @@ func defaultAgentWorkflowDefinition() dsl.Definition {
 				"riskSignals":   dsl.RefValue("understanding_1", "riskSignals"),
 			}, nil),
 			workflowNode("policy_route_1", workflowregistry.NodeTypeCondition, "策略分流", 1560, 125.5, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
-				workflowConditionBranch("handoff", "转人工", "handoff_1", "policy_1", "action", "eq", "handoff_to_human"),
+				workflowConditionBranch("handoff", "转人工", "handoff_confirm_prompt_1", "policy_1", "action", "eq", "handoff_to_human"),
 				workflowConditionBranch("direct", "直接回复", "policy_reply_1", "policy_1", "action", "eq", "direct_reply"),
 				workflowConditionBranch("clarify", "追问澄清", "policy_reply_1", "policy_1", "action", "eq", "clarify"),
 				workflowConditionBranch("end_conversation", "结束语", "policy_reply_1", "policy_1", "action", "eq", "end_conversation"),
@@ -442,9 +501,20 @@ func defaultAgentWorkflowDefinition() dsl.Definition {
 				workflowConditionBranch("knowledge", "知识库回复", "retrieve_1", "policy_1", "action", "eq", "retrieve_knowledge"),
 				{ID: "default", Name: "策略兜底", TargetNodeID: "policy_reply_1", Default: true},
 			}}),
-			workflowNode("handoff_1", workflowregistry.NodeTypeHandoffToHuman, "转人工", 2020, 0, workflowInputs("reason", "start_1", "userMessage"), nil),
+			workflowNode("handoff_confirm_prompt_1", workflowregistry.NodeTypeLLMReply, "转人工确认文案", 2020, 0, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": "我可以为你转接人工客服处理。请回复“确认”继续转人工，或回复“取消”继续由 AI 协助。"}),
+			workflowNode("handoff_confirm_1", workflowregistry.NodeTypeHumanConfirm, "确认转人工", 2480, 0, workflowInputs("prompt", "handoff_confirm_prompt_1", "replyText"), nil),
+			workflowNode("handoff_confirm_route_1", workflowregistry.NodeTypeCondition, "转人工确认分流", 2940, 0, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				workflowConditionBranch("confirmed", "已确认", "handoff_1", "handoff_confirm_1", "confirmed", "is_true", nil),
+				{ID: "default", Name: "取消或未确认", TargetNodeID: "handoff_cancel_reply_1", Default: true},
+			}}),
+			workflowNode("handoff_1", workflowregistry.NodeTypeHandoffToHuman, "转人工", 3400, 0, map[string]dsl.Value{
+				"reason":    dsl.RefValue("start_1", "userMessage"),
+				"confirmed": dsl.RefValue("handoff_confirm_1", "confirmed"),
+			}, nil),
+			workflowNode("handoff_cancel_reply_1", workflowregistry.NodeTypeLLMReply, "取消转人工提示", 3400, 480, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": "已取消转人工。你可以继续补充问题，我会继续协助。"}),
+			workflowNode("send_handoff_cancel_1", workflowregistry.NodeTypeSendReply, "发送取消提示", 3860, 480, workflowInputs("replyText", "handoff_cancel_reply_1", "replyText"), nil),
 			workflowNode("policy_reply_1", workflowregistry.NodeTypeSendReply, "发送策略回复", 4320, 98.5, workflowInputs("replyText", "policy_1", "replyText"), nil),
-			workflowNode("handoff_end_1", workflowregistry.NodeTypeEnd, "结束", 2480, 0, nil, nil),
+			workflowNode("handoff_end_1", workflowregistry.NodeTypeEnd, "结束", 3860, 0, nil, nil),
 			workflowNode("draft_ticket_1", workflowregistry.NodeTypePrepareTicketDraft, "整理工单草稿", 2020, 379, workflowInputs("issue", "start_1", "userMessage"), nil),
 			workflowNode("ticket_draft_route_1", workflowregistry.NodeTypeCondition, "草稿就绪分流", 2480, 329, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
 				workflowConditionBranch("ready", "草稿完整", "ticket_confirm_prompt_1", "draft_ticket_1", "ready", "is_true", nil),
@@ -497,7 +567,7 @@ func defaultAgentWorkflowDefinition() dsl.Definition {
 			workflowEdge("start_1", "understanding_1"),
 			workflowEdge("understanding_1", "policy_1"),
 			workflowEdge("policy_1", "policy_route_1"),
-			workflowPortEdge("policy_route_1", "handoff_1", "handoff"),
+			workflowPortEdge("policy_route_1", "handoff_confirm_prompt_1", "handoff"),
 			workflowPortEdge("policy_route_1", "policy_reply_1", "direct"),
 			workflowPortEdge("policy_route_1", "policy_reply_1", "clarify"),
 			workflowPortEdge("policy_route_1", "policy_reply_1", "end_conversation"),
@@ -505,7 +575,13 @@ func defaultAgentWorkflowDefinition() dsl.Definition {
 			workflowPortEdge("policy_route_1", "retrieve_1", "knowledge"),
 			workflowPortEdge("policy_route_1", "policy_reply_1", "default"),
 			workflowEdge("policy_reply_1", "end_1"),
+			workflowEdge("handoff_confirm_prompt_1", "handoff_confirm_1"),
+			workflowEdge("handoff_confirm_1", "handoff_confirm_route_1"),
+			workflowPortEdge("handoff_confirm_route_1", "handoff_1", "confirmed"),
+			workflowPortEdge("handoff_confirm_route_1", "handoff_cancel_reply_1", "default"),
 			workflowEdge("handoff_1", "handoff_end_1"),
+			workflowEdge("handoff_cancel_reply_1", "send_handoff_cancel_1"),
+			workflowEdge("send_handoff_cancel_1", "end_1"),
 			workflowEdge("draft_ticket_1", "ticket_draft_route_1"),
 			workflowPortEdge("ticket_draft_route_1", "ticket_confirm_prompt_1", "ready"),
 			workflowPortEdge("ticket_draft_route_1", "ticket_followup_reply_1", "default"),
@@ -529,6 +605,62 @@ func defaultAgentWorkflowDefinition() dsl.Definition {
 			workflowEdge("send_fallback_1", "end_1"),
 		},
 	}
+}
+
+func identityConfirmationPlaybookDefinition() dsl.Definition {
+	return dsl.Definition{SchemaVersion: dsl.SchemaVersion,
+		Nodes: []dsl.Node{
+			workflowNode("start_1", workflowregistry.NodeTypeStart, "开始", 180, 180, nil, nil),
+			workflowNode("prompt_1", workflowregistry.NodeTypeLLMReply, "身份确认提示", 600, 180, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": "为保护你的账户信息，请确认是否继续身份核验。"}),
+			workflowNode("confirm_1", workflowregistry.NodeTypeHumanConfirm, "确认身份核验", 1020, 180, workflowInputs("prompt", "prompt_1", "replyText"), nil),
+			workflowNode("route_1", workflowregistry.NodeTypeCondition, "确认分流", 1440, 180, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				workflowConditionBranch("confirmed", "已确认", "confirmed_reply_1", "confirm_1", "confirmed", "is_true", nil),
+				{ID: "default", Name: "取消", TargetNodeID: "cancel_reply_1", Default: true},
+			}}),
+			workflowNode("confirmed_reply_1", workflowregistry.NodeTypeLLMReply, "确认结果", 1860, 100, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": "已收到确认，人工客服将继续为你核验身份。"}),
+			workflowNode("cancel_reply_1", workflowregistry.NodeTypeLLMReply, "取消提示", 1860, 280, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": "已取消身份核验。"}),
+			workflowNode("send_confirmed_1", workflowregistry.NodeTypeSendReply, "发送确认结果", 2280, 100, workflowInputs("replyText", "confirmed_reply_1", "replyText"), nil),
+			workflowNode("send_cancel_1", workflowregistry.NodeTypeSendReply, "发送取消提示", 2280, 280, workflowInputs("replyText", "cancel_reply_1", "replyText"), nil),
+			workflowNode("end_1", workflowregistry.NodeTypeEnd, "结束", 2700, 180, nil, nil),
+		},
+		Edges: []dsl.Edge{
+			workflowEdge("start_1", "prompt_1"), workflowEdge("prompt_1", "confirm_1"), workflowEdge("confirm_1", "route_1"),
+			workflowPortEdge("route_1", "confirmed_reply_1", "confirmed"), workflowPortEdge("route_1", "cancel_reply_1", "default"),
+			workflowEdge("confirmed_reply_1", "send_confirmed_1"), workflowEdge("cancel_reply_1", "send_cancel_1"), workflowEdge("send_confirmed_1", "end_1"), workflowEdge("send_cancel_1", "end_1"),
+		},
+	}
+}
+
+func complaintEscalationPlaybookDefinition() dsl.Definition {
+	return confirmationHandoffPlaybookDefinition("投诉升级确认", "我们将把本次投诉升级给人工客服处理。请确认是否继续。", "已为你升级投诉，人工客服会尽快跟进。", "投诉升级已取消。")
+}
+
+func confirmationHandoffPlaybookDefinition(title, prompt, confirmedReply, cancelledReply string) dsl.Definition {
+	return dsl.Definition{SchemaVersion: dsl.SchemaVersion,
+		Nodes: []dsl.Node{
+			workflowNode("start_1", workflowregistry.NodeTypeStart, "开始", 180, 180, nil, nil),
+			workflowNode("prompt_1", workflowregistry.NodeTypeLLMReply, title, 600, 180, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": prompt}),
+			workflowNode("confirm_1", workflowregistry.NodeTypeHumanConfirm, "确认升级", 1020, 180, workflowInputs("prompt", "prompt_1", "replyText"), nil),
+			workflowNode("route_1", workflowregistry.NodeTypeCondition, "确认分流", 1440, 180, nil, dsl.ConditionConfig{Branches: []dsl.ConditionBranch{
+				workflowConditionBranch("confirmed", "已确认", "handoff_1", "confirm_1", "confirmed", "is_true", nil),
+				{ID: "default", Name: "取消", TargetNodeID: "cancel_reply_1", Default: true},
+			}}),
+			workflowNode("handoff_1", workflowregistry.NodeTypeHandoffToHuman, "转人工处理", 1860, 100, map[string]dsl.Value{"reason": dsl.RefValue("start_1", "userMessage"), "confirmed": dsl.RefValue("confirm_1", "confirmed")}, nil),
+			workflowNode("cancel_reply_1", workflowregistry.NodeTypeLLMReply, "取消提示", 1860, 280, workflowInputs("userMessage", "start_1", "userMessage"), map[string]any{"staticReply": cancelledReply}),
+			workflowNode("send_handoff_1", workflowregistry.NodeTypeSendReply, "发送升级结果", 2280, 100, workflowInputs("replyText", "handoff_1", "message"), nil),
+			workflowNode("send_cancel_1", workflowregistry.NodeTypeSendReply, "发送取消提示", 2280, 280, workflowInputs("replyText", "cancel_reply_1", "replyText"), nil),
+			workflowNode("end_1", workflowregistry.NodeTypeEnd, "结束", 2700, 180, nil, nil),
+		},
+		Edges: []dsl.Edge{
+			workflowEdge("start_1", "prompt_1"), workflowEdge("prompt_1", "confirm_1"), workflowEdge("confirm_1", "route_1"),
+			workflowPortEdge("route_1", "handoff_1", "confirmed"), workflowPortEdge("route_1", "cancel_reply_1", "default"),
+			workflowEdge("handoff_1", "send_handoff_1"), workflowEdge("cancel_reply_1", "send_cancel_1"), workflowEdge("send_handoff_1", "end_1"), workflowEdge("send_cancel_1", "end_1"),
+		},
+	}
+}
+
+func refundRequestPreparationPlaybookDefinition() dsl.Definition {
+	return confirmationHandoffPlaybookDefinition("退款申请确认", "我会先整理退款申请并转交人工客服核验。请确认是否继续。", "退款申请已准备完成，人工客服将继续核验订单和退款条件。", "退款申请准备已取消。")
 }
 
 func workflowNode(id string, nodeType string, title string, x float64, y float64, inputs map[string]dsl.Value, config any) dsl.Node {

@@ -49,11 +49,12 @@ func DebugRunSkill(ctx context.Context, req request.SkillDebugRunRequest) (*resp
 		MessageType:    enums.IMMessageTypeText,
 		Content:        strings.TrimSpace(req.UserMessage),
 	}
-	summary, err := Service.Run(ctx, applicationruntime.Request{
+	summary, err := applicationruntime.DefaultAgentApplicationService.RunPrepared(ctx, applicationruntime.Request{
 		Conversation: *conversation,
 		UserMessage:  message,
 		AIAgent:      debugAgent,
 		AIConfig:     *aiConfig,
+		Debug:        true,
 	})
 	if err != nil {
 		return buildSkillDebugRunResponse(req, summary, skill), err
@@ -92,7 +93,7 @@ func DebugResumeSkill(ctx context.Context, req request.SkillDebugResumeRequest) 
 		return nil, errorsx.InvalidParamI18n("error.e0117")
 	}
 	resumeText := strings.TrimSpace(req.UserMessage)
-	summary, err := Service.Resume(ctx, applicationruntime.ResumeRequest{
+	summary, err := applicationruntime.DefaultAgentApplicationService.ResumePrepared(ctx, applicationruntime.ResumeRequest{
 		Conversation: *conversation,
 		AIAgent:      *aiAgent,
 		AIConfig:     *aiConfig,
@@ -100,6 +101,7 @@ func DebugResumeSkill(ctx context.Context, req request.SkillDebugResumeRequest) 
 		ResumeData: map[string]string{
 			strings.TrimSpace(pendingInterrupt.InterruptID): resumeText,
 		},
+		Debug: true,
 	})
 	if err != nil {
 		if isCheckpointMissingError(err) {

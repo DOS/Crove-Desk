@@ -105,17 +105,49 @@ func (s *channelService) UpdateChannel(req request.UpdateChannelRequest, operato
 	if err != nil {
 		return err
 	}
-	return repositories.ChannelRepository.Updates(sqls.DB(), req.ID, map[string]any{
-		"channel_type":     item.ChannelType,
-		"channel_id":       item.ChannelID,
-		"ai_agent_id":      item.AIAgentID,
-		"name":             item.Name,
-		"config_json":      item.ConfigJSON,
-		"status":           item.Status,
-		"remark":           item.Remark,
-		"update_user_id":   operator.UserID,
-		"update_user_name": operator.Username,
-		"updated_at":       time.Now(),
+	columns := map[string]any{
+		"channel_type":             item.ChannelType,
+		"channel_id":               item.ChannelID,
+		"ai_agent_id":              item.AIAgentID,
+		"ai_agent_rollout_percent": item.AIAgentRolloutPercent,
+		"name":                     item.Name,
+		"config_json":              item.ConfigJSON,
+		"status":                   item.Status,
+		"remark":                   item.Remark,
+		"update_user_id":           operator.UserID,
+		"update_user_name":         operator.Username,
+		"updated_at":               time.Now(),
+	}
+	if item.AIAgentRolloutPercent != current.AIAgentRolloutPercent {
+		columns["previous_ai_agent_rollout_percent"] = current.AIAgentRolloutPercent
+	}
+	return repositories.ChannelRepository.Updates(sqls.DB(), req.ID, columns)
+}
+
+// RollbackChannelAIAgentRollout restores the last channel-level rollout value
+// and swaps it into history so the action itself is reversible.
+func (s *channelService) RollbackChannelAIAgentRollout(id int64, operator *dto.AuthPrincipal) error {
+	if operator == nil {
+		return errorsx.UnauthorizedI18n("error.auth.expired")
+	}
+	if id <= 0 {
+		return errorsx.InvalidParam("channel id is required")
+	}
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		channel := repositories.ChannelRepository.Get(ctx.Tx, id)
+		if channel == nil || channel.Status == enums.StatusDeleted {
+			return errorsx.InvalidParamI18n("error.e0208")
+		}
+		if channel.PreviousAIAgentRolloutPercent < 1 || channel.PreviousAIAgentRolloutPercent > 100 {
+			return errorsx.InvalidParam("channel rollout has no previous value to restore")
+		}
+		return repositories.ChannelRepository.Updates(ctx.Tx, channel.ID, map[string]any{
+			"ai_agent_rollout_percent":          channel.PreviousAIAgentRolloutPercent,
+			"previous_ai_agent_rollout_percent": channel.AIAgentRolloutPercent,
+			"update_user_id":                    operator.UserID,
+			"update_user_name":                  operator.Username,
+			"updated_at":                        time.Now(),
+		})
 	})
 }
 
@@ -394,12 +426,30 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 	if req.AIAgentID <= 0 {
 		return nil, errorsx.InvalidParamI18n("error.e0321")
 	}
+	if req.AIAgentRolloutPercent == 0 {
+		req.AIAgentRolloutPercent = 100
+	}
+	if req.AIAgentRolloutPercent < 1 || req.AIAgentRolloutPercent > 100 {
+		return nil, errorsx.InvalidParam("channel ai agent rollout percent must be between 1 and 100")
+	}
 	aiAgent := AIAgentService.Get(req.AIAgentID)
 	if aiAgent == nil || aiAgent.Status != enums.StatusOk {
 		return nil, errorsx.InvalidParamI18n("error.e0004")
 	}
-	if aiAgent.WorkflowVersionID <= 0 {
-		return nil, errorsx.InvalidParam("ai agent workflow must be published before binding channel")
+	if aiAgent.RuntimeMode == "" || aiAgent.RuntimeMode == enums.AIAgentRuntimeModeWorkflow {
+		if aiAgent.WorkflowVersionID <= 0 {
+			return nil, errorsx.InvalidParam("ai agent workflow must be published before binding channel")
+		}
+	} else if aiAgent.RuntimeMode == enums.AIAgentRuntimeModeAutonomous {
+		if aiAgent.PublishedRevisionID <= 0 {
+			return nil, errorsx.InvalidParam("autonomous ai agent must be published before binding channel")
+		}
+	} else if aiAgent.RuntimeMode == enums.AIAgentRuntimeModeHybrid {
+		if aiAgent.PublishedRevisionID <= 0 || aiAgent.WorkflowVersionID <= 0 {
+			return nil, errorsx.InvalidParam("hybrid ai agent and workflow must be published before binding channel")
+		}
+	} else {
+		return nil, errorsx.InvalidParam("ai agent runtime mode is not available yet")
 	}
 	status := enums.Status(req.Status)
 	if req.Status == 0 {
@@ -485,12 +535,13 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 	}
 
 	return &models.Channel{
-		ChannelType: channelType,
-		ChannelID:   channelID,
-		AIAgentID:   req.AIAgentID,
-		Name:        name,
-		ConfigJSON:  configJSON,
-		Status:      status,
-		Remark:      strings.TrimSpace(req.Remark),
+		ChannelType:           channelType,
+		ChannelID:             channelID,
+		AIAgentID:             req.AIAgentID,
+		AIAgentRolloutPercent: req.AIAgentRolloutPercent,
+		Name:                  name,
+		ConfigJSON:            configJSON,
+		Status:                status,
+		Remark:                strings.TrimSpace(req.Remark),
 	}, nil
 }

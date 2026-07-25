@@ -490,6 +490,43 @@ func TestExecutorResumeCreatesTicketAfterHumanConfirmation(t *testing.T) {
 	if trace == nil || !strings.Contains(trace.OutputPreview, "工单已创建") {
 		t.Fatalf("expected create_ticket output to include customer-visible result message, got %#v", trace)
 	}
+	// Replaying the same confirmation checkpoint must reuse the completed
+	// business-tool invocation rather than creating a second ticket.
+	if _, err := executor.Resume(context.Background(), Input{
+		Definition: createTicketWorkflowDefinition(), Conversation: conversation, UserMessage: userMessage, AIAgent: aiAgent,
+	}, interrupted.CheckPointData, "确认"); err != nil {
+		t.Fatalf("replay workflow resume: %v", err)
+	}
+	var ticketCount int64
+	if err := db.Model(&models.Ticket{}).Where("conversation_id = ?", conversation.ID).Count(&ticketCount).Error; err != nil || ticketCount != 1 {
+		t.Fatalf("ticket count after replay = %d, err=%v", ticketCount, err)
+	}
+}
+
+func TestExecutorDebugResumeDoesNotCreateTicket(t *testing.T) {
+	db := setupWorkflowExecutorHandoffDB(t)
+	aiAgent := createWorkflowExecutorHandoffAIAgent(t, db, "1")
+	conversation := createWorkflowExecutorHandoffConversation(t, db, aiAgent.ID)
+	userMessage := createWorkflowExecutorCustomerMessage(t, db, conversation.ID, "订单支付失败，请帮我登记工单")
+	executor := NewExecutor()
+	definition := createTicketWorkflowDefinition()
+
+	interrupted, err := executor.Execute(context.Background(), Input{Definition: definition, Conversation: conversation, UserMessage: userMessage, AIAgent: aiAgent, Debug: true})
+	if err != nil || !interrupted.Interrupted {
+		t.Fatalf("debug execute = %#v, err=%v", interrupted, err)
+	}
+	result, err := executor.Resume(context.Background(), Input{Definition: definition, Conversation: conversation, UserMessage: userMessage, AIAgent: aiAgent, Debug: true}, interrupted.CheckPointData, "确认")
+	if err != nil || result.Interrupted {
+		t.Fatalf("debug resume = %#v, err=%v", result, err)
+	}
+	var ticketCount int64
+	if err := db.Model(&models.Ticket{}).Where("conversation_id = ?", conversation.ID).Count(&ticketCount).Error; err != nil || ticketCount != 0 {
+		t.Fatalf("debug ticket count = %d, err=%v", ticketCount, err)
+	}
+	trace := findNodeTrace(result.NodeTraces, "create_ticket_1")
+	if trace == nil || !strings.Contains(trace.OutputPreview, "调试运行不会创建工单") {
+		t.Fatalf("expected debug write skip trace, got %#v", trace)
+	}
 }
 
 func findNodeTrace(items []NodeTrace, nodeID string) *NodeTrace {
@@ -835,6 +872,7 @@ func setupWorkflowExecutorHandoffDB(t *testing.T) *gorm.DB {
 		&models.ConversationReadState{},
 		&models.Message{},
 		&models.ChannelMessageOutbox{},
+		&models.AgentToolInvocation{},
 		&models.Ticket{},
 		&models.TicketNoSequence{},
 		&models.TicketTag{},

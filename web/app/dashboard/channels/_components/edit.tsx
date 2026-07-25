@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, Resolver, useForm, useWatch } from "react-hook-form"
 import { z } from "zod/v4"
-import { CopyIcon, ExternalLinkIcon } from "lucide-react"
+import { CopyIcon, ExternalLinkIcon, RotateCcwIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { getWidgetDemoPath } from "@/components/support-chat/demo-navigation"
@@ -28,6 +28,7 @@ import {
   fetchAIAgentsAll,
   fetchChannel,
   fetchWxWorkKFAccounts,
+	rollbackChannelAIAgentRollout,
   resetChannelUserTokenSecret,
 } from "@/lib/api/admin"
 import { useI18n } from "@/i18n/provider"
@@ -74,6 +75,7 @@ function createSchema(t: Translate) {
     .object({
       channelType: z.enum(["web", "wechat_mp", "wxwork_kf"], t("channel.typeRequired")),
       aiAgentId: z.string().trim().regex(/^\d+$/, t("channel.agentRequired")),
+		aiAgentRolloutPercent: z.coerce.number().int().min(1).max(100),
       name: z.string().trim().min(1, t("channel.nameRequired")),
       openKfId: z.string().trim(),
       widgetTitle: z.string().trim(),
@@ -98,6 +100,7 @@ function createSchema(t: Translate) {
 type EditForm = {
   channelType: "web" | "wechat_mp" | "wxwork_kf"
   aiAgentId: string
+	aiAgentRolloutPercent: number
   name: string
   openKfId: string
   widgetTitle: string
@@ -114,6 +117,7 @@ function createEmptyForm(t: Translate): EditForm {
   return {
     channelType: "web",
     aiAgentId: "",
+		aiAgentRolloutPercent: 100,
     name: "",
     openKfId: "",
     widgetTitle: defaultWebChannelConfig.title,
@@ -202,6 +206,7 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
           ? "wechat_mp"
           : "web",
     aiAgentId: item.aiAgentId > 0 ? String(item.aiAgentId) : "",
+		aiAgentRolloutPercent: item.aiAgentRolloutPercent || 100,
     name: item.name,
     openKfId: parseOpenKfId(item.configJson),
     widgetTitle: wechatConfig?.title ?? webConfig.title,
@@ -240,6 +245,7 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
   return {
     channelType,
     aiAgentId: Number(form.aiAgentId),
+		aiAgentRolloutPercent: form.aiAgentRolloutPercent,
     name: form.name.trim(),
     configJson,
     status,
@@ -247,8 +253,15 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
   }
 }
 
-function isAgentWorkflowPublished(agent: AIAgent | undefined) {
-  return Boolean(agent?.workflowPublished ?? (agent?.workflowVersionId ?? 0) > 0)
+function isAgentChannelBindable(agent: AIAgent | undefined) {
+  if (!agent) return false
+  if (agent.runtimeMode === "autonomous") {
+    return agent.publishedRevisionId > 0
+  }
+  if (agent.runtimeMode === "hybrid") {
+    return agent.publishedRevisionId > 0 && agent.workflowVersionId > 0
+  }
+  return Boolean(agent.workflowPublished ?? agent.workflowVersionId > 0)
 }
 
 type ChannelFormBodyProps = Omit<ChannelFormDialogProps, "open">
@@ -300,6 +313,7 @@ function ChannelFormBody({
   const [wxWorkKFAccountsLoading, setWxWorkKFAccountsLoading] = useState(false)
   const [wxWorkKFAccountsError, setWxWorkKFAccountsError] = useState("")
   const [channelDetail, setChannelDetail] = useState<AdminChannel | null>(null)
+	const [rollingBackRollout, setRollingBackRollout] = useState(false)
   const [currentStatus, setCurrentStatus] = useState(0)
   const form = useForm<
     z.input<typeof schema>,
@@ -321,6 +335,26 @@ function ChannelFormBody({
   const aiAgentId = useWatch({ control, name: "aiAgentId" })
   const openKfId = useWatch({ control, name: "openKfId" })
   const userTokenSecret = useWatch({ control, name: "userTokenSecret" })
+	const previousRolloutPercent = channelDetail?.previousAiAgentRolloutPercent ?? 0
+
+	async function rollbackRolloutPercent() {
+		if (!channelDetail || previousRolloutPercent < 1) return
+		setRollingBackRollout(true)
+		try {
+			await rollbackChannelAIAgentRollout(channelDetail.id)
+			setValue("aiAgentRolloutPercent", previousRolloutPercent)
+			setChannelDetail({
+				...channelDetail,
+				aiAgentRolloutPercent: previousRolloutPercent,
+				previousAiAgentRolloutPercent: channelDetail.aiAgentRolloutPercent,
+			})
+			toast.success("已恢复上一次渠道灰度比例")
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "恢复渠道灰度比例失败")
+		} finally {
+			setRollingBackRollout(false)
+		}
+	}
 
   useEffect(() => {
     async function loadAIAgents() {
@@ -392,11 +426,11 @@ function ChannelFormBody({
 
   const selectedAIAgent = aiAgents.find((item) => String(item.id) === aiAgentId)
   const availableAIAgents = aiAgents.filter(
-    (item) => isAgentWorkflowPublished(item) || String(item.id) === aiAgentId
+    (item) => isAgentChannelBindable(item) || String(item.id) === aiAgentId
   )
   const aiAgentOptions = availableAIAgents.map((item) => ({
     value: String(item.id),
-    label: isAgentWorkflowPublished(item)
+    label: isAgentChannelBindable(item)
       ? `${item.name} · 当前生效 #${item.workflowVersionId}`
       : `${item.name} · 未发布`,
   }))
@@ -426,8 +460,8 @@ function ChannelFormBody({
 
   async function onFormSubmit(values: EditForm) {
     const selected = aiAgents.find((item) => String(item.id) === values.aiAgentId)
-    if (!isAgentWorkflowPublished(selected)) {
-      toast.error("该 Agent 尚未发布流程，不能绑定渠道")
+	if (!isAgentChannelBindable(selected)) {
+		toast.error("该 Agent 尚未完成发布，不能绑定渠道")
       return
     }
     await onSubmit(buildPayload(values, currentStatus, t))
@@ -521,20 +555,36 @@ function ChannelFormBody({
                     />
                   )}
                 />
-                {selectedAIAgent && !isAgentWorkflowPublished(selectedAIAgent) ? (
+                {selectedAIAgent && !isAgentChannelBindable(selectedAIAgent) ? (
                   <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                     该 Agent 尚未发布流程，AI 不会自动回复。请先在 Agent 配置中发布流程版本。
                   </div>
                 ) : null}
-                {selectedAIAgent && isAgentWorkflowPublished(selectedAIAgent) ? (
+                {selectedAIAgent && isAgentChannelBindable(selectedAIAgent) ? (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Badge variant="secondary">
-                      {selectedAIAgent.workflowStateText || "已发布"}
+						{selectedAIAgent.runtimeMode === "autonomous" ? "已发布" : selectedAIAgent.workflowStateText || "已发布"}
                     </Badge>
-                    <span>当前生效版本 #{selectedAIAgent.workflowVersionId}</span>
+					<span>{selectedAIAgent.runtimeMode === "autonomous" ? `当前版本 #${selectedAIAgent.publishedRevisionId}` : `当前生效版本 #${selectedAIAgent.workflowVersionId}`}</span>
                   </div>
                 ) : null}
                 <FieldError errors={[errors.aiAgentId]} />
+              </FieldContent>
+            </Field>
+
+            <Field data-invalid={!!errors.aiAgentRolloutPercent}>
+              <FieldLabel htmlFor="channel-ai-agent-rollout">AI 灰度比例（%）</FieldLabel>
+              <FieldContent>
+                <div className="flex items-center gap-2">
+                  <Input id="channel-ai-agent-rollout" type="number" min={1} max={100} step={1} {...register("aiAgentRolloutPercent")} />
+                  {previousRolloutPercent > 0 ? (
+                    <Button type="button" variant="outline" size="sm" disabled={saving || rollingBackRollout} onClick={rollbackRolloutPercent}>
+                      <RotateCcwIcon />
+                      恢复 {previousRolloutPercent}%
+                    </Button>
+                  ) : null}
+                </div>
+                <FieldError errors={[errors.aiAgentRolloutPercent]} />
               </FieldContent>
             </Field>
 

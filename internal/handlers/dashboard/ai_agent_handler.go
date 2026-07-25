@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"agent-desk/internal/builders"
 	"agent-desk/internal/pkg/httpx"
 	"encoding/json"
 	"strings"
@@ -125,6 +126,77 @@ func AIAgentPostDelete(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, nil)
 }
 
+func AIAgentPostPublish(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionAIAgentUpdate)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.PublishAIAgentRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	_, err = services.AIAgentService.PublishAIAgent(req.ID, operator)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, nil)
+}
+
+func AIAgentAnyRevisionList(ctx *gin.Context) {
+	id, ok := httpx.GetPathInt64(ctx, "id")
+	if !ok {
+		return
+	}
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionAIAgentView); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	if services.AIAgentService.Get(id) == nil {
+		httpx.WriteJSON(ctx, httpx.JsonErrorMsg(ctx, "error.e0002"))
+		return
+	}
+	httpx.WriteJSON(ctx, builders.BuildAgentRevisionList(services.AgentRevisionService.FindByAgentID(id)))
+}
+
+func AIAgentPostRollback(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionAIAgentUpdate)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.RollbackAIAgentRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	if err := services.AIAgentService.RollbackAIAgent(req.ID, req.RevisionID, operator); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, nil)
+}
+
+func AIAgentPostRollback_rollout(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionAIAgentUpdate)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.RollbackAIAgentRolloutRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	if err := services.AIAgentService.RollbackAIAgentRollout(req.ID, operator); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, nil)
+}
+
 func AIAgentPostUpdate_sort(ctx *gin.Context) {
 	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionAIAgentUpdate); err != nil {
 		httpx.WriteJSON(ctx, err)
@@ -165,36 +237,50 @@ func buildAIAgentResponse(item *models.AIAgent) response.AIAgentResponse {
 }
 
 func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) response.AIAgentResponse {
+	runtimeMode := item.RuntimeMode
+	if runtimeMode == "" {
+		runtimeMode = enums.AIAgentRuntimeModeWorkflow
+	}
 	ret := response.AIAgentResponse{
-		ID:                  item.ID,
-		Name:                item.Name,
-		Description:         item.Description,
-		Status:              item.Status,
-		StatusName:          enums.GetStatusLabel(item.Status),
-		AIConfigID:          item.AIConfigID,
-		ServiceMode:         item.ServiceMode,
-		ServiceModeName:     enums.GetIMConversationServiceModeLabel(item.ServiceMode),
-		SystemPrompt:        item.SystemPrompt,
-		WelcomeMessage:      item.WelcomeMessage,
-		ReplyTimeoutSeconds: item.ReplyTimeoutSeconds,
-		HandoffMode:         item.HandoffMode,
-		HandoffModeName:     enums.GetAIAgentHandoffModeLabel(item.HandoffMode),
-		FallbackMode:        item.FallbackMode,
-		FallbackModeName:    enums.GetAIAgentFallbackModeLabel(item.FallbackMode),
-		FallbackMessage:     item.FallbackMessage,
-		SkillIDs:            utils.SplitInt64s(item.SkillIDs),
-		Skills:              make([]response.AIAgentSkillResponse, 0),
-		Teams:               make([]response.AIAgentTeamResponse, 0),
-		DirectTools:         make([]response.AIAgentMCPToolResponse, 0),
-		WorkflowVersionID:   item.WorkflowVersionID,
-		WorkflowPublished:   item.WorkflowVersionID > 0,
-		WorkflowState:       aiAgentWorkflowState(item.WorkflowVersionID),
-		WorkflowStateText:   aiAgentWorkflowStateText(item.WorkflowVersionID),
-		SortNo:              item.SortNo,
-		CreatedAt:           item.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt:           item.UpdatedAt.Format("2006-01-02 15:04:05"),
-		CreateUserName:      item.CreateUserName,
-		UpdateUserName:      item.UpdateUserName,
+		ID:                     item.ID,
+		Name:                   item.Name,
+		Description:            item.Description,
+		Status:                 item.Status,
+		StatusName:             enums.GetStatusLabel(item.Status),
+		AIConfigID:             item.AIConfigID,
+		RuntimeMode:            runtimeMode,
+		RuntimeModeName:        enums.GetAIAgentRuntimeModeLabel(runtimeMode),
+		MaxSteps:               item.MaxSteps,
+		ContextWindow:          item.ContextWindow,
+		ToolPolicy:             item.ToolPolicy,
+		KnowledgePolicy:        item.KnowledgePolicy,
+		ServiceMode:            item.ServiceMode,
+		ServiceModeName:        enums.GetIMConversationServiceModeLabel(item.ServiceMode),
+		SystemPrompt:           item.SystemPrompt,
+		WelcomeMessage:         item.WelcomeMessage,
+		ReplyTimeoutSeconds:    item.ReplyTimeoutSeconds,
+		RolloutPercent:         item.RolloutPercent,
+		PreviousRolloutPercent: item.PreviousRolloutPercent,
+		HandoffMode:            item.HandoffMode,
+		HandoffModeName:        enums.GetAIAgentHandoffModeLabel(item.HandoffMode),
+		FallbackMode:           item.FallbackMode,
+		FallbackModeName:       enums.GetAIAgentFallbackModeLabel(item.FallbackMode),
+		FallbackMessage:        item.FallbackMessage,
+		KnowledgeBaseIDs:       utils.SplitInt64s(item.KnowledgeIDs),
+		SkillIDs:               utils.SplitInt64s(item.SkillIDs),
+		Skills:                 make([]response.AIAgentSkillResponse, 0),
+		Teams:                  make([]response.AIAgentTeamResponse, 0),
+		DirectTools:            make([]response.AIAgentMCPToolResponse, 0),
+		WorkflowVersionID:      item.WorkflowVersionID,
+		PublishedRevisionID:    item.PublishedRevisionID,
+		WorkflowPublished:      item.WorkflowVersionID > 0,
+		WorkflowState:          aiAgentWorkflowState(item.WorkflowVersionID),
+		WorkflowStateText:      aiAgentWorkflowStateText(item.WorkflowVersionID),
+		SortNo:                 item.SortNo,
+		CreatedAt:              item.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:              item.UpdatedAt.Format("2006-01-02 15:04:05"),
+		CreateUserName:         item.CreateUserName,
+		UpdateUserName:         item.UpdateUserName,
 	}
 	if aiConfig := services.AIConfigService.Get(item.AIConfigID); aiConfig != nil {
 		ret.AIConfigName = aiConfig.Name

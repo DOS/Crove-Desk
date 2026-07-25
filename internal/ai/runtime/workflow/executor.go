@@ -13,13 +13,13 @@ import (
 
 	"agent-desk/internal/ai"
 	"agent-desk/internal/ai/runtime/graphs"
-	"agent-desk/internal/ai/runtime/retrievers"
+	"agent-desk/internal/ai/runtime/readtools"
+	aitooling "agent-desk/internal/ai/tooling"
 	"agent-desk/internal/ai/workflow/dsl"
 	workflowregistry "agent-desk/internal/ai/workflow/registry"
 	"agent-desk/internal/models"
-	"agent-desk/internal/pkg/dto"
-	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/enums"
+	"agent-desk/internal/pkg/toolx"
 	"agent-desk/internal/services"
 )
 
@@ -34,6 +34,7 @@ type Input struct {
 	UserMessage  models.Message
 	AIAgent      models.AIAgent
 	AIConfig     models.AIConfig
+	Debug        bool
 }
 
 type Result struct {
@@ -355,21 +356,37 @@ func (e *Executor) executeCreateTicket(state *runState, node dsl.Node) error {
 		})
 		return nil
 	}
+	if state.input.Debug {
+		state.setNodeVars(node.ID, map[string]any{
+			"ticketId": int64(0), "ticketNo": "", "created": false,
+			"message": "调试运行不会创建工单。", "skipped": true,
+		})
+		return nil
+	}
 	draft := asMap(state.resolveInput(node, "ticketDraft"))
 	title := strings.TrimSpace(toString(draft["title"]))
 	description := strings.TrimSpace(toString(draft["description"]))
-	item, err := services.TicketService.CreateFromConversation(request.CreateTicketFromConversationRequest{
-		ConversationID: state.input.Conversation.ID,
-		Title:          title,
-		Description:    description,
-	}, workflowAIPrincipal(state.input.AIAgent))
+	result, err := services.BusinessToolExecutor.Execute(context.Background(), services.BusinessToolInput{
+		Conversation: state.input.Conversation, AIAgent: state.input.AIAgent,
+		ToolCode: toolx.GraphCreateTicketConfirm.Code, Arguments: map[string]any{"title": title, "description": description},
+		IdempotencyKey: workflowToolIdempotencyKey(state, node), Confirmed: true,
+	})
 	if err != nil {
 		return err
 	}
+	var output struct {
+		TicketID int64  `json:"ticketId"`
+		TicketNo string `json:"ticketNo"`
+		Created  bool   `json:"created"`
+	}
+	if err := json.Unmarshal([]byte(result.ResultData), &output); err != nil {
+		return err
+	}
+	item := &models.Ticket{ID: output.TicketID, TicketNo: output.TicketNo}
 	state.setNodeVars(node.ID, map[string]any{
 		"ticketId": item.ID,
 		"ticketNo": item.TicketNo,
-		"created":  true,
+		"created":  output.Created,
 		"message":  buildTicketCreatedMessage(item),
 	})
 	return nil
@@ -384,18 +401,6 @@ func buildTicketCreatedMessage(item *models.Ticket) string {
 		return fmt.Sprintf("工单已创建，工单 ID：%d。", item.ID)
 	}
 	return "工单已创建，工单号：" + ticketNo + "。"
-}
-
-func workflowAIPrincipal(aiAgent models.AIAgent) *dto.AuthPrincipal {
-	username := strings.TrimSpace(aiAgent.Name)
-	if username == "" {
-		username = "AI"
-	}
-	return &dto.AuthPrincipal{
-		UserID:   0,
-		Username: username,
-		Nickname: username,
-	}
 }
 
 type workflowConversationUnderstanding struct {
@@ -610,11 +615,14 @@ func (e *Executor) executePrepareTicketDraft(ctx context.Context, state *runStat
 	if currentAttempt := strings.TrimSpace(readStringConfig(node.Data.Config, "currentAttempt")); currentAttempt != "" {
 		input.CurrentAttempt = currentAttempt
 	}
-	args, err := json.Marshal(input)
-	if err != nil {
-		return err
-	}
-	raw, err := graphs.NewPrepareTicketDraftGraph(state.input.Conversation).Run(ctx, string(args))
+	_, raw, err := readtools.ExecuteGraphTool(ctx, state.input.Conversation, toolx.GraphPrepareTicketDraft.Code, map[string]any{
+		"title":           input.Title,
+		"description":     input.Description,
+		"issue":           input.Issue,
+		"impact":          input.Impact,
+		"expectedOutcome": input.ExpectedOutcome,
+		"currentAttempt":  input.CurrentAttempt,
+	}, workflowReadToolPolicy(toolx.GraphPrepareTicketDraft.Code))
 	if err != nil {
 		return err
 	}
@@ -665,11 +673,14 @@ func (e *Executor) executeAnalyzeConversation(ctx context.Context, state *runSta
 	if strings.TrimSpace(readStringConfig(node.Data.Config, "additionalContext")) != "" {
 		input.AdditionalContext = strings.TrimSpace(readStringConfig(node.Data.Config, "additionalContext"))
 	}
-	args, err := json.Marshal(input)
-	if err != nil {
-		return err
-	}
-	raw, err := graphs.NewAnalyzeConversationGraph(state.input.Conversation).Run(ctx, string(args))
+	_, raw, err := readtools.ExecuteGraphTool(ctx, state.input.Conversation, toolx.GraphAnalyzeConversation.Code, map[string]any{
+		"goal":              input.Goal,
+		"observedIssue":     input.ObservedIssue,
+		"needTicket":        input.NeedTicket,
+		"needHumanHandoff":  input.NeedHumanHandoff,
+		"needQualityCheck":  input.NeedQualityCheck,
+		"additionalContext": input.AdditionalContext,
+	}, workflowReadToolPolicy(toolx.GraphAnalyzeConversation.Code))
 	if err != nil {
 		return err
 	}
@@ -687,6 +698,14 @@ func (e *Executor) executeAnalyzeConversation(ctx context.Context, state *runSta
 	return nil
 }
 
+func workflowReadToolPolicy(toolCode string) aitooling.Policy {
+	return aitooling.Policy{
+		AllowedToolCodes:  []string{toolCode},
+		AllowedRiskLevels: []string{aitooling.RiskLevelRead},
+		Confirmed:         true,
+	}
+}
+
 func (e *Executor) executeHandoffToHuman(state *runState, node dsl.Node) error {
 	if _, hasConfirmedInput := node.Data.InputsValues["confirmed"]; hasConfirmedInput && !truthy(state.resolveInput(node, "confirmed")) {
 		state.setNodeVars(node.ID, map[string]any{
@@ -700,14 +719,30 @@ func (e *Executor) executeHandoffToHuman(state *runState, node dsl.Node) error {
 		})
 		return nil
 	}
+	if state.input.Debug {
+		state.setNodeVars(node.ID, map[string]any{
+			"handoffId": int64(0), "reason": strings.TrimSpace(toString(state.resolveInput(node, "reason"))),
+			"decision": "cancelled", "teamId": int64(0), "assigneeId": int64(0),
+			"message": "调试运行不会转人工。", "skipped": true,
+		})
+		return nil
+	}
 	reason := strings.TrimSpace(toString(state.resolveInput(node, "reason")))
-	result, err := services.ConversationHumanDispatchService.HandoffByAIWithRequestID(
-		state.input.Conversation.ID,
-		state.input.AIAgent,
-		reason,
-		strings.TrimSpace(state.input.UserMessage.RequestID),
-	)
+	result, err := services.BusinessToolExecutor.Execute(context.Background(), services.BusinessToolInput{
+		Conversation: state.input.Conversation, AIAgent: state.input.AIAgent,
+		ToolCode: toolx.GraphHandoffConversation.Code, Arguments: map[string]any{"reason": reason},
+		IdempotencyKey: workflowToolIdempotencyKey(state, node), Confirmed: true,
+	})
 	if err != nil {
+		return err
+	}
+	var handoff struct {
+		Decision   string `json:"decision"`
+		TeamID     int64  `json:"teamId"`
+		AssigneeID int64  `json:"assigneeId"`
+		Message    string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(result.ResultData), &handoff); err != nil {
 		return err
 	}
 	output := map[string]any{
@@ -718,14 +753,20 @@ func (e *Executor) executeHandoffToHuman(state *runState, node dsl.Node) error {
 		"assigneeId": int64(0),
 		"message":    "",
 	}
-	if result != nil {
-		output["decision"] = string(result.Decision)
-		output["teamId"] = result.TeamID
-		output["assigneeId"] = result.AssigneeID
-		output["message"] = strings.TrimSpace(result.Message)
-	}
+	output["decision"] = handoff.Decision
+	output["teamId"] = handoff.TeamID
+	output["assigneeId"] = handoff.AssigneeID
+	output["message"] = strings.TrimSpace(handoff.Message)
 	state.setNodeVars(node.ID, output)
 	return nil
+}
+
+func workflowToolIdempotencyKey(state *runState, node dsl.Node) string {
+	requestID := strings.TrimSpace(state.input.UserMessage.RequestID)
+	if requestID != "" {
+		return fmt.Sprintf("workflow:%d:node:%s:request:%s", state.input.Conversation.ID, node.ID, requestID)
+	}
+	return fmt.Sprintf("workflow:%d:node:%s:message:%d", state.input.Conversation.ID, node.ID, state.input.UserMessage.ID)
 }
 
 func (e *Executor) executeKnowledgeRetrieve(ctx context.Context, state *runState, node dsl.Node) error {
@@ -734,8 +775,7 @@ func (e *Executor) executeKnowledgeRetrieve(ctx context.Context, state *runState
 	if len(knowledgeBaseIDs) == 0 {
 		return fmt.Errorf("knowledge retrieve node requires knowledgeBaseIds")
 	}
-	retriever := retrievers.NewKnowledgeRetriever(state.input.AIAgent, knowledgeBaseIDs)
-	result, err := retriever.RetrieveContext(ctx, query)
+	_, result, err := readtools.RetrieveKnowledge(ctx, state.input.AIAgent, knowledgeBaseIDs, query, workflowReadToolPolicy(toolx.BuiltinKnowledgeRetrieve.Code))
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"agent-desk/internal/models"
+	"agent-desk/internal/pkg/enums"
 
 	"github.com/glebarez/sqlite"
 	"github.com/mlogclub/simple/sqls"
@@ -14,6 +15,9 @@ func TestBuildAIAgentResponseExposesWorkflowPublishState(t *testing.T) {
 	setupAIAgentHandlerTestDB(t)
 
 	draft := buildAIAgentResponse(&models.AIAgent{})
+	if draft.RuntimeMode != enums.AIAgentRuntimeModeWorkflow {
+		t.Fatalf("draft.RuntimeMode = %q, want %q", draft.RuntimeMode, enums.AIAgentRuntimeModeWorkflow)
+	}
 	if draft.WorkflowPublished {
 		t.Fatalf("draft.WorkflowPublished = true, want false")
 	}
@@ -33,6 +37,11 @@ func TestBuildAIAgentResponseExposesWorkflowPublishState(t *testing.T) {
 	}
 	if published.WorkflowStateText == "" {
 		t.Fatalf("expected published workflow state text")
+	}
+
+	rollout := buildAIAgentResponse(&models.AIAgent{RolloutPercent: 20, PreviousRolloutPercent: 100})
+	if rollout.RolloutPercent != 20 || rollout.PreviousRolloutPercent != 100 {
+		t.Fatalf("unexpected rollout response: %#v", rollout)
 	}
 }
 

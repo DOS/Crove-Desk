@@ -1,5 +1,33 @@
 package enums
 
+type AgentRunResolutionStatus string
+
+const (
+	AgentRunResolutionStatusUnknown    AgentRunResolutionStatus = "unknown"
+	AgentRunResolutionStatusResolved   AgentRunResolutionStatus = "resolved"
+	AgentRunResolutionStatusUnresolved AgentRunResolutionStatus = "unresolved"
+)
+
+var AgentRunResolutionStatusValues = []AgentRunResolutionStatus{
+	AgentRunResolutionStatusUnknown,
+	AgentRunResolutionStatusResolved,
+	AgentRunResolutionStatusUnresolved,
+}
+
+type AgentRunEvidenceStatus string
+
+const (
+	AgentRunEvidenceStatusUnknown     AgentRunEvidenceStatus = "unknown"
+	AgentRunEvidenceStatusSupported   AgentRunEvidenceStatus = "supported"
+	AgentRunEvidenceStatusUnsupported AgentRunEvidenceStatus = "unsupported"
+)
+
+var AgentRunEvidenceStatusValues = []AgentRunEvidenceStatus{
+	AgentRunEvidenceStatusUnknown,
+	AgentRunEvidenceStatusSupported,
+	AgentRunEvidenceStatusUnsupported,
+}
+
 type ServiceStatus int
 
 const (

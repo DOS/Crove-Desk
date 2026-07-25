@@ -77,6 +77,30 @@ func (r *conversationRepository) Count(db *gorm.DB, cnd *sqls.Cnd) int64 {
 	return cnd.Count(db, &models.Conversation{})
 }
 
+func (r *conversationRepository) CountByAIAgentID(db *gorm.DB, aiAgentID int64) int64 {
+	query := db.Model(&models.Conversation{})
+	if aiAgentID > 0 {
+		query = query.Where("ai_agent_id = ?", aiAgentID)
+	}
+	var count int64
+	if err := query.Count(&count).Error; err != nil {
+		return 0
+	}
+	return count
+}
+
+func (r *conversationRepository) CountHandoffByAIAgentID(db *gorm.DB, aiAgentID int64) int64 {
+	query := db.Model(&models.Conversation{}).Where("handoff_at IS NOT NULL")
+	if aiAgentID > 0 {
+		query = query.Where("ai_agent_id = ?", aiAgentID)
+	}
+	var count int64
+	if err := query.Count(&count).Error; err != nil {
+		return 0
+	}
+	return count
+}
+
 func (r *conversationRepository) Create(db *gorm.DB, t *models.Conversation) (err error) {
 	err = db.Create(t).Error
 	return

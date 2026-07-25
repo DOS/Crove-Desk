@@ -39,6 +39,17 @@ func (r *conversationInterruptRepository) FindLatestPendingByConversationID(db *
 	return ret
 }
 
+func (r *conversationInterruptRepository) FindByAgentRunIDs(db *gorm.DB, agentRunIDs []int64) []models.ConversationInterrupt {
+	if len(agentRunIDs) == 0 {
+		return []models.ConversationInterrupt{}
+	}
+	var items []models.ConversationInterrupt
+	if err := db.Where("agent_run_id IN ?", agentRunIDs).Find(&items).Error; err != nil {
+		return []models.ConversationInterrupt{}
+	}
+	return items
+}
+
 func (r *conversationInterruptRepository) Find(db *gorm.DB, cnd *sqls.Cnd) (list []models.ConversationInterrupt) {
 	cnd.Find(db, &list)
 	return
@@ -72,6 +83,8 @@ func (r *conversationInterruptRepository) UpsertByCheckPointID(db *gorm.DB, item
 	columns := map[string]any{
 		"conversation_id":        item.ConversationID,
 		"ai_agent_id":            item.AIAgentID,
+		"agent_run_id":           item.AgentRunID,
+		"agent_step_id":          item.AgentStepID,
 		"source_message_id":      item.SourceMessageID,
 		"last_resume_message_id": item.LastResumeMessageID,
 		"workflow_run_id":        item.WorkflowRunID,

@@ -1,12 +1,13 @@
 package request
 
 type CreateChannelRequest struct {
-	ChannelType string `json:"channelType"`
-	AIAgentID   int64  `json:"aiAgentId"`
-	Name        string `json:"name"`
-	ConfigJSON  string `json:"configJson"`
-	Status      int    `json:"status"`
-	Remark      string `json:"remark"`
+	ChannelType           string `json:"channelType"`
+	AIAgentID             int64  `json:"aiAgentId"`
+	AIAgentRolloutPercent int    `json:"aiAgentRolloutPercent"`
+	Name                  string `json:"name"`
+	ConfigJSON            string `json:"configJson"`
+	Status                int    `json:"status"`
+	Remark                string `json:"remark"`
 }
 
 type UpdateChannelRequest struct {
@@ -17,6 +18,10 @@ type UpdateChannelRequest struct {
 type UpdateChannelStatusRequest struct {
 	ID     int64 `json:"id"`
 	Status int   `json:"status"`
+}
+
+type RollbackChannelAIAgentRolloutRequest struct {
+	ID int64 `json:"id"`
 }
 
 type DeleteChannelRequest struct {

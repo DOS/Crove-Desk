@@ -6,15 +6,17 @@ import (
 )
 
 type ChannelResponse struct {
-	ID          int64        `json:"id"`
-	ChannelType string       `json:"channelType"`
-	ChannelID   string       `json:"channelId"`
-	AIAgentID   int64        `json:"aiAgentId"`
-	AIAgentName string       `json:"aiAgentName,omitempty"`
-	Name        string       `json:"name"`
-	ConfigJSON  string       `json:"configJson"`
-	Status      enums.Status `json:"status"`
-	Remark      string       `json:"remark"`
+	ID                            int64        `json:"id"`
+	ChannelType                   string       `json:"channelType"`
+	ChannelID                     string       `json:"channelId"`
+	AIAgentID                     int64        `json:"aiAgentId"`
+	AIAgentRolloutPercent         int          `json:"aiAgentRolloutPercent"`
+	PreviousAIAgentRolloutPercent int          `json:"previousAiAgentRolloutPercent"`
+	AIAgentName                   string       `json:"aiAgentName,omitempty"`
+	Name                          string       `json:"name"`
+	ConfigJSON                    string       `json:"configJson"`
+	Status                        enums.Status `json:"status"`
+	Remark                        string       `json:"remark"`
 }
 
 type WxWorkKFAccountResponse struct {
@@ -29,13 +31,15 @@ func BuildChannelResponse(item *models.Channel) ChannelResponse {
 		return ChannelResponse{}
 	}
 	return ChannelResponse{
-		ID:          item.ID,
-		ChannelType: item.ChannelType,
-		ChannelID:   item.ChannelID,
-		AIAgentID:   item.AIAgentID,
-		Name:        item.Name,
-		ConfigJSON:  item.ConfigJSON,
-		Status:      item.Status,
-		Remark:      item.Remark,
+		ID:                            item.ID,
+		ChannelType:                   item.ChannelType,
+		ChannelID:                     item.ChannelID,
+		AIAgentID:                     item.AIAgentID,
+		AIAgentRolloutPercent:         item.AIAgentRolloutPercent,
+		PreviousAIAgentRolloutPercent: item.PreviousAIAgentRolloutPercent,
+		Name:                          item.Name,
+		ConfigJSON:                    item.ConfigJSON,
+		Status:                        item.Status,
+		Remark:                        item.Remark,
 	}
 }

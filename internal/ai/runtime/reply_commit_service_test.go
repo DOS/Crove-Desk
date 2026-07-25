@@ -46,6 +46,26 @@ func TestReplyCommitStoresWorkflowRunIDOnAIMessage(t *testing.T) {
 	}
 }
 
+func TestReplyCommitRejectsSensitiveModelOutput(t *testing.T) {
+	db := setupReplyCommitTestDB(t)
+	aiAgent := createReplyCommitTestAIAgent(t, db)
+	conversation := createReplyCommitTestConversation(t, db, aiAgent.ID)
+	_, err := newReplyCommitService().CommitAIReply(replyCommitInput{
+		Conversation: *conversation, Message: models.Message{ID: 102, RequestID: "trace-102"}, AIAgent: *aiAgent,
+		ReplyText: "authorization=Bearer-secret", ClientPrefix: "ai_reply",
+	})
+	if err == nil {
+		t.Fatal("expected sensitive model output to be rejected")
+	}
+	var count int64
+	if err := db.Model(&models.Message{}).Where("conversation_id = ?", conversation.ID).Count(&count).Error; err != nil {
+		t.Fatalf("count messages: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("unexpected message written for rejected output: %d", count)
+	}
+}
+
 func setupReplyCommitTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	dbName := "reply_commit_test_" + strings.NewReplacer("/", "_").Replace(t.Name())

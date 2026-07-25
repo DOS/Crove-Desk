@@ -100,6 +100,24 @@ func ChannelPostUpdate(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, nil)
 }
 
+func ChannelPostRollback_ai_agent_rollout(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionChannelUpdate)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.RollbackChannelAIAgentRolloutRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	if err := services.ChannelService.RollbackChannelAIAgentRollout(req.ID, operator); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, nil)
+}
+
 func ChannelPostUpdate_status(ctx *gin.Context) {
 	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionChannelUpdate)
 	if err != nil {

@@ -94,6 +94,8 @@ func (s *conversationInterruptService) mergeForCheckpointUpdate(current, next *m
 	merged := *current
 	merged.ConversationID = current.ConversationID
 	merged.AIAgentID = current.AIAgentID
+	merged.AgentRunID = current.AgentRunID
+	merged.AgentStepID = current.AgentStepID
 	merged.SourceMessageID = current.SourceMessageID
 	merged.LastResumeMessageID = current.LastResumeMessageID
 	merged.WorkflowRunID = current.WorkflowRunID
@@ -120,6 +122,8 @@ func (s *conversationInterruptService) mergeForPendingUpdate(current, next *mode
 	merged := *current
 	merged.ConversationID = next.ConversationID
 	merged.AIAgentID = next.AIAgentID
+	merged.AgentRunID = next.AgentRunID
+	merged.AgentStepID = next.AgentStepID
 	merged.SourceMessageID = next.SourceMessageID
 	merged.WorkflowRunID = next.WorkflowRunID
 	merged.WorkflowNodeID = next.WorkflowNodeID

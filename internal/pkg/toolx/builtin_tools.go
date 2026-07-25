@@ -57,6 +57,24 @@ var (
 		SourceType:     enums.ToolSourceTypeBuiltin,
 		AutoInjected:   true,
 	}
+	BuiltinConversationContext = ToolSpec{
+		Code:         "builtin/conversation_context",
+		ServerCode:   "builtin",
+		Name:         "conversation_context",
+		Title:        "会话上下文",
+		Description:  "读取当前客户基础信息和会话摘要。",
+		SourceType:   enums.ToolSourceTypeBuiltin,
+		DirectAccess: true,
+	}
+	BuiltinKnowledgeRetrieve = ToolSpec{
+		Code:         "builtin/knowledge_retrieve",
+		ServerCode:   "builtin",
+		Name:         "knowledge_retrieve",
+		Title:        "知识检索",
+		Description:  "在当前 Agent 已绑定的知识库中检索证据。",
+		SourceType:   enums.ToolSourceTypeBuiltin,
+		DirectAccess: true,
+	}
 	GraphTriageServiceRequest = ToolSpec{
 		Code:           "graph/triage_service_request",
 		ServerCode:     "graph",
@@ -66,6 +84,7 @@ var (
 		Description:    i18nx.Get("tool.graph.triageServiceRequest.description"),
 		DescriptionKey: "tool.graph.triageServiceRequest.description",
 		SourceType:     enums.ToolSourceTypeGraph,
+		DirectAccess:   true,
 		RuntimeStatic:  true,
 		Appendix:       i18nx.Get("tool.graph.triageServiceRequest.appendix"),
 		AppendixKey:    "tool.graph.triageServiceRequest.appendix",
@@ -80,6 +99,7 @@ var (
 		DescriptionKey: "tool.graph.analyzeConversation.description",
 		SourceType:     enums.ToolSourceTypeGraph,
 		RuntimeStatic:  true,
+		DirectAccess:   true,
 		Appendix:       i18nx.Get("tool.graph.analyzeConversation.appendix"),
 		AppendixKey:    "tool.graph.analyzeConversation.appendix",
 	}
@@ -92,6 +112,7 @@ var (
 		Description:    i18nx.Get("tool.graph.prepareTicketDraft.description"),
 		DescriptionKey: "tool.graph.prepareTicketDraft.description",
 		SourceType:     enums.ToolSourceTypeGraph,
+		DirectAccess:   true,
 		RuntimeStatic:  true,
 		Appendix:       i18nx.Get("tool.graph.prepareTicketDraft.appendix"),
 		AppendixKey:    "tool.graph.prepareTicketDraft.appendix",
@@ -105,7 +126,6 @@ var (
 		Description:    i18nx.Get("tool.graph.createTicketConfirm.description"),
 		DescriptionKey: "tool.graph.createTicketConfirm.description",
 		SourceType:     enums.ToolSourceTypeGraph,
-		DirectAccess:   true,
 		RuntimeStatic:  true,
 		Aliases:        []string{"builtin/create_ticket_with_confirmation"},
 		Appendix:       i18nx.Get("tool.graph.createTicketConfirm.appendix"),
@@ -120,7 +140,6 @@ var (
 		Description:    i18nx.Get("tool.graph.handoffConversation.description"),
 		DescriptionKey: "tool.graph.handoffConversation.description",
 		SourceType:     enums.ToolSourceTypeGraph,
-		DirectAccess:   true,
 		RuntimeStatic:  true,
 		Appendix:       i18nx.Get("tool.graph.handoffConversation.appendix"),
 		AppendixKey:    "tool.graph.handoffConversation.appendix",
@@ -128,6 +147,8 @@ var (
 	RegisteredToolSpecs = []ToolSpec{
 		BuiltinToolSearch,
 		BuiltinSkill,
+		BuiltinConversationContext,
+		BuiltinKnowledgeRetrieve,
 		GraphTriageServiceRequest,
 		GraphAnalyzeConversation,
 		GraphPrepareTicketDraft,

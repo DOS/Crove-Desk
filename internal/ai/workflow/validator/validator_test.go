@@ -162,6 +162,32 @@ func TestValidateDefinitionRejectsConfirmedInputFromNonConfirmNode(t *testing.T)
 	}
 }
 
+func TestValidateDefinitionRejectsHandoffWithoutConfirmedInput(t *testing.T) {
+	def := dsl.Definition{
+		SchemaVersion: dsl.SchemaVersion,
+		Nodes: []dsl.Node{
+			node("start_1", "start", nil, nil),
+			node("confirm_1", "human_confirm", inputs("prompt", dsl.RefValue("start_1", "userMessage")), nil),
+			node("handoff_1", "handoff_to_human", inputs("reason", dsl.RefValue("start_1", "userMessage")), nil),
+			node("end_1", "end", nil, nil),
+		},
+		Edges: []dsl.Edge{
+			edge("start_1", "confirm_1"),
+			edge("confirm_1", "handoff_1"),
+			edge("handoff_1", "end_1"),
+		},
+	}
+
+	result := validator.ValidateDefinition(def, registry.DefaultRegistry())
+
+	if result.Valid {
+		t.Fatalf("expected handoff without confirmed input to be invalid")
+	}
+	if !hasValidationMessage(result, "required input mapping is missing: confirmed") {
+		t.Fatalf("expected missing confirmed input error, got %#v", result.Errors)
+	}
+}
+
 func TestValidateDefinitionRejectsConditionBranchTargetWithoutEdge(t *testing.T) {
 	def := conditionDefinition()
 	def.Edges = []dsl.Edge{edge("start_1", "condition_1")}

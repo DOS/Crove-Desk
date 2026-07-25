@@ -29,6 +29,7 @@ func buildConversationInterrupt(conversation models.Conversation, message models
 	}
 	item.ConversationID = conversation.ID
 	item.AIAgentID = aiAgent.ID
+	item.AgentRunID = summary.AgentRunID
 	item.SourceMessageID = message.ID
 	item.InterruptID = firstInterruptID(summary)
 	item.InterruptType = firstInterruptType(summary)

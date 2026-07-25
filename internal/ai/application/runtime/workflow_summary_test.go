@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	workflowexecutor "agent-desk/internal/ai/runtime/workflow"
 	"agent-desk/internal/ai/workflow/dsl"
 	workflowregistry "agent-desk/internal/ai/workflow/registry"
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/enums"
+	svc "agent-desk/internal/services"
 
 	"github.com/glebarez/sqlite"
 	"github.com/mlogclub/simple/sqls"
@@ -27,7 +29,7 @@ func TestToWorkflowSummaryPreservesInterruptCheckpoint(t *testing.T) {
 		Interrupts: []workflowexecutor.InterruptSummary{
 			{Type: "human_confirm", ID: "confirm_1", InfoPreview: `{"message":"请确认"}`},
 		},
-	}, "test-model", resolvedWorkflow{WorkflowID: 11, VersionID: 22}, 33)
+	}, "test-model", resolvedWorkflow{WorkflowID: 11, VersionID: 22}, 33, 44)
 
 	if summary == nil || !summary.Interrupted {
 		t.Fatalf("expected interrupted summary, got %#v", summary)
@@ -40,6 +42,9 @@ func TestToWorkflowSummaryPreservesInterruptCheckpoint(t *testing.T) {
 	}
 	if summary.WorkflowID != 11 || summary.WorkflowVersionID != 22 || summary.WorkflowRunID != 33 {
 		t.Fatalf("unexpected workflow identity: workflow=%d version=%d run=%d", summary.WorkflowID, summary.WorkflowVersionID, summary.WorkflowRunID)
+	}
+	if summary.AgentRunID != 44 {
+		t.Fatalf("unexpected agent run id: %d", summary.AgentRunID)
 	}
 	if len(summary.Interrupts) != 1 || summary.Interrupts[0].ID != "confirm_1" {
 		t.Fatalf("unexpected interrupts: %#v", summary.Interrupts)
@@ -125,12 +130,77 @@ func TestServiceResumeUsesWorkflowCheckpointData(t *testing.T) {
 	if summary.WorkflowRunID <= 0 {
 		t.Fatalf("expected workflow run id in resume summary")
 	}
+	if summary.AgentRunID <= 0 {
+		t.Fatalf("expected generic agent run id in resume summary")
+	}
 	var run models.AIWorkflowRun
 	if err := db.First(&run, summary.WorkflowRunID).Error; err != nil {
 		t.Fatalf("find resume workflow run: %v", err)
 	}
 	if run.MessageID != 2 || run.Status != workflowRunStatusCompleted {
 		t.Fatalf("unexpected resume workflow run: %#v", run)
+	}
+	var agentRun models.AgentRun
+	if err := db.First(&agentRun, "workflow_run_id = ?", summary.WorkflowRunID).Error; err != nil {
+		t.Fatalf("find generic agent run: %v", err)
+	}
+	if agentRun.EngineCode != EngineCodeWorkflow || agentRun.Status != "completed" {
+		t.Fatalf("unexpected generic agent run: %#v", agentRun)
+	}
+	var stepCount int64
+	if err := db.Model(&models.AgentStep{}).Where("agent_run_id = ?", agentRun.ID).Count(&stepCount).Error; err != nil {
+		t.Fatalf("count generic agent steps: %v", err)
+	}
+	if stepCount != 1 {
+		t.Fatalf("expected one generic agent step, got %d", stepCount)
+	}
+}
+
+func TestHybridEngineResumeCompletesOriginalAgentRun(t *testing.T) {
+	db := setupWorkflowResumeTestDB(t)
+	def := runtimeHumanConfirmDefinition()
+	version := models.AIWorkflowVersion{
+		WorkflowID: 1,
+		Version:    1,
+		Status:     enums.StatusOk,
+		Definition: mustMarshalDefinition(t, def),
+	}
+	if err := db.Create(&version).Error; err != nil {
+		t.Fatalf("create workflow version: %v", err)
+	}
+	startedAt := time.Now()
+	hybridRun := models.AgentRun{AIAgentID: 1, EngineCode: "hybrid", Status: "interrupted", StartedAt: startedAt, EndedAt: &startedAt, CreatedAt: startedAt, UpdatedAt: startedAt}
+	if err := db.Create(&hybridRun).Error; err != nil {
+		t.Fatalf("create interrupted hybrid run: %v", err)
+	}
+	interruptedRun := models.AIWorkflowRun{WorkflowID: version.WorkflowID, WorkflowVersionID: version.ID, ConversationID: 1, AIAgentID: 1, MessageID: 2, Status: workflowRunStatusInterrupted}
+	if err := db.Create(&interruptedRun).Error; err != nil {
+		t.Fatalf("create interrupted workflow run: %v", err)
+	}
+	const checkpointID = "workflow:1:2:confirm_1"
+	if err := db.Create(&models.ConversationInterrupt{
+		ConversationID: 1, AIAgentID: 1, AgentRunID: hybridRun.ID,
+		CheckPointID: checkpointID, InterruptID: "confirm_1", InterruptType: "human_confirm",
+		WorkflowRunID: interruptedRun.ID, WorkflowNodeID: "confirm_1", RequestData: mustMarshalWorkflowCheckpoint(t, def), Status: "pending",
+	}).Error; err != nil {
+		t.Fatalf("create interrupt: %v", err)
+	}
+
+	summary, err := NewHybridEngine().Resume(context.Background(), ResumeRequest{
+		Conversation: models.Conversation{ID: 1}, UserMessage: models.Message{ID: 3, Content: "确认"},
+		AIAgent:  models.AIAgent{ID: 1, RuntimeMode: enums.AIAgentRuntimeModeHybrid, WorkflowVersionID: version.ID},
+		AIConfig: models.AIConfig{ModelName: "test-model"}, CheckPointID: checkpointID,
+		ResumeData: map[string]string{"confirm_1": "确认"},
+	})
+	if err != nil {
+		t.Fatalf("resume hybrid playbook: %v", err)
+	}
+	if summary == nil || summary.Status != "completed" || summary.AgentRunID != hybridRun.ID || summary.WorkflowRunID != interruptedRun.ID {
+		t.Fatalf("unexpected hybrid resume summary: %#v", summary)
+	}
+	item, steps, _ := svc.AgentRunService.GetDetail(hybridRun.ID)
+	if item == nil || item.Status != "completed" || len(steps) != 1 || steps[0].StepCode != "playbook_resume" || steps[0].WorkflowRunID != interruptedRun.ID {
+		t.Fatalf("expected original hybrid run to receive resume audit, run=%#v steps=%#v", item, steps)
 	}
 }
 
@@ -262,6 +332,13 @@ func TestServiceRunWritesFailedWorkflowRun(t *testing.T) {
 	if badNodeRun.Status != workflowRunStatusFailed || badNodeRun.ErrorMessage == "" {
 		t.Fatalf("unexpected failed node run: %#v", badNodeRun)
 	}
+	var agentRun models.AgentRun
+	if err := db.First(&agentRun, "workflow_run_id = ?", run.ID).Error; err != nil {
+		t.Fatalf("find generic failed agent run: %v", err)
+	}
+	if agentRun.Status != "failed" || !strings.Contains(agentRun.ErrorMessage, "unsupported workflow node type") {
+		t.Fatalf("unexpected generic failed agent run: %#v", agentRun)
+	}
 }
 
 func TestServiceRunWritesFailedWorkflowRunWhenVersionDisabled(t *testing.T) {
@@ -324,7 +401,15 @@ func setupWorkflowResumeTestDB(t *testing.T) *gorm.DB {
 			_ = sqlDB.Close()
 		}
 	})
-	if err := db.AutoMigrate(&models.AIWorkflowVersion{}, &models.AIWorkflowRun{}, &models.AIWorkflowNodeRun{}, &models.ConversationInterrupt{}); err != nil {
+	if err := db.AutoMigrate(
+		&models.AIWorkflowVersion{},
+		&models.AIWorkflowRun{},
+		&models.AIWorkflowNodeRun{},
+		&models.AgentRun{},
+		&models.AgentStep{},
+		&models.AgentRevision{},
+		&models.ConversationInterrupt{},
+	); err != nil {
 		t.Fatalf("auto migrate: %v", err)
 	}
 	sqls.SetDB(db)

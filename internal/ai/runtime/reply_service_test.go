@@ -49,6 +49,23 @@ func TestReplyEligibilityCanReply(t *testing.T) {
 	}
 }
 
+func TestAIAgentRolloutUsesStableConversationBucket(t *testing.T) {
+	conversation := models.Conversation{ID: 101, ChannelID: 7}
+	agent := models.AIAgent{ID: 9, RolloutPercent: 50}
+	first := IsAIAgentRolloutEligible(conversation, agent, &models.Channel{AIAgentRolloutPercent: 100})
+	for range 20 {
+		if got := IsAIAgentRolloutEligible(conversation, agent, &models.Channel{AIAgentRolloutPercent: 100}); got != first {
+			t.Fatalf("rollout bucket changed within one conversation: first=%t got=%t", first, got)
+		}
+	}
+	if normalizedRolloutPercent(0) != 100 || normalizedRolloutPercent(101) != 100 || normalizedRolloutPercent(25) != 25 {
+		t.Fatal("unexpected rollout percent normalization")
+	}
+	if !IsAIAgentRolloutEligible(conversation, models.AIAgent{ID: 9, RolloutPercent: 0}, &models.Channel{}) {
+		t.Fatal("legacy zero rollout values must preserve full rollout")
+	}
+}
+
 func TestResolveReplyTimeout(t *testing.T) {
 	service := newAIReplyService()
 	aiAgent := newAIAgentFixture()

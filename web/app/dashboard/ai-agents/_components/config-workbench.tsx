@@ -6,6 +6,7 @@ import {
   GitBranchIcon,
   HistoryIcon,
   PlugIcon,
+	RotateCcwIcon,
   SaveIcon,
   SettingsIcon,
   Trash2Icon,
@@ -36,25 +37,34 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   createAIAgent,
   fetchAIAgent,
+	fetchAIAgentRevisions,
   fetchAIAgentWorkflow,
   fetchAIConfigsAll,
+	fetchKnowledgeBasesAll,
   fetchAIWorkflowDefaultDefinition,
   fetchAIWorkflowNodeSpecs,
+	fetchAIWorkflowTemplates,
   fetchAIWorkflowVersions,
   fetchAgentTeamsAll,
   fetchMCPCatalog,
   fetchSkillDefinitionsAll,
   publishAIAgentWorkflow,
+	publishAIAgent,
+	rollbackAIAgent,
+	rollbackAIAgentRollout,
   saveAIAgentWorkflow,
   updateAIAgent,
   validateAIWorkflow,
   type AIAgent,
+	type AgentRevision,
   type AIConfig,
   type AIWorkflowDefinition,
   type AIWorkflowNodeSpec,
+	type AIWorkflowTemplate,
   type AIWorkflowVersion,
   type AdminAgentTeam,
   type CreateAIAgentPayload,
+	type KnowledgeBase,
   type MCPToolCatalogItem,
   type MCPToolSourceType,
   type SkillDefinition,
@@ -128,6 +138,7 @@ export function AIAgentConfigWorkbench({
   const [activeSection, setActiveSection] = useState<SectionKey>("basic")
   const [agent, setAgent] = useState<AIAgent | null>(null)
   const [workflowVersions, setWorkflowVersions] = useState<AIWorkflowVersion[]>([])
+	const [agentRevisions, setAgentRevisions] = useState<AgentRevision[]>([])
   const [nodeSpecs, setNodeSpecs] = useState<AIWorkflowNodeSpec[]>([])
   const [loading, setLoading] = useState(true)
   const [savingAgent, setSavingAgent] = useState(false)
@@ -137,28 +148,36 @@ export function AIAgentConfigWorkbench({
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [aiConfigId, setAIConfigId] = useState("")
+	const [runtimeMode, setRuntimeMode] = useState<"workflow" | "autonomous" | "hybrid">("autonomous")
   const [serviceMode, setServiceMode] = useState(String(IMConversationServiceMode.AIFirst))
   const [systemPrompt, setSystemPrompt] = useState("")
   const [welcomeMessage, setWelcomeMessage] = useState("")
   const [replyTimeoutSeconds, setReplyTimeoutSeconds] = useState("180")
+	const [rolloutPercent, setRolloutPercent] = useState("5")
   const [handoffMode, setHandoffMode] = useState(String(AIAgentHandoffMode.WaitPool))
   const [fallbackMode, setFallbackMode] = useState(String(AIAgentFallbackMode.NoAnswer))
   const [fallbackMessage, setFallbackMessage] = useState("")
   const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>([])
   const [selectedSkillIds, setSelectedSkillIds] = useState<number[]>([])
+	const [selectedKnowledgeBaseIds, setSelectedKnowledgeBaseIds] = useState<number[]>([])
   const [directTools, setDirectTools] = useState<DirectToolItem[]>([])
 
   const [definition, setDefinition] = useState<AIWorkflowDefinition>(fallbackDefinition)
   const [workflowRevision, setWorkflowRevision] = useState(0)
+	const [workflowTemplates, setWorkflowTemplates] = useState<AIWorkflowTemplate[]>([])
+	const [selectedWorkflowTemplate, setSelectedWorkflowTemplate] = useState("")
 
   const [aiConfigs, setAIConfigs] = useState<AIConfig[]>([])
   const [agentTeams, setAgentTeams] = useState<AdminAgentTeam[]>([])
   const [skills, setSkills] = useState<SkillDefinition[]>([])
+	const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([])
   const [toolCatalog, setToolCatalog] = useState<MCPToolCatalogItem[]>([])
   const [teamToAdd, setTeamToAdd] = useState("")
   const [skillToAdd, setSkillToAdd] = useState("")
+	const [knowledgeBaseToAdd, setKnowledgeBaseToAdd] = useState("")
   const [directToolGroupToAdd, setDirectToolGroupToAdd] = useState("")
   const [directToolToAdd, setDirectToolToAdd] = useState("")
+	const previousRolloutPercent = agent?.previousRolloutPercent ?? 0
 
   useEffect(() => {
     setCurrentAgentId(agentId ?? null)
@@ -175,51 +194,63 @@ export function AIAgentConfigWorkbench({
       const [
         specs,
         defaultDefinition,
+		templates,
         configs,
         teams,
         skillList,
+		knowledgeBaseList,
         catalog,
       ] = await Promise.all([
         fetchAIWorkflowNodeSpecs(),
         fetchAIWorkflowDefaultDefinition().catch(() => fallbackDefinition),
+		fetchAIWorkflowTemplates(),
         fetchAIConfigsAll({ modelType: AIModelType.LLM }),
         fetchAgentTeamsAll(),
         fetchSkillDefinitionsAll({ status: Status.Ok }),
+		fetchKnowledgeBasesAll({ status: Status.Ok }),
         fetchMCPCatalog(),
       ])
 
       setNodeSpecs(specs ?? [])
+		setWorkflowTemplates(templates ?? [])
       setAIConfigs(configs ?? [])
       setAgentTeams(teams ?? [])
       setSkills(skillList ?? [])
+		setKnowledgeBases(knowledgeBaseList ?? [])
       setToolCatalog(catalog ?? [])
 
       if (!currentAgentId || currentAgentId <= 0) {
         setAgent(null)
         setWorkflowVersions([])
+		setAgentRevisions([])
         setName("")
         setDescription("")
-        setAIConfigId("")
+		setAIConfigId("")
+		setRuntimeMode("autonomous")
         setServiceMode(String(IMConversationServiceMode.AIFirst))
         setSystemPrompt("")
         setWelcomeMessage("")
         setReplyTimeoutSeconds("180")
+		setRolloutPercent("5")
         setHandoffMode(String(AIAgentHandoffMode.WaitPool))
         setFallbackMode(String(AIAgentFallbackMode.NoAnswer))
         setFallbackMessage("")
         setSelectedTeamIds([])
         setSelectedSkillIds([])
+		setSelectedKnowledgeBaseIds([])
         setDirectTools([])
         replaceWorkflowDefinition(defaultDefinition ?? fallbackDefinition)
         return
       }
 
-      const [agentDetail, workflowDetail] = await Promise.all([
+      const [agentDetail, workflowDetail, revisionList] = await Promise.all([
         fetchAIAgent(currentAgentId),
         fetchAIAgentWorkflow(currentAgentId),
+		fetchAIAgentRevisions(currentAgentId),
       ])
 
       setAgent(agentDetail)
+		setAgentRevisions(revisionList ?? [])
       if (workflowDetail?.id > 0) {
         const versionPage = await fetchAIWorkflowVersions({ workflowId: workflowDetail.id, limit: 20 })
         setWorkflowVersions(versionPage.results ?? [])
@@ -228,16 +259,19 @@ export function AIAgentConfigWorkbench({
       }
       setName(agentDetail.name)
       setDescription(agentDetail.description || "")
-      setAIConfigId(toText(agentDetail.aiConfigId))
+		setAIConfigId(toText(agentDetail.aiConfigId))
+		setRuntimeMode(agentDetail.runtimeMode === "autonomous" || agentDetail.runtimeMode === "hybrid" ? agentDetail.runtimeMode : "workflow")
       setServiceMode(String(agentDetail.serviceMode || IMConversationServiceMode.AIFirst))
       setSystemPrompt(agentDetail.systemPrompt || "")
       setWelcomeMessage(agentDetail.welcomeMessage || "")
       setReplyTimeoutSeconds(String(agentDetail.replyTimeoutSeconds ?? 180))
+		setRolloutPercent(String(agentDetail.rolloutPercent || 100))
       setHandoffMode(String(agentDetail.handoffMode || AIAgentHandoffMode.WaitPool))
       setFallbackMode(String(agentDetail.fallbackMode || AIAgentFallbackMode.NoAnswer))
       setFallbackMessage(agentDetail.fallbackMessage || "")
       setSelectedTeamIds((agentDetail.teams ?? []).map((team) => team.id))
       setSelectedSkillIds(agentDetail.skillIds ?? [])
+		setSelectedKnowledgeBaseIds(agentDetail.knowledgeBaseIds ?? [])
       setDirectTools(agentDetail.directTools ?? [])
       replaceWorkflowDefinition(workflowDetail.draftDefinition ?? defaultDefinition ?? fallbackDefinition)
     } catch (error) {
@@ -259,6 +293,14 @@ export function AIAgentConfigWorkbench({
     ],
     []
   )
+	const runtimeModeOptions = useMemo(
+		() => [
+			{ value: "autonomous", label: "自主接待" },
+			{ value: "hybrid", label: "自主接待 + 流程" },
+			{ value: "workflow", label: "高级编排 / Playbooks" },
+		],
+		[]
+	)
   const handoffModeOptions = useMemo(
     () => [
       { value: String(AIAgentHandoffMode.WaitPool), label: "进入待接入池" },
@@ -271,6 +313,7 @@ export function AIAgentConfigWorkbench({
     () => [
       { value: String(AIAgentFallbackMode.NoAnswer), label: "直接说明知识不足" },
       { value: String(AIAgentFallbackMode.SuggestRetry), label: "引导用户补充信息" },
+			{ value: String(AIAgentFallbackMode.Handoff), label: "转人工客服" },
     ],
     []
   )
@@ -286,10 +329,18 @@ export function AIAgentConfigWorkbench({
     () => skills.map((item) => ({ value: String(item.id), label: item.name })),
     [skills]
   )
+	const knowledgeBaseOptions = useMemo(
+		() => knowledgeBases.map((item) => ({ value: String(item.id), label: item.name })),
+		[knowledgeBases]
+	)
   const directToolOptions = useMemo<DirectToolOption[]>(
     () =>
       toolCatalog
-        .filter((tool) => !tool.autoInjected && tool.sourceType === "mcp")
+        .filter(
+          (tool) =>
+            !tool.autoInjected &&
+            (tool.sourceType === "mcp" || tool.toolCode === "builtin/conversation_context" || tool.toolCode === "graph/prepare_ticket_draft")
+        )
         .map((tool) => ({
           value: tool.toolCode,
           label: `${tool.title || tool.toolName} · ${tool.toolCode}`,
@@ -356,14 +407,17 @@ export function AIAgentConfigWorkbench({
       name: name.trim(),
       description: description.trim(),
       aiConfigId: Number(aiConfigId),
+		runtimeMode,
       serviceMode: Number(serviceMode),
       systemPrompt: systemPrompt.trim(),
       welcomeMessage: welcomeMessage.trim(),
       replyTimeoutSeconds: Number(replyTimeoutSeconds),
+		rolloutPercent: Number(rolloutPercent),
       teamIds: uniqueNumbers(selectedTeamIds),
       handoffMode: Number(handoffMode),
       fallbackMode: Number(fallbackMode),
       fallbackMessage: fallbackMessage.trim(),
+		knowledgeBaseIds: uniqueNumbers(selectedKnowledgeBaseIds),
       skillIds: uniqueNumbers(selectedSkillIds),
       directTools,
     }
@@ -392,6 +446,20 @@ export function AIAgentConfigWorkbench({
     }
   }
 
+  async function publishAutonomousAgent() {
+		if (!agent || runtimeMode !== "autonomous") return
+		setSavingAgent(true)
+		try {
+			await publishAIAgent(agent.id)
+			await loadData()
+			toast.success("Autonomous Agent published")
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "Failed to publish Autonomous Agent")
+		} finally {
+			setSavingAgent(false)
+		}
+	}
+
   async function saveWorkflowDraft() {
     if (!currentAgentId) return
     setSavingWorkflow(true)
@@ -409,6 +477,36 @@ export function AIAgentConfigWorkbench({
       setSavingWorkflow(false)
     }
   }
+
+	async function rollbackAgentRevision(revisionId: number) {
+		if (!agent || revisionId <= 0 || revisionId === agent.publishedRevisionId) return
+		setSavingAgent(true)
+		try {
+			await rollbackAIAgent(agent.id, revisionId)
+			toast.success("已回滚到选中的 Agent 版本")
+			await loadData()
+			onAgentSaved?.()
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "回滚 Agent 版本失败")
+		} finally {
+			setSavingAgent(false)
+		}
+	}
+
+	async function rollbackAgentRollout() {
+		if (!agent || agent.previousRolloutPercent < 1) return
+		setSavingAgent(true)
+		try {
+			await rollbackAIAgentRollout(agent.id)
+			toast.success("已恢复上一次灰度比例")
+			await loadData()
+			onAgentSaved?.()
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "恢复灰度比例失败")
+		} finally {
+			setSavingAgent(false)
+		}
+	}
 
   async function validateWorkflowDraft() {
     setSavingWorkflow(true)
@@ -437,6 +535,13 @@ export function AIAgentConfigWorkbench({
       setSavingWorkflow(false)
     }
   }
+
+	function applySelectedWorkflowTemplate() {
+		const template = workflowTemplates.find((item) => item.code === selectedWorkflowTemplate)
+		if (!template) return
+		replaceWorkflowDefinition(template.definition)
+		toast.success(`已应用 ${template.name} 模板，保存草稿或发布后生效`)
+	}
 
   async function publishWorkflow() {
     if (!currentAgentId) return
@@ -475,13 +580,16 @@ export function AIAgentConfigWorkbench({
   const sections: { key: SectionKey; title: string; icon: ReactNode }[] = [
     { key: "basic", title: "基础信息", icon: <SettingsIcon /> },
     { key: "capabilities", title: "能力来源", icon: <PlugIcon /> },
-    { key: "workflow", title: "会话流程", icon: <GitBranchIcon /> },
+	{ key: "workflow", title: "高级编排 / Playbooks", icon: <GitBranchIcon /> },
   ]
 
   const selectedTeamOptions = selectedOptions(selectedTeamIds, teamOptions)
   const selectedSkillOptions = selectedOptions(selectedSkillIds, skillOptions)
   const workflowPublished = isWorkflowPublished(agent)
-  const workflowStateText =
+	const autonomousPublished = runtimeMode === "autonomous" && (agent?.publishedRevisionId ?? 0) > 0
+	const hybridPublished = runtimeMode === "hybrid" && workflowPublished && (agent?.publishedRevisionId ?? 0) > 0
+	const runtimePublished = runtimeMode === "workflow" ? workflowPublished : runtimeMode === "hybrid" ? hybridPublished : autonomousPublished
+	const workflowStateText =
     agent?.workflowStateText || (workflowPublished ? "已发布" : "未发布")
 
   return (
@@ -494,8 +602,8 @@ export function AIAgentConfigWorkbench({
           <div className="flex min-w-0 items-center gap-2">
             <h1 className="truncate text-base font-semibold">{agent?.name ?? "新建 AI Agent"}</h1>
             {agent?.statusName ? <Badge variant="secondary">{agent.statusName}</Badge> : null}
-            <Badge variant={workflowPublished ? "default" : "outline"}>
-              {workflowStateText}
+            <Badge variant={runtimePublished ? "default" : "outline"}>
+	              {runtimeMode === "autonomous" ? (autonomousPublished ? "已发布" : "未发布") : runtimeMode === "hybrid" ? (hybridPublished ? "已发布" : "未发布") : workflowStateText}
             </Badge>
             {workflowPublished ? (
               <Badge variant="secondary">当前生效 #{agent?.workflowVersionId}</Badge>
@@ -507,6 +615,7 @@ export function AIAgentConfigWorkbench({
             null
           ) : (
             <>
+			  {agent && runtimeMode === "autonomous" ? <Button type="button" variant="outline" disabled={savingAgent || loading} onClick={publishAutonomousAgent}>发布 Agent</Button> : null}
               <Button
                 type="button"
                 variant="outline"
@@ -522,9 +631,9 @@ export function AIAgentConfigWorkbench({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col bg-background">
-        {agent && !workflowPublished ? (
+        {agent && !runtimePublished ? (
           <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-5 py-2 text-sm text-amber-900">
-            未发布流程，AI 不会自动回复。保存配置后请进入“会话流程”发布一个版本，再绑定渠道或启用自动回复。
+			{runtimeMode === "autonomous" ? "未发布 Agent，AI 不会自动回复。保存配置后发布 Agent，再绑定渠道或启用自动回复。" : runtimeMode === "hybrid" ? "未发布 Hybrid Agent，AI 不会自动回复。保存配置后请进入“高级编排 / Playbooks”发布一个版本。" : "未发布 Playbook，AI 不会自动回复。保存配置后请进入“高级编排 / Playbooks”发布一个版本，再绑定渠道或启用自动回复。"}
           </div>
         ) : null}
         <div className="shrink-0 border-b bg-muted/30 px-4 py-2">
@@ -597,6 +706,9 @@ export function AIAgentConfigWorkbench({
                         onChange={setAIConfigId}
                       />
                     </FieldBlock>
+					<FieldBlock label="运行模式">
+					  <OptionCombobox value={runtimeMode} options={runtimeModeOptions} placeholder="选择运行模式" onChange={(value) => setRuntimeMode(value === "autonomous" || value === "hybrid" ? value : "workflow")} />
+					</FieldBlock>
                     <FieldBlock label="回复超时秒数">
                       <Input
                         type="number"
@@ -606,6 +718,17 @@ export function AIAgentConfigWorkbench({
                         onChange={(event) => setReplyTimeoutSeconds(event.target.value)}
                       />
                     </FieldBlock>
+					<FieldBlock label="会话灰度比例（%）">
+					  <div className="flex items-center gap-2">
+						<Input type="number" min={1} max={100} step={1} value={rolloutPercent} onChange={(event) => setRolloutPercent(event.target.value)} />
+						{previousRolloutPercent > 0 ? (
+						  <Button type="button" variant="outline" size="sm" disabled={savingAgent} onClick={rollbackAgentRollout}>
+							<RotateCcwIcon />
+							恢复 {previousRolloutPercent}%
+						  </Button>
+						) : null}
+					  </div>
+					</FieldBlock>
                   </div>
                   <FieldBlock label="系统提示词">
                     <ContentEditor
@@ -657,6 +780,23 @@ export function AIAgentConfigWorkbench({
 
               {activeSection === "capabilities" ? (
                 <ConfigSection>
+				  <div className="text-sm font-medium">知识库</div>
+				  <AddRow
+					value={knowledgeBaseToAdd}
+					options={knowledgeBaseOptions.filter((option) => !selectedKnowledgeBaseIds.includes(Number(option.value)))}
+					placeholder="选择知识库"
+					onValueChange={setKnowledgeBaseToAdd}
+					onAdd={() => {
+					  addSelected(knowledgeBaseToAdd, selectedKnowledgeBaseIds, setSelectedKnowledgeBaseIds)
+					  setKnowledgeBaseToAdd("")
+					}}
+				  />
+				  <BadgeList empty="未配置知识库。" items={selectedOptions(selectedKnowledgeBaseIds, knowledgeBaseOptions)} onRemove={(id) => setSelectedKnowledgeBaseIds((current) => current.filter((item) => item !== id))} />
+				</ConfigSection>
+			  ) : null}
+
+			  {activeSection === "capabilities" ? (
+				<ConfigSection>
                   <AddRow
                     value={skillToAdd}
                     options={skillOptions.filter((option) => !selectedSkillIds.includes(Number(option.value)))}
@@ -730,7 +870,19 @@ export function AIAgentConfigWorkbench({
               ) : null}
 
               {activeSection === "workflow" ? (
-                <WorkflowEditor
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="flex shrink-0 items-center gap-2 border-b px-4 py-2">
+                    <OptionCombobox
+                      value={selectedWorkflowTemplate}
+                      options={workflowTemplates.map((item) => ({ value: item.code, label: item.name }))}
+                      placeholder="选择 Playbook 模板"
+                      onChange={setSelectedWorkflowTemplate}
+                    />
+                    <Button type="button" variant="outline" size="sm" disabled={!selectedWorkflowTemplate || savingWorkflow || loading} onClick={applySelectedWorkflowTemplate}>
+                      应用模板
+                    </Button>
+                  </div>
+                  <WorkflowEditor
                   key={workflowRevision}
                   definition={definition}
                   nodeSpecs={nodeSpecs}
@@ -756,7 +908,8 @@ export function AIAgentConfigWorkbench({
                       版本记录
                     </Button>
                   }
-                />
+                  />
+                </div>
               ) : null}
 
               <Dialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen}>
@@ -767,6 +920,9 @@ export function AIAgentConfigWorkbench({
                   <VersionRecordsTable
                     agent={agent}
                     workflowVersions={workflowVersions}
+					agentRevisions={agentRevisions}
+					onRollback={rollbackAgentRevision}
+					rollbackDisabled={savingAgent || loading}
                   />
                 </DialogContent>
               </Dialog>
@@ -828,12 +984,52 @@ function AddRow({
 function VersionRecordsTable({
   agent,
   workflowVersions,
+	agentRevisions,
+	onRollback,
+	rollbackDisabled,
 }: {
   agent: AIAgent | null
   workflowVersions: AIWorkflowVersion[]
+	agentRevisions: AgentRevision[]
+	onRollback: (revisionId: number) => void
+	rollbackDisabled: boolean
 }) {
   return (
-    <div className="max-h-[60vh] overflow-auto rounded-md border">
+		<div className="max-h-[60vh] space-y-4 overflow-auto">
+			<div className="rounded-md border">
+				<div className="border-b px-3 py-2 text-sm font-medium">Agent 版本</div>
+				{agentRevisions.length > 0 ? (
+					<Table>
+						<TableHeader className="bg-muted/40">
+							<TableRow>
+								<TableHead className="w-28">版本</TableHead>
+								<TableHead>发布时间</TableHead>
+								<TableHead>发布人</TableHead>
+								<TableHead>关联流程</TableHead>
+								<TableHead className="text-right">操作</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{agentRevisions.map((revision) => {
+								const active = agent?.publishedRevisionId === revision.id
+								return (
+									<TableRow key={revision.id}>
+										<TableCell className="font-medium">r{revision.revision}{active ? <Badge variant="secondary" className="ml-2">当前生效</Badge> : null}</TableCell>
+										<TableCell className="text-muted-foreground">{revision.publishedAt || "-"}</TableCell>
+										<TableCell>{revision.publishedByName || "-"}</TableCell>
+										<TableCell>{revision.workflowVersionId > 0 ? `#${revision.workflowVersionId}` : "-"}</TableCell>
+										<TableCell className="text-right">
+											<Button type="button" variant="outline" size="sm" disabled={active || rollbackDisabled} onClick={() => onRollback(revision.id)}>回滚</Button>
+										</TableCell>
+									</TableRow>
+								)
+							})}
+						</TableBody>
+					</Table>
+				) : <div className="p-4 text-sm text-muted-foreground">暂无已发布 Agent 版本。</div>}
+			</div>
+			<div className="rounded-md border">
+				<div className="border-b px-3 py-2 text-sm font-medium">流程版本</div>
       {workflowVersions.length > 0 ? (
         <Table>
           <TableHeader className="bg-muted/40">
@@ -875,6 +1071,7 @@ function VersionRecordsTable({
       ) : (
         <div className="p-4 text-sm text-muted-foreground">暂无已发布版本。</div>
       )}
+			</div>
     </div>
   )
 }

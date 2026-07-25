@@ -211,6 +211,12 @@ export const dashboardNavSections: DashboardNavSectionConfig[] = [
         icon: <WorkflowIcon />,
         requiredPermission: "aiAgent.view",
       },
+      {
+        titleKey: "nav.agentRuns",
+        url: "/dashboard/agent-runs",
+        icon: <BotMessageSquareIcon />,
+        requiredPermission: "aiAgent.view",
+      },
     ],
   },
   {

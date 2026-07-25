@@ -8,6 +8,7 @@ import (
 	workflowregistry "agent-desk/internal/ai/workflow/registry"
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/dto/response"
+	"agent-desk/internal/services"
 )
 
 func BuildAIWorkflow(item *models.AIWorkflow) response.AIWorkflowResponse {
@@ -85,6 +86,14 @@ func BuildAIWorkflowNodeSpecs(list []workflowregistry.NodeSpec) []response.AIWor
 			OutputSchema:                    item.OutputSchema,
 			DefaultInputs:                   item.DefaultInputs,
 		})
+	}
+	return ret
+}
+
+func BuildAIWorkflowTemplates(list []services.AIWorkflowTemplate) []response.AIWorkflowTemplateResponse {
+	ret := make([]response.AIWorkflowTemplateResponse, 0, len(list))
+	for _, item := range list {
+		ret = append(ret, response.AIWorkflowTemplateResponse{Code: item.Code, Name: item.Name, Description: item.Description, Definition: item.Definition})
 	}
 	return ret
 }

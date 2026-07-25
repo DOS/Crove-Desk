@@ -8,14 +8,15 @@ import (
 
 	workflowexecutor "agent-desk/internal/ai/runtime/workflow"
 	"agent-desk/internal/models"
-	"agent-desk/internal/pkg/errorsx"
-	"agent-desk/internal/pkg/utils"
+	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/repositories"
+	svc "agent-desk/internal/services"
 
 	"github.com/mlogclub/simple/sqls"
 )
 
 type Service struct {
+	registry *EngineRegistry
 }
 
 const (
@@ -25,91 +26,46 @@ const (
 )
 
 func NewService() *Service {
-	return &Service{}
+	return NewServiceWithRegistry(NewDefaultEngineRegistry())
 }
 
-func (s *Service) Run(ctx context.Context, req Request) (*Summary, error) {
-	req.UserMessage.Content = utils.BuildRuntimeMessageText(req.UserMessage.MessageType, req.UserMessage.Content)
-	aiAgent, workflow, err := prepareWorkflowAgent(req.AIAgent)
-	if err != nil {
-		_, _ = writeWorkflowPrepareFailedRun(req, err.Error())
-		return nil, err
-	}
-	req.AIAgent = aiAgent
-	workflowResult, err := workflowexecutor.NewExecutor().Execute(ctx, workflowexecutor.Input{
-		Definition:   workflow.Definition,
-		Conversation: req.Conversation,
-		UserMessage:  req.UserMessage,
-		AIAgent:      req.AIAgent,
-		AIConfig:     req.AIConfig,
-	})
-	if err != nil {
-		if workflowResult != nil {
-			_, _ = writeWorkflowRun(req, workflow, workflowResult, err.Error())
-		}
-		return nil, err
-	}
-	workflowRunID, err := writeWorkflowRun(req, workflow, workflowResult, "")
+func NewServiceWithRegistry(registry *EngineRegistry) *Service {
+	return &Service{registry: registry}
+}
+
+func (s *Service) Run(ctx context.Context, req RunInput) (*RunResult, error) {
+	engine, err := s.registry.Resolve(resolveEngineCode(req.AIAgent.RuntimeMode))
 	if err != nil {
 		return nil, err
 	}
-	return toWorkflowSummary(workflowResult, req.AIConfig.ModelName, workflow, workflowRunID), nil
+	return engine.Run(ctx, req)
 }
 
-func (s *Service) Resume(ctx context.Context, req ResumeRequest) (*Summary, error) {
-	aiAgent, workflow, err := prepareWorkflowAgent(req.AIAgent)
+func (s *Service) Resume(ctx context.Context, req ResumeInput) (*RunResult, error) {
+	engine, err := s.registry.Resolve(resolveEngineCode(req.AIAgent.RuntimeMode))
 	if err != nil {
 		return nil, err
 	}
-	req.AIAgent = aiAgent
-	if interrupt := repositories.ConversationInterruptRepository.GetByCheckPointID(sqls.DB(), req.CheckPointID); interrupt != nil {
-		if strings.TrimSpace(interrupt.RequestData) == "" {
-			if interrupt.WorkflowRunID > 0 || strings.HasPrefix(strings.TrimSpace(req.CheckPointID), "workflow:") {
-				return nil, errorsx.InvalidParam("workflow checkpoint data is required")
-			}
-		} else {
-			workflowResult, err := workflowexecutor.NewExecutor().Resume(ctx, workflowexecutor.Input{
-				Definition:   workflow.Definition,
-				Conversation: req.Conversation,
-				AIAgent:      req.AIAgent,
-				AIConfig:     req.AIConfig,
-			}, interrupt.RequestData, firstWorkflowResumeText(req.ResumeData))
-			if err != nil {
-				if workflowResult != nil {
-					_, _ = writeWorkflowRunWithExistingID(Request{
-						Conversation: req.Conversation,
-						UserMessage:  req.UserMessage,
-						AIAgent:      req.AIAgent,
-						AIConfig:     req.AIConfig,
-					}, workflow, workflowResult, err.Error(), interrupt.WorkflowRunID)
-				}
-				return nil, err
-			}
-			workflowRunID, err := writeWorkflowRunWithExistingID(Request{
-				Conversation: req.Conversation,
-				UserMessage:  req.UserMessage,
-				AIAgent:      req.AIAgent,
-				AIConfig:     req.AIConfig,
-			}, workflow, workflowResult, "", interrupt.WorkflowRunID)
-			if err != nil {
-				return nil, err
-			}
-			return toWorkflowSummary(workflowResult, req.AIConfig.ModelName, workflow, workflowRunID), nil
-		}
-	}
-	return nil, errorsx.InvalidParam("legacy checkpoint is not supported; please start a new workflow reply")
+	return engine.Resume(ctx, req)
 }
 
-func firstWorkflowResumeText(data map[string]string) string {
-	for _, value := range data {
-		if strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
+// RunOfflineEvaluation executes an explicitly selected Engine against isolated
+// Debug inputs. It does not rely on the Agent's configured runtime mode, which
+// makes Workflow/Autonomous/Hybrid comparisons possible against one revision.
+func (s *Service) RunOfflineEvaluation(ctx context.Context, engineCode string, agent models.AIAgent, config models.AIConfig, cases []OfflineEvaluationCase) (OfflineEvaluationReport, error) {
+	engine, err := s.registry.Resolve(strings.TrimSpace(engineCode))
+	if err != nil {
+		return OfflineEvaluationReport{EngineCode: strings.TrimSpace(engineCode)}, err
 	}
-	return ""
+	runner := NewOfflineEvaluationRunner(engine.Run)
+	return runner.Run(ctx, engine.Code(), agent, config, cases), nil
 }
 
-func toWorkflowSummary(result *workflowexecutor.Result, modelName string, workflow resolvedWorkflow, workflowRunID int64) *Summary {
+func resolveEngineCode(mode enums.AIAgentRuntimeMode) string {
+	return strings.TrimSpace(string(mode))
+}
+
+func toWorkflowSummary(result *workflowexecutor.Result, modelName string, workflow resolvedWorkflow, workflowRunID int64, agentRunID int64) *Summary {
 	if result == nil {
 		return nil
 	}
@@ -131,6 +87,7 @@ func toWorkflowSummary(result *workflowexecutor.Result, modelName string, workfl
 		WorkflowID:        workflow.WorkflowID,
 		WorkflowVersionID: workflow.VersionID,
 		WorkflowRunID:     workflowRunID,
+		AgentRunID:        agentRunID,
 		WorkflowNodePath:  append([]string(nil), result.NodePath...),
 		TraceData:         string(traceData),
 		CheckPointID:      result.CheckPointID,
@@ -155,7 +112,7 @@ func toWorkflowInterruptSummaries(items []workflowexecutor.InterruptSummary) []I
 	return ret
 }
 
-func writeWorkflowRun(req Request, workflow resolvedWorkflow, result *workflowexecutor.Result, errorMessage string) (int64, error) {
+func writeWorkflowRun(req Request, workflow resolvedWorkflow, result *workflowexecutor.Result, errorMessage string) (int64, int64, error) {
 	return writeWorkflowRunWithExistingID(req, workflow, result, errorMessage, 0)
 }
 
@@ -180,15 +137,38 @@ func writeWorkflowPrepareFailedRun(req Request, errorMessage string) (int64, err
 		EndedAt:           &endedAt,
 		ErrorMessage:      errorMessage,
 	}
-	if err := repositories.AIWorkflowRunRepository.Create(sqls.DB(), run); err != nil {
-		return 0, err
-	}
-	return run.ID, nil
+	err := sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		if err := repositories.AIWorkflowRunRepository.Create(ctx.Tx, run); err != nil {
+			return err
+		}
+		traceData, _ := json.Marshal(map[string]any{
+			"status":            "error",
+			"workflowId":        workflowID,
+			"workflowVersionId": workflowVersionID,
+			"workflowRunId":     run.ID,
+		})
+		_, err := svc.AgentRunService.RecordWorkflowRun(ctx.Tx, svc.WorkflowAgentRunInput{
+			WorkflowRunID:     run.ID,
+			WorkflowVersionID: workflowVersionID,
+			ConversationID:    req.Conversation.ID,
+			AIAgentID:         req.AIAgent.ID,
+			SourceMessageID:   req.UserMessage.ID,
+			Status:            "failed",
+			StartedAt:         now,
+			EndedAt:           &endedAt,
+			ErrorMessage:      errorMessage,
+			TraceData:         string(traceData),
+			StepInputPreview:  "workflow preparation",
+			StepOutputPreview: "",
+		})
+		return err
+	})
+	return run.ID, err
 }
 
-func writeWorkflowRunWithExistingID(req Request, workflow resolvedWorkflow, result *workflowexecutor.Result, errorMessage string, existingRunID int64) (int64, error) {
+func writeWorkflowRunWithExistingID(req Request, workflow resolvedWorkflow, result *workflowexecutor.Result, errorMessage string, existingRunID int64) (int64, int64, error) {
 	if result == nil {
-		return 0, nil
+		return 0, 0, nil
 	}
 	now := time.Now()
 	endedAt := now
@@ -198,6 +178,7 @@ func writeWorkflowRunWithExistingID(req Request, workflow resolvedWorkflow, resu
 	}
 	runStatus := workflowRunStatus(result.Status, errorMessage)
 	var runID int64
+	var agentRunID int64
 	err := sqls.WithTransaction(func(ctx *sqls.TxContext) error {
 		run := repositories.AIWorkflowRunRepository.Get(ctx.Tx, existingRunID)
 		if run == nil {
@@ -249,9 +230,46 @@ func writeWorkflowRunWithExistingID(req Request, workflow resolvedWorkflow, resu
 				return err
 			}
 		}
+		traceData, _ := json.Marshal(map[string]any{
+			"status":            result.Status,
+			"workflowId":        workflow.WorkflowID,
+			"workflowVersionId": workflow.VersionID,
+			"workflowRunId":     run.ID,
+			"nodePath":          result.NodePath,
+		})
+		createdAgentRunID, recordErr := svc.AgentRunService.RecordWorkflowRun(ctx.Tx, svc.WorkflowAgentRunInput{
+			WorkflowRunID:     run.ID,
+			WorkflowVersionID: workflow.VersionID,
+			ConversationID:    req.Conversation.ID,
+			AIAgentID:         req.AIAgent.ID,
+			SourceMessageID:   req.UserMessage.ID,
+			Status:            workflowAgentRunStatus(result.Status, errorMessage),
+			PromptTokens:      result.PromptTokens,
+			CompletionTokens:  result.CompletionTokens,
+			StartedAt:         now,
+			EndedAt:           &endedAt,
+			ErrorMessage:      errorMessage,
+			TraceData:         string(traceData),
+			StepInputPreview:  "workflow execution",
+			StepOutputPreview: strings.Join(result.NodePath, ","),
+		})
+		if recordErr != nil {
+			return recordErr
+		}
+		agentRunID = createdAgentRunID
 		return nil
 	})
-	return runID, err
+	return runID, agentRunID, err
+}
+
+func workflowAgentRunStatus(status string, errorMessage string) string {
+	if strings.TrimSpace(errorMessage) != "" || strings.TrimSpace(status) == "error" {
+		return "failed"
+	}
+	if strings.TrimSpace(status) == "interrupted" {
+		return "interrupted"
+	}
+	return "completed"
 }
 
 func workflowRunStatus(status string, errorMessage string) int {

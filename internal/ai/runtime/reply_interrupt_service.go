@@ -82,6 +82,9 @@ func (s *replyInterruptService) ResumePendingInterrupt(ctx context.Context, owne
 
 func (s *replyInterruptService) HandleInterruptedSummary(owner *aiReplyService, replyCtx aiReplyContext, summary *applicationruntime.Summary) error {
 	pending := buildConversationInterrupt(replyCtx.Conversation, replyCtx.Message, replyCtx.AIAgent, summary)
+	if pending != nil && pending.AgentRunID > 0 {
+		pending.AgentStepID = svc.AgentRunService.GetLatestStepID(pending.AgentRunID)
+	}
 	if err := svc.ConversationInterruptService.CreateOrUpdatePending(pending); err != nil {
 		return err
 	}

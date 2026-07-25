@@ -58,6 +58,9 @@ func (s *aiReplyService) TriggerReply(ctx context.Context, conversation models.C
 	if s.eligibility != nil && !s.eligibility.CanReply(conversation, message, aiAgent) {
 		return nil
 	}
+	if !IsAIAgentRolloutEligible(conversation, aiAgent, svc.ChannelService.Get(conversation.ChannelID)) {
+		return nil
+	}
 	if pendingInterrupt := svc.ConversationInterruptService.FindLatestPendingByConversationID(conversation.ID); pendingInterrupt != nil {
 		replyCtx.PendingInterrupt = pendingInterrupt
 		return s.resumePendingInterrupt(ctx, replyCtx)
@@ -81,6 +84,16 @@ func (s *aiReplyService) executeReply(ctx context.Context, replyCtx aiReplyConte
 	}
 	if summary != nil && summary.Interrupted {
 		return s.interrupts.HandleInterruptedSummary(s, replyCtx, summary)
+	}
+	if summary != nil && summary.HandoffRequested {
+		if _, err := svc.ConversationHumanDispatchService.HandoffByAIWithRequestID(
+			replyCtx.Conversation.ID,
+			replyCtx.AIAgent,
+			"knowledge evidence unavailable",
+			replyCtx.Message.RequestID,
+		); err == nil {
+			return nil
+		}
 	}
 	if summary != nil && strings.TrimSpace(summary.ReplyText) != "" {
 		_, err := s.commit.CommitAIReply(replyCommitInput{

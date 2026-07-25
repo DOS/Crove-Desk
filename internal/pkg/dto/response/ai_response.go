@@ -24,6 +24,18 @@ type AIAgentMCPToolResponse struct {
 	Arguments   map[string]string `json:"arguments"`
 }
 
+type AgentRevisionResponse struct {
+	ID                int64        `json:"id"`
+	AgentID           int64        `json:"agentId"`
+	Revision          int          `json:"revision"`
+	WorkflowVersionID int64        `json:"workflowVersionId"`
+	Status            enums.Status `json:"status"`
+	DefinitionHash    string       `json:"definitionHash"`
+	PublishedAt       string       `json:"publishedAt"`
+	PublishedByID     int64        `json:"publishedById"`
+	PublishedByName   string       `json:"publishedByName"`
+}
+
 type AIConfigResponse struct {
 	ID               int64             `json:"id"`
 	Name             string            `json:"name"`
@@ -67,34 +79,44 @@ func BuildAIConfigResponse(item *models.AIConfig) AIConfigResponse {
 }
 
 type AIAgentResponse struct {
-	ID                  int64                           `json:"id"`
-	Name                string                          `json:"name"`
-	Description         string                          `json:"description"`
-	Status              enums.Status                    `json:"status"`
-	StatusName          string                          `json:"statusName"`
-	AIConfigID          int64                           `json:"aiConfigId"`
-	AIConfigName        string                          `json:"aiConfigName"`
-	ServiceMode         enums.IMConversationServiceMode `json:"serviceMode"`
-	ServiceModeName     string                          `json:"serviceModeName"`
-	SystemPrompt        string                          `json:"systemPrompt"`
-	WelcomeMessage      string                          `json:"welcomeMessage"`
-	ReplyTimeoutSeconds int                             `json:"replyTimeoutSeconds"`
-	Teams               []AIAgentTeamResponse           `json:"teams"`
-	HandoffMode         enums.AIAgentHandoffMode        `json:"handoffMode"`
-	HandoffModeName     string                          `json:"handoffModeName"`
-	FallbackMode        enums.AIAgentFallbackMode       `json:"fallbackMode"`
-	FallbackModeName    string                          `json:"fallbackModeName"`
-	FallbackMessage     string                          `json:"fallbackMessage"`
-	SkillIDs            []int64                         `json:"skillIds"`
-	Skills              []AIAgentSkillResponse          `json:"skills"`
-	DirectTools         []AIAgentMCPToolResponse        `json:"directTools"`
-	WorkflowVersionID   int64                           `json:"workflowVersionId"`
-	WorkflowPublished   bool                            `json:"workflowPublished"`
-	WorkflowState       string                          `json:"workflowState"`
-	WorkflowStateText   string                          `json:"workflowStateText"`
-	SortNo              int                             `json:"sortNo"`
-	CreatedAt           string                          `json:"createdAt"`
-	UpdatedAt           string                          `json:"updatedAt"`
-	CreateUserName      string                          `json:"createUserName"`
-	UpdateUserName      string                          `json:"updateUserName"`
+	ID                     int64                           `json:"id"`
+	Name                   string                          `json:"name"`
+	Description            string                          `json:"description"`
+	Status                 enums.Status                    `json:"status"`
+	StatusName             string                          `json:"statusName"`
+	AIConfigID             int64                           `json:"aiConfigId"`
+	AIConfigName           string                          `json:"aiConfigName"`
+	RuntimeMode            enums.AIAgentRuntimeMode        `json:"runtimeMode"`
+	RuntimeModeName        string                          `json:"runtimeModeName"`
+	MaxSteps               int                             `json:"maxSteps"`
+	ContextWindow          int                             `json:"contextWindow"`
+	ToolPolicy             string                          `json:"toolPolicy"`
+	KnowledgePolicy        string                          `json:"knowledgePolicy"`
+	ServiceMode            enums.IMConversationServiceMode `json:"serviceMode"`
+	ServiceModeName        string                          `json:"serviceModeName"`
+	SystemPrompt           string                          `json:"systemPrompt"`
+	WelcomeMessage         string                          `json:"welcomeMessage"`
+	ReplyTimeoutSeconds    int                             `json:"replyTimeoutSeconds"`
+	RolloutPercent         int                             `json:"rolloutPercent"`
+	PreviousRolloutPercent int                             `json:"previousRolloutPercent"`
+	Teams                  []AIAgentTeamResponse           `json:"teams"`
+	HandoffMode            enums.AIAgentHandoffMode        `json:"handoffMode"`
+	HandoffModeName        string                          `json:"handoffModeName"`
+	FallbackMode           enums.AIAgentFallbackMode       `json:"fallbackMode"`
+	FallbackModeName       string                          `json:"fallbackModeName"`
+	FallbackMessage        string                          `json:"fallbackMessage"`
+	KnowledgeBaseIDs       []int64                         `json:"knowledgeBaseIds"`
+	SkillIDs               []int64                         `json:"skillIds"`
+	Skills                 []AIAgentSkillResponse          `json:"skills"`
+	DirectTools            []AIAgentMCPToolResponse        `json:"directTools"`
+	WorkflowVersionID      int64                           `json:"workflowVersionId"`
+	PublishedRevisionID    int64                           `json:"publishedRevisionId"`
+	WorkflowPublished      bool                            `json:"workflowPublished"`
+	WorkflowState          string                          `json:"workflowState"`
+	WorkflowStateText      string                          `json:"workflowStateText"`
+	SortNo                 int                             `json:"sortNo"`
+	CreatedAt              string                          `json:"createdAt"`
+	UpdatedAt              string                          `json:"updatedAt"`
+	CreateUserName         string                          `json:"createUserName"`
+	UpdateUserName         string                          `json:"updateUserName"`
 }

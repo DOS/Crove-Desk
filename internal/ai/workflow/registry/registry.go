@@ -248,14 +248,15 @@ func DefaultRegistry() *Registry {
 			},
 		},
 		NodeSpec{
-			Type:        NodeTypeHandoffToHuman,
-			Title:       "Handoff To Human",
-			Description: "Transfer the conversation to human support.",
-			Icon:        "HeadphonesIcon",
-			RiskLevel:   NodeRiskLevelHigh,
+			Type:                            NodeTypeHandoffToHuman,
+			Title:                           "Handoff To Human",
+			Description:                     "Transfer the conversation to human support.",
+			Icon:                            "HeadphonesIcon",
+			RiskLevel:                       NodeRiskLevelHigh,
+			RequiresConfirmationPredecessor: true,
 			InputSchema: []VariableSpec{
 				requiredInput("reason", "转人工原因", VariableTypeString, "触发转人工处理的业务原因。"),
-				optionalInput("confirmed", "已确认", VariableTypeBoolean, "客户是否已确认转人工。"),
+				requiredInput("confirmed", "已确认", VariableTypeBoolean, "客户是否已确认转人工。"),
 			},
 			OutputSchema: []VariableSpec{
 				output("handoffId", "转人工记录 ID", VariableTypeInteger, "本次转人工操作的内部记录编号。"),

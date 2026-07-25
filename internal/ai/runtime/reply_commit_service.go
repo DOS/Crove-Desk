@@ -3,6 +3,8 @@ package runtime
 import (
 	"fmt"
 	"strings"
+
+	aitooling "agent-desk/internal/ai/tooling"
 	"time"
 
 	"agent-desk/internal/models"
@@ -31,9 +33,9 @@ func newReplyCommitService() *replyCommitService {
 }
 
 func (s *replyCommitService) SendAIReply(input replyCommitInput) (*models.Message, error) {
-	replyText := strings.TrimSpace(input.ReplyText)
-	if replyText == "" {
-		return nil, nil
+	replyText, err := aitooling.NormalizeCustomerReply(input.ReplyText)
+	if err != nil {
+		return nil, err
 	}
 	replyMessage, err := svc.MessageService.SendAIMessageWithRequestIDAndWorkflowRunID(
 		input.Conversation.ID,

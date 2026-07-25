@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	aitooling "agent-desk/internal/ai/tooling"
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/dto"
 	"agent-desk/internal/pkg/dto/request"
@@ -18,9 +19,12 @@ import (
 	"agent-desk/internal/pkg/httpx/params"
 
 	"github.com/mlogclub/simple/sqls"
+	"gorm.io/gorm"
 )
 
 var AIAgentService = newAIAgentService()
+
+const defaultNewAutonomousRolloutPercent = 5
 
 func newAIAgentService() *aIAgentService {
 	return &aIAgentService{}
@@ -79,8 +83,11 @@ func (s *aIAgentService) CreateAIAgent(req request.CreateAIAgentRequest, operato
 		if err := repositories.AIAgentRepository.Create(ctx.Tx, item); err != nil {
 			return err
 		}
-		_, err := AIWorkflowService.createDefaultAgentWorkflow(ctx.Tx, item, operator)
-		return err
+		if item.RuntimeMode == enums.AIAgentRuntimeModeWorkflow || item.RuntimeMode == enums.AIAgentRuntimeModeHybrid {
+			_, err := AIWorkflowService.createDefaultAgentWorkflow(ctx.Tx, item, operator)
+			return err
+		}
+		return nil
 	}); err != nil {
 		return nil, err
 	}
@@ -91,31 +98,48 @@ func (s *aIAgentService) UpdateAIAgent(req request.UpdateAIAgentRequest, operato
 	if operator == nil {
 		return errorsx.UnauthorizedI18n("error.auth.expired")
 	}
-	if s.Get(req.ID) == nil {
+	current := s.Get(req.ID)
+	if current == nil {
 		return errorsx.InvalidParamI18n("error.e0002")
 	}
 	item, err := s.buildAIAgentModel(req.ID, req.CreateAIAgentRequest)
 	if err != nil {
 		return err
 	}
-	return repositories.AIAgentRepository.Updates(sqls.DB(), req.ID, map[string]any{
+	columns := map[string]any{
 		"name":                  item.Name,
 		"description":           item.Description,
 		"ai_config_id":          item.AIConfigID,
+		"runtime_mode":          item.RuntimeMode,
+		"max_steps":             item.MaxSteps,
+		"context_window":        item.ContextWindow,
+		"tool_policy":           item.ToolPolicy,
+		"knowledge_policy":      item.KnowledgePolicy,
 		"service_mode":          item.ServiceMode,
 		"system_prompt":         item.SystemPrompt,
 		"welcome_message":       item.WelcomeMessage,
 		"reply_timeout_seconds": item.ReplyTimeoutSeconds,
+		"rollout_percent":       item.RolloutPercent,
 		"team_ids":              item.TeamIDs,
 		"handoff_mode":          item.HandoffMode,
 		"fallback_mode":         item.FallbackMode,
 		"fallback_message":      item.FallbackMessage,
+		"knowledge_ids":         item.KnowledgeIDs,
 		"skill_ids":             item.SkillIDs,
 		"allowed_mcp_tools":     item.AllowedMCPTools,
 		"update_user_id":        operator.UserID,
 		"update_user_name":      operator.Username,
 		"updated_at":            time.Now(),
-	})
+	}
+	if item.RolloutPercent != current.RolloutPercent {
+		columns["previous_rollout_percent"] = current.RolloutPercent
+	}
+	if current.RuntimeMode == enums.AIAgentRuntimeModeAutonomous || current.RuntimeMode == enums.AIAgentRuntimeModeHybrid || item.RuntimeMode == enums.AIAgentRuntimeModeAutonomous || item.RuntimeMode == enums.AIAgentRuntimeModeHybrid {
+		// Draft edits must not silently change the already published autonomous or hybrid
+		// behavior. The operator must explicitly publish the new revision.
+		columns["published_revision_id"] = 0
+	}
+	return repositories.AIAgentRepository.Updates(sqls.DB(), req.ID, columns)
 }
 
 func (s *aIAgentService) DeleteAIAgent(id int64, operator *dto.AuthPrincipal) error {
@@ -131,6 +155,133 @@ func (s *aIAgentService) DeleteAIAgent(id int64, operator *dto.AuthPrincipal) er
 		"update_user_id":   operator.UserID,
 		"update_user_name": operator.Username,
 		"updated_at":       time.Now(),
+	})
+}
+
+// PublishAIAgent snapshots a non-workflow Agent before it can receive traffic.
+func (s *aIAgentService) PublishAIAgent(id int64, operator *dto.AuthPrincipal) (*models.AgentRevision, error) {
+	if operator == nil {
+		return nil, errorsx.UnauthorizedI18n("error.auth.expired")
+	}
+	var revision *models.AgentRevision
+	err := sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		agent := repositories.AIAgentRepository.Get(ctx.Tx, id)
+		if agent == nil || agent.Status != enums.StatusOk {
+			return errorsx.InvalidParamI18n("error.e0002")
+		}
+		if agent.RuntimeMode == enums.AIAgentRuntimeModeWorkflow || agent.RuntimeMode == enums.AIAgentRuntimeModeHybrid {
+			return errorsx.InvalidParam("workflow and hybrid agents must publish a workflow version")
+		}
+		if err := s.validatePublishableAgent(ctx.Tx, agent); err != nil {
+			return err
+		}
+		var err error
+		revision, err = AgentRevisionService.PublishSnapshot(ctx.Tx, agent, operator)
+		if err != nil {
+			return err
+		}
+		return repositories.AIAgentRepository.Updates(ctx.Tx, agent.ID, map[string]any{
+			"published_revision_id": revision.ID,
+			"update_user_id":        operator.UserID,
+			"update_user_name":      operator.Username,
+			"updated_at":            time.Now(),
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
+	return revision, nil
+}
+
+func (s *aIAgentService) validatePublishableAgent(db *gorm.DB, agent *models.AIAgent) error {
+	if agent == nil || agent.AIConfigID <= 0 {
+		return errorsx.InvalidParam("ai agent model configuration is required before publishing")
+	}
+	config := repositories.AIConfigRepository.Get(db, agent.AIConfigID)
+	if config == nil || config.Status != enums.StatusOk {
+		return errorsx.InvalidParam("ai agent model configuration is unavailable")
+	}
+	if _, err := s.normalizeToolPolicy(agent.ToolPolicy); err != nil {
+		return err
+	}
+	if strings.TrimSpace(agent.AllowedMCPTools) == "" {
+		return nil
+	}
+	var directTools []request.AIAgentMCPToolRequest
+	if err := json.Unmarshal([]byte(agent.AllowedMCPTools), &directTools); err != nil {
+		return errorsx.InvalidParam("ai agent direct tools are invalid")
+	}
+	for _, item := range directTools {
+		definition, err := aitooling.DefaultRegistry.Resolve(item.ToolCode)
+		if err != nil || definition.InputSchema == nil {
+			return errorsx.InvalidParam("ai agent direct tool definition is unavailable")
+		}
+		if definition.RequireConfirmation {
+			return errorsx.InvalidParam("ai agent sensitive direct tools must be executed through a confirmed playbook")
+		}
+	}
+	return nil
+}
+
+// RollbackAIAgent switches an Agent back to a previously published immutable
+// revision. It never rewrites the historical snapshot itself.
+func (s *aIAgentService) RollbackAIAgent(id, revisionID int64, operator *dto.AuthPrincipal) error {
+	if operator == nil {
+		return errorsx.UnauthorizedI18n("error.auth.expired")
+	}
+	if id <= 0 || revisionID <= 0 {
+		return errorsx.InvalidParam("agent id and revision id are required")
+	}
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		agent := repositories.AIAgentRepository.Get(ctx.Tx, id)
+		if agent == nil || agent.Status != enums.StatusOk {
+			return errorsx.InvalidParamI18n("error.e0002")
+		}
+		revision := repositories.AgentRevisionRepository.Get(ctx.Tx, revisionID)
+		if revision == nil || revision.AgentID != agent.ID || revision.Status != enums.StatusOk {
+			return errorsx.InvalidParam("agent revision does not exist")
+		}
+		updates := map[string]any{
+			"published_revision_id": revision.ID,
+			"update_user_id":        operator.UserID,
+			"update_user_name":      operator.Username,
+			"updated_at":            time.Now(),
+		}
+		if agent.RuntimeMode == enums.AIAgentRuntimeModeWorkflow || agent.RuntimeMode == enums.AIAgentRuntimeModeHybrid {
+			if revision.WorkflowVersionID <= 0 || repositories.AIWorkflowVersionRepository.Get(ctx.Tx, revision.WorkflowVersionID) == nil {
+				return errorsx.InvalidParam("workflow revision does not contain a published workflow version")
+			}
+			updates["workflow_version_id"] = revision.WorkflowVersionID
+		}
+		return repositories.AIAgentRepository.Updates(ctx.Tx, agent.ID, updates)
+	})
+}
+
+// RollbackAIAgentRollout restores the prior Agent rollout percentage and
+// swaps it into history, allowing operators to undo and redo one rollout
+// change without rewriting an immutable AgentRevision.
+func (s *aIAgentService) RollbackAIAgentRollout(id int64, operator *dto.AuthPrincipal) error {
+	if operator == nil {
+		return errorsx.UnauthorizedI18n("error.auth.expired")
+	}
+	if id <= 0 {
+		return errorsx.InvalidParam("agent id is required")
+	}
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		agent := repositories.AIAgentRepository.Get(ctx.Tx, id)
+		if agent == nil || agent.Status != enums.StatusOk {
+			return errorsx.InvalidParamI18n("error.e0002")
+		}
+		if agent.PreviousRolloutPercent < 1 || agent.PreviousRolloutPercent > 100 {
+			return errorsx.InvalidParam("agent rollout has no previous value to restore")
+		}
+		return repositories.AIAgentRepository.Updates(ctx.Tx, agent.ID, map[string]any{
+			"rollout_percent":          agent.PreviousRolloutPercent,
+			"previous_rollout_percent": agent.RolloutPercent,
+			"update_user_id":           operator.UserID,
+			"update_user_name":         operator.Username,
+			"updated_at":               time.Now(),
+		})
 	})
 }
 
@@ -151,6 +302,28 @@ func (s *aIAgentService) buildAIAgentModel(id int64, req request.CreateAIAgentRe
 	}
 	if aiConfig.Status != enums.StatusOk {
 		return nil, errorsx.InvalidParamI18n("error.e0011")
+	}
+	if req.RuntimeMode == "" {
+		req.RuntimeMode = enums.AIAgentRuntimeModeAutonomous
+	}
+	if !enums.IsValidAIAgentRuntimeMode(req.RuntimeMode) {
+		return nil, errorsx.InvalidParam("invalid ai agent runtime mode")
+	}
+	if req.RuntimeMode != enums.AIAgentRuntimeModeWorkflow && req.RuntimeMode != enums.AIAgentRuntimeModeAutonomous && req.RuntimeMode != enums.AIAgentRuntimeModeHybrid {
+		return nil, errorsx.InvalidParam("ai agent runtime mode is not available yet")
+	}
+	if req.MaxSteps == 0 {
+		req.MaxSteps = 6
+	}
+	if req.MaxSteps < 1 || req.MaxSteps > 8 {
+		return nil, errorsx.InvalidParam("ai agent max steps must be between 1 and 8")
+	}
+	if req.ContextWindow < 0 {
+		return nil, errorsx.InvalidParam("ai agent context window must not be negative")
+	}
+	toolPolicy, err := s.normalizeToolPolicy(req.ToolPolicy)
+	if err != nil {
+		return nil, err
 	}
 	if !slices.Contains(enums.IMConversationServiceModeValues, req.ServiceMode) {
 		return nil, errorsx.InvalidParamI18n("error.e0230")
@@ -175,8 +348,22 @@ func (s *aIAgentService) buildAIAgentModel(id int64, req request.CreateAIAgentRe
 	if req.ReplyTimeoutSeconds < 0 {
 		return nil, errorsx.InvalidParamI18n("error.e0144")
 	}
+	if req.RolloutPercent == 0 {
+		if req.RuntimeMode == enums.AIAgentRuntimeModeAutonomous || req.RuntimeMode == enums.AIAgentRuntimeModeHybrid {
+			req.RolloutPercent = defaultNewAutonomousRolloutPercent
+		} else {
+			req.RolloutPercent = 100
+		}
+	}
+	if req.RolloutPercent < 1 || req.RolloutPercent > 100 {
+		return nil, errorsx.InvalidParam("ai agent rollout percent must be between 1 and 100")
+	}
 
 	skillIDs, err := s.normalizeSkillIDs(req.SkillIDs)
+	if err != nil {
+		return nil, err
+	}
+	knowledgeBaseIDs, err := s.normalizeKnowledgeBaseIDs(req.KnowledgeBaseIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -196,18 +383,91 @@ func (s *aIAgentService) buildAIAgentModel(id int64, req request.CreateAIAgentRe
 		Name:                name,
 		Description:         strings.TrimSpace(req.Description),
 		AIConfigID:          req.AIConfigID,
+		RuntimeMode:         req.RuntimeMode,
+		MaxSteps:            req.MaxSteps,
+		ContextWindow:       req.ContextWindow,
+		ToolPolicy:          toolPolicy,
+		KnowledgePolicy:     strings.TrimSpace(req.KnowledgePolicy),
 		ServiceMode:         req.ServiceMode,
 		SystemPrompt:        strings.TrimSpace(req.SystemPrompt),
 		WelcomeMessage:      strings.TrimSpace(req.WelcomeMessage),
 		ReplyTimeoutSeconds: req.ReplyTimeoutSeconds,
+		RolloutPercent:      req.RolloutPercent,
 		TeamIDs:             utils.JoinInt64s(teamIDs),
 		HandoffMode:         req.HandoffMode,
 		FallbackMode:        req.FallbackMode,
 		FallbackMessage:     strings.TrimSpace(req.FallbackMessage),
+		KnowledgeIDs:        utils.JoinInt64s(knowledgeBaseIDs),
 		SkillIDs:            utils.JoinInt64s(skillIDs),
 		AllowedMCPTools:     directToolsJSON,
 		WorkflowVersionID:   0,
 	}, nil
+}
+
+type normalizedAIAgentToolPolicy struct {
+	MaxTotalCalls     int      `json:"maxTotalCalls,omitempty"`
+	MaxArgumentBytes  int      `json:"maxArgumentBytes,omitempty"`
+	AllowedRiskLevels []string `json:"allowedRiskLevels,omitempty"`
+}
+
+func (s *aIAgentService) normalizeToolPolicy(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", nil
+	}
+	policy := normalizedAIAgentToolPolicy{}
+	if err := json.Unmarshal([]byte(raw), &policy); err != nil {
+		return "", errorsx.InvalidParam("ai agent tool policy must be valid JSON")
+	}
+	if policy.MaxTotalCalls < 0 || policy.MaxTotalCalls > 8 {
+		return "", errorsx.InvalidParam("ai agent tool policy maxTotalCalls must be between 1 and 8")
+	}
+	if policy.MaxArgumentBytes < 0 || policy.MaxArgumentBytes > 64*1024 {
+		return "", errorsx.InvalidParam("ai agent tool policy maxArgumentBytes must be between 1 and 65536")
+	}
+	seen := make(map[string]struct{}, len(policy.AllowedRiskLevels))
+	riskLevels := make([]string, 0, len(policy.AllowedRiskLevels))
+	for _, level := range policy.AllowedRiskLevels {
+		level = strings.ToLower(strings.TrimSpace(level))
+		if level == "" {
+			continue
+		}
+		if level != "read" && level != "write" && level != "sensitive" {
+			return "", errorsx.InvalidParam("ai agent tool policy contains an invalid risk level")
+		}
+		if _, exists := seen[level]; exists {
+			continue
+		}
+		seen[level] = struct{}{}
+		riskLevels = append(riskLevels, level)
+	}
+	policy.AllowedRiskLevels = riskLevels
+	data, err := json.Marshal(policy)
+	if err != nil {
+		return "", errorsx.InvalidParam("ai agent tool policy is invalid")
+	}
+	return string(data), nil
+}
+
+func (s *aIAgentService) normalizeKnowledgeBaseIDs(input []int64) ([]int64, error) {
+	ret := make([]int64, 0, len(input))
+	seen := make(map[int64]struct{})
+	for _, id := range input {
+		if id <= 0 {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		knowledgeBase := KnowledgeBaseService.Get(id)
+		if knowledgeBase == nil || knowledgeBase.Status != enums.StatusOk {
+			return nil, errorsx.InvalidParam("knowledge base is not available")
+		}
+		seen[id] = struct{}{}
+		ret = append(ret, id)
+	}
+	slices.Sort(ret)
+	return ret, nil
 }
 
 func (s *aIAgentService) normalizeTeamIDs(input []int64) ([]int64, error) {
@@ -271,11 +531,17 @@ func (s *aIAgentService) normalizeDirectTools(input []request.AIAgentMCPToolRequ
 		if toolx.IsAutoInjectedToolCode(strings.TrimSpace(normalized.ToolCode)) {
 			continue
 		}
-		if toolx.ResolveToolSourceType(normalized.ToolCode) != enums.ToolSourceTypeMCP {
-			return nil, errorsx.InvalidParamI18n("error.e0020")
-		}
-		if err := ToolCatalogService.ValidateToolCode(normalized.ToolCode); err != nil {
-			return nil, err
+		if spec, registered := toolx.GetRegisteredToolSpec(normalized.ToolCode); registered {
+			if !spec.DirectAccess || spec.AutoInjected || (spec.Code != toolx.BuiltinConversationContext.Code && spec.Code != toolx.BuiltinKnowledgeRetrieve.Code && spec.Code != toolx.GraphTriageServiceRequest.Code && spec.Code != toolx.GraphAnalyzeConversation.Code && spec.Code != toolx.GraphPrepareTicketDraft.Code) {
+				return nil, errorsx.InvalidParamI18n("error.e0020")
+			}
+		} else {
+			if toolx.ResolveToolSourceType(normalized.ToolCode) != enums.ToolSourceTypeMCP {
+				return nil, errorsx.InvalidParamI18n("error.e0020")
+			}
+			if err := ToolCatalogService.ValidateToolCode(normalized.ToolCode); err != nil {
+				return nil, err
+			}
 		}
 		key := strings.TrimSpace(normalized.ToolCode)
 		if _, exists := seen[key]; exists {

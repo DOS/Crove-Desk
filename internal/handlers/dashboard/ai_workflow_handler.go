@@ -116,6 +116,14 @@ func AIWorkflowGetDefaultDefinition(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, services.AIWorkflowService.DefaultAgentWorkflowDefinition())
 }
 
+func AIWorkflowGetTemplateList(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionAIAgentView); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, builders.BuildAIWorkflowTemplates(services.AIWorkflowService.ListPlaybookTemplates()))
+}
+
 func AIWorkflowPostValidate(ctx *gin.Context) {
 	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionAIAgentView); err != nil {
 		httpx.WriteJSON(ctx, err)

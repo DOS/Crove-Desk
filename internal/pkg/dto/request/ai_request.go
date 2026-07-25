@@ -46,14 +46,21 @@ type CreateAIAgentRequest struct {
 	Name                string                          `json:"name"`
 	Description         string                          `json:"description"`
 	AIConfigID          int64                           `json:"aiConfigId"`
+	RuntimeMode         enums.AIAgentRuntimeMode        `json:"runtimeMode"`
+	MaxSteps            int                             `json:"maxSteps"`
+	ContextWindow       int                             `json:"contextWindow"`
+	ToolPolicy          string                          `json:"toolPolicy"`
+	KnowledgePolicy     string                          `json:"knowledgePolicy"`
 	ServiceMode         enums.IMConversationServiceMode `json:"serviceMode"`
 	SystemPrompt        string                          `json:"systemPrompt"`
 	WelcomeMessage      string                          `json:"welcomeMessage"`
 	ReplyTimeoutSeconds int                             `json:"replyTimeoutSeconds"`
+	RolloutPercent      int                             `json:"rolloutPercent"`
 	TeamIDs             []int64                         `json:"teamIds"`
 	HandoffMode         enums.AIAgentHandoffMode        `json:"handoffMode"`
 	FallbackMode        enums.AIAgentFallbackMode       `json:"fallbackMode"`
 	FallbackMessage     string                          `json:"fallbackMessage"`
+	KnowledgeBaseIDs    []int64                         `json:"knowledgeBaseIds"`
 	SkillIDs            []int64                         `json:"skillIds"`
 	DirectTools         []AIAgentMCPToolRequest         `json:"directTools"`
 }
@@ -64,6 +71,19 @@ type UpdateAIAgentRequest struct {
 }
 
 type DeleteAIAgentRequest struct {
+	ID int64 `json:"id"`
+}
+
+type PublishAIAgentRequest struct {
+	ID int64 `json:"id"`
+}
+
+type RollbackAIAgentRequest struct {
+	ID         int64 `json:"id"`
+	RevisionID int64 `json:"revisionId"`
+}
+
+type RollbackAIAgentRolloutRequest struct {
 	ID int64 `json:"id"`
 }
 

@@ -41,6 +41,13 @@ type AIWorkflowValidationResponse struct {
 	Errors []workflowvalidator.Error `json:"errors"`
 }
 
+type AIWorkflowTemplateResponse struct {
+	Code        string         `json:"code"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Definition  dsl.Definition `json:"definition"`
+}
+
 type AIWorkflowNodeSpecResponse struct {
 	Type                            string                          `json:"type"`
 	Title                           string                          `json:"title"`

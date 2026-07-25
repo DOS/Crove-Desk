@@ -3,10 +3,12 @@
 export enum AIAgentFallbackMode {
   NoAnswer = 1,
   SuggestRetry = 2,
+  Handoff = 3,
 }
 export const AIAgentFallbackModeLabels: Record<AIAgentFallbackMode, string> = {
   [AIAgentFallbackMode.NoAnswer]: "直接说明知识不足",
   [AIAgentFallbackMode.SuggestRetry]: "引导用户补充信息",
+  [AIAgentFallbackMode.Handoff]: "转人工客服",
 }
 
 export enum AIAgentHandoffMode {
@@ -18,6 +20,17 @@ export const AIAgentHandoffModeLabels: Record<AIAgentHandoffMode, string> = {
   [AIAgentHandoffMode.WaitPool]: "进入待接入池",
   [AIAgentHandoffMode.DefaultTeamPool]: "进入默认客服组待接入池",
   [AIAgentHandoffMode.AIHoldAndNotify]: "AI继续接待并提醒人工",
+}
+
+export enum AIAgentRuntimeMode {
+  Workflow = "workflow",
+  Autonomous = "autonomous",
+  Hybrid = "hybrid",
+}
+export const AIAgentRuntimeModeLabels: Record<AIAgentRuntimeMode, string> = {
+  [AIAgentRuntimeMode.Workflow]: "流程编排",
+  [AIAgentRuntimeMode.Autonomous]: "自主运行",
+  [AIAgentRuntimeMode.Hybrid]: "混合运行",
 }
 
 export enum AIModelType {

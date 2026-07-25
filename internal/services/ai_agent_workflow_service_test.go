@@ -12,13 +12,14 @@ import (
 	"agent-desk/internal/pkg/dto"
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/enums"
+	"agent-desk/internal/pkg/toolx"
 
 	"github.com/glebarez/sqlite"
 	"github.com/mlogclub/simple/sqls"
 	"gorm.io/gorm"
 )
 
-func TestAIAgentServiceCreatesDefaultWorkflow(t *testing.T) {
+func TestAIAgentServiceCreatesWorkflowOnlyWhenRequested(t *testing.T) {
 	setupAIAgentWorkflowTestDB(t)
 	operator := aiAgentWorkflowTestOperator()
 	aiConfigID := createAIAgentWorkflowTestConfig(t)
@@ -26,12 +27,22 @@ func TestAIAgentServiceCreatesDefaultWorkflow(t *testing.T) {
 	item, err := AIAgentService.CreateAIAgent(request.CreateAIAgentRequest{
 		Name:         "workflow agent",
 		AIConfigID:   aiConfigID,
+		RuntimeMode:  enums.AIAgentRuntimeModeWorkflow,
 		ServiceMode:  enums.IMConversationServiceModeAIOnly,
 		HandoffMode:  enums.AIAgentHandoffModeWaitPool,
 		FallbackMode: enums.AIAgentFallbackModeNoAnswer,
 	}, operator)
 	if err != nil {
 		t.Fatalf("CreateAIAgent() error = %v", err)
+	}
+	if item.RuntimeMode != enums.AIAgentRuntimeModeWorkflow {
+		t.Fatalf("default runtime mode = %q, want %q", item.RuntimeMode, enums.AIAgentRuntimeModeWorkflow)
+	}
+	if item.MaxSteps != 6 {
+		t.Fatalf("default max steps = %d, want 6", item.MaxSteps)
+	}
+	if item.RolloutPercent != 100 {
+		t.Fatalf("workflow rollout default = %d, want 100", item.RolloutPercent)
 	}
 
 	workflow, err := AIWorkflowService.GetOrCreateAgentWorkflow(item.ID, operator)
@@ -81,10 +92,12 @@ func TestAIAgentServiceCreatesDefaultWorkflow(t *testing.T) {
 		}
 	}
 	assertConditionBranchToNodeType(t, stored, "policy_route_1", workflowregistry.NodeTypeSendReply, "eq", "direct_reply")
-	assertConditionBranchToNodeType(t, stored, "policy_route_1", workflowregistry.NodeTypeHandoffToHuman, "eq", "handoff_to_human")
+	assertConditionBranchToNodeID(t, stored, "policy_route_1", "handoff_confirm_prompt_1", "eq", "handoff_to_human")
 	assertConditionBranchToNodeType(t, stored, "policy_route_1", workflowregistry.NodeTypePrepareTicketDraft, "eq", "prepare_ticket")
 	assertConditionBranchToNodeID(t, stored, "ticket_draft_route_1", "ticket_confirm_prompt_1", "is_true", nil)
 	assertDefaultBranchToNodeID(t, stored, "ticket_draft_route_1", "ticket_followup_reply_1")
+	assertConditionBranchToNodeID(t, stored, "handoff_confirm_route_1", "handoff_1", "is_true", nil)
+	assertDefaultBranchToNodeID(t, stored, "handoff_confirm_route_1", "handoff_cancel_reply_1")
 	assertConditionBranchToNodeID(t, stored, "answerability_route_1", "reply_1", "eq", "answerable")
 	assertDefaultBranchToNodeID(t, stored, "answerability_route_1", "fallback_reply_1")
 	if !workflowEdgeExists(stored, "create_ticket_1", "ticket_result_reply_1") {
@@ -93,6 +106,7 @@ func TestAIAgentServiceCreatesDefaultWorkflow(t *testing.T) {
 	assertConditionBranchesHavePortEdges(t, stored, "policy_route_1")
 	assertConditionBranchesHavePortEdges(t, stored, "ticket_draft_route_1")
 	assertConditionBranchesHavePortEdges(t, stored, "ticket_confirm_route_1")
+	assertConditionBranchesHavePortEdges(t, stored, "handoff_confirm_route_1")
 	assertConditionBranchesHavePortEdges(t, stored, "answerability_route_1")
 	assertConditionBranchOrder(t, stored, "policy_route_1", []string{
 		"handoff",
@@ -112,6 +126,230 @@ func TestAIAgentServiceCreatesDefaultWorkflow(t *testing.T) {
 		"knowledge",
 		"default",
 	})
+}
+
+func TestAIAgentServiceDefaultsNewAutonomousAgentToSmallRollout(t *testing.T) {
+	setupAIAgentWorkflowTestDB(t)
+	item, err := AIAgentService.CreateAIAgent(request.CreateAIAgentRequest{
+		Name: "small-rollout autonomous agent", AIConfigID: createAIAgentWorkflowTestConfig(t), RuntimeMode: enums.AIAgentRuntimeModeAutonomous,
+		ServiceMode: enums.IMConversationServiceModeAIOnly, HandoffMode: enums.AIAgentHandoffModeWaitPool, FallbackMode: enums.AIAgentFallbackModeNoAnswer,
+	}, aiAgentWorkflowTestOperator())
+	if err != nil {
+		t.Fatalf("CreateAIAgent: %v", err)
+	}
+	if item.RolloutPercent != defaultNewAutonomousRolloutPercent {
+		t.Fatalf("autonomous rollout default = %d, want %d", item.RolloutPercent, defaultNewAutonomousRolloutPercent)
+	}
+}
+
+func TestAIAgentServiceDefaultsToAutonomousWithoutWorkflow(t *testing.T) {
+	setupAIAgentWorkflowTestDB(t)
+	operator := aiAgentWorkflowTestOperator()
+	item, err := AIAgentService.CreateAIAgent(request.CreateAIAgentRequest{
+		Name: "default autonomous agent", AIConfigID: createAIAgentWorkflowTestConfig(t),
+		ServiceMode: enums.IMConversationServiceModeAIOnly, HandoffMode: enums.AIAgentHandoffModeWaitPool, FallbackMode: enums.AIAgentFallbackModeNoAnswer,
+	}, operator)
+	if err != nil {
+		t.Fatalf("CreateAIAgent() error = %v", err)
+	}
+	if item.RuntimeMode != enums.AIAgentRuntimeModeAutonomous {
+		t.Fatalf("default runtime mode = %q, want %q", item.RuntimeMode, enums.AIAgentRuntimeModeAutonomous)
+	}
+	var workflowCount int64
+	if err := sqls.DB().Model(&models.AIWorkflow{}).Where("agent_id = ?", item.ID).Count(&workflowCount).Error; err != nil {
+		t.Fatalf("count workflows: %v", err)
+	}
+	if workflowCount != 0 {
+		t.Fatalf("default autonomous agent created %d workflows", workflowCount)
+	}
+}
+
+func TestAIAgentServiceCreatesWorkflowDraftForHybrid(t *testing.T) {
+	setupAIAgentWorkflowTestDB(t)
+	item, err := AIAgentService.CreateAIAgent(request.CreateAIAgentRequest{
+		Name: "hybrid agent", AIConfigID: createAIAgentWorkflowTestConfig(t), RuntimeMode: enums.AIAgentRuntimeModeHybrid,
+		ServiceMode: enums.IMConversationServiceModeAIOnly, HandoffMode: enums.AIAgentHandoffModeWaitPool, FallbackMode: enums.AIAgentFallbackModeNoAnswer,
+	}, aiAgentWorkflowTestOperator())
+	if err != nil {
+		t.Fatalf("CreateAIAgent() error = %v", err)
+	}
+	var workflowCount int64
+	if err := sqls.DB().Model(&models.AIWorkflow{}).Where("agent_id = ?", item.ID).Count(&workflowCount).Error; err != nil {
+		t.Fatalf("count workflows: %v", err)
+	}
+	if workflowCount != 1 {
+		t.Fatalf("hybrid agent created %d workflows, want 1", workflowCount)
+	}
+}
+
+func TestAIAgentServiceNormalizesToolPolicy(t *testing.T) {
+	policy, err := AIAgentService.normalizeToolPolicy(`{"maxTotalCalls":2,"maxArgumentBytes":1024,"allowedRiskLevels":["READ","read","sensitive"]}`)
+	if err != nil {
+		t.Fatalf("normalizeToolPolicy: %v", err)
+	}
+	if !strings.Contains(policy, `"maxTotalCalls":2`) || !strings.Contains(policy, `"allowedRiskLevels":["read","sensitive"]`) {
+		t.Fatalf("unexpected normalized policy: %s", policy)
+	}
+	if _, err := AIAgentService.normalizeToolPolicy(`{"allowedRiskLevels":["admin"]}`); err == nil {
+		t.Fatal("expected invalid risk level error")
+	}
+	if _, err := AIAgentService.normalizeToolPolicy(`not-json`); err == nil {
+		t.Fatal("expected invalid JSON error")
+	}
+}
+
+func TestAIAgentServiceAllowsRegisteredReadDirectTool(t *testing.T) {
+	tools, err := AIAgentService.normalizeDirectTools([]request.AIAgentMCPToolRequest{{ToolCode: toolx.BuiltinConversationContext.Code}})
+	if err != nil {
+		t.Fatalf("normalizeDirectTools: %v", err)
+	}
+	if len(tools) != 1 || tools[0].ToolCode != toolx.BuiltinConversationContext.Code {
+		t.Fatalf("unexpected normalized direct tools: %#v", tools)
+	}
+	tools, err = AIAgentService.normalizeDirectTools([]request.AIAgentMCPToolRequest{{ToolCode: toolx.BuiltinKnowledgeRetrieve.Code}})
+	if err != nil || len(tools) != 1 || tools[0].ToolCode != toolx.BuiltinKnowledgeRetrieve.Code {
+		t.Fatalf("expected registered knowledge retrieve tool to be allowed, tools=%#v err=%v", tools, err)
+	}
+	tools, err = AIAgentService.normalizeDirectTools([]request.AIAgentMCPToolRequest{{ToolCode: toolx.GraphPrepareTicketDraft.Code}})
+	if err != nil || len(tools) != 1 || tools[0].ToolCode != toolx.GraphPrepareTicketDraft.Code {
+		t.Fatalf("expected registered ticket draft tool to be allowed, tools=%#v err=%v", tools, err)
+	}
+	tools, err = AIAgentService.normalizeDirectTools([]request.AIAgentMCPToolRequest{{ToolCode: toolx.GraphAnalyzeConversation.Code}})
+	if err != nil || len(tools) != 1 || tools[0].ToolCode != toolx.GraphAnalyzeConversation.Code {
+		t.Fatalf("expected registered conversation analysis tool to be allowed, tools=%#v err=%v", tools, err)
+	}
+	tools, err = AIAgentService.normalizeDirectTools([]request.AIAgentMCPToolRequest{{ToolCode: toolx.GraphTriageServiceRequest.Code}})
+	if err != nil || len(tools) != 1 || tools[0].ToolCode != toolx.GraphTriageServiceRequest.Code {
+		t.Fatalf("expected registered service triage tool to be allowed, tools=%#v err=%v", tools, err)
+	}
+	if _, err := AIAgentService.normalizeDirectTools([]request.AIAgentMCPToolRequest{{ToolCode: toolx.GraphHandoffConversation.Code}}); err == nil {
+		t.Fatal("expected unsupported graph direct tool to be rejected")
+	}
+}
+
+func TestAIAgentServiceRollsBackToOwnPublishedRevision(t *testing.T) {
+	setupAIAgentWorkflowTestDB(t)
+	db := sqls.DB()
+	agent := &models.AIAgent{Name: "rollback-agent", Status: enums.StatusOk, RuntimeMode: enums.AIAgentRuntimeModeAutonomous}
+	if err := db.Create(agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	revision := &models.AgentRevision{AgentID: agent.ID, Revision: 1, Status: enums.StatusOk}
+	if err := db.Create(revision).Error; err != nil {
+		t.Fatalf("create revision: %v", err)
+	}
+	if err := AIAgentService.RollbackAIAgent(agent.ID, revision.ID, aiAgentWorkflowTestOperator()); err != nil {
+		t.Fatalf("RollbackAIAgent: %v", err)
+	}
+	if updated := AIAgentService.Get(agent.ID); updated == nil || updated.PublishedRevisionID != revision.ID {
+		t.Fatalf("rollback did not bind revision: %#v", updated)
+	}
+	otherRevision := &models.AgentRevision{AgentID: agent.ID + 1, Revision: 1, Status: enums.StatusOk}
+	if err := db.Create(otherRevision).Error; err != nil {
+		t.Fatalf("create other revision: %v", err)
+	}
+	if err := AIAgentService.RollbackAIAgent(agent.ID, otherRevision.ID, aiAgentWorkflowTestOperator()); err == nil {
+		t.Fatal("expected cross-agent revision rollback rejection")
+	}
+}
+
+func TestAIAgentServiceRollsBackPreviousRolloutPercent(t *testing.T) {
+	setupAIAgentWorkflowTestDB(t)
+	agent := &models.AIAgent{
+		Name:                   "rollout-agent",
+		Status:                 enums.StatusOk,
+		RuntimeMode:            enums.AIAgentRuntimeModeAutonomous,
+		RolloutPercent:         20,
+		PreviousRolloutPercent: 100,
+	}
+	if err := sqls.DB().Create(agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	operator := aiAgentWorkflowTestOperator()
+	if err := AIAgentService.RollbackAIAgentRollout(agent.ID, operator); err != nil {
+		t.Fatalf("RollbackAIAgentRollout: %v", err)
+	}
+	updated := AIAgentService.Get(agent.ID)
+	if updated == nil || updated.RolloutPercent != 100 || updated.PreviousRolloutPercent != 20 {
+		t.Fatalf("unexpected rollout rollback result: %#v", updated)
+	}
+	if err := AIAgentService.RollbackAIAgentRollout(agent.ID, operator); err != nil {
+		t.Fatalf("second RollbackAIAgentRollout: %v", err)
+	}
+	updated = AIAgentService.Get(agent.ID)
+	if updated == nil || updated.RolloutPercent != 20 || updated.PreviousRolloutPercent != 100 {
+		t.Fatalf("unexpected rollout redo result: %#v", updated)
+	}
+	if err := sqls.DB().Model(&models.AIAgent{}).Where("id = ?", agent.ID).Update("previous_rollout_percent", 0).Error; err != nil {
+		t.Fatalf("clear previous rollout: %v", err)
+	}
+	if err := AIAgentService.RollbackAIAgentRollout(agent.ID, operator); err == nil {
+		t.Fatal("expected missing previous rollout to be rejected")
+	}
+}
+
+func TestAIAgentServiceUpdateUnpublishesAutonomousAgent(t *testing.T) {
+	setupAIAgentWorkflowTestDB(t)
+	operator := aiAgentWorkflowTestOperator()
+	agent, err := AIAgentService.CreateAIAgent(request.CreateAIAgentRequest{
+		Name: "autonomous agent", AIConfigID: createAIAgentWorkflowTestConfig(t), RuntimeMode: enums.AIAgentRuntimeModeAutonomous,
+		ServiceMode: enums.IMConversationServiceModeAIOnly, HandoffMode: enums.AIAgentHandoffModeWaitPool, FallbackMode: enums.AIAgentFallbackModeNoAnswer,
+	}, operator)
+	if err != nil {
+		t.Fatalf("CreateAIAgent() error = %v", err)
+	}
+	if _, err := AIAgentService.PublishAIAgent(agent.ID, operator); err != nil {
+		t.Fatalf("PublishAIAgent() error = %v", err)
+	}
+	if published := AIAgentService.Get(agent.ID); published == nil || published.PublishedRevisionID <= 0 {
+		t.Fatalf("expected published autonomous agent, got %#v", published)
+	}
+	if err := AIAgentService.UpdateAIAgent(request.UpdateAIAgentRequest{ID: agent.ID, CreateAIAgentRequest: request.CreateAIAgentRequest{
+		Name: agent.Name, Description: "changed draft", AIConfigID: agent.AIConfigID, RuntimeMode: enums.AIAgentRuntimeModeAutonomous,
+		ServiceMode: enums.IMConversationServiceModeAIOnly, HandoffMode: enums.AIAgentHandoffModeWaitPool, FallbackMode: enums.AIAgentFallbackModeNoAnswer,
+	}}, operator); err != nil {
+		t.Fatalf("UpdateAIAgent() error = %v", err)
+	}
+	if updated := AIAgentService.Get(agent.ID); updated == nil || updated.PublishedRevisionID != 0 {
+		t.Fatalf("expected autonomous update to clear published revision, got %#v", updated)
+	}
+}
+
+func TestAIAgentServiceRejectsPublishWithUnavailableModelConfig(t *testing.T) {
+	setupAIAgentWorkflowTestDB(t)
+	operator := aiAgentWorkflowTestOperator()
+	configID := createAIAgentWorkflowTestConfig(t)
+	agent, err := AIAgentService.CreateAIAgent(request.CreateAIAgentRequest{
+		Name: "unavailable model agent", AIConfigID: configID, RuntimeMode: enums.AIAgentRuntimeModeAutonomous,
+		ServiceMode: enums.IMConversationServiceModeAIOnly, HandoffMode: enums.AIAgentHandoffModeWaitPool, FallbackMode: enums.AIAgentFallbackModeNoAnswer,
+	}, operator)
+	if err != nil {
+		t.Fatalf("CreateAIAgent() error = %v", err)
+	}
+	if err := sqls.DB().Model(&models.AIConfig{}).Where("id = ?", configID).Update("status", enums.StatusDisabled).Error; err != nil {
+		t.Fatalf("disable model config: %v", err)
+	}
+	if _, err := AIAgentService.PublishAIAgent(agent.ID, operator); err == nil {
+		t.Fatal("expected unavailable model config to reject publishing")
+	}
+}
+
+func TestAIAgentServiceRejectsPublishWithSensitiveDirectTool(t *testing.T) {
+	setupAIAgentWorkflowTestDB(t)
+	operator := aiAgentWorkflowTestOperator()
+	agent, err := AIAgentService.CreateAIAgent(request.CreateAIAgentRequest{
+		Name: "sensitive tool agent", AIConfigID: createAIAgentWorkflowTestConfig(t), RuntimeMode: enums.AIAgentRuntimeModeAutonomous,
+		ServiceMode: enums.IMConversationServiceModeAIOnly, HandoffMode: enums.AIAgentHandoffModeWaitPool, FallbackMode: enums.AIAgentFallbackModeNoAnswer,
+	}, operator)
+	if err != nil {
+		t.Fatalf("CreateAIAgent() error = %v", err)
+	}
+	if err := sqls.DB().Model(&models.AIAgent{}).Where("id = ?", agent.ID).Update("allowed_mcp_tools", `[{"toolCode":"mcp/demo/write_order"}]`).Error; err != nil {
+		t.Fatalf("set direct tool: %v", err)
+	}
+	if _, err := AIAgentService.PublishAIAgent(agent.ID, operator); err == nil || !strings.Contains(err.Error(), "confirmed playbook") {
+		t.Fatalf("expected sensitive direct tool publish rejection, got %v", err)
+	}
 }
 
 func TestAIWorkflowServiceDefaultAgentWorkflowDefinitionRequiresKnowledgeRetrieveConfiguration(t *testing.T) {
@@ -134,6 +372,13 @@ func TestAIWorkflowServiceDefaultAgentWorkflowDefinitionRequiresKnowledgeRetriev
 	}
 	if !workflowHasNodeType(definition, workflowregistry.NodeTypeCreateTicket) {
 		t.Fatalf("expected default workflow to include ticket creation node")
+	}
+	if nodeTypeByID(definition, "handoff_confirm_1") != workflowregistry.NodeTypeHumanConfirm {
+		t.Fatalf("expected default workflow handoff path to include human confirmation")
+	}
+	handoff := workflowNodeByID(t, definition, "handoff_1")
+	if nodeID, field, ok := handoff.Data.InputsValues["confirmed"].Ref(); !ok || nodeID != "handoff_confirm_1" || field != "confirmed" {
+		t.Fatalf("expected handoff to use confirmation result, got %#v", handoff.Data.InputsValues["confirmed"])
 	}
 }
 
@@ -203,6 +448,19 @@ func TestAIWorkflowServicePublishAgentWorkflowBindsAgentVersion(t *testing.T) {
 	if storedAgent.WorkflowVersionID != version.ID {
 		t.Fatalf("expected agent workflow version %d, got %d", version.ID, storedAgent.WorkflowVersionID)
 	}
+	if storedAgent.PublishedRevisionID <= 0 {
+		t.Fatalf("expected published agent revision id, got %d", storedAgent.PublishedRevisionID)
+	}
+	var revision models.AgentRevision
+	if err := sqls.DB().First(&revision, storedAgent.PublishedRevisionID).Error; err != nil {
+		t.Fatalf("load agent revision: %v", err)
+	}
+	if revision.AgentID != agent.ID || revision.WorkflowVersionID != version.ID || revision.Revision != 1 || revision.DefinitionHash == "" {
+		t.Fatalf("unexpected published agent revision: %#v", revision)
+	}
+	if !strings.Contains(revision.Definition, `"modelName":"gpt-test"`) || strings.Contains(revision.Definition, "revision-test-secret") {
+		t.Fatalf("unexpected revision definition: %s", revision.Definition)
+	}
 }
 
 func setupAIAgentWorkflowTestDB(t *testing.T) {
@@ -211,7 +469,7 @@ func setupAIAgentWorkflowTestDB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite db: %v", err)
 	}
-	if err := db.AutoMigrate(&models.AIAgent{}, &models.AIConfig{}, &models.KnowledgeBase{}, &models.AIWorkflow{}, &models.AIWorkflowVersion{}); err != nil {
+	if err := db.AutoMigrate(&models.AIAgent{}, &models.AIConfig{}, &models.KnowledgeBase{}, &models.AIWorkflow{}, &models.AIWorkflowVersion{}, &models.AgentRevision{}); err != nil {
 		t.Fatalf("auto migrate: %v", err)
 	}
 	sqls.SetDB(db)
@@ -222,6 +480,7 @@ func createAIAgentWorkflowTestConfig(t *testing.T) int64 {
 	item := &models.AIConfig{
 		Name:      "workflow-test-config",
 		Provider:  enums.AIProviderOpenAI,
+		APIKey:    "revision-test-secret",
 		ModelType: enums.AIModelTypeLLM,
 		ModelName: "gpt-test",
 		Status:    enums.StatusOk,

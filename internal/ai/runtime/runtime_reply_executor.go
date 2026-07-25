@@ -8,7 +8,6 @@ import (
 	applicationruntime "agent-desk/internal/ai/application/runtime"
 	"agent-desk/internal/ai/runtime/graphs"
 	"agent-desk/internal/models"
-	svc "agent-desk/internal/services"
 )
 
 type runtimeReplyExecutor struct{}
@@ -31,15 +30,10 @@ func newRuntimeReplyExecutor() *runtimeReplyExecutor {
 }
 
 func (e *runtimeReplyExecutor) Run(ctx context.Context, input runtimeReplyRunInput) (*applicationruntime.Summary, error) {
-	aiConfig := svc.AIConfigService.Get(input.AIAgent.AIConfigID)
-	if aiConfig == nil {
-		return nil, fmt.Errorf("ai config is nil")
-	}
-	summary, err := Service.Run(ctx, applicationruntime.Request{
-		Conversation: input.Conversation,
-		UserMessage:  input.Message,
-		AIAgent:      input.AIAgent,
-		AIConfig:     *aiConfig,
+	summary, err := applicationruntime.DefaultAgentApplicationService.Run(ctx, applicationruntime.ApplicationRunInput{
+		ConversationID: input.Conversation.ID,
+		MessageID:      input.Message.ID,
+		AIAgentID:      input.AIAgent.ID,
 	})
 	return summary, err
 }
@@ -48,15 +42,12 @@ func (e *runtimeReplyExecutor) ResumePendingInterrupt(ctx context.Context, input
 	if input.PendingInterrupt == nil {
 		return nil, fmt.Errorf("pending interrupt is required")
 	}
-	aiConfig := svc.AIConfigService.Get(input.AIAgent.AIConfigID)
-	if aiConfig == nil {
-		return nil, fmt.Errorf("ai config is nil")
-	}
-	summary, err := Service.Resume(ctx, applicationruntime.ResumeRequest{
-		Conversation: input.Conversation,
-		UserMessage:  input.Message,
-		AIAgent:      input.AIAgent,
-		AIConfig:     *aiConfig,
+	summary, err := applicationruntime.DefaultAgentApplicationService.Resume(ctx, applicationruntime.ApplicationResumeInput{
+		ApplicationRunInput: applicationruntime.ApplicationRunInput{
+			ConversationID: input.Conversation.ID,
+			MessageID:      input.Message.ID,
+			AIAgentID:      input.AIAgent.ID,
+		},
 		CheckPointID: strings.TrimSpace(input.PendingInterrupt.CheckPointID),
 		ResumeData: map[string]string{
 			strings.TrimSpace(input.PendingInterrupt.InterruptID): strings.TrimSpace(input.Message.Content),
