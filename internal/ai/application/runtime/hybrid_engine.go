@@ -9,7 +9,6 @@ import (
 
 	ai "agent-desk/internal/ai"
 	aitooling "agent-desk/internal/ai/tooling"
-	"agent-desk/internal/ai/runtime/instruction"
 	workflowregistry "agent-desk/internal/ai/workflow/registry"
 	workflowvalidator "agent-desk/internal/ai/workflow/validator"
 	"agent-desk/internal/models"
@@ -61,26 +60,15 @@ func (e *HybridEngine) Run(ctx context.Context, req RunInput) (*RunResult, error
 		return nil, errorsx.InvalidParam("hybrid agent playbook validation failed")
 	}
 
-	skillContext := e.autonomous.selectSkill(ctx, req)
-	knowledgeContext, retrieverCount, retrieveErr := e.autonomous.retrieveKnowledge(ctx, req.AIAgent, req.UserMessage.Content)
-	responsePolicy := evaluateAutonomousResponsePolicy(req.AIAgent, knowledgeContext, retrieveErr)
-	if responsePolicy.Enforced {
-		return writeHybridResult(req, startedAt, &ai.ChatCompletionResult{Content: responsePolicy.ReplyText, ModelName: req.AIConfig.ModelName}, "", 0, retrieverCount, skillContext, nil, responsePolicy, nil)
+	turn := e.autonomous.prepareTurn(ctx, req)
+	if turn.ResponsePolicy.Enforced {
+		return writeHybridResult(req, startedAt, &ai.ChatCompletionResult{Content: turn.ResponsePolicy.ReplyText, ModelName: req.AIConfig.ModelName}, "", 0, turn.RetrieverCount, turn.RetrieveErr, turn.SkillContext, nil, turn.ResponsePolicy, nil)
 	}
-	systemPrompt := buildAutonomousSystemPrompt(req.AIAgent, len(utils.SplitInt64s(req.AIAgent.KnowledgeIDs)) > 0, knowledgeContext, retrieveErr)
-	if skillInstruction := strings.TrimSpace(instruction.BuildSkillDocument(skillContext.Skill, nil)); skillInstruction != "" {
-		systemPrompt += "\n\nSkill instructions:\n" + skillInstruction
-	}
-	systemPrompt += "\n\nWhen a deterministic process is required, use run_playbook. Do not call it for ordinary factual questions."
-	userPrompt, historyCount := e.autonomous.buildUserPrompt(req)
-	if knowledgeContext != "" {
-		userPrompt += "\n\nKnowledge evidence:\n" + knowledgeContext
-	}
+	turn.SystemPrompt += "\n\nWhen a deterministic process is required, use run_playbook. Do not call it for ordinary factual questions."
 
 	var playbookSummary *Summary
 	toolCalls := make([]svc.EngineToolCallInput, 0, 1)
-	toolPolicy := parseAutonomousToolPolicy(req.AIAgent.ToolPolicy)
-	loop, err := e.chatWithTools(ctx, req.AIConfig, systemPrompt, userPrompt, []ai.ToolDefinition{hybridPlaybookToolDefinition(req.AIAgent.WorkflowVersionID)}, req.AIAgent.MaxSteps, func(ctx context.Context, call ai.ToolCall) (string, error) {
+	loop, err := e.chatWithTools(ctx, req.AIConfig, turn.SystemPrompt, turn.UserPrompt, []ai.ToolDefinition{hybridPlaybookToolDefinition(req.AIAgent.WorkflowVersionID)}, req.AIAgent.MaxSteps, func(ctx context.Context, call ai.ToolCall) (string, error) {
 		if call.Name != "run_playbook" {
 			return "", fmt.Errorf("unsupported hybrid tool: %s", call.Name)
 		}
@@ -96,7 +84,7 @@ func (e *HybridEngine) Run(ctx context.Context, req RunInput) (*RunResult, error
 		}
 		playbookDefinition := aitooling.Definition{Code: hybridPlaybookToolCode, Name: "run_playbook", RiskLevel: aitooling.RiskLevelWrite, RequireConfirmation: true, MaxCallsPerRun: 1}
 		if err := aitooling.DefaultRegistry.Authorize(playbookDefinition, aitooling.Policy{
-			AllowedRiskLevels: toolPolicy.AllowedRiskLevels,
+			AllowedRiskLevels: turn.ToolPolicy.AllowedRiskLevels,
 			CallCount:         len(toolCalls),
 			TotalCallCount:    len(toolCalls),
 			MaxTotalCalls:     1,
@@ -119,11 +107,11 @@ func (e *HybridEngine) Run(ctx context.Context, req RunInput) (*RunResult, error
 		return string(data), nil
 	})
 	if err != nil {
-		_, _ = writeHybridAudit(req, startedAt, nil, userPrompt, historyCount, retrieverCount, skillContext, toolCalls, responsePolicy, false, err)
+		_, _ = writeHybridAudit(req, startedAt, nil, turn.UserPrompt, turn.HistoryCount, turn.RetrieverCount, turn.RetrieveErr, turn.SkillContext, toolCalls, turn.ResponsePolicy, false, err)
 		return nil, err
 	}
 	if playbookSummary != nil && playbookSummary.Interrupted {
-		runID, auditErr := writeHybridAudit(req, startedAt, &ai.ChatCompletionResult{Content: playbookSummary.ReplyText, ModelName: playbookSummary.ModelName, PromptTokens: playbookSummary.PromptTokens, CompletionTokens: playbookSummary.CompletionTokens}, userPrompt, historyCount, retrieverCount, skillContext, toolCalls, responsePolicy, true, nil)
+		runID, auditErr := writeHybridAudit(req, startedAt, &ai.ChatCompletionResult{Content: playbookSummary.ReplyText, ModelName: playbookSummary.ModelName, PromptTokens: playbookSummary.PromptTokens, CompletionTokens: playbookSummary.CompletionTokens}, turn.UserPrompt, turn.HistoryCount, turn.RetrieverCount, turn.RetrieveErr, turn.SkillContext, toolCalls, turn.ResponsePolicy, true, nil)
 		if auditErr != nil {
 			return nil, auditErr
 		}
@@ -132,10 +120,10 @@ func (e *HybridEngine) Run(ctx context.Context, req RunInput) (*RunResult, error
 	}
 	if loop == nil || strings.TrimSpace(loop.Content) == "" {
 		err = errorsx.InvalidParam("hybrid engine returned an empty reply")
-		_, _ = writeHybridAudit(req, startedAt, nil, userPrompt, historyCount, retrieverCount, skillContext, toolCalls, responsePolicy, false, err)
+		_, _ = writeHybridAudit(req, startedAt, nil, turn.UserPrompt, turn.HistoryCount, turn.RetrieverCount, turn.RetrieveErr, turn.SkillContext, toolCalls, turn.ResponsePolicy, false, err)
 		return nil, err
 	}
-	return writeHybridResult(req, startedAt, &loop.ChatCompletionResult, userPrompt, historyCount, retrieverCount, skillContext, playbookSummary, responsePolicy, toolCalls)
+	return writeHybridResult(req, startedAt, &loop.ChatCompletionResult, turn.UserPrompt, turn.HistoryCount, turn.RetrieverCount, turn.RetrieveErr, turn.SkillContext, playbookSummary, turn.ResponsePolicy, toolCalls)
 }
 
 func (e *HybridEngine) Resume(ctx context.Context, req ResumeInput) (*RunResult, error) {
@@ -171,15 +159,15 @@ func parseHybridPlaybookCall(raw string) (int64, error) {
 	return input.WorkflowVersionID, nil
 }
 
-func writeHybridResult(req Request, startedAt time.Time, result *ai.ChatCompletionResult, inputPreview string, historyCount, retrieverCount int, skillContext autonomousSkillContext, playbook *Summary, responsePolicy autonomousResponsePolicy, toolCalls []svc.EngineToolCallInput) (*Summary, error) {
-	runID, err := writeHybridAudit(req, startedAt, result, inputPreview, historyCount, retrieverCount, skillContext, toolCalls, responsePolicy, false, nil)
+func writeHybridResult(req Request, startedAt time.Time, result *ai.ChatCompletionResult, inputPreview string, historyCount, retrieverCount int, retrieveErr error, skillContext autonomousSkillContext, playbook *Summary, responsePolicy autonomousResponsePolicy, toolCalls []svc.EngineToolCallInput) (*Summary, error) {
+	runID, err := writeHybridAudit(req, startedAt, result, inputPreview, historyCount, retrieverCount, retrieveErr, skillContext, toolCalls, responsePolicy, false, nil)
 	if err != nil {
 		return nil, err
 	}
 	return &Summary{Status: "completed", ReplyText: strings.TrimSpace(result.Content), ModelName: result.ModelName, PromptTokens: result.PromptTokens, CompletionTokens: result.CompletionTokens, HistoryMessageCount: historyCount, RetrieverCount: retrieverCount, AgentRunID: runID, WorkflowRunID: workflowRunIDFromSummary(playbook)}, nil
 }
 
-func writeHybridAudit(req Request, startedAt time.Time, result *ai.ChatCompletionResult, inputPreview string, historyCount, retrieverCount int, skillContext autonomousSkillContext, toolCalls []svc.EngineToolCallInput, responsePolicy autonomousResponsePolicy, interrupted bool, cause error) (int64, error) {
+func writeHybridAudit(req Request, startedAt time.Time, result *ai.ChatCompletionResult, inputPreview string, historyCount, retrieverCount int, retrieveErr error, skillContext autonomousSkillContext, toolCalls []svc.EngineToolCallInput, responsePolicy autonomousResponsePolicy, interrupted bool, cause error) (int64, error) {
 	endedAt := time.Now()
 	status, errorMessage, outputPreview := "completed", "", ""
 	promptTokens, completionTokens := 0, 0
@@ -190,7 +178,7 @@ func writeHybridAudit(req Request, startedAt time.Time, result *ai.ChatCompletio
 	} else if result != nil {
 		outputPreview, promptTokens, completionTokens = strings.TrimSpace(result.Content), result.PromptTokens, result.CompletionTokens
 	}
-	steps := autonomousAdditionalSteps(req, retrieverCount, nil, skillContext, responsePolicy)
+	steps := autonomousAdditionalSteps(req, retrieverCount, retrieveErr, skillContext, responsePolicy)
 	for _, call := range toolCalls {
 		if call.ToolCode == hybridPlaybookToolCode {
 			steps = append(steps, svc.EngineStepInput{StepType: "playbook", StepCode: hybridPlaybookToolCode, WorkflowRunID: workflowRunIDFromToolResult(call.ResultPreview), Status: call.Status, InputPreview: call.ArgumentsPreview, OutputPreview: call.ResultPreview, ErrorMessage: call.ErrorMessage})

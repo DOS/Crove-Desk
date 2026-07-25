@@ -9,7 +9,6 @@ import (
 	"time"
 
 	ai "agent-desk/internal/ai"
-	"agent-desk/internal/ai/runtime/instruction"
 	"agent-desk/internal/ai/runtime/readtools"
 	"agent-desk/internal/ai/runtime/retrievers"
 	runtimetooling "agent-desk/internal/ai/runtime/tooling"
@@ -66,81 +65,60 @@ func (e *AutonomousEngine) Run(ctx context.Context, req RunInput) (*RunResult, e
 	}
 	req.AIAgent = snapshot.Agent
 	req.AIConfig = snapshot.AIConfig
-	skillContext := e.selectSkill(ctx, req)
-	knowledgeContext, retrieverCount, retrieveErr := e.retrieveKnowledge(ctx, req.AIAgent, req.UserMessage.Content)
-	responsePolicy := evaluateAutonomousResponsePolicy(req.AIAgent, knowledgeContext, retrieveErr)
-	systemPrompt := buildAutonomousSystemPrompt(req.AIAgent, len(utils.SplitInt64s(req.AIAgent.KnowledgeIDs)) > 0, knowledgeContext, retrieveErr)
-	if skillInstruction := strings.TrimSpace(instruction.BuildSkillDocument(skillContext.Skill, nil)); skillInstruction != "" {
-		systemPrompt += "\n\nSkill instructions:\n" + skillInstruction
-	}
-	userPrompt, historyCount := e.buildUserPrompt(req)
-	if knowledgeContext != "" {
-		userPrompt += "\n\nKnowledge evidence:\n" + knowledgeContext
-	}
+	turn := e.prepareTurn(ctx, req)
 	var toolCalls []svc.EngineToolCallInput
 	var result *ai.ChatCompletionResult
-	agentAllowedTools := autonomousAllowedMCPToolCodes(req.AIAgent.AllowedMCPTools)
-	toolPolicy := parseAutonomousToolPolicy(req.AIAgent.ToolPolicy)
-	allowedTools := agentAllowedTools
-	if skillContext.Skill != nil {
-		allowedTools = intersectAutonomousToolCodes(agentAllowedTools, skillContext.AllowedToolCodes)
-	}
-	if req.Debug {
-		// Dashboard debug runs may inspect model and retrieval behavior but must
-		// not invoke direct MCP tools against production integrations.
-		allowedTools = nil
-	}
-	if responsePolicy.Enforced {
-		result = &ai.ChatCompletionResult{Content: responsePolicy.ReplyText, ModelName: req.AIConfig.ModelName}
-	} else if len(allowedTools) > 0 && e.toolChat != nil {
-		loopResult, loopErr := e.toolChat(ctx, req.AIConfig, systemPrompt, userPrompt, []ai.ToolDefinition{autonomousToolSearchDefinition()}, req.AIAgent.MaxSteps, e.toolSearchExecutor(req.Conversation, req.AIAgent, agentAllowedTools, skillContext.AllowedToolCodes, toolPolicy, &toolCalls))
+	if turn.ResponsePolicy.Enforced {
+		result = &ai.ChatCompletionResult{Content: turn.ResponsePolicy.ReplyText, ModelName: req.AIConfig.ModelName}
+	} else if len(turn.AllowedTools) > 0 && e.toolChat != nil {
+		loopResult, loopErr := e.toolChat(ctx, req.AIConfig, turn.SystemPrompt, turn.UserPrompt, []ai.ToolDefinition{autonomousToolSearchDefinition()}, req.AIAgent.MaxSteps, e.toolSearchExecutor(req.Conversation, req.AIAgent, turn.AgentAllowedTools, turn.SkillContext.AllowedToolCodes, turn.ToolPolicy, &toolCalls))
 		if loopErr != nil {
 			if len(toolCalls) == 0 {
 				err := loopErr
-				_, _ = writeAutonomousRun(req, startedAt, nil, userPrompt, historyCount, retrieverCount, retrieveErr, skillContext, responsePolicy, toolCalls, err)
+				_, _ = writeAutonomousRun(req, startedAt, nil, turn.UserPrompt, turn.HistoryCount, turn.RetrieverCount, turn.RetrieveErr, turn.SkillContext, turn.ResponsePolicy, toolCalls, err)
 				return nil, err
 			}
-			responsePolicy = autonomousToolFailurePolicy(req.AIAgent, "tool_loop_error")
-			result = &ai.ChatCompletionResult{Content: responsePolicy.ReplyText, ModelName: req.AIConfig.ModelName}
+			turn.ResponsePolicy = autonomousToolFailurePolicy(req.AIAgent, "tool_loop_error")
+			result = &ai.ChatCompletionResult{Content: turn.ResponsePolicy.ReplyText, ModelName: req.AIConfig.ModelName}
 		}
 		if result == nil && loopResult != nil {
 			result = &loopResult.ChatCompletionResult
 		}
 		if autonomousHasConsecutiveToolFailures(toolCalls, 2) {
-			responsePolicy = autonomousToolFailurePolicy(req.AIAgent, "tool_consecutive_failures")
-			result = &ai.ChatCompletionResult{Content: responsePolicy.ReplyText, ModelName: req.AIConfig.ModelName}
+			turn.ResponsePolicy = autonomousToolFailurePolicy(req.AIAgent, "tool_consecutive_failures")
+			result = &ai.ChatCompletionResult{Content: turn.ResponsePolicy.ReplyText, ModelName: req.AIConfig.ModelName}
 		}
 	} else {
-		result, err = e.chat(ctx, req.AIConfig, systemPrompt, userPrompt)
+		result, err = e.chat(ctx, req.AIConfig, turn.SystemPrompt, turn.UserPrompt)
 	}
 	if err != nil {
-		_, _ = writeAutonomousRun(req, startedAt, nil, userPrompt, historyCount, retrieverCount, retrieveErr, skillContext, responsePolicy, toolCalls, err)
+		_, _ = writeAutonomousRun(req, startedAt, nil, turn.UserPrompt, turn.HistoryCount, turn.RetrieverCount, turn.RetrieveErr, turn.SkillContext, turn.ResponsePolicy, toolCalls, err)
 		return nil, err
 	}
 	if result == nil || strings.TrimSpace(result.Content) == "" {
 		err = errorsx.InvalidParam("autonomous engine returned an empty reply")
-		_, _ = writeAutonomousRun(req, startedAt, nil, userPrompt, historyCount, retrieverCount, retrieveErr, skillContext, responsePolicy, toolCalls, err)
+		_, _ = writeAutonomousRun(req, startedAt, nil, turn.UserPrompt, turn.HistoryCount, turn.RetrieverCount, turn.RetrieveErr, turn.SkillContext, turn.ResponsePolicy, toolCalls, err)
 		return nil, err
 	}
 	result.Content, err = aitooling.NormalizeCustomerReply(result.Content)
 	if err != nil {
-		_, _ = writeAutonomousRun(req, startedAt, nil, userPrompt, historyCount, retrieverCount, retrieveErr, skillContext, responsePolicy, toolCalls, err)
+		_, _ = writeAutonomousRun(req, startedAt, nil, turn.UserPrompt, turn.HistoryCount, turn.RetrieverCount, turn.RetrieveErr, turn.SkillContext, turn.ResponsePolicy, toolCalls, err)
 		return nil, err
 	}
-	runID, recordErr := writeAutonomousRun(req, startedAt, result, userPrompt, historyCount, retrieverCount, retrieveErr, skillContext, responsePolicy, toolCalls, nil)
+	runID, recordErr := writeAutonomousRun(req, startedAt, result, turn.UserPrompt, turn.HistoryCount, turn.RetrieverCount, turn.RetrieveErr, turn.SkillContext, turn.ResponsePolicy, toolCalls, nil)
 	if recordErr != nil {
 		return nil, recordErr
 	}
 	trace, _ := json.Marshal(map[string]any{
 		"engine":                 EngineCodeAutonomous,
-		"mode":                   autonomousExecutionMode(allowedTools),
-		"historyMessageCount":    historyCount,
-		"retrieverCount":         retrieverCount,
-		"skillID":                skillContext.SkillID(),
-		"skillRouteError":        skillContext.ErrorMessage,
-		"responsePolicyAction":   responsePolicy.Action,
-		"responsePolicyReason":   responsePolicy.Reason,
-		"responsePolicyEnforced": responsePolicy.Enforced,
+		"mode":                   autonomousExecutionMode(turn.AllowedTools),
+		"historyMessageCount":    turn.HistoryCount,
+		"retrieverCount":         turn.RetrieverCount,
+		"skillID":                turn.SkillContext.SkillID(),
+		"skillRouteError":        turn.SkillContext.ErrorMessage,
+		"responsePolicyAction":   turn.ResponsePolicy.Action,
+		"responsePolicyReason":   turn.ResponsePolicy.Reason,
+		"responsePolicyEnforced": turn.ResponsePolicy.Enforced,
 		"debug":                  req.Debug,
 	})
 	return &Summary{
@@ -149,15 +127,15 @@ func (e *AutonomousEngine) Run(ctx context.Context, req RunInput) (*RunResult, e
 		ModelName:             result.ModelName,
 		PromptTokens:          result.PromptTokens,
 		CompletionTokens:      result.CompletionTokens,
-		HistoryMessageCount:   historyCount,
-		RetrieverCount:        retrieverCount,
-		PlannedSkillID:        skillContext.SkillID(),
-		PlannedSkillName:      skillContext.SkillName(),
-		PlanReason:            skillContext.MatchReason,
-		SkillRouteTrace:       skillContext.TraceData,
-		SkillAllowedToolCodes: append([]string(nil), skillContext.AllowedToolCodes...),
+		HistoryMessageCount:   turn.HistoryCount,
+		RetrieverCount:        turn.RetrieverCount,
+		PlannedSkillID:        turn.SkillContext.SkillID(),
+		PlannedSkillName:      turn.SkillContext.SkillName(),
+		PlanReason:            turn.SkillContext.MatchReason,
+		SkillRouteTrace:       turn.SkillContext.TraceData,
+		SkillAllowedToolCodes: append([]string(nil), turn.SkillContext.AllowedToolCodes...),
 		AgentRunID:            runID,
-		HandoffRequested:      responsePolicy.RequestHandoff && !req.Debug,
+		HandoffRequested:      turn.ResponsePolicy.RequestHandoff && !req.Debug,
 		TraceData:             string(trace),
 	}, nil
 }
