@@ -29,3 +29,8 @@ type PublishAIWorkflowRequest struct {
 type AIWorkflowVersionListRequest struct {
 	WorkflowID int64 `json:"workflowId"`
 }
+
+type RestoreAIWorkflowVersionRequest struct {
+	WorkflowID        int64 `json:"workflowId"`
+	WorkflowVersionID int64 `json:"workflowVersionId"`
+}

@@ -48,6 +48,12 @@ type AIWorkflowTemplate struct {
 	Definition  dsl.Definition
 }
 
+type AIWorkflowUsageItem struct {
+	Binding models.AIAgentWorkflowBinding
+	Agent   *models.AIAgent
+	Version *models.AIWorkflowVersion
+}
+
 func (s *aiWorkflowService) Get(id int64) *models.AIWorkflow {
 	if id <= 0 {
 		return nil
@@ -261,6 +267,27 @@ func (s *aiWorkflowService) DeleteWorkflow(id int64, operator *dto.AuthPrincipal
 		"update_user_name": operator.Username,
 		"updated_at":       time.Now(),
 	})
+}
+
+func (s *aiWorkflowService) RestoreVersion(req request.RestoreAIWorkflowVersionRequest, operator *dto.AuthPrincipal) error {
+	if operator == nil {
+		return errorsx.UnauthorizedI18n("error.auth.expired")
+	}
+	workflow := s.Get(req.WorkflowID)
+	version := s.GetVersion(req.WorkflowVersionID)
+	if workflow == nil || version == nil || version.WorkflowID != workflow.ID {
+		return errorsx.InvalidParamI18n("error.e0002")
+	}
+	return repositories.AIWorkflowRepository.Updates(sqls.DB(), workflow.ID, map[string]any{"draft_definition": version.Definition, "update_user_id": operator.UserID, "update_user_name": operator.Username, "updated_at": time.Now()})
+}
+
+func (s *aiWorkflowService) ListUsage(workflowID int64) []AIWorkflowUsageItem {
+	bindings := repositories.AIAgentWorkflowBindingRepository.FindByWorkflowID(sqls.DB(), workflowID)
+	ret := make([]AIWorkflowUsageItem, 0, len(bindings))
+	for _, binding := range bindings {
+		ret = append(ret, AIWorkflowUsageItem{Binding: binding, Agent: repositories.AIAgentRepository.Get(sqls.DB(), binding.AIAgentID), Version: repositories.AIWorkflowVersionRepository.Get(sqls.DB(), binding.WorkflowVersionID)})
+	}
+	return ret
 }
 
 func (s *aiWorkflowService) PublishWorkflow(req request.PublishAIWorkflowRequest, operator *dto.AuthPrincipal) (*models.AIWorkflowVersion, error) {

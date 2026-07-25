@@ -455,6 +455,14 @@ export type AIWorkflowValidationResult = {
   }[]
 }
 
+export type AIWorkflowUsage = {
+  aiAgentId: number
+  aiAgentName: string
+  workflowVersionId: number
+  workflowVersion: number
+  enabled: boolean
+}
+
 export type CreateAIWorkflowPayload = {
   name: string
   description: string
@@ -1031,10 +1039,6 @@ export function updateAIAgentStatus(id: number, status: number) {
   })
 }
 
-export function fetchAIAgentWorkflow(agentId: number) {
-  return request<AIWorkflow>(`/api/dashboard/ai-agent/${agentId}/workflow`)
-}
-
 export function fetchAIWorkflows(query?: Record<string, string | number | undefined>) {
   return request<PageResult<AIWorkflow>>(`/api/dashboard/ai-workflow/list${toQueryString(query)}`)
 }
@@ -1055,11 +1059,12 @@ export function deleteAIWorkflow(id: number) {
   return request<void>("/api/dashboard/ai-workflow/delete", { method: "POST", body: JSON.stringify({ id }) })
 }
 
-export function saveAIAgentWorkflow(payload: CreateAIWorkflowPayload) {
-  return request<AIWorkflow>("/api/dashboard/ai-agent/workflow/save", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  })
+export function fetchAIWorkflowUsage(id: number) {
+  return request<AIWorkflowUsage[]>(`/api/dashboard/ai-workflow/${id}/usage`)
+}
+
+export function restoreAIWorkflowVersion(workflowId: number, workflowVersionId: number) {
+  return request<void>("/api/dashboard/ai-workflow/restore-version", { method: "POST", body: JSON.stringify({ workflowId, workflowVersionId }) })
 }
 
 export function fetchAIWorkflowNodeSpecs() {
@@ -1091,13 +1096,6 @@ export function publishAIWorkflow(workflowId: number, definition: AIWorkflowDefi
   return request<AIWorkflowVersion>("/api/dashboard/ai-workflow/publish", {
     method: "POST",
     body: JSON.stringify({ workflowId, definition }),
-  })
-}
-
-export function publishAIAgentWorkflow(agentId: number, definition: AIWorkflowDefinition) {
-  return request<AIWorkflowVersion>("/api/dashboard/ai-agent/workflow/publish", {
-    method: "POST",
-    body: JSON.stringify({ agentId, definition }),
   })
 }
 

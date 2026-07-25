@@ -99,6 +99,44 @@ func AIWorkflowPostDelete(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, nil)
 }
 
+func AIWorkflowPostRestoreVersion(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionAIAgentUpdate)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.RestoreAIWorkflowVersionRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	if err := services.AIWorkflowService.RestoreVersion(req, operator); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, nil)
+}
+
+func AIWorkflowGetUsage(ctx *gin.Context) {
+	id, ok := httpx.GetPathInt64(ctx, "id")
+	if !ok {
+		return
+	}
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionAIAgentView); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	items := services.AIWorkflowService.ListUsage(id)
+	ret := make([]response.AIWorkflowUsageResponse, 0, len(items))
+	for _, item := range items {
+		if item.Agent == nil || item.Version == nil {
+			continue
+		}
+		ret = append(ret, response.AIWorkflowUsageResponse{AIAgentID: item.Agent.ID, AIAgentName: item.Agent.Name, WorkflowVersionID: item.Binding.WorkflowVersionID, WorkflowVersion: item.Version.Version, Enabled: item.Binding.Enabled})
+	}
+	httpx.WriteJSON(ctx, ret)
+}
+
 func AIWorkflowGetNodeSpecList(ctx *gin.Context) {
 	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionAIAgentView); err != nil {
 		httpx.WriteJSON(ctx, err)

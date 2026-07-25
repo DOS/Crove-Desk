@@ -229,10 +229,10 @@ func registerDashboardAIAgentRoutes(group *gin.RouterGroup) {
 }
 
 func registerDashboardAIWorkflowRoutes(group *gin.RouterGroup) {
-	group.GET("/:id", dashboard.AIWorkflowGetBy)
 	group.POST("/create", dashboard.AIWorkflowPostCreate)
 	group.POST("/update", dashboard.AIWorkflowPostUpdate)
 	group.POST("/delete", dashboard.AIWorkflowPostDelete)
+	group.POST("/restore-version", dashboard.AIWorkflowPostRestoreVersion)
 	group.Any("/list", dashboard.AIWorkflowAnyList)
 	group.GET("/node-spec/list", dashboard.AIWorkflowGetNodeSpecList)
 	group.GET("/default-definition", dashboard.AIWorkflowGetDefaultDefinition)
@@ -242,6 +242,8 @@ func registerDashboardAIWorkflowRoutes(group *gin.RouterGroup) {
 	group.GET("/run/:id", dashboard.AIWorkflowGetRunBy)
 	group.Any("/version/list", dashboard.AIWorkflowAnyVersionList)
 	group.GET("/version/:id", dashboard.AIWorkflowGetVersionBy)
+	group.GET("/:id/usage", dashboard.AIWorkflowGetUsage)
+	group.GET("/:id", dashboard.AIWorkflowGetBy)
 }
 
 func registerDashboardAgentRunRoutes(group *gin.RouterGroup) {

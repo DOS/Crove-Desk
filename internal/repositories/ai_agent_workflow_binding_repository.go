@@ -30,6 +30,14 @@ func (r *aiAgentWorkflowBindingRepository) FindEnabledByAgentID(db *gorm.DB, age
 	return ret
 }
 
+func (r *aiAgentWorkflowBindingRepository) FindByWorkflowID(db *gorm.DB, workflowID int64) []models.AIAgentWorkflowBinding {
+	ret := make([]models.AIAgentWorkflowBinding, 0)
+	if workflowID > 0 {
+		db.Where("workflow_id = ?", workflowID).Order("priority ASC, id ASC").Find(&ret)
+	}
+	return ret
+}
+
 func (r *aiAgentWorkflowBindingRepository) CountByWorkflowID(db *gorm.DB, workflowID int64) int64 {
 	var count int64
 	if workflowID > 0 {

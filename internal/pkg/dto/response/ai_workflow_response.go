@@ -47,6 +47,14 @@ type AIWorkflowTemplateResponse struct {
 	Definition  dsl.Definition `json:"definition"`
 }
 
+type AIWorkflowUsageResponse struct {
+	AIAgentID         int64  `json:"aiAgentId"`
+	AIAgentName       string `json:"aiAgentName"`
+	WorkflowVersionID int64  `json:"workflowVersionId"`
+	WorkflowVersion   int    `json:"workflowVersion"`
+	Enabled           bool   `json:"enabled"`
+}
+
 type AIWorkflowNodeSpecResponse struct {
 	Type                            string                          `json:"type"`
 	Title                           string                          `json:"title"`

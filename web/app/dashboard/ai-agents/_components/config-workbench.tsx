@@ -38,7 +38,6 @@ import {
   createAIAgent,
   fetchAIAgent,
 	fetchAIAgentRevisions,
-  fetchAIAgentWorkflow,
   fetchAIConfigsAll,
 	fetchKnowledgeBasesAll,
   fetchAIWorkflowDefaultDefinition,
@@ -49,11 +48,9 @@ import {
   fetchAgentTeamsAll,
   fetchMCPCatalog,
   fetchSkillDefinitionsAll,
-  publishAIAgentWorkflow,
 	publishAIAgent,
 	rollbackAIAgent,
 	rollbackAIAgentRollout,
-  saveAIAgentWorkflow,
   updateAIAgent,
   validateAIWorkflow,
   type AIAgent,
@@ -473,23 +470,6 @@ export function AIAgentConfigWorkbench({
 		}
 	}
 
-  async function saveWorkflowDraft() {
-    if (!currentAgentId) return
-    setSavingWorkflow(true)
-    try {
-      await saveAIAgentWorkflow({
-        name: "",
-        description: "",
-        definition,
-      })
-      toast.success("Workflow draft saved")
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save workflow draft")
-    } finally {
-      setSavingWorkflow(false)
-    }
-  }
-
 	async function rollbackAgentRevision(revisionId: number) {
 		if (!agent || revisionId <= 0 || revisionId === agent.publishedRevisionId) return
 		setSavingAgent(true)
@@ -519,74 +499,6 @@ export function AIAgentConfigWorkbench({
 			setSavingAgent(false)
 		}
 	}
-
-  async function validateWorkflowDraft() {
-    setSavingWorkflow(true)
-    try {
-      const result = await validateAIWorkflow(definition)
-      toast[result.valid ? "success" : "error"](
-        result.valid ? "Workflow is valid" : "Workflow has validation errors"
-      )
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to validate workflow")
-    } finally {
-      setSavingWorkflow(false)
-    }
-  }
-
-  async function restoreDefaultWorkflow() {
-    if (savingWorkflow || loading) return
-    setSavingWorkflow(true)
-    try {
-      const defaultDefinition = await fetchAIWorkflowDefaultDefinition()
-      replaceWorkflowDefinition(defaultDefinition ?? fallbackDefinition)
-      toast.success("已恢复默认流程，保存草稿或发布后生效")
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "恢复默认流程失败")
-    } finally {
-      setSavingWorkflow(false)
-    }
-  }
-
-	function applySelectedWorkflowTemplate() {
-		const template = workflowTemplates.find((item) => item.code === selectedWorkflowTemplate)
-		if (!template) return
-		replaceWorkflowDefinition(template.definition)
-		toast.success(`已应用 ${template.name} 模板，保存草稿或发布后生效`)
-	}
-
-  async function publishWorkflow() {
-    if (!currentAgentId) return
-    setSavingWorkflow(true)
-    try {
-      const saved = await saveAIAgentWorkflow({
-        name: "",
-        description: "",
-        definition,
-      })
-      const version = await publishAIAgentWorkflow(currentAgentId, definition)
-      toast.success(`Published version ${version.version}`)
-      setAgent((current) =>
-        current ? { ...current, workflowVersionId: version.id } : current
-      )
-      if (saved.id > 0) {
-        const versionPage = await fetchAIWorkflowVersions({
-          workflowId: saved.id,
-          limit: 20,
-        })
-        setWorkflowVersions(versionPage.results ?? [])
-      } else {
-        setWorkflowVersions((current) =>
-          current.some((item) => item.id === version.id) ? current : [version, ...current]
-        )
-      }
-      onAgentSaved?.()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to publish workflow")
-    } finally {
-      setSavingWorkflow(false)
-    }
-  }
 
   const sections: { key: SectionKey; title: string; icon: ReactNode }[] = [
     { key: "basic", title: "基础信息", icon: <SettingsIcon /> },
