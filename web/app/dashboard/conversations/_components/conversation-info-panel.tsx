@@ -255,6 +255,13 @@ export function ConversationInfoPanel({
           </p>
         ) : (
           <div className="space-y-4 py-3">
+            <section>
+              <DetailRow
+                label={t("conversation.conversationId")}
+                value={`${conversation.id}`}
+                valueClassName="font-mono text-xs"
+              />
+            </section>
             <CustomerBody conversation={conversation} />
             <WorkflowRunsSection conversation={conversation} />
           </div>

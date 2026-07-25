@@ -297,6 +297,7 @@
     "missingCustomerDescription": "当前会话绑定的客户主档已不可用。你可以重新关联已有客户，或直接新建一个客户并绑定到当前会话。",
     "relinkOrCreateCustomer": "重新关联或创建客户",
     "conversationOwner": "会话归属",
+    "conversationId": "会话 ID",
     "channelId": "渠道ID",
     "customerId": "客户ID",
     "selectConversationForInfo": "请选择会话以查看会话信息",

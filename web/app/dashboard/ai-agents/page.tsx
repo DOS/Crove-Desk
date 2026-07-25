@@ -106,7 +106,12 @@ export default function DashboardAIAgentsPage() {
             <div className="flex size-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
               <BotMessageSquareIcon className="size-4" />
             </div>
-            <div className="font-medium">{item.name}</div>
+            <div>
+              <div className="font-medium">{item.name}</div>
+              <div className="font-mono text-xs text-muted-foreground">
+                Agent ID: {item.id}
+              </div>
+            </div>
           </div>
         ),
       },

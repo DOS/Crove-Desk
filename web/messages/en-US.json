@@ -297,6 +297,7 @@
     "missingCustomerDescription": "The customer profile linked to this conversation is no longer available. Link an existing customer again, or create a new one and attach it to this conversation.",
     "relinkOrCreateCustomer": "Relink or Create Customer",
     "conversationOwner": "Conversation Ownership",
+    "conversationId": "Conversation ID",
     "channelId": "Channel ID",
     "customerId": "Customer ID",
     "selectConversationForInfo": "Select a conversation to view its details",
