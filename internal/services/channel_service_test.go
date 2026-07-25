@@ -183,7 +183,7 @@ func setupChannelServiceTestDB(t *testing.T) *gorm.DB {
 			_ = sqlDB.Close()
 		}
 	})
-	if err := db.AutoMigrate(&models.AIAgent{}, &models.AgentRevision{}, &models.Channel{}); err != nil {
+	if err := db.AutoMigrate(&models.AIAgent{}, &models.AgentRevision{}, &models.AIAgentWorkflowBinding{}, &models.Channel{}); err != nil {
 		t.Fatalf("auto migrate: %v", err)
 	}
 	sqls.SetDB(db)

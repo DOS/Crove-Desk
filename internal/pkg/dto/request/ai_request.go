@@ -11,6 +11,14 @@ type AIAgentMCPToolRequest struct {
 	Arguments   map[string]string `json:"arguments"`
 }
 
+type AIAgentWorkflowBindingRequest struct {
+	WorkflowVersionID  int64  `json:"workflowVersionId"`
+	ToolName           string `json:"toolName"`
+	TriggerInstruction string `json:"triggerInstruction"`
+	Priority           int    `json:"priority"`
+	Enabled            bool   `json:"enabled"`
+}
+
 type CreateAIConfigRequest struct {
 	Name             string            `json:"name"`
 	Provider         enums.AIProvider  `json:"provider"`
@@ -63,6 +71,7 @@ type CreateAIAgentRequest struct {
 	KnowledgeBaseIDs    []int64                         `json:"knowledgeBaseIds"`
 	SkillIDs            []int64                         `json:"skillIds"`
 	DirectTools         []AIAgentMCPToolRequest         `json:"directTools"`
+	WorkflowBindings    []AIAgentWorkflowBindingRequest `json:"workflowBindings"`
 }
 
 type UpdateAIAgentRequest struct {

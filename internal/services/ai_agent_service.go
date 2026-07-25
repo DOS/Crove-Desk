@@ -83,11 +83,18 @@ func (s *aIAgentService) CreateAIAgent(req request.CreateAIAgentRequest, operato
 		if err := repositories.AIAgentRepository.Create(ctx.Tx, item); err != nil {
 			return err
 		}
-		if item.RuntimeMode == enums.AIAgentRuntimeModeWorkflow || item.RuntimeMode == enums.AIAgentRuntimeModeHybrid {
-			_, err := AIWorkflowService.createDefaultAgentWorkflow(ctx.Tx, item, operator)
+		bindings, err := s.replaceWorkflowBindings(ctx.Tx, item.ID, req.WorkflowBindings, operator)
+		if err != nil {
 			return err
 		}
-		return nil
+		if len(bindings) == 0 && (item.RuntimeMode == enums.AIAgentRuntimeModeWorkflow || item.RuntimeMode == enums.AIAgentRuntimeModeHybrid) {
+			_, createErr := AIWorkflowService.createDefaultAgentWorkflow(ctx.Tx, item, operator)
+			if createErr != nil {
+				return createErr
+			}
+			return nil // Legacy create calls remain compatible until clients send explicit bindings.
+		}
+		return s.validateWorkflowBindingMode(ctx.Tx, item, bindings)
 	}); err != nil {
 		return nil, err
 	}
@@ -139,7 +146,35 @@ func (s *aIAgentService) UpdateAIAgent(req request.UpdateAIAgentRequest, operato
 		// behavior. The operator must explicitly publish the new revision.
 		columns["published_revision_id"] = 0
 	}
-	return repositories.AIAgentRepository.Updates(sqls.DB(), req.ID, columns)
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		if err := repositories.AIAgentRepository.Updates(ctx.Tx, req.ID, columns); err != nil {
+			return err
+		}
+		bindings, err := s.replaceWorkflowBindings(ctx.Tx, req.ID, req.WorkflowBindings, operator)
+		if err != nil {
+			return err
+		}
+		return s.validateWorkflowBindingMode(ctx.Tx, item, bindings)
+	})
+}
+
+func (s *aIAgentService) validateWorkflowBindingMode(db *gorm.DB, agent *models.AIAgent, bindings []models.AIAgentWorkflowBinding) error {
+	enabled := make([]models.AIAgentWorkflowBinding, 0, len(bindings))
+	for _, binding := range bindings {
+		if binding.Enabled {
+			enabled = append(enabled, binding)
+		}
+	}
+	if agent.RuntimeMode == enums.AIAgentRuntimeModeAutonomous {
+		return nil
+	}
+	if len(enabled) == 0 {
+		return errorsx.InvalidParam("workflow and hybrid agents require at least one enabled workflow")
+	}
+	if agent.RuntimeMode == enums.AIAgentRuntimeModeWorkflow && len(enabled) != 1 {
+		return errorsx.InvalidParam("workflow agent requires exactly one enabled workflow")
+	}
+	return repositories.AIAgentRepository.Updates(db, agent.ID, map[string]any{"workflow_version_id": enabled[0].WorkflowVersionID})
 }
 
 func (s *aIAgentService) DeleteAIAgent(id int64, operator *dto.AuthPrincipal) error {
@@ -169,11 +204,14 @@ func (s *aIAgentService) PublishAIAgent(id int64, operator *dto.AuthPrincipal) (
 		if agent == nil || agent.Status != enums.StatusOk {
 			return errorsx.InvalidParamI18n("error.e0002")
 		}
-		if agent.RuntimeMode == enums.AIAgentRuntimeModeWorkflow || agent.RuntimeMode == enums.AIAgentRuntimeModeHybrid {
-			return errorsx.InvalidParam("workflow and hybrid agents must publish a workflow version")
+		if agent.RuntimeMode == enums.AIAgentRuntimeModeWorkflow {
+			return errorsx.InvalidParam("workflow agents publish through their selected workflow version")
 		}
 		if err := s.validatePublishableAgent(ctx.Tx, agent); err != nil {
 			return err
+		}
+		if agent.RuntimeMode == enums.AIAgentRuntimeModeHybrid && len(s.ListEnabledWorkflowBindings(ctx.Tx, agent.ID)) == 0 {
+			return errorsx.InvalidParam("hybrid agent requires at least one published workflow")
 		}
 		var err error
 		revision, err = AgentRevisionService.PublishSnapshot(ctx.Tx, agent, operator)

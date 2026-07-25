@@ -49,26 +49,42 @@ func (e *HybridEngine) Run(ctx context.Context, req RunInput) (*RunResult, error
 		return nil, err
 	}
 	req.AIAgent, req.AIConfig = snapshot.Agent, snapshot.AIConfig
-	if req.AIAgent.WorkflowVersionID <= 0 {
-		return nil, errorsx.InvalidParam("hybrid agent requires a published playbook workflow")
+	workflowVersionIDs := make([]int64, 0, len(snapshot.WorkflowBindings))
+	workflowTools := make([]ai.ToolDefinition, 0, len(snapshot.WorkflowBindings))
+	for _, binding := range snapshot.WorkflowBindings {
+		if binding.WorkflowVersionID <= 0 {
+			continue
+		}
+		versionAgent := req.AIAgent
+		versionAgent.WorkflowVersionID = binding.WorkflowVersionID
+		workflow, resolveErr := resolveAgentWorkflow(versionAgent)
+		if resolveErr != nil || !workflowvalidator.ValidateDefinition(workflow.Definition, workflowregistry.DefaultRegistry()).Valid {
+			return nil, errorsx.InvalidParam("hybrid agent workflow binding is invalid")
+		}
+		workflowVersionIDs = append(workflowVersionIDs, binding.WorkflowVersionID)
+		workflowTools = append(workflowTools, hybridWorkflowToolDefinition(binding.WorkflowVersionID, binding.ToolName, binding.TriggerInstruction))
 	}
-	workflow, err := resolveAgentWorkflow(req.AIAgent)
-	if err != nil {
-		return nil, err
+	if len(workflowVersionIDs) == 0 && req.AIAgent.WorkflowVersionID > 0 {
+		workflow, resolveErr := resolveAgentWorkflow(req.AIAgent)
+		if resolveErr != nil || !workflowvalidator.ValidateDefinition(workflow.Definition, workflowregistry.DefaultRegistry()).Valid {
+			return nil, errorsx.InvalidParam("hybrid agent workflow binding is invalid")
+		}
+		workflowVersionIDs = append(workflowVersionIDs, req.AIAgent.WorkflowVersionID)
+		workflowTools = append(workflowTools, hybridWorkflowToolDefinition(req.AIAgent.WorkflowVersionID, "", ""))
 	}
-	if result := workflowvalidator.ValidateDefinition(workflow.Definition, workflowregistry.DefaultRegistry()); !result.Valid {
-		return nil, errorsx.InvalidParam("hybrid agent playbook validation failed")
+	if len(workflowVersionIDs) == 0 {
+		return nil, errorsx.InvalidParam("hybrid agent requires a published workflow")
 	}
 
 	turn := e.autonomous.prepareTurn(ctx, req)
 	if turn.ResponsePolicy.Enforced {
 		return writeHybridResult(req, startedAt, &ai.ChatCompletionResult{Content: turn.ResponsePolicy.ReplyText, ModelName: req.AIConfig.ModelName}, "", 0, turn.RetrieverCount, turn.RetrieveErr, turn.SkillContext, nil, turn.ResponsePolicy, nil)
 	}
-	turn.SystemPrompt += "\n\nWhen a deterministic process is required, use run_playbook. Do not call it for ordinary factual questions."
+	turn.SystemPrompt += "\n\nWhen a deterministic business process is required, use the matching workflow tool. Do not call workflows for ordinary factual questions."
 
 	var playbookSummary *Summary
 	toolCalls := make([]svc.EngineToolCallInput, 0, 1)
-	loop, err := e.chatWithTools(ctx, req.AIConfig, turn.SystemPrompt, turn.UserPrompt, []ai.ToolDefinition{hybridPlaybookToolDefinition(req.AIAgent.WorkflowVersionID)}, req.AIAgent.MaxSteps, func(ctx context.Context, call ai.ToolCall) (string, error) {
+	loop, err := e.chatWithTools(ctx, req.AIConfig, turn.SystemPrompt, turn.UserPrompt, workflowTools, req.AIAgent.MaxSteps, func(ctx context.Context, call ai.ToolCall) (string, error) {
 		if call.Name != "run_playbook" {
 			return "", fmt.Errorf("unsupported hybrid tool: %s", call.Name)
 		}
@@ -79,7 +95,7 @@ func (e *HybridEngine) Run(ctx context.Context, req RunInput) (*RunResult, error
 		if err != nil {
 			return "", err
 		}
-		if workflowVersionID != req.AIAgent.WorkflowVersionID {
+		if !containsWorkflowVersion(workflowVersionIDs, workflowVersionID) {
 			return "", fmt.Errorf("playbook is not allowed")
 		}
 		playbookDefinition := aitooling.Definition{Code: hybridPlaybookToolCode, Name: "run_playbook", RiskLevel: aitooling.RiskLevelWrite, RequireConfirmation: true, MaxCallsPerRun: 1}
@@ -93,7 +109,9 @@ func (e *HybridEngine) Run(ctx context.Context, req RunInput) (*RunResult, error
 			return "", err
 		}
 		callStartedAt := time.Now()
-		playbookSummary, err = e.workflow.Run(ctx, req)
+		workflowReq := req
+		workflowReq.AIAgent.WorkflowVersionID = workflowVersionID
+		playbookSummary, err = e.workflow.Run(ctx, workflowReq)
 		toolRecord := svc.EngineToolCallInput{ToolCode: hybridPlaybookToolCode, RiskLevel: "write", RequireConfirm: true, ArgumentsPreview: call.Arguments, DurationMS: int(time.Since(callStartedAt).Milliseconds())}
 		if err != nil {
 			toolRecord.Status, toolRecord.ErrorMessage = "failed", err.Error()
@@ -143,10 +161,26 @@ func (e *HybridEngine) Resume(ctx context.Context, req ResumeInput) (*RunResult,
 	return summary, nil
 }
 
-func hybridPlaybookToolDefinition(workflowVersionID int64) ai.ToolDefinition {
-	return ai.ToolDefinition{Name: "run_playbook", Description: "Run the Agent's published deterministic Playbook when the customer needs a controlled business action.", Parameters: map[string]any{
-		"type": "object", "properties": map[string]any{"workflowVersionId": map[string]any{"type": "integer", "description": "The bound Playbook version."}}, "required": []string{"workflowVersionId"},
+func hybridWorkflowToolDefinition(workflowVersionID int64, toolName, instruction string) ai.ToolDefinition {
+	description := "Run this Agent's published deterministic workflow when the customer needs the controlled business action."
+	if strings.TrimSpace(toolName) != "" {
+		description += " Workflow: " + toolName + "."
+	}
+	if strings.TrimSpace(instruction) != "" {
+		description += " Use when: " + instruction
+	}
+	return ai.ToolDefinition{Name: "run_playbook", Description: description, Parameters: map[string]any{
+		"type": "object", "properties": map[string]any{"workflowVersionId": map[string]any{"type": "integer", "description": fmt.Sprintf("The allowed workflow version (%d).", workflowVersionID)}}, "required": []string{"workflowVersionId"},
 	}}
+}
+
+func containsWorkflowVersion(items []int64, value int64) bool {
+	for _, item := range items {
+		if item == value {
+			return true
+		}
+	}
+	return false
 }
 
 func parseHybridPlaybookCall(raw string) (int64, error) {

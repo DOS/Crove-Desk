@@ -2340,6 +2340,7 @@
     "aiAgents": "Agent",
     "aiWorkflows": "AI流程",
     "workflowRuns": "流程审计",
+    "workflows": "工作流",
     "agentRuns": "Agent 审计",
     "skillDefinition": "Skills",
     "mcp": "MCP tools",

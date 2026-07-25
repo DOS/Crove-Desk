@@ -193,6 +193,12 @@ export const dashboardNavSections: DashboardNavSectionConfig[] = [
         icon: <MessageSquareMoreIcon />,
         requiredPermission: "aiAgent.view",
       },
+		{
+			titleKey: "nav.workflows",
+			url: "/dashboard/ai-workflows",
+			icon: <WorkflowIcon />,
+			requiredPermission: "aiAgent.view",
+		},
       {
         titleKey: "nav.skillDefinition",
         url: "/dashboard/skill-definition",

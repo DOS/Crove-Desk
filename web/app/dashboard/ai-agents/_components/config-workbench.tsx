@@ -45,6 +45,7 @@ import {
   fetchAIWorkflowNodeSpecs,
 	fetchAIWorkflowTemplates,
   fetchAIWorkflowVersions,
+	fetchAIWorkflows,
   fetchAgentTeamsAll,
   fetchMCPCatalog,
   fetchSkillDefinitionsAll,
@@ -56,9 +57,11 @@ import {
   updateAIAgent,
   validateAIWorkflow,
   type AIAgent,
+	type AIAgentWorkflowBindingInput,
 	type AgentRevision,
   type AIConfig,
   type AIWorkflowDefinition,
+	type AIWorkflow,
   type AIWorkflowNodeSpec,
 	type AIWorkflowTemplate,
   type AIWorkflowVersion,
@@ -161,6 +164,9 @@ export function AIAgentConfigWorkbench({
   const [selectedSkillIds, setSelectedSkillIds] = useState<number[]>([])
 	const [selectedKnowledgeBaseIds, setSelectedKnowledgeBaseIds] = useState<number[]>([])
   const [directTools, setDirectTools] = useState<DirectToolItem[]>([])
+	const [workflowBindings, setWorkflowBindings] = useState<AIAgentWorkflowBindingInput[]>([])
+	const [publishedWorkflows, setPublishedWorkflows] = useState<AIWorkflow[]>([])
+	const [workflowToAdd, setWorkflowToAdd] = useState("")
 
   const [definition, setDefinition] = useState<AIWorkflowDefinition>(fallbackDefinition)
   const [workflowRevision, setWorkflowRevision] = useState(0)
@@ -200,6 +206,7 @@ export function AIAgentConfigWorkbench({
         skillList,
 		knowledgeBaseList,
         catalog,
+		workflowPage,
       ] = await Promise.all([
         fetchAIWorkflowNodeSpecs(),
         fetchAIWorkflowDefaultDefinition().catch(() => fallbackDefinition),
@@ -209,6 +216,7 @@ export function AIAgentConfigWorkbench({
         fetchSkillDefinitionsAll({ status: Status.Ok }),
 		fetchKnowledgeBasesAll({ status: Status.Ok }),
         fetchMCPCatalog(),
+		fetchAIWorkflows({ limit: 100 }),
       ])
 
       setNodeSpecs(specs ?? [])
@@ -218,6 +226,7 @@ export function AIAgentConfigWorkbench({
       setSkills(skillList ?? [])
 		setKnowledgeBases(knowledgeBaseList ?? [])
       setToolCatalog(catalog ?? [])
+		setPublishedWorkflows((workflowPage.results ?? []).filter((item) => item.publishedVersionId > 0))
 
       if (!currentAgentId || currentAgentId <= 0) {
         setAgent(null)
@@ -239,24 +248,19 @@ export function AIAgentConfigWorkbench({
         setSelectedSkillIds([])
 		setSelectedKnowledgeBaseIds([])
         setDirectTools([])
+		setWorkflowBindings([])
         replaceWorkflowDefinition(defaultDefinition ?? fallbackDefinition)
         return
       }
 
-      const [agentDetail, workflowDetail, revisionList] = await Promise.all([
+		const [agentDetail, revisionList] = await Promise.all([
         fetchAIAgent(currentAgentId),
-        fetchAIAgentWorkflow(currentAgentId),
 		fetchAIAgentRevisions(currentAgentId),
       ])
 
       setAgent(agentDetail)
 		setAgentRevisions(revisionList ?? [])
-      if (workflowDetail?.id > 0) {
-        const versionPage = await fetchAIWorkflowVersions({ workflowId: workflowDetail.id, limit: 20 })
-        setWorkflowVersions(versionPage.results ?? [])
-      } else {
-        setWorkflowVersions([])
-      }
+		setWorkflowVersions([])
       setName(agentDetail.name)
       setDescription(agentDetail.description || "")
 		setAIConfigId(toText(agentDetail.aiConfigId))
@@ -273,7 +277,8 @@ export function AIAgentConfigWorkbench({
       setSelectedSkillIds(agentDetail.skillIds ?? [])
 		setSelectedKnowledgeBaseIds(agentDetail.knowledgeBaseIds ?? [])
       setDirectTools(agentDetail.directTools ?? [])
-      replaceWorkflowDefinition(workflowDetail.draftDefinition ?? defaultDefinition ?? fallbackDefinition)
+		setWorkflowBindings((agentDetail.workflowBindings ?? []).map(({ workflowVersionId, toolName, triggerInstruction, priority, enabled }) => ({ workflowVersionId, toolName, triggerInstruction, priority, enabled })))
+		replaceWorkflowDefinition(defaultDefinition ?? fallbackDefinition)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load Agent config")
     } finally {
@@ -296,8 +301,8 @@ export function AIAgentConfigWorkbench({
 	const runtimeModeOptions = useMemo(
 		() => [
 			{ value: "autonomous", label: "自主接待" },
-			{ value: "hybrid", label: "自主接待 + 流程" },
-			{ value: "workflow", label: "高级编排 / Playbooks" },
+			{ value: "hybrid", label: "自主接待 + 工作流" },
+			{ value: "workflow", label: "仅工作流" },
 		],
 		[]
 	)
@@ -402,6 +407,13 @@ export function AIAgentConfigWorkbench({
     setDirectToolToAdd("")
   }
 
+	function addWorkflowBinding(value: string) {
+		const workflow = publishedWorkflows.find((item) => item.publishedVersionId === Number(value))
+		if (!workflow || workflowBindings.some((item) => item.workflowVersionId === workflow.publishedVersionId)) return
+		setWorkflowBindings((current) => [...current, { workflowVersionId: workflow.publishedVersionId, toolName: workflow.name, triggerInstruction: "", priority: current.length + 1, enabled: true }])
+		setWorkflowToAdd("")
+	}
+
   function buildPayload(): CreateAIAgentPayload {
     return {
       name: name.trim(),
@@ -419,7 +431,8 @@ export function AIAgentConfigWorkbench({
       fallbackMessage: fallbackMessage.trim(),
 		knowledgeBaseIds: uniqueNumbers(selectedKnowledgeBaseIds),
       skillIds: uniqueNumbers(selectedSkillIds),
-      directTools,
+		directTools,
+		workflowBindings,
     }
   }
 
@@ -447,12 +460,12 @@ export function AIAgentConfigWorkbench({
   }
 
   async function publishAutonomousAgent() {
-		if (!agent || runtimeMode !== "autonomous") return
+		if (!agent || (runtimeMode !== "autonomous" && runtimeMode !== "hybrid")) return
 		setSavingAgent(true)
 		try {
 			await publishAIAgent(agent.id)
 			await loadData()
-			toast.success("Autonomous Agent published")
+			toast.success("Agent published")
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : "Failed to publish Autonomous Agent")
 		} finally {
@@ -580,7 +593,7 @@ export function AIAgentConfigWorkbench({
   const sections: { key: SectionKey; title: string; icon: ReactNode }[] = [
     { key: "basic", title: "基础信息", icon: <SettingsIcon /> },
     { key: "capabilities", title: "能力来源", icon: <PlugIcon /> },
-	{ key: "workflow", title: "高级编排 / Playbooks", icon: <GitBranchIcon /> },
+	{ key: "workflow", title: "关联工作流", icon: <GitBranchIcon /> },
   ]
 
   const selectedTeamOptions = selectedOptions(selectedTeamIds, teamOptions)
@@ -615,7 +628,7 @@ export function AIAgentConfigWorkbench({
             null
           ) : (
             <>
-			  {agent && runtimeMode === "autonomous" ? <Button type="button" variant="outline" disabled={savingAgent || loading} onClick={publishAutonomousAgent}>发布 Agent</Button> : null}
+				  {agent && (runtimeMode === "autonomous" || runtimeMode === "hybrid") ? <Button type="button" variant="outline" disabled={savingAgent || loading} onClick={publishAutonomousAgent}>发布 Agent</Button> : null}
               <Button
                 type="button"
                 variant="outline"
@@ -633,7 +646,7 @@ export function AIAgentConfigWorkbench({
       <div className="flex min-h-0 flex-1 flex-col bg-background">
         {agent && !runtimePublished ? (
           <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-5 py-2 text-sm text-amber-900">
-			{runtimeMode === "autonomous" ? "未发布 Agent，AI 不会自动回复。保存配置后发布 Agent，再绑定渠道或启用自动回复。" : runtimeMode === "hybrid" ? "未发布 Hybrid Agent，AI 不会自动回复。保存配置后请进入“高级编排 / Playbooks”发布一个版本。" : "未发布 Playbook，AI 不会自动回复。保存配置后请进入“高级编排 / Playbooks”发布一个版本，再绑定渠道或启用自动回复。"}
+			{runtimeMode === "autonomous" ? "未发布 Agent，AI 不会自动回复。保存配置后发布 Agent，再绑定渠道或启用自动回复。" : runtimeMode === "hybrid" ? "未发布 Hybrid Agent，AI 不会自动回复。保存配置后请关联已发布工作流，再发布 Agent。" : "未发布工作流，AI 不会自动回复。请先关联一个已发布工作流。"}
           </div>
         ) : null}
         <div className="shrink-0 border-b bg-muted/30 px-4 py-2">
@@ -870,46 +883,23 @@ export function AIAgentConfigWorkbench({
               ) : null}
 
               {activeSection === "workflow" ? (
-                <div className="flex min-h-0 flex-1 flex-col">
-                  <div className="flex shrink-0 items-center gap-2 border-b px-4 py-2">
-                    <OptionCombobox
-                      value={selectedWorkflowTemplate}
-                      options={workflowTemplates.map((item) => ({ value: item.code, label: item.name }))}
-                      placeholder="选择 Playbook 模板"
-                      onChange={setSelectedWorkflowTemplate}
-                    />
-                    <Button type="button" variant="outline" size="sm" disabled={!selectedWorkflowTemplate || savingWorkflow || loading} onClick={applySelectedWorkflowTemplate}>
-                      应用模板
-                    </Button>
+                <ConfigSection>
+                  <div className="flex items-start justify-between gap-4">
+                    <div><h2 className="text-base font-semibold">关联工作流</h2><p className="mt-1 text-sm text-muted-foreground">仅可关联已发布版本。工作流内容在“工作流”中心独立维护，保存 Agent 草稿后才会更新关联。</p></div>
+                    <Button type="button" variant="outline" onClick={() => window.location.assign("/dashboard/ai-workflows")}>管理工作流</Button>
                   </div>
-                  <WorkflowEditor
-                  key={workflowRevision}
-                  definition={definition}
-                  nodeSpecs={nodeSpecs}
-                  onDefinitionChange={setDefinition}
-                  historyDisabled={savingWorkflow || loading}
-                  onRestoreDefault={restoreDefaultWorkflow}
-                  restoreDefaultDisabled={savingWorkflow || loading}
-                  onValidate={validateWorkflowDraft}
-                  validateDisabled={savingWorkflow || loading || !currentAgentId}
-                  onSaveDraft={saveWorkflowDraft}
-                  saveDraftDisabled={savingWorkflow || loading || !currentAgentId}
-                  onPublish={publishWorkflow}
-                  publishDisabled={savingWorkflow || loading || !currentAgentId}
-                  toolbarExtra={
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 rounded-none px-2 text-xs text-muted-foreground hover:text-foreground"
-                      onClick={() => setVersionDialogOpen(true)}
-                    >
-                      <HistoryIcon className="size-3.5" />
-                      版本记录
-                    </Button>
-                  }
-                  />
-                </div>
+                  <div className="flex max-w-xl items-center gap-2">
+                    <OptionCombobox value={workflowToAdd} options={publishedWorkflows.filter((item) => !workflowBindings.some((binding) => binding.workflowVersionId === item.publishedVersionId)).map((item) => ({ value: String(item.publishedVersionId), label: `${item.name} · v#${item.publishedVersionId}` }))} placeholder="选择已发布工作流" onChange={setWorkflowToAdd} />
+                    <Button type="button" variant="outline" disabled={!workflowToAdd} onClick={() => addWorkflowBinding(workflowToAdd)}>关联</Button>
+                  </div>
+                  <div className="space-y-2">
+                    {workflowBindings.length === 0 ? <div className="rounded-md border border-dashed p-5 text-sm text-muted-foreground">尚未关联工作流。自主接待无需配置；Hybrid 至少需要关联一个已发布工作流。</div> : workflowBindings.map((binding) => {
+                      const workflow = publishedWorkflows.find((item) => item.publishedVersionId === binding.workflowVersionId)
+                      return <div key={binding.workflowVersionId} className="flex items-center gap-3 rounded-md border p-3"><GitBranchIcon className="size-4 text-muted-foreground" /><div className="min-w-0 flex-1"><div className="font-medium">{workflow?.name || binding.toolName || `工作流版本 #${binding.workflowVersionId}`}</div><div className="text-xs text-muted-foreground">固定版本 #{binding.workflowVersionId}</div></div><Button type="button" variant="ghost" size="sm" onClick={() => setWorkflowBindings((current) => current.filter((item) => item.workflowVersionId !== binding.workflowVersionId))}>移除</Button></div>
+                    })}
+                  </div>
+				  <div className="flex justify-end gap-2"><Button type="button" disabled={savingAgent || loading} onClick={saveAgentSettings}>保存 Agent 配置</Button>{agent && runtimeMode === "hybrid" ? <Button type="button" disabled={savingAgent || loading} onClick={publishAutonomousAgent}>发布 Agent</Button> : null}</div>
+                </ConfigSection>
               ) : null}
 
               <Dialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen}>

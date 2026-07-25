@@ -283,7 +283,7 @@ func setupAIWorkflowTestDB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite db: %v", err)
 	}
-	if err := db.AutoMigrate(&models.AIAgent{}, &models.AIWorkflow{}, &models.AIWorkflowVersion{}, &models.AIWorkflowRun{}, &models.AIWorkflowNodeRun{}); err != nil {
+	if err := db.AutoMigrate(&models.AIAgent{}, &models.AIWorkflow{}, &models.AIWorkflowVersion{}, &models.AIAgentWorkflowBinding{}, &models.AIWorkflowRun{}, &models.AIWorkflowNodeRun{}); err != nil {
 		t.Fatalf("auto migrate: %v", err)
 	}
 	sqls.SetDB(db)

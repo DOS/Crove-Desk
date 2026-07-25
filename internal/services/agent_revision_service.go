@@ -38,10 +38,19 @@ func (s *agentRevisionService) FindByAgentID(agentID int64) []models.AgentRevisi
 }
 
 type agentRevisionDefinition struct {
-	Agent              agentRevisionAgent `json:"agent"`
-	Model              agentRevisionModel `json:"model"`
-	WorkflowVersionID  int64              `json:"workflowVersionId"`
-	WorkflowDefinition string             `json:"workflowDefinition"`
+	Agent              agentRevisionAgent             `json:"agent"`
+	Model              agentRevisionModel             `json:"model"`
+	WorkflowVersionID  int64                          `json:"workflowVersionId"`
+	WorkflowDefinition string                         `json:"workflowDefinition"`
+	WorkflowBindings   []agentRevisionWorkflowBinding `json:"workflowBindings"`
+}
+
+type agentRevisionWorkflowBinding struct {
+	WorkflowID         int64  `json:"workflowId"`
+	WorkflowVersionID  int64  `json:"workflowVersionId"`
+	ToolName           string `json:"toolName"`
+	TriggerInstruction string `json:"triggerInstruction"`
+	Priority           int    `json:"priority"`
 }
 
 // agentRevisionModel deliberately excludes APIKey. A revision must capture
@@ -84,9 +93,10 @@ type agentRevisionAgent struct {
 // a published revision. Model credentials deliberately remain on the current
 // AIConfig so credential rotation does not require republishing every Agent.
 type AgentRevisionSnapshot struct {
-	Revision models.AgentRevision
-	Agent    models.AIAgent
-	AIConfig models.AIConfig
+	Revision         models.AgentRevision
+	Agent            models.AIAgent
+	AIConfig         models.AIConfig
+	WorkflowBindings []agentRevisionWorkflowBinding
 }
 
 // ResolvePublishedSnapshot restores a published Agent revision for runtime
@@ -112,6 +122,7 @@ func (s *agentRevisionService) ResolvePublishedSnapshot(agent models.AIAgent, co
 		return nil, errorsx.InvalidParam("published agent model config no longer matches")
 	}
 	applyRevisionAgentSnapshot(&snapshot.Agent, definition.Agent)
+	snapshot.WorkflowBindings = append([]agentRevisionWorkflowBinding(nil), definition.WorkflowBindings...)
 	if definition.WorkflowVersionID > 0 {
 		snapshot.Agent.WorkflowVersionID = definition.WorkflowVersionID
 	}
@@ -195,6 +206,9 @@ func (s *agentRevisionService) publishSnapshot(db *gorm.DB, agent *models.AIAgen
 		Model:              model,
 		WorkflowVersionID:  workflowVersionID,
 		WorkflowDefinition: workflowDefinition,
+	}
+	for _, binding := range repositories.AIAgentWorkflowBindingRepository.FindEnabledByAgentID(db, agent.ID) {
+		definition.WorkflowBindings = append(definition.WorkflowBindings, agentRevisionWorkflowBinding{WorkflowID: binding.WorkflowID, WorkflowVersionID: binding.WorkflowVersionID, ToolName: binding.ToolName, TriggerInstruction: binding.TriggerInstruction, Priority: binding.Priority})
 	}
 	data, err := json.Marshal(definition)
 	if err != nil {

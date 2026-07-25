@@ -246,7 +246,22 @@ func (s *aiWorkflowService) ValidateDefinition(def dsl.Definition) workflowvalid
 }
 
 func (s *aiWorkflowService) CreateWorkflow(req request.CreateAIWorkflowRequest, operator *dto.AuthPrincipal) (*models.AIWorkflow, error) {
-	return s.SaveAgentWorkflow(req, operator)
+	if operator == nil {
+		return nil, errorsx.UnauthorizedI18n("error.auth.expired")
+	}
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return nil, errorsx.InvalidParam("workflow name is required")
+	}
+	definition, err := marshalDefinition(req.Definition)
+	if err != nil {
+		return nil, err
+	}
+	item := &models.AIWorkflow{Name: name, Description: strings.TrimSpace(req.Description), Status: enums.StatusOk, DraftDefinition: definition, AuditFields: utils.BuildAuditFields(operator)}
+	if err := repositories.AIWorkflowRepository.Create(sqls.DB(), item); err != nil {
+		return nil, err
+	}
+	return item, nil
 }
 
 func (s *aiWorkflowService) SaveAgentWorkflow(req request.SaveAIWorkflowRequest, operator *dto.AuthPrincipal) (*models.AIWorkflow, error) {
@@ -305,9 +320,6 @@ func (s *aiWorkflowService) UpdateWorkflow(req request.UpdateAIWorkflowRequest, 
 	if name == "" {
 		return errorsx.InvalidParam("workflow name is required")
 	}
-	if req.AgentID <= 0 {
-		return errorsx.InvalidParam("agent id is required")
-	}
 	definition, err := marshalDefinition(req.Definition)
 	if err != nil {
 		return err
@@ -315,7 +327,6 @@ func (s *aiWorkflowService) UpdateWorkflow(req request.UpdateAIWorkflowRequest, 
 	return repositories.AIWorkflowRepository.Updates(sqls.DB(), req.ID, map[string]interface{}{
 		"name":             name,
 		"description":      strings.TrimSpace(req.Description),
-		"agent_id":         req.AgentID,
 		"draft_definition": definition,
 		"update_user_id":   operator.UserID,
 		"update_user_name": operator.Username,
@@ -329,6 +340,9 @@ func (s *aiWorkflowService) DeleteWorkflow(id int64, operator *dto.AuthPrincipal
 	}
 	if s.Get(id) == nil {
 		return errorsx.InvalidParamI18n("error.e0002")
+	}
+	if repositories.AIAgentWorkflowBindingRepository.CountByWorkflowID(sqls.DB(), id) > 0 {
+		return errorsx.InvalidParam("workflow is still associated with an agent")
 	}
 	return repositories.AIWorkflowRepository.Updates(sqls.DB(), id, map[string]interface{}{
 		"status":           enums.StatusDeleted,

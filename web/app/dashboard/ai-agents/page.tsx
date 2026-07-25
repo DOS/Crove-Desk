@@ -127,7 +127,7 @@ export default function DashboardAIAgentsPage() {
       },
       {
         key: "workflow",
-        label: "Playbook 状态",
+        label: "工作流状态",
         render: (item) => {
           const published = isWorkflowPublished(item);
           return (
@@ -144,7 +144,7 @@ export default function DashboardAIAgentsPage() {
               </div>
               {!published ? (
                 <div className="text-xs text-muted-foreground">
-                  未发布 Playbook，AI 不会自动回复
+                  未发布工作流，AI 不会自动回复
                 </div>
               ) : (
                 <div className="text-xs text-muted-foreground">

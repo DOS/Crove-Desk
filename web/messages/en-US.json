@@ -2340,6 +2340,7 @@
     "aiAgents": "Agents",
     "aiWorkflows": "AI Workflows",
     "workflowRuns": "Workflow Audit",
+    "workflows": "Workflows",
     "agentRuns": "Agent Audit",
     "skillDefinition": "Skills",
     "mcp": "MCP tools",

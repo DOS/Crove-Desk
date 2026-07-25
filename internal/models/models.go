@@ -65,6 +65,7 @@ var Models = []any{
 	&AgentRunQualityFeedback{},
 	&AIWorkflow{},
 	&AIWorkflowVersion{},
+	&AIAgentWorkflowBinding{},
 	&AIWorkflowRun{},
 	&AIWorkflowNodeRun{},
 	&ConversationInterrupt{},
@@ -661,6 +662,21 @@ type AIWorkflowVersion struct {
 	PublishedAt     *time.Time   `gorm:"type:datetime;index"`
 	PublishedByID   int64        `gorm:"type:bigint;not null;default:0;index"`
 	PublishedByName string       `gorm:"type:varchar(100);not null;default:''"`
+	AuditFields
+}
+
+// AIAgentWorkflowBinding binds an Agent to one immutable, published workflow
+// version. Workflows are maintained independently and can be reused by many
+// Agents; Agent publication snapshots the binding set for reproducible runs.
+type AIAgentWorkflowBinding struct {
+	ID                 int64  `gorm:"primaryKey;autoIncrement"`
+	AIAgentID          int64  `gorm:"type:bigint;not null;index;uniqueIndex:uk_agent_workflow_binding"`
+	WorkflowID         int64  `gorm:"type:bigint;not null;index"`
+	WorkflowVersionID  int64  `gorm:"type:bigint;not null;index;uniqueIndex:uk_agent_workflow_binding"`
+	ToolName           string `gorm:"type:varchar(100);not null;default:''"`
+	TriggerInstruction string `gorm:"type:text"`
+	Priority           int    `gorm:"type:int;not null;default:0;index"`
+	Enabled            bool   `gorm:"not null;default:true;index"`
 	AuditFields
 }
 

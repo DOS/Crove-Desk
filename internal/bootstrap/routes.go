@@ -233,6 +233,11 @@ func registerDashboardAIAgentRoutes(group *gin.RouterGroup) {
 }
 
 func registerDashboardAIWorkflowRoutes(group *gin.RouterGroup) {
+	group.GET("/:id", dashboard.AIWorkflowGetBy)
+	group.POST("/create", dashboard.AIWorkflowPostCreate)
+	group.POST("/update", dashboard.AIWorkflowPostUpdate)
+	group.POST("/delete", dashboard.AIWorkflowPostDelete)
+	group.Any("/list", dashboard.AIWorkflowAnyList)
 	group.GET("/node-spec/list", dashboard.AIWorkflowGetNodeSpecList)
 	group.GET("/default-definition", dashboard.AIWorkflowGetDefaultDefinition)
 	group.GET("/template/list", dashboard.AIWorkflowGetTemplateList)

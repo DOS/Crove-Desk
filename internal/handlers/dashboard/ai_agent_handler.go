@@ -271,6 +271,7 @@ func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) respons
 		Skills:                 make([]response.AIAgentSkillResponse, 0),
 		Teams:                  make([]response.AIAgentTeamResponse, 0),
 		DirectTools:            make([]response.AIAgentMCPToolResponse, 0),
+		WorkflowBindings:       make([]response.AIAgentWorkflowBindingResponse, 0),
 		WorkflowVersionID:      item.WorkflowVersionID,
 		PublishedRevisionID:    item.PublishedRevisionID,
 		WorkflowPublished:      item.WorkflowVersionID > 0,
@@ -347,6 +348,16 @@ func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) respons
 				})
 			}
 		}
+	}
+	for _, binding := range services.AIAgentService.ListWorkflowBindings(item.ID) {
+		if binding.Workflow == nil || binding.Version == nil {
+			continue
+		}
+		ret.WorkflowBindings = append(ret.WorkflowBindings, response.AIAgentWorkflowBindingResponse{
+			ID: binding.Binding.ID, WorkflowID: binding.Binding.WorkflowID, WorkflowVersionID: binding.Binding.WorkflowVersionID,
+			WorkflowName: binding.Workflow.Name, WorkflowVersion: binding.Version.Version, ToolName: binding.Binding.ToolName,
+			TriggerInstruction: binding.Binding.TriggerInstruction, Priority: binding.Binding.Priority, Enabled: binding.Binding.Enabled,
+		})
 	}
 	return ret
 }

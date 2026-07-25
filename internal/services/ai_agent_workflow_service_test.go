@@ -463,13 +463,46 @@ func TestAIWorkflowServicePublishAgentWorkflowBindsAgentVersion(t *testing.T) {
 	}
 }
 
+func TestAIAgentServiceBindsPublishedWorkflowVersionIndependently(t *testing.T) {
+	setupAIAgentWorkflowTestDB(t)
+	operator := aiAgentWorkflowTestOperator()
+	workflow, err := AIWorkflowService.CreateWorkflow(request.CreateAIWorkflowRequest{Name: "共享建单流程", Definition: validAIWorkflowDefinition()}, operator)
+	if err != nil {
+		t.Fatalf("CreateWorkflow() error = %v", err)
+	}
+	version, err := AIWorkflowService.PublishWorkflow(request.PublishAIWorkflowRequest{WorkflowID: workflow.ID, Definition: validAIWorkflowDefinition()}, operator)
+	if err != nil {
+		t.Fatalf("PublishWorkflow() error = %v", err)
+	}
+	agent, err := AIAgentService.CreateAIAgent(request.CreateAIAgentRequest{
+		Name: "绑定共享工作流的 Agent", AIConfigID: createAIAgentWorkflowTestConfig(t), RuntimeMode: enums.AIAgentRuntimeModeHybrid,
+		ServiceMode: enums.IMConversationServiceModeAIOnly, HandoffMode: enums.AIAgentHandoffModeWaitPool, FallbackMode: enums.AIAgentFallbackModeNoAnswer,
+		WorkflowBindings: []request.AIAgentWorkflowBindingRequest{{WorkflowVersionID: version.ID, ToolName: "创建工单", TriggerInstruction: "用户要求创建工单", Enabled: true}},
+	}, operator)
+	if err != nil {
+		t.Fatalf("CreateAIAgent() error = %v", err)
+	}
+	bindings := AIAgentService.ListWorkflowBindings(agent.ID)
+	if len(bindings) != 1 || bindings[0].Binding.WorkflowVersionID != version.ID || bindings[0].Workflow == nil || bindings[0].Workflow.AgentID != 0 {
+		t.Fatalf("unexpected independent workflow binding: %#v", bindings)
+	}
+	if _, err := AIAgentService.PublishAIAgent(agent.ID, operator); err != nil {
+		t.Fatalf("PublishAIAgent() error = %v", err)
+	}
+	stored := AIAgentService.Get(agent.ID)
+	snapshot, err := AgentRevisionService.ResolvePublishedSnapshot(*stored, *AIConfigService.Get(stored.AIConfigID))
+	if err != nil || len(snapshot.WorkflowBindings) != 1 || snapshot.WorkflowBindings[0].WorkflowVersionID != version.ID {
+		t.Fatalf("expected published workflow binding snapshot, snapshot=%#v err=%v", snapshot, err)
+	}
+}
+
 func setupAIAgentWorkflowTestDB(t *testing.T) {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open sqlite db: %v", err)
 	}
-	if err := db.AutoMigrate(&models.AIAgent{}, &models.AIConfig{}, &models.KnowledgeBase{}, &models.AIWorkflow{}, &models.AIWorkflowVersion{}, &models.AgentRevision{}); err != nil {
+	if err := db.AutoMigrate(&models.AIAgent{}, &models.AIConfig{}, &models.KnowledgeBase{}, &models.AIWorkflow{}, &models.AIWorkflowVersion{}, &models.AIAgentWorkflowBinding{}, &models.AgentRevision{}); err != nil {
 		t.Fatalf("auto migrate: %v", err)
 	}
 	sqls.SetDB(db)
