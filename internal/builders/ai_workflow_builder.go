@@ -19,7 +19,6 @@ func BuildAIWorkflow(item *models.AIWorkflow) response.AIWorkflowResponse {
 		ID:                 item.ID,
 		Name:               item.Name,
 		Description:        item.Description,
-		AgentID:            item.AgentID,
 		Status:             item.Status,
 		DraftDefinition:    parseWorkflowDefinition(item.DraftDefinition),
 		PublishedVersionID: item.PublishedVersionID,

@@ -402,7 +402,6 @@ export type AIWorkflow = {
   id: number
   name: string
   description: string
-  agentId: number
   status: number
   draftDefinition: AIWorkflowDefinition
   publishedVersionId: number
@@ -459,7 +458,6 @@ export type AIWorkflowValidationResult = {
 export type CreateAIWorkflowPayload = {
   name: string
   description: string
-	agentId?: number
   definition: AIWorkflowDefinition
 }
 

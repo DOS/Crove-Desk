@@ -478,7 +478,6 @@ export function AIAgentConfigWorkbench({
     setSavingWorkflow(true)
     try {
       await saveAIAgentWorkflow({
-        agentId: currentAgentId,
         name: "",
         description: "",
         definition,
@@ -561,7 +560,6 @@ export function AIAgentConfigWorkbench({
     setSavingWorkflow(true)
     try {
       const saved = await saveAIAgentWorkflow({
-        agentId: currentAgentId,
         name: "",
         description: "",
         definition,

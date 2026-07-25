@@ -5,11 +5,8 @@ import "agent-desk/internal/ai/workflow/dsl"
 type CreateAIWorkflowRequest struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
-	AgentID     int64          `json:"agentId"`
 	Definition  dsl.Definition `json:"definition"`
 }
-
-type SaveAIWorkflowRequest = CreateAIWorkflowRequest
 
 type UpdateAIWorkflowRequest struct {
 	ID int64 `json:"id"`
@@ -26,7 +23,6 @@ type ValidateAIWorkflowRequest struct {
 
 type PublishAIWorkflowRequest struct {
 	WorkflowID int64          `json:"workflowId"`
-	AgentID    int64          `json:"agentId"`
 	Definition dsl.Definition `json:"definition"`
 }
 

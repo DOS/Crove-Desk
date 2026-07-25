@@ -87,13 +87,6 @@ func (s *aIAgentService) CreateAIAgent(req request.CreateAIAgentRequest, operato
 		if err != nil {
 			return err
 		}
-		if len(bindings) == 0 && (item.RuntimeMode == enums.AIAgentRuntimeModeWorkflow || item.RuntimeMode == enums.AIAgentRuntimeModeHybrid) {
-			_, createErr := AIWorkflowService.createDefaultAgentWorkflow(ctx.Tx, item, operator)
-			if createErr != nil {
-				return createErr
-			}
-			return nil // Legacy create calls remain compatible until clients send explicit bindings.
-		}
 		return s.validateWorkflowBindingMode(ctx.Tx, item, bindings)
 	}); err != nil {
 		return nil, err
@@ -285,12 +278,6 @@ func (s *aIAgentService) RollbackAIAgent(id, revisionID int64, operator *dto.Aut
 			"update_user_name":      operator.Username,
 			"updated_at":            time.Now(),
 		}
-		if agent.RuntimeMode == enums.AIAgentRuntimeModeWorkflow || agent.RuntimeMode == enums.AIAgentRuntimeModeHybrid {
-			if revision.WorkflowVersionID <= 0 || repositories.AIWorkflowVersionRepository.Get(ctx.Tx, revision.WorkflowVersionID) == nil {
-				return errorsx.InvalidParam("workflow revision does not contain a published workflow version")
-			}
-			updates["workflow_version_id"] = revision.WorkflowVersionID
-		}
 		return repositories.AIAgentRepository.Updates(ctx.Tx, agent.ID, updates)
 	})
 }
@@ -438,7 +425,6 @@ func (s *aIAgentService) buildAIAgentModel(id int64, req request.CreateAIAgentRe
 		KnowledgeIDs:        utils.JoinInt64s(knowledgeBaseIDs),
 		SkillIDs:            utils.JoinInt64s(skillIDs),
 		AllowedMCPTools:     directToolsJSON,
-		WorkflowVersionID:   0,
 	}, nil
 }
 

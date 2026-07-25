@@ -11,7 +11,6 @@ type AIWorkflowResponse struct {
 	ID                 int64          `json:"id"`
 	Name               string         `json:"name"`
 	Description        string         `json:"description"`
-	AgentID            int64          `json:"agentId"`
 	Status             enums.Status   `json:"status"`
 	DraftDefinition    dsl.Definition `json:"draftDefinition"`
 	PublishedVersionID int64          `json:"publishedVersionId"`

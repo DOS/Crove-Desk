@@ -214,10 +214,6 @@ func registerDashboardAgentTeamScheduleRoutes(group *gin.RouterGroup) {
 }
 
 func registerDashboardAIAgentRoutes(group *gin.RouterGroup) {
-	group.GET("/:id/workflow", dashboard.AIWorkflowGetByAgent)
-	group.POST("/workflow/save", dashboard.AIWorkflowPostSaveAgent)
-	group.POST("/workflow/validate", dashboard.AIWorkflowPostValidate)
-	group.POST("/workflow/publish", dashboard.AIWorkflowPostPublishAgent)
 	group.POST("/publish", dashboard.AIAgentPostPublish)
 	group.POST("/rollback", dashboard.AIAgentPostRollback)
 	group.POST("/rollback_rollout", dashboard.AIAgentPostRollback_rollout)

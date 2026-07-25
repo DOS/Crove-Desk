@@ -22,7 +22,6 @@ func AIWorkflowAnyList(ctx *gin.Context) {
 	cnd := params.NewPagedSqlCnd(ctx,
 		params.QueryFilter{ParamName: "status"},
 		params.QueryFilter{ParamName: "name", Op: params.Like},
-		params.QueryFilter{ParamName: "agentId"},
 	).Desc("id")
 	list, paging := services.AIWorkflowService.FindPageByCnd(cnd)
 	httpx.WriteJSON(ctx, &web.PageResult{Results: builders.BuildAIWorkflowList(list), Page: paging})
@@ -153,62 +152,6 @@ func AIWorkflowPostPublish(ctx *gin.Context) {
 		return
 	}
 	item, err := services.AIWorkflowService.PublishWorkflow(req, operator)
-	if err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	httpx.WriteJSON(ctx, builders.BuildAIWorkflowVersion(item))
-}
-
-func AIWorkflowGetByAgent(ctx *gin.Context) {
-	agentID, ok := httpx.GetPathInt64(ctx, "id")
-	if !ok {
-		return
-	}
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionAIAgentView)
-	if err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	item, err := services.AIWorkflowService.GetOrCreateAgentWorkflow(agentID, operator)
-	if err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	httpx.WriteJSON(ctx, builders.BuildAIWorkflow(item))
-}
-
-func AIWorkflowPostSaveAgent(ctx *gin.Context) {
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionAIAgentUpdate)
-	if err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	req := request.SaveAIWorkflowRequest{}
-	if err := params.ReadJSON(ctx, &req); err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	item, err := services.AIWorkflowService.SaveAgentWorkflow(req, operator)
-	if err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	httpx.WriteJSON(ctx, builders.BuildAIWorkflow(item))
-}
-
-func AIWorkflowPostPublishAgent(ctx *gin.Context) {
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionAIAgentUpdate)
-	if err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	req := request.PublishAIWorkflowRequest{}
-	if err := params.ReadJSON(ctx, &req); err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	item, err := services.AIWorkflowService.PublishAgentWorkflow(req, operator)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return

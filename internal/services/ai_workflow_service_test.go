@@ -46,7 +46,6 @@ func TestAIWorkflowServicePublishCreatesImmutableVersion(t *testing.T) {
 	workflow, err := AIWorkflowService.CreateWorkflow(request.CreateAIWorkflowRequest{
 		Name:        "support flow",
 		Description: "customer service flow",
-		AgentID:     12,
 		Definition:  validAIWorkflowDefinition(),
 	}, operator)
 	if err != nil {
@@ -108,7 +107,6 @@ func TestAIWorkflowServicePublishIncrementsVersion(t *testing.T) {
 	operator := aiWorkflowTestOperator()
 	workflow, err := AIWorkflowService.CreateWorkflow(request.CreateAIWorkflowRequest{
 		Name:       "support flow versions",
-		AgentID:    99,
 		Definition: validAIWorkflowDefinition(),
 	}, operator)
 	if err != nil {
@@ -140,7 +138,6 @@ func TestAIWorkflowServicePublishRejectsInvalidDSL(t *testing.T) {
 	operator := aiWorkflowTestOperator()
 	workflow, err := AIWorkflowService.CreateWorkflow(request.CreateAIWorkflowRequest{
 		Name:       "invalid publish flow",
-		AgentID:    23,
 		Definition: validAIWorkflowDefinition(),
 	}, operator)
 	if err != nil {
@@ -177,7 +174,7 @@ func TestAIWorkflowServiceRunListAndDetail(t *testing.T) {
 	if err := sqls.DB().Create(&agent).Error; err != nil {
 		t.Fatalf("create agent: %v", err)
 	}
-	workflow := models.AIWorkflow{Name: "售后流程", AgentID: agent.ID, Status: enums.StatusOk}
+	workflow := models.AIWorkflow{Name: "售后流程", Status: enums.StatusOk}
 	if err := sqls.DB().Create(&workflow).Error; err != nil {
 		t.Fatalf("create workflow: %v", err)
 	}

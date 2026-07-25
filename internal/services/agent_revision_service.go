@@ -38,11 +38,9 @@ func (s *agentRevisionService) FindByAgentID(agentID int64) []models.AgentRevisi
 }
 
 type agentRevisionDefinition struct {
-	Agent              agentRevisionAgent             `json:"agent"`
-	Model              agentRevisionModel             `json:"model"`
-	WorkflowVersionID  int64                          `json:"workflowVersionId"`
-	WorkflowDefinition string                         `json:"workflowDefinition"`
-	WorkflowBindings   []agentRevisionWorkflowBinding `json:"workflowBindings"`
+	Agent            agentRevisionAgent             `json:"agent"`
+	Model            agentRevisionModel             `json:"model"`
+	WorkflowBindings []agentRevisionWorkflowBinding `json:"workflowBindings"`
 }
 
 type agentRevisionWorkflowBinding struct {
@@ -123,9 +121,6 @@ func (s *agentRevisionService) ResolvePublishedSnapshot(agent models.AIAgent, co
 	}
 	applyRevisionAgentSnapshot(&snapshot.Agent, definition.Agent)
 	snapshot.WorkflowBindings = append([]agentRevisionWorkflowBinding(nil), definition.WorkflowBindings...)
-	if definition.WorkflowVersionID > 0 {
-		snapshot.Agent.WorkflowVersionID = definition.WorkflowVersionID
-	}
 	applyRevisionModelSnapshot(&snapshot.AIConfig, definition.Model)
 	return snapshot, nil
 }
@@ -169,17 +164,11 @@ func applyRevisionModelSnapshot(config *models.AIConfig, definition agentRevisio
 	config.MaxRetryCount = definition.MaxRetryCount
 }
 
-// PublishWorkflowSnapshot keeps the Agent settings and its referenced
-// workflow definition together as an immutable, reproducible revision.
-func (s *agentRevisionService) PublishWorkflowSnapshot(db *gorm.DB, agent *models.AIAgent, version *models.AIWorkflowVersion, operator *dto.AuthPrincipal) (*models.AgentRevision, error) {
-	return s.publishSnapshot(db, agent, version, operator)
-}
-
 func (s *agentRevisionService) PublishSnapshot(db *gorm.DB, agent *models.AIAgent, operator *dto.AuthPrincipal) (*models.AgentRevision, error) {
-	return s.publishSnapshot(db, agent, nil, operator)
+	return s.publishSnapshot(db, agent, operator)
 }
 
-func (s *agentRevisionService) publishSnapshot(db *gorm.DB, agent *models.AIAgent, version *models.AIWorkflowVersion, operator *dto.AuthPrincipal) (*models.AgentRevision, error) {
+func (s *agentRevisionService) publishSnapshot(db *gorm.DB, agent *models.AIAgent, operator *dto.AuthPrincipal) (*models.AgentRevision, error) {
 	model := agentRevisionModel{ConfigID: agent.AIConfigID}
 	if config := repositories.AIConfigRepository.Get(db, agent.AIConfigID); config != nil {
 		model = agentRevisionModel{
@@ -187,12 +176,6 @@ func (s *agentRevisionService) publishSnapshot(db *gorm.DB, agent *models.AIAgen
 			ModelName: config.ModelName, MaxContextTokens: config.MaxContextTokens, MaxOutputTokens: config.MaxOutputTokens,
 			TimeoutMS: config.TimeoutMS, MaxRetryCount: config.MaxRetryCount,
 		}
-	}
-	workflowVersionID := int64(0)
-	workflowDefinition := ""
-	if version != nil {
-		workflowVersionID = version.ID
-		workflowDefinition = version.Definition
 	}
 	definition := agentRevisionDefinition{
 		Agent: agentRevisionAgent{
@@ -203,9 +186,7 @@ func (s *agentRevisionService) publishSnapshot(db *gorm.DB, agent *models.AIAgen
 			FallbackMode: int(agent.FallbackMode), FallbackMessage: agent.FallbackMessage, KnowledgeIDs: agent.KnowledgeIDs,
 			SkillIDs: agent.SkillIDs, AllowedMCPTools: agent.AllowedMCPTools,
 		},
-		Model:              model,
-		WorkflowVersionID:  workflowVersionID,
-		WorkflowDefinition: workflowDefinition,
+		Model: model,
 	}
 	for _, binding := range repositories.AIAgentWorkflowBindingRepository.FindEnabledByAgentID(db, agent.ID) {
 		definition.WorkflowBindings = append(definition.WorkflowBindings, agentRevisionWorkflowBinding{WorkflowID: binding.WorkflowID, WorkflowVersionID: binding.WorkflowVersionID, ToolName: binding.ToolName, TriggerInstruction: binding.TriggerInstruction, Priority: binding.Priority})
@@ -218,7 +199,7 @@ func (s *agentRevisionService) publishSnapshot(db *gorm.DB, agent *models.AIAgen
 	hash := sha256.Sum256(data)
 	item := &models.AgentRevision{
 		AgentID: agent.ID, Revision: repositories.AgentRevisionRepository.MaxRevisionByAgentID(db, agent.ID) + 1,
-		WorkflowVersionID: workflowVersionID, Status: enums.StatusOk, Definition: string(data), DefinitionHash: hex.EncodeToString(hash[:]),
+		Status: enums.StatusOk, Definition: string(data), DefinitionHash: hex.EncodeToString(hash[:]),
 		PublishedAt: &now, PublishedByID: operator.UserID, PublishedByName: operator.Username, AuditFields: utils.BuildAuditFields(operator),
 	}
 	if err := repositories.AgentRevisionRepository.Create(db, item); err != nil {
