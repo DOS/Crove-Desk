@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import {
-  BotMessageSquareIcon,
   BookOpenIcon,
   GitBranchIcon,
   HistoryIcon,
