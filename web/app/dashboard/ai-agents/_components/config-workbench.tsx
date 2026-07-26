@@ -16,14 +16,9 @@ import { toast } from "sonner"
 
 import { ContentEditor } from "@/components/content-editor"
 import { OptionCombobox } from "@/components/option-combobox"
+import { ProjectDialog } from "@/components/project-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -1026,19 +1021,19 @@ export function AIAgentConfigWorkbench({
         </div>
       </footer>
 
-      <Dialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen}>
-        <DialogContent className="max-h-[80vh] overflow-hidden sm:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>版本记录</DialogTitle>
-          </DialogHeader>
-          <VersionRecordsTable
-            agent={agent}
-            agentRevisions={agentRevisions}
-            onRollback={rollbackAgentRevision}
-            rollbackDisabled={saving}
-          />
-        </DialogContent>
-      </Dialog>
+      <ProjectDialog
+        open={versionDialogOpen}
+        onOpenChange={setVersionDialogOpen}
+        title="版本记录"
+        size="xl"
+      >
+        <VersionRecordsTable
+          agent={agent}
+          agentRevisions={agentRevisions}
+          onRollback={rollbackAgentRevision}
+          rollbackDisabled={saving}
+        />
+      </ProjectDialog>
     </div>
   )
 }
