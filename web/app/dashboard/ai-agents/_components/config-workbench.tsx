@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import {
-  BookOpenIcon,
-  GitBranchIcon,
   HistoryIcon,
   MessageSquareTextIcon,
   PlugIcon,
@@ -155,11 +153,8 @@ export function AIAgentConfigWorkbench({
   const [publishedWorkflows, setPublishedWorkflows] = useState<AIWorkflow[]>([])
 
   const [teamToAdd, setTeamToAdd] = useState("")
-  const [skillToAdd, setSkillToAdd] = useState("")
-  const [knowledgeBaseToAdd, setKnowledgeBaseToAdd] = useState("")
   const [directToolGroupToAdd, setDirectToolGroupToAdd] = useState("")
   const [directToolToAdd, setDirectToolToAdd] = useState("")
-  const [workflowToAdd, setWorkflowToAdd] = useState("")
 
   useEffect(() => {
     setCurrentAgentId(agentId ?? null)
@@ -355,18 +350,12 @@ export function AIAgentConfigWorkbench({
   )
   const workflowOptions = useMemo(
     () =>
-      publishedWorkflows
-        .filter(
-          (workflow) =>
-            !workflowBindings.some(
-              (binding) => binding.workflowVersionId === workflow.publishedVersionId,
-            ),
-        )
-        .map((workflow) => ({
-          value: String(workflow.publishedVersionId),
-          label: `${workflow.name} · 固定版本 #${workflow.publishedVersionId}`,
-        })),
-    [publishedWorkflows, workflowBindings],
+      publishedWorkflows.map((workflow) => ({
+        value: String(workflow.publishedVersionId),
+        label: workflow.name,
+        subtitle: `固定版本 #${workflow.publishedVersionId}`,
+      })),
+    [publishedWorkflows],
   )
 
   function selectedOptions(ids: number[], options: { value: string; label: string }[]) {
@@ -392,26 +381,36 @@ export function AIAgentConfigWorkbench({
     setDirectToolToAdd("")
   }
 
-  function addWorkflowBinding(value: string) {
-    const workflow = publishedWorkflows.find(
-      (item) => item.publishedVersionId === Number(value),
-    )
-    if (!workflow) return
-    if (runtimeMode === "workflow" && workflowBindings.length >= 1) {
-      toast.error("仅工作流模式只能关联一个已发布工作流")
-      return
+  function setWorkflowSelection(values: string[]) {
+    let selectedVersionIds = values.map(Number).filter((value) => value > 0)
+    if (runtimeMode === "workflow" && selectedVersionIds.length > 1) {
+      const currentIds = workflowBindings.map((binding) => binding.workflowVersionId)
+      const newlySelected = selectedVersionIds.find((id) => !currentIds.includes(id))
+      selectedVersionIds = [newlySelected ?? selectedVersionIds.at(-1)!]
     }
-    setWorkflowBindings((current) => [
-      ...current,
-      {
-        workflowVersionId: workflow.publishedVersionId,
-        toolName: workflow.name,
-        triggerInstruction: "",
-        priority: current.length + 1,
-        enabled: true,
-      },
-    ])
-    setWorkflowToAdd("")
+    setWorkflowBindings(
+      selectedVersionIds.flatMap((workflowVersionId, index) => {
+        const current = workflowBindings.find(
+          (binding) => binding.workflowVersionId === workflowVersionId,
+        )
+        if (current) {
+          return [{ ...current, priority: index + 1, enabled: true }]
+        }
+        const workflow = publishedWorkflows.find(
+          (item) => item.publishedVersionId === workflowVersionId,
+        )
+        if (!workflow) return []
+        return [
+          {
+            workflowVersionId,
+            toolName: workflow.name,
+            triggerInstruction: "",
+            priority: index + 1,
+            enabled: true,
+          },
+        ]
+      }),
+    )
   }
 
   function validateForm() {
@@ -737,55 +736,67 @@ export function AIAgentConfigWorkbench({
 
             {activeSection === "capability" ? (
               <div className="space-y-10">
-                <ResourceSection
+                <FormSection
                   title="知识库"
                   description="Agent 回答时可以检索的知识范围。"
-                  icon={<BookOpenIcon />}
-                  value={knowledgeBaseToAdd}
-                  options={knowledgeBaseOptions.filter(
-                    (option) => !selectedKnowledgeBaseIds.includes(Number(option.value)),
-                  )}
-                  placeholder="选择知识库"
-                  onValueChange={setKnowledgeBaseToAdd}
-                  onAdd={() => {
-                    addSelected(
-                      knowledgeBaseToAdd,
-                      selectedKnowledgeBaseIds,
-                      setSelectedKnowledgeBaseIds,
-                    )
-                    setKnowledgeBaseToAdd("")
-                  }}
-                  items={selectedOptions(selectedKnowledgeBaseIds, knowledgeBaseOptions)}
-                  empty="未配置知识库"
-                  onRemove={(id) =>
-                    setSelectedKnowledgeBaseIds((current) =>
-                      current.filter((item) => item !== id),
-                    )
-                  }
-                />
+                >
+                  <OptionCombobox
+                    multiple
+                    values={selectedKnowledgeBaseIds.map(String)}
+                    options={knowledgeBaseOptions}
+                    placeholder="选择知识库"
+                    emptyText="没有可用知识库"
+                    onValuesChange={(values) =>
+                      setSelectedKnowledgeBaseIds(values.map(Number))
+                    }
+                  />
+                </FormSection>
 
-                <ResourceSection
+                <FormSection
                   title="Skill"
                   description="Agent 可以调用的标准能力。"
-                  icon={<PlugIcon />}
-                  value={skillToAdd}
-                  options={skillOptions.filter(
-                    (option) => !selectedSkillIds.includes(Number(option.value)),
-                  )}
-                  placeholder="选择 Skill"
-                  onValueChange={setSkillToAdd}
-                  onAdd={() => {
-                    addSelected(skillToAdd, selectedSkillIds, setSelectedSkillIds)
-                    setSkillToAdd("")
-                  }}
-                  items={selectedOptions(selectedSkillIds, skillOptions)}
-                  empty="未配置 Skill"
-                  onRemove={(id) =>
-                    setSelectedSkillIds((current) =>
-                      current.filter((item) => item !== id),
-                    )
+                >
+                  <OptionCombobox
+                    multiple
+                    values={selectedSkillIds.map(String)}
+                    options={skillOptions}
+                    placeholder="选择 Skill"
+                    emptyText="没有可用 Skill"
+                    onValuesChange={(values) => setSelectedSkillIds(values.map(Number))}
+                  />
+                </FormSection>
+
+                <FormSection
+                  title="工作流"
+                  description="关联工作流中心中已经发布的固定版本。"
+                  action={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => window.location.assign("/dashboard/ai-workflows")}
+                    >
+                      管理工作流
+                    </Button>
                   }
-                />
+                >
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+                    {runtimeMode === "autonomous"
+                      ? "当前为自主接待模式，工作流是可选能力。"
+                      : runtimeMode === "hybrid"
+                        ? "当前为 Hybrid 模式，至少关联一个已发布工作流后才能保存。"
+                        : "当前为仅工作流模式，必须且只能关联一个已发布工作流。"}
+                  </div>
+                  <OptionCombobox
+                    multiple
+                    values={workflowBindings.map((binding) =>
+                      String(binding.workflowVersionId),
+                    )}
+                    options={workflowOptions}
+                    placeholder="选择已发布工作流"
+                    emptyText="没有已发布的工作流"
+                    onValuesChange={setWorkflowSelection}
+                  />
+                </FormSection>
 
                 <FormSection
                   title="Direct Tool"
@@ -833,78 +844,6 @@ export function AIAgentConfigWorkbench({
                           }
                         />
                       ))
-                    )}
-                  </div>
-                </FormSection>
-
-                <FormSection
-                  title="工作流"
-                  description="关联工作流中心中已经发布的固定版本。"
-                  action={
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => window.location.assign("/dashboard/ai-workflows")}
-                    >
-                      管理工作流
-                    </Button>
-                  }
-                >
-                  <div className="rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
-                    {runtimeMode === "autonomous"
-                      ? "当前为自主接待模式，工作流是可选能力。"
-                      : runtimeMode === "hybrid"
-                        ? "当前为 Hybrid 模式，至少关联一个已发布工作流后才能保存。"
-                        : "当前为仅工作流模式，必须且只能关联一个已发布工作流。"}
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="min-w-0 flex-1">
-                      <OptionCombobox
-                        value={workflowToAdd}
-                        options={workflowOptions}
-                        placeholder="选择已发布工作流"
-                        onChange={setWorkflowToAdd}
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={!workflowToAdd}
-                      onClick={() => addWorkflowBinding(workflowToAdd)}
-                    >
-                      关联
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {workflowBindings.length === 0 ? (
-                      <EmptyResource>未关联工作流</EmptyResource>
-                    ) : (
-                      workflowBindings.map((binding) => {
-                        const workflow = publishedWorkflows.find(
-                          (item) =>
-                            item.publishedVersionId === binding.workflowVersionId,
-                        )
-                        return (
-                          <ResourceRow
-                            key={binding.workflowVersionId}
-                            icon={<GitBranchIcon />}
-                            title={
-                              workflow?.name ||
-                              binding.toolName ||
-                              `工作流版本 #${binding.workflowVersionId}`
-                            }
-                            meta={`固定版本 #${binding.workflowVersionId}`}
-                            onRemove={() =>
-                              setWorkflowBindings((current) =>
-                                current.filter(
-                                  (item) =>
-                                    item.workflowVersionId !== binding.workflowVersionId,
-                                ),
-                              )
-                            }
-                          />
-                        )
-                      })
                     )}
                   </div>
                 </FormSection>
@@ -1084,64 +1023,6 @@ function FieldBlock({
       </Label>
       {children}
     </div>
-  )
-}
-
-function ResourceSection({
-  title,
-  description,
-  icon,
-  value,
-  options,
-  placeholder,
-  onValueChange,
-  onAdd,
-  items,
-  empty,
-  onRemove,
-}: {
-  title: string
-  description: string
-  icon: ReactNode
-  value: string
-  options: { value: string; label: string }[]
-  placeholder: string
-  onValueChange: (value: string) => void
-  onAdd: () => void
-  items: { value: string; label: string }[]
-  empty: string
-  onRemove: (id: number) => void
-}) {
-  return (
-    <FormSection title={title} description={description}>
-      <div className="flex gap-2">
-        <div className="min-w-0 flex-1">
-          <OptionCombobox
-            value={value}
-            options={options}
-            placeholder={placeholder}
-            onChange={onValueChange}
-          />
-        </div>
-        <Button type="button" variant="outline" disabled={!value} onClick={onAdd}>
-          添加
-        </Button>
-      </div>
-      <div className="space-y-2">
-        {items.length === 0 ? (
-          <EmptyResource>{empty}</EmptyResource>
-        ) : (
-          items.map((item) => (
-            <ResourceRow
-              key={item.value}
-              icon={icon}
-              title={item.label}
-              onRemove={() => onRemove(Number(item.value))}
-            />
-          ))
-        )}
-      </div>
-    </FormSection>
   )
 }
 

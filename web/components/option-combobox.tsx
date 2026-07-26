@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react"
 import { CheckIcon, ChevronsUpDownIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Command,
   CommandEmpty,
@@ -27,8 +28,7 @@ export type ComboboxOption = {
   description?: string
 }
 
-type OptionComboboxProps = {
-  value: string
+type CommonOptionComboboxProps = {
   options: ComboboxOption[]
   placeholder: string
   searchPlaceholder?: string
@@ -36,12 +36,29 @@ type OptionComboboxProps = {
   disabled?: boolean
   triggerClassName?: string
   preserveExternalSelection?: boolean
-  onChange: (value: string) => void
   renderOptionAction?: (option: ComboboxOption) => ReactNode
 }
 
-export function OptionCombobox({
-  value,
+type OptionComboboxProps = CommonOptionComboboxProps &
+  (
+    | {
+        multiple?: false
+        value: string
+        onChange: (value: string) => void
+        values?: never
+        onValuesChange?: never
+      }
+    | {
+        multiple: true
+        values: string[]
+        onValuesChange: (values: string[]) => void
+        value?: never
+        onChange?: never
+      }
+  )
+
+export function OptionCombobox(props: OptionComboboxProps) {
+  const {
   options,
   placeholder,
   searchPlaceholder,
@@ -49,13 +66,33 @@ export function OptionCombobox({
   disabled = false,
   triggerClassName,
   preserveExternalSelection = false,
-  onChange,
   renderOptionAction,
-}: OptionComboboxProps) {
+  } = props
   const t = useI18n()
   const [open, setOpen] = useState(false)
+  const selectedValues = props.multiple ? props.values : [props.value]
+  const selectedOptions = options.filter((option) =>
+    selectedValues.includes(option.value)
+  )
   const selectedLabel =
-    options.find((option) => option.value === value)?.label ?? placeholder
+    selectedOptions.length === 0
+      ? placeholder
+      : selectedOptions.length === 1
+        ? selectedOptions[0].label
+        : `已选择 ${selectedOptions.length} 项`
+
+  function selectOption(optionValue: string) {
+    if (props.multiple) {
+      props.onValuesChange(
+        props.values.includes(optionValue)
+          ? props.values.filter((value) => value !== optionValue)
+          : [...props.values, optionValue]
+      )
+      return
+    }
+    props.onChange(optionValue)
+    setOpen(false)
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -86,19 +123,24 @@ export function OptionCombobox({
                 <CommandItem
                   key={option.value}
                   value={`${option.label} ${option.value} ${option.subtitle ?? ""} ${option.description ?? ""}`}
-                  onSelect={() => {
-                    onChange(option.value)
-                    setOpen(false)
-                  }}
+                  onSelect={() => selectOption(option.value)}
                 >
                   <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
                     <div className="flex min-w-0 items-start">
-                      <CheckIcon
-                        className={cn(
-                          "mr-2 mt-0.5 size-4 shrink-0",
-                          option.value === value ? "opacity-100" : "opacity-0"
-                        )}
-                      />
+                      {props.multiple ? (
+                        <Checkbox
+                          checked={selectedValues.includes(option.value)}
+                          className="pointer-events-none mr-2 mt-0.5"
+                          tabIndex={-1}
+                        />
+                      ) : (
+                        <CheckIcon
+                          className={cn(
+                            "mr-2 mt-0.5 size-4 shrink-0",
+                            option.value === props.value ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                      )}
                       <span className="min-w-0">
                         <span className="block truncate">{option.label}</span>
                         {option.subtitle ? (
