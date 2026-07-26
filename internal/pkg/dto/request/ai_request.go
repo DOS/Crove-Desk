@@ -70,7 +70,7 @@ type CreateAIAgentRequest struct {
 	FallbackMessage     string                          `json:"fallbackMessage"`
 	KnowledgeBaseIDs    []int64                         `json:"knowledgeBaseIds"`
 	SkillIDs            []int64                         `json:"skillIds"`
-	DirectTools         []AIAgentMCPToolRequest         `json:"directTools"`
+	MCPTools            []AIAgentMCPToolRequest         `json:"mcpTools"`
 	WorkflowBindings    []AIAgentWorkflowBindingRequest `json:"workflowBindings"`
 }
 

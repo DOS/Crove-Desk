@@ -238,17 +238,17 @@ func (s *aIAgentService) validatePublishableAgent(db *gorm.DB, agent *models.AIA
 	if strings.TrimSpace(agent.AllowedMCPTools) == "" {
 		return nil
 	}
-	var directTools []request.AIAgentMCPToolRequest
-	if err := json.Unmarshal([]byte(agent.AllowedMCPTools), &directTools); err != nil {
-		return errorsx.InvalidParam("ai agent direct tools are invalid")
+	var mcpTools []request.AIAgentMCPToolRequest
+	if err := json.Unmarshal([]byte(agent.AllowedMCPTools), &mcpTools); err != nil {
+		return errorsx.InvalidParam("ai agent MCP tools are invalid")
 	}
-	for _, item := range directTools {
+	for _, item := range mcpTools {
 		definition, err := aitooling.DefaultRegistry.Resolve(item.ToolCode)
 		if err != nil || definition.InputSchema == nil {
-			return errorsx.InvalidParam("ai agent direct tool definition is unavailable")
+			return errorsx.InvalidParam("ai agent MCP tool definition is unavailable")
 		}
 		if definition.RequireConfirmation {
-			return errorsx.InvalidParam("ai agent direct tool requires confirmation and cannot be executed directly")
+			return errorsx.InvalidParam("ai agent MCP tool requires confirmation and cannot be executed directly")
 		}
 	}
 	return nil
@@ -392,17 +392,17 @@ func (s *aIAgentService) buildAIAgentModel(id int64, req request.CreateAIAgentRe
 	if err != nil {
 		return nil, err
 	}
-	directTools, err := s.normalizeDirectTools(req.DirectTools)
+	mcpTools, err := s.normalizeMCPTools(req.MCPTools)
 	if err != nil {
 		return nil, err
 	}
-	directToolsJSON := ""
-	if len(directTools) > 0 {
-		buf, marshalErr := json.Marshal(directTools)
+	mcpToolsJSON := ""
+	if len(mcpTools) > 0 {
+		buf, marshalErr := json.Marshal(mcpTools)
 		if marshalErr != nil {
 			return nil, errorsx.InvalidParamI18n("error.e0021")
 		}
-		directToolsJSON = string(buf)
+		mcpToolsJSON = string(buf)
 	}
 	return &models.AIAgent{
 		Name:                name,
@@ -424,7 +424,7 @@ func (s *aIAgentService) buildAIAgentModel(id int64, req request.CreateAIAgentRe
 		FallbackMessage:     strings.TrimSpace(req.FallbackMessage),
 		KnowledgeIDs:        utils.JoinInt64s(knowledgeBaseIDs),
 		SkillIDs:            utils.JoinInt64s(skillIDs),
-		AllowedMCPTools:     directToolsJSON,
+		AllowedMCPTools:     mcpToolsJSON,
 	}, nil
 }
 
@@ -541,7 +541,7 @@ func (s *aIAgentService) normalizeSkillIDs(input []int64) ([]int64, error) {
 	return ret, nil
 }
 
-func (s *aIAgentService) normalizeDirectTools(input []request.AIAgentMCPToolRequest) ([]request.AIAgentMCPToolRequest, error) {
+func (s *aIAgentService) normalizeMCPTools(input []request.AIAgentMCPToolRequest) ([]request.AIAgentMCPToolRequest, error) {
 	if len(input) == 0 {
 		return nil, nil
 	}
@@ -552,20 +552,11 @@ func (s *aIAgentService) normalizeDirectTools(input []request.AIAgentMCPToolRequ
 		if err != nil {
 			return nil, err
 		}
-		if toolx.IsAutoInjectedToolCode(strings.TrimSpace(normalized.ToolCode)) {
-			continue
+		if toolx.ResolveToolSourceType(normalized.ToolCode) != enums.ToolSourceTypeMCP {
+			return nil, errorsx.InvalidParamI18n("error.e0020")
 		}
-		if spec, registered := toolx.GetRegisteredToolSpec(normalized.ToolCode); registered {
-			if !spec.DirectAccess || spec.AutoInjected || (spec.Code != toolx.BuiltinConversationContext.Code && spec.Code != toolx.BuiltinKnowledgeRetrieve.Code && spec.Code != toolx.GraphTriageServiceRequest.Code && spec.Code != toolx.GraphAnalyzeConversation.Code && spec.Code != toolx.GraphPrepareTicketDraft.Code) {
-				return nil, errorsx.InvalidParamI18n("error.e0020")
-			}
-		} else {
-			if toolx.ResolveToolSourceType(normalized.ToolCode) != enums.ToolSourceTypeMCP {
-				return nil, errorsx.InvalidParamI18n("error.e0020")
-			}
-			if err := ToolCatalogService.ValidateToolCode(normalized.ToolCode); err != nil {
-				return nil, err
-			}
+		if err := ToolCatalogService.ValidateToolCode(normalized.ToolCode); err != nil {
+			return nil, err
 		}
 		key := strings.TrimSpace(normalized.ToolCode)
 		if _, exists := seen[key]; exists {

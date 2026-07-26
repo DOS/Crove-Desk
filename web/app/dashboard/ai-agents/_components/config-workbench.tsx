@@ -63,15 +63,15 @@ import { cn } from "@/lib/utils"
 
 type RuntimeMode = "workflow" | "autonomous" | "hybrid"
 type SectionKey = "setup" | "persona" | "capability" | "service"
-type DirectToolItem = CreateAIAgentPayload["directTools"][number]
+type MCPToolItem = CreateAIAgentPayload["mcpTools"][number]
 
-type DirectToolOption = {
+type MCPToolOption = {
   value: string
   label: string
   group: string
   subtitle: string
   description?: string
-  meta: DirectToolItem
+  meta: MCPToolItem
 }
 
 const runtimeModes: {
@@ -142,7 +142,7 @@ export function AIAgentConfigWorkbench({
   const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>([])
   const [selectedSkillIds, setSelectedSkillIds] = useState<number[]>([])
   const [selectedKnowledgeBaseIds, setSelectedKnowledgeBaseIds] = useState<number[]>([])
-  const [directTools, setDirectTools] = useState<DirectToolItem[]>([])
+  const [mcpTools, setMCPTools] = useState<MCPToolItem[]>([])
   const [workflowBindings, setWorkflowBindings] = useState<AIAgentWorkflowBindingInput[]>([])
 
   const [aiConfigs, setAIConfigs] = useState<AIConfig[]>([])
@@ -197,7 +197,7 @@ export function AIAgentConfigWorkbench({
         setSelectedTeamIds([])
         setSelectedSkillIds([])
         setSelectedKnowledgeBaseIds([])
-        setDirectTools([])
+        setMCPTools([])
         setWorkflowBindings([])
         return
       }
@@ -226,7 +226,7 @@ export function AIAgentConfigWorkbench({
       setSelectedTeamIds((detail.teams ?? []).map((team) => team.id))
       setSelectedSkillIds(detail.skillIds ?? [])
       setSelectedKnowledgeBaseIds(detail.knowledgeBaseIds ?? [])
-      setDirectTools(detail.directTools ?? [])
+      setMCPTools(detail.mcpTools ?? [])
       setWorkflowBindings(
         (detail.workflowBindings ?? []).map(
           ({ workflowVersionId, toolName, triggerInstruction, priority, enabled }) => ({
@@ -299,20 +299,14 @@ export function AIAgentConfigWorkbench({
     () => knowledgeBases.map((item) => ({ value: String(item.id), label: item.name })),
     [knowledgeBases],
   )
-  const directToolOptions = useMemo<DirectToolOption[]>(
+  const mcpToolOptions = useMemo<MCPToolOption[]>(
     () =>
       toolCatalog
-        .filter(
-          (tool) =>
-            !tool.autoInjected &&
-            (tool.sourceType === "mcp" ||
-              tool.toolCode === "builtin/conversation_context" ||
-              tool.toolCode === "graph/prepare_ticket_draft"),
-        )
+        .filter((tool) => !tool.autoInjected && tool.sourceType === "mcp")
         .map((tool) => ({
           value: tool.toolCode,
           label: tool.title || tool.toolName,
-          group: tool.sourceType === "builtin" ? "内置工具" : tool.serverCode,
+          group: tool.serverCode,
           subtitle: tool.toolCode,
           description: tool.description || undefined,
           meta: {
@@ -348,10 +342,10 @@ export function AIAgentConfigWorkbench({
     setNext([...current, id])
   }
 
-  function setDirectToolSelection(values: string[]) {
-    setDirectTools(
+  function setMCPToolSelection(values: string[]) {
+    setMCPTools(
       values.flatMap((value) => {
-        const option = directToolOptions.find((item) => item.value === value)
+        const option = mcpToolOptions.find((item) => item.value === value)
         return option ? [option.meta] : []
       }),
     )
@@ -430,7 +424,7 @@ export function AIAgentConfigWorkbench({
       fallbackMessage: fallbackMessage.trim(),
       knowledgeBaseIds: uniqueNumbers(selectedKnowledgeBaseIds),
       skillIds: uniqueNumbers(selectedSkillIds),
-      directTools,
+      mcpTools,
       workflowBindings,
     }
   }
@@ -775,16 +769,16 @@ export function AIAgentConfigWorkbench({
                 </FormSection>
 
                 <FormSection
-                  title="Direct Tool"
-                  description="从工具分组中选择 Agent 可以直接调用的工具。"
+                  title="MCP Tool"
+                  description="选择允许 Agent 调用的 MCP Tool，选项与 MCP Tool 管理中的可用工具保持一致。"
                 >
                   <OptionCombobox
                     multiple
-                    values={directTools.map((tool) => tool.toolCode)}
-                    options={directToolOptions}
-                    placeholder="选择 Direct Tool"
-                    emptyText="没有可用 Direct Tool"
-                    onValuesChange={setDirectToolSelection}
+                    values={mcpTools.map((tool) => tool.toolCode)}
+                    options={mcpToolOptions}
+                    placeholder="选择 MCP Tool"
+                    emptyText="没有可用 MCP Tool"
+                    onValuesChange={setMCPToolSelection}
                   />
                 </FormSection>
               </div>

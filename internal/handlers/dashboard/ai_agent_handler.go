@@ -270,7 +270,7 @@ func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) respons
 		SkillIDs:               utils.SplitInt64s(item.SkillIDs),
 		Skills:                 make([]response.AIAgentSkillResponse, 0),
 		Teams:                  make([]response.AIAgentTeamResponse, 0),
-		DirectTools:            make([]response.AIAgentMCPToolResponse, 0),
+		MCPTools:               make([]response.AIAgentMCPToolResponse, 0),
 		WorkflowBindings:       make([]response.AIAgentWorkflowBindingResponse, 0),
 		WorkflowVersionID:      item.WorkflowVersionID,
 		PublishedRevisionID:    item.PublishedRevisionID,
@@ -303,18 +303,15 @@ func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) respons
 		}
 	}
 	if raw := strings.TrimSpace(item.AllowedMCPTools); raw != "" {
-		var directTools []request.AIAgentMCPToolRequest
-		if err := json.Unmarshal([]byte(raw), &directTools); err == nil {
-			for _, tool := range directTools {
+		var mcpTools []request.AIAgentMCPToolRequest
+		if err := json.Unmarshal([]byte(raw), &mcpTools); err == nil {
+			for _, tool := range mcpTools {
 				toolCode := strings.TrimSpace(tool.ToolCode)
 				if toolCode == "" {
 					toolCode = toolx.BuildMCPToolCode(tool.ServerCode, tool.ToolName)
 				}
 				toolCode = toolx.NormalizeToolCodeAlias(toolCode)
-				if toolx.IsAutoInjectedToolCode(toolCode) {
-					continue
-				}
-				if toolx.IsAgentDirectGraphToolCode(toolCode) {
+				if toolx.ResolveToolSourceType(toolCode) != enums.ToolSourceTypeMCP {
 					continue
 				}
 				serverCode := strings.TrimSpace(tool.ServerCode)
@@ -338,7 +335,7 @@ func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) respons
 						description = registeredDescription
 					}
 				}
-				ret.DirectTools = append(ret.DirectTools, response.AIAgentMCPToolResponse{
+				ret.MCPTools = append(ret.MCPTools, response.AIAgentMCPToolResponse{
 					ToolCode:    toolCode,
 					ServerCode:  serverCode,
 					ToolName:    toolName,

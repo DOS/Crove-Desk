@@ -120,7 +120,7 @@ type AIAgentResponse struct {
 	KnowledgeBaseIDs       []int64                          `json:"knowledgeBaseIds"`
 	SkillIDs               []int64                          `json:"skillIds"`
 	Skills                 []AIAgentSkillResponse           `json:"skills"`
-	DirectTools            []AIAgentMCPToolResponse         `json:"directTools"`
+	MCPTools               []AIAgentMCPToolResponse         `json:"mcpTools"`
 	WorkflowBindings       []AIAgentWorkflowBindingResponse `json:"workflowBindings"`
 	WorkflowVersionID      int64                            `json:"workflowVersionId"`
 	PublishedRevisionID    int64                            `json:"publishedRevisionId"`

@@ -182,23 +182,23 @@ export default function DashboardAIAgentsPage() {
         label: t("aiAgent.columnCapabilities"),
         render: (item) => {
           const skills = item.skills ?? [];
-          const directTools = item.directTools ?? [];
-          const directToolServerCodes = Array.from(
-            new Set(directTools.map((tool) => tool.serverCode).filter(Boolean)),
+          const mcpTools = item.mcpTools ?? [];
+          const mcpServerCodes = Array.from(
+            new Set(mcpTools.map((tool) => tool.serverCode).filter(Boolean)),
           );
           return (
             <div className="space-y-2">
               <div className="flex flex-wrap gap-1">
                 <Badge variant="secondary">{skills.length} Skills</Badge>
-                <Badge variant="secondary">{directTools.length} Tools</Badge>
+                <Badge variant="secondary">{mcpTools.length} MCP Tools</Badge>
               </div>
               <div className="flex flex-wrap gap-1">
-                {directToolServerCodes.length === 0 ? (
+                {mcpServerCodes.length === 0 ? (
                   <span className="text-sm text-muted-foreground">
                     {t("aiAgent.noMcpServer")}
                   </span>
                 ) : (
-                  directToolServerCodes.map((serverCode) => (
+                  mcpServerCodes.map((serverCode) => (
                     <Badge key={serverCode} variant="outline">
                       {serverCode}
                     </Badge>

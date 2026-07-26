@@ -203,32 +203,18 @@ func TestAIAgentServiceNormalizesToolPolicy(t *testing.T) {
 	}
 }
 
-func TestAIAgentServiceAllowsRegisteredReadDirectTool(t *testing.T) {
-	tools, err := AIAgentService.normalizeDirectTools([]request.AIAgentMCPToolRequest{{ToolCode: toolx.BuiltinConversationContext.Code}})
-	if err != nil {
-		t.Fatalf("normalizeDirectTools: %v", err)
-	}
-	if len(tools) != 1 || tools[0].ToolCode != toolx.BuiltinConversationContext.Code {
-		t.Fatalf("unexpected normalized direct tools: %#v", tools)
-	}
-	tools, err = AIAgentService.normalizeDirectTools([]request.AIAgentMCPToolRequest{{ToolCode: toolx.BuiltinKnowledgeRetrieve.Code}})
-	if err != nil || len(tools) != 1 || tools[0].ToolCode != toolx.BuiltinKnowledgeRetrieve.Code {
-		t.Fatalf("expected registered knowledge retrieve tool to be allowed, tools=%#v err=%v", tools, err)
-	}
-	tools, err = AIAgentService.normalizeDirectTools([]request.AIAgentMCPToolRequest{{ToolCode: toolx.GraphPrepareTicketDraft.Code}})
-	if err != nil || len(tools) != 1 || tools[0].ToolCode != toolx.GraphPrepareTicketDraft.Code {
-		t.Fatalf("expected registered ticket draft tool to be allowed, tools=%#v err=%v", tools, err)
-	}
-	tools, err = AIAgentService.normalizeDirectTools([]request.AIAgentMCPToolRequest{{ToolCode: toolx.GraphAnalyzeConversation.Code}})
-	if err != nil || len(tools) != 1 || tools[0].ToolCode != toolx.GraphAnalyzeConversation.Code {
-		t.Fatalf("expected registered conversation analysis tool to be allowed, tools=%#v err=%v", tools, err)
-	}
-	tools, err = AIAgentService.normalizeDirectTools([]request.AIAgentMCPToolRequest{{ToolCode: toolx.GraphTriageServiceRequest.Code}})
-	if err != nil || len(tools) != 1 || tools[0].ToolCode != toolx.GraphTriageServiceRequest.Code {
-		t.Fatalf("expected registered service triage tool to be allowed, tools=%#v err=%v", tools, err)
-	}
-	if _, err := AIAgentService.normalizeDirectTools([]request.AIAgentMCPToolRequest{{ToolCode: toolx.GraphHandoffConversation.Code}}); err == nil {
-		t.Fatal("expected unsupported graph direct tool to be rejected")
+func TestAIAgentServiceRejectsNonMCPToolSelection(t *testing.T) {
+	for _, toolCode := range []string{
+		toolx.BuiltinConversationContext.Code,
+		toolx.BuiltinKnowledgeRetrieve.Code,
+		toolx.GraphPrepareTicketDraft.Code,
+		toolx.GraphAnalyzeConversation.Code,
+		toolx.GraphTriageServiceRequest.Code,
+		toolx.GraphHandoffConversation.Code,
+	} {
+		if _, err := AIAgentService.normalizeMCPTools([]request.AIAgentMCPToolRequest{{ToolCode: toolCode}}); err == nil {
+			t.Fatalf("expected non-MCP tool %q to be rejected", toolCode)
+		}
 	}
 }
 
@@ -350,7 +336,7 @@ func TestAIAgentServiceAllowsPublishWithAdministratorSelectedMCPTool(t *testing.
 		t.Fatalf("CreateAIAgent() error = %v", err)
 	}
 	if err := sqls.DB().Model(&models.AIAgent{}).Where("id = ?", agent.ID).Update("allowed_mcp_tools", `[{"toolCode":"mcp/demo/write_order"}]`).Error; err != nil {
-		t.Fatalf("set direct tool: %v", err)
+		t.Fatalf("set MCP tool: %v", err)
 	}
 	if _, err := AIAgentService.PublishAIAgent(agent.ID, operator); err != nil {
 		t.Fatalf("expected administrator-selected MCP tool to be publishable, got %v", err)

@@ -61,7 +61,7 @@ func TestRegistryIncludesAllTicketDraftToolInputs(t *testing.T) {
 	}
 }
 
-func TestRegistryTreatsAdministratorSelectedMCPToolsAsDirectTools(t *testing.T) {
+func TestRegistryTreatsAdministratorSelectedMCPToolsAsAllowedTools(t *testing.T) {
 	definition, err := DefaultRegistry.Resolve("knowledge/search")
 	if err != nil {
 		t.Fatalf("Resolve returned error: %v", err)

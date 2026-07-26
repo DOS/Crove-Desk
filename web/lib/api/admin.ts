@@ -241,7 +241,7 @@ export type AIAgent = {
 	knowledgeBaseIds: number[]
   skillIds: number[]
   skills: { id: number; name: string }[]
-	directTools: {
+	mcpTools: {
     toolCode: string
     serverCode: string
     toolName: string
@@ -282,7 +282,7 @@ export type CreateAIAgentPayload = {
   fallbackMessage: string
 	knowledgeBaseIds: number[]
   skillIds: number[]
-  directTools: {
+  mcpTools: {
     toolCode: string
     serverCode: string
     toolName: string

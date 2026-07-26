@@ -552,7 +552,7 @@ type AIAgent struct {
 	FallbackMessage        string                          `gorm:"type:text"`                                          // FallbackMessage 为知识不足回复文案。
 	KnowledgeIDs           string                          `gorm:"type:varchar(500);not null;default:''"`              // KnowledgeIDs 为绑定的知识库ID列表，按顺序表示优先级。
 	SkillIDs               string                          `gorm:"type:varchar(500);not null;default:''"`              // SkillIDs 为绑定的技能ID列表，按顺序表示允许路由的范围。
-	AllowedMCPTools        string                          `gorm:"type:text"`                                          // AllowedMCPTools 为允许 direct tool 路由的 MCP 工具白名单配置JSON。
+	AllowedMCPTools        string                          `gorm:"type:text"`                                          // AllowedMCPTools 为 Agent 允许调用的 MCP 工具白名单配置 JSON。
 	WorkflowVersionID      int64                           `gorm:"type:bigint;not null;default:0;index"`               // WorkflowVersionID is retained as the single-workflow runtime pointer.
 	PublishedRevisionID    int64                           `gorm:"type:bigint;not null;default:0;index"`               // PublishedRevisionID 为当前已发布 Agent 配置快照ID。
 	SortNo                 int                             `gorm:"type:int;not null;default:0;index"`                  // SortNo 为后台展示排序号。
