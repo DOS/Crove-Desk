@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import {
   BotMessageSquareIcon,
+  BookOpenIcon,
   GitBranchIcon,
   HistoryIcon,
+  MessageSquareTextIcon,
   PlugIcon,
-	RotateCcwIcon,
   SaveIcon,
   SettingsIcon,
   Trash2Icon,
+  UserRoundCheckIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -37,34 +39,24 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   createAIAgent,
   fetchAIAgent,
-	fetchAIAgentRevisions,
+  fetchAIAgentRevisions,
   fetchAIConfigsAll,
-	fetchKnowledgeBasesAll,
-  fetchAIWorkflowDefaultDefinition,
-  fetchAIWorkflowNodeSpecs,
-	fetchAIWorkflowTemplates,
-  fetchAIWorkflowVersions,
-	fetchAIWorkflows,
+  fetchAIWorkflows,
   fetchAgentTeamsAll,
+  fetchKnowledgeBasesAll,
   fetchMCPCatalog,
   fetchSkillDefinitionsAll,
-	publishAIAgent,
-	rollbackAIAgent,
-	rollbackAIAgentRollout,
+  publishAIAgent,
+  rollbackAIAgent,
   updateAIAgent,
-  validateAIWorkflow,
   type AIAgent,
-	type AIAgentWorkflowBindingInput,
-	type AgentRevision,
+  type AIAgentWorkflowBindingInput,
+  type AgentRevision,
   type AIConfig,
-  type AIWorkflowDefinition,
-	type AIWorkflow,
-  type AIWorkflowNodeSpec,
-	type AIWorkflowTemplate,
-  type AIWorkflowVersion,
+  type AIWorkflow,
   type AdminAgentTeam,
   type CreateAIAgentPayload,
-	type KnowledgeBase,
+  type KnowledgeBase,
   type MCPToolCatalogItem,
   type MCPToolSourceType,
   type SkillDefinition,
@@ -76,8 +68,10 @@ import {
   IMConversationServiceMode,
   Status,
 } from "@/lib/generated/enums"
-import { WorkflowEditor } from "../../ai-workflows/_components/workflow-editor"
+import { cn } from "@/lib/utils"
 
+type RuntimeMode = "workflow" | "autonomous" | "hybrid"
+type SectionKey = "setup" | "persona" | "capability" | "service"
 type DirectToolItem = CreateAIAgentPayload["directTools"][number]
 
 type DirectToolOption = {
@@ -88,29 +82,27 @@ type DirectToolOption = {
   groupLabel: string
 }
 
-type SectionKey =
-  | "basic"
-  | "capabilities"
-  | "workflow"
-
-const fallbackDefinition: AIWorkflowDefinition = {
-  schemaVersion: 2,
-  nodes: [
-    {
-      id: "start_1",
-      type: "start",
-      meta: { position: { x: 0, y: 80 } },
-      data: { title: "开始", config: {}, inputsValues: {} },
-    },
-    {
-      id: "end_1",
-      type: "end",
-      meta: { position: { x: 260, y: 80 } },
-      data: { title: "结束", config: {}, inputsValues: {} },
-    },
-  ],
-  edges: [{ sourceNodeID: "start_1", targetNodeID: "end_1", sourcePortID: "edge_start_end" }],
-}
+const runtimeModes: {
+  value: RuntimeMode
+  title: string
+  description: string
+}[] = [
+  {
+    value: "autonomous",
+    title: "自主接待",
+    description: "自主选择知识和工具处理请求，工作流可选。",
+  },
+  {
+    value: "hybrid",
+    title: "自主接待 + 工作流",
+    description: "自主处理咨询，按需调用一个或多个工作流。",
+  },
+  {
+    value: "workflow",
+    title: "仅工作流",
+    description: "严格按一个已发布工作流处理会话。",
+  },
+]
 
 function toText(value: string | number | undefined | null) {
   if (value === undefined || value === null || value === 0) return ""
@@ -129,159 +121,142 @@ export function AIAgentConfigWorkbench({
   agentId,
   onAgentSaved,
   onAgentCreated,
+  onCancel,
 }: {
   agentId?: number | null
   onAgentSaved?: () => void
   onAgentCreated?: (agent: AIAgent) => void
+  onCancel?: () => void
 }) {
   const [currentAgentId, setCurrentAgentId] = useState(agentId ?? null)
-  const [activeSection, setActiveSection] = useState<SectionKey>("basic")
+  const [activeSection, setActiveSection] = useState<SectionKey>("setup")
   const [agent, setAgent] = useState<AIAgent | null>(null)
-  const [workflowVersions, setWorkflowVersions] = useState<AIWorkflowVersion[]>([])
-	const [agentRevisions, setAgentRevisions] = useState<AgentRevision[]>([])
-  const [nodeSpecs, setNodeSpecs] = useState<AIWorkflowNodeSpec[]>([])
+  const [agentRevisions, setAgentRevisions] = useState<AgentRevision[]>([])
   const [loading, setLoading] = useState(true)
-  const [savingAgent, setSavingAgent] = useState(false)
-  const [savingWorkflow, setSavingWorkflow] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [versionDialogOpen, setVersionDialogOpen] = useState(false)
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [aiConfigId, setAIConfigId] = useState("")
-	const [runtimeMode, setRuntimeMode] = useState<"workflow" | "autonomous" | "hybrid">("autonomous")
+  const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>("autonomous")
   const [serviceMode, setServiceMode] = useState(String(IMConversationServiceMode.AIFirst))
   const [systemPrompt, setSystemPrompt] = useState("")
   const [welcomeMessage, setWelcomeMessage] = useState("")
   const [replyTimeoutSeconds, setReplyTimeoutSeconds] = useState("180")
-	const [rolloutPercent, setRolloutPercent] = useState("5")
   const [handoffMode, setHandoffMode] = useState(String(AIAgentHandoffMode.WaitPool))
   const [fallbackMode, setFallbackMode] = useState(String(AIAgentFallbackMode.NoAnswer))
   const [fallbackMessage, setFallbackMessage] = useState("")
   const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>([])
   const [selectedSkillIds, setSelectedSkillIds] = useState<number[]>([])
-	const [selectedKnowledgeBaseIds, setSelectedKnowledgeBaseIds] = useState<number[]>([])
+  const [selectedKnowledgeBaseIds, setSelectedKnowledgeBaseIds] = useState<number[]>([])
   const [directTools, setDirectTools] = useState<DirectToolItem[]>([])
-	const [workflowBindings, setWorkflowBindings] = useState<AIAgentWorkflowBindingInput[]>([])
-	const [publishedWorkflows, setPublishedWorkflows] = useState<AIWorkflow[]>([])
-	const [workflowToAdd, setWorkflowToAdd] = useState("")
-
-  const [definition, setDefinition] = useState<AIWorkflowDefinition>(fallbackDefinition)
-  const [workflowRevision, setWorkflowRevision] = useState(0)
-	const [workflowTemplates, setWorkflowTemplates] = useState<AIWorkflowTemplate[]>([])
-	const [selectedWorkflowTemplate, setSelectedWorkflowTemplate] = useState("")
+  const [workflowBindings, setWorkflowBindings] = useState<AIAgentWorkflowBindingInput[]>([])
 
   const [aiConfigs, setAIConfigs] = useState<AIConfig[]>([])
   const [agentTeams, setAgentTeams] = useState<AdminAgentTeam[]>([])
   const [skills, setSkills] = useState<SkillDefinition[]>([])
-	const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([])
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([])
   const [toolCatalog, setToolCatalog] = useState<MCPToolCatalogItem[]>([])
+  const [publishedWorkflows, setPublishedWorkflows] = useState<AIWorkflow[]>([])
+
   const [teamToAdd, setTeamToAdd] = useState("")
   const [skillToAdd, setSkillToAdd] = useState("")
-	const [knowledgeBaseToAdd, setKnowledgeBaseToAdd] = useState("")
+  const [knowledgeBaseToAdd, setKnowledgeBaseToAdd] = useState("")
   const [directToolGroupToAdd, setDirectToolGroupToAdd] = useState("")
   const [directToolToAdd, setDirectToolToAdd] = useState("")
-	const previousRolloutPercent = agent?.previousRolloutPercent ?? 0
+  const [workflowToAdd, setWorkflowToAdd] = useState("")
 
   useEffect(() => {
     setCurrentAgentId(agentId ?? null)
   }, [agentId])
 
-  const replaceWorkflowDefinition = useCallback((nextDefinition: AIWorkflowDefinition) => {
-    setDefinition(nextDefinition)
-    setWorkflowRevision((current) => current + 1)
-  }, [])
-
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [
-        specs,
-        defaultDefinition,
-		templates,
-        configs,
-        teams,
-        skillList,
-		knowledgeBaseList,
-        catalog,
-		workflowPage,
-      ] = await Promise.all([
-        fetchAIWorkflowNodeSpecs(),
-        fetchAIWorkflowDefaultDefinition().catch(() => fallbackDefinition),
-		fetchAIWorkflowTemplates(),
-        fetchAIConfigsAll({ modelType: AIModelType.LLM }),
-        fetchAgentTeamsAll(),
-        fetchSkillDefinitionsAll({ status: Status.Ok }),
-		fetchKnowledgeBasesAll({ status: Status.Ok }),
-        fetchMCPCatalog(),
-		fetchAIWorkflows({ limit: 100 }),
-      ])
+      const [configs, teams, skillList, knowledgeBaseList, catalog, workflowPage] =
+        await Promise.all([
+          fetchAIConfigsAll({ modelType: AIModelType.LLM }),
+          fetchAgentTeamsAll(),
+          fetchSkillDefinitionsAll({ status: Status.Ok }),
+          fetchKnowledgeBasesAll({ status: Status.Ok }),
+          fetchMCPCatalog(),
+          fetchAIWorkflows({ limit: 100 }),
+        ])
 
-      setNodeSpecs(specs ?? [])
-		setWorkflowTemplates(templates ?? [])
       setAIConfigs(configs ?? [])
       setAgentTeams(teams ?? [])
       setSkills(skillList ?? [])
-		setKnowledgeBases(knowledgeBaseList ?? [])
+      setKnowledgeBases(knowledgeBaseList ?? [])
       setToolCatalog(catalog ?? [])
-		setPublishedWorkflows((workflowPage.results ?? []).filter((item) => item.publishedVersionId > 0))
+      setPublishedWorkflows(
+        (workflowPage.results ?? []).filter((item) => item.publishedVersionId > 0),
+      )
 
       if (!currentAgentId || currentAgentId <= 0) {
         setAgent(null)
-        setWorkflowVersions([])
-		setAgentRevisions([])
+        setAgentRevisions([])
         setName("")
         setDescription("")
-		setAIConfigId("")
-		setRuntimeMode("autonomous")
+        setAIConfigId("")
+        setRuntimeMode("autonomous")
         setServiceMode(String(IMConversationServiceMode.AIFirst))
         setSystemPrompt("")
         setWelcomeMessage("")
         setReplyTimeoutSeconds("180")
-		setRolloutPercent("5")
         setHandoffMode(String(AIAgentHandoffMode.WaitPool))
         setFallbackMode(String(AIAgentFallbackMode.NoAnswer))
         setFallbackMessage("")
         setSelectedTeamIds([])
         setSelectedSkillIds([])
-		setSelectedKnowledgeBaseIds([])
+        setSelectedKnowledgeBaseIds([])
         setDirectTools([])
-		setWorkflowBindings([])
-        replaceWorkflowDefinition(defaultDefinition ?? fallbackDefinition)
+        setWorkflowBindings([])
         return
       }
 
-		const [agentDetail, revisionList] = await Promise.all([
+      const [detail, revisions] = await Promise.all([
         fetchAIAgent(currentAgentId),
-		fetchAIAgentRevisions(currentAgentId),
+        fetchAIAgentRevisions(currentAgentId),
       ])
-
-      setAgent(agentDetail)
-		setAgentRevisions(revisionList ?? [])
-		setWorkflowVersions([])
-      setName(agentDetail.name)
-      setDescription(agentDetail.description || "")
-		setAIConfigId(toText(agentDetail.aiConfigId))
-		setRuntimeMode(agentDetail.runtimeMode === "autonomous" || agentDetail.runtimeMode === "hybrid" ? agentDetail.runtimeMode : "workflow")
-      setServiceMode(String(agentDetail.serviceMode || IMConversationServiceMode.AIFirst))
-      setSystemPrompt(agentDetail.systemPrompt || "")
-      setWelcomeMessage(agentDetail.welcomeMessage || "")
-      setReplyTimeoutSeconds(String(agentDetail.replyTimeoutSeconds ?? 180))
-		setRolloutPercent(String(agentDetail.rolloutPercent || 100))
-      setHandoffMode(String(agentDetail.handoffMode || AIAgentHandoffMode.WaitPool))
-      setFallbackMode(String(agentDetail.fallbackMode || AIAgentFallbackMode.NoAnswer))
-      setFallbackMessage(agentDetail.fallbackMessage || "")
-      setSelectedTeamIds((agentDetail.teams ?? []).map((team) => team.id))
-      setSelectedSkillIds(agentDetail.skillIds ?? [])
-		setSelectedKnowledgeBaseIds(agentDetail.knowledgeBaseIds ?? [])
-      setDirectTools(agentDetail.directTools ?? [])
-		setWorkflowBindings((agentDetail.workflowBindings ?? []).map(({ workflowVersionId, toolName, triggerInstruction, priority, enabled }) => ({ workflowVersionId, toolName, triggerInstruction, priority, enabled })))
-		replaceWorkflowDefinition(defaultDefinition ?? fallbackDefinition)
+      setAgent(detail)
+      setAgentRevisions(revisions ?? [])
+      setName(detail.name)
+      setDescription(detail.description || "")
+      setAIConfigId(toText(detail.aiConfigId))
+      setRuntimeMode(
+        detail.runtimeMode === "autonomous" || detail.runtimeMode === "hybrid"
+          ? detail.runtimeMode
+          : "workflow",
+      )
+      setServiceMode(String(detail.serviceMode || IMConversationServiceMode.AIFirst))
+      setSystemPrompt(detail.systemPrompt || "")
+      setWelcomeMessage(detail.welcomeMessage || "")
+      setReplyTimeoutSeconds(String(detail.replyTimeoutSeconds ?? 180))
+      setHandoffMode(String(detail.handoffMode || AIAgentHandoffMode.WaitPool))
+      setFallbackMode(String(detail.fallbackMode || AIAgentFallbackMode.NoAnswer))
+      setFallbackMessage(detail.fallbackMessage || "")
+      setSelectedTeamIds((detail.teams ?? []).map((team) => team.id))
+      setSelectedSkillIds(detail.skillIds ?? [])
+      setSelectedKnowledgeBaseIds(detail.knowledgeBaseIds ?? [])
+      setDirectTools(detail.directTools ?? [])
+      setWorkflowBindings(
+        (detail.workflowBindings ?? []).map(
+          ({ workflowVersionId, toolName, triggerInstruction, priority, enabled }) => ({
+            workflowVersionId,
+            toolName,
+            triggerInstruction,
+            priority,
+            enabled,
+          }),
+        ),
+      )
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load Agent config")
+      toast.error(error instanceof Error ? error.message : "加载 Agent 配置失败")
     } finally {
       setLoading(false)
     }
-  }, [currentAgentId, replaceWorkflowDefinition])
+  }, [currentAgentId])
 
   useEffect(() => {
     void loadData()
@@ -293,55 +268,59 @@ export function AIAgentConfigWorkbench({
       { value: String(IMConversationServiceMode.HumanOnly), label: "仅人工" },
       { value: String(IMConversationServiceMode.AIFirst), label: "AI 优先" },
     ],
-    []
+    [],
   )
-	const runtimeModeOptions = useMemo(
-		() => [
-			{ value: "autonomous", label: "自主接待" },
-			{ value: "hybrid", label: "自主接待 + 工作流" },
-			{ value: "workflow", label: "仅工作流" },
-		],
-		[]
-	)
   const handoffModeOptions = useMemo(
     () => [
       { value: String(AIAgentHandoffMode.WaitPool), label: "进入待接入池" },
-      { value: String(AIAgentHandoffMode.DefaultTeamPool), label: "进入默认客服组待接入池" },
-      { value: String(AIAgentHandoffMode.AIHoldAndNotify), label: "AI继续接待并提醒人工" },
+      {
+        value: String(AIAgentHandoffMode.DefaultTeamPool),
+        label: "进入默认客服组待接入池",
+      },
+      {
+        value: String(AIAgentHandoffMode.AIHoldAndNotify),
+        label: "AI继续接待并提醒人工",
+      },
     ],
-    []
+    [],
   )
   const fallbackModeOptions = useMemo(
     () => [
       { value: String(AIAgentFallbackMode.NoAnswer), label: "直接说明知识不足" },
       { value: String(AIAgentFallbackMode.SuggestRetry), label: "引导用户补充信息" },
-			{ value: String(AIAgentFallbackMode.Handoff), label: "转人工客服" },
+      { value: String(AIAgentFallbackMode.Handoff), label: "转人工客服" },
     ],
-    []
+    [],
   )
   const aiConfigOptions = useMemo(
-    () => aiConfigs.map((item) => ({ value: String(item.id), label: `${item.name} · ${item.modelName}` })),
-    [aiConfigs]
+    () =>
+      aiConfigs.map((item) => ({
+        value: String(item.id),
+        label: `${item.name} · ${item.modelName}`,
+      })),
+    [aiConfigs],
   )
   const teamOptions = useMemo(
     () => agentTeams.map((item) => ({ value: String(item.id), label: item.name })),
-    [agentTeams]
+    [agentTeams],
   )
   const skillOptions = useMemo(
     () => skills.map((item) => ({ value: String(item.id), label: item.name })),
-    [skills]
+    [skills],
   )
-	const knowledgeBaseOptions = useMemo(
-		() => knowledgeBases.map((item) => ({ value: String(item.id), label: item.name })),
-		[knowledgeBases]
-	)
+  const knowledgeBaseOptions = useMemo(
+    () => knowledgeBases.map((item) => ({ value: String(item.id), label: item.name })),
+    [knowledgeBases],
+  )
   const directToolOptions = useMemo<DirectToolOption[]>(
     () =>
       toolCatalog
         .filter(
           (tool) =>
             !tool.autoInjected &&
-            (tool.sourceType === "mcp" || tool.toolCode === "builtin/conversation_context" || tool.toolCode === "graph/prepare_ticket_draft")
+            (tool.sourceType === "mcp" ||
+              tool.toolCode === "builtin/conversation_context" ||
+              tool.toolCode === "graph/prepare_ticket_draft"),
         )
         .map((tool) => ({
           value: tool.toolCode,
@@ -357,7 +336,7 @@ export function AIAgentConfigWorkbench({
             arguments: undefined,
           },
         })),
-    [toolCatalog]
+    [toolCatalog],
   )
   const directToolGroupOptions = useMemo(
     () =>
@@ -366,25 +345,40 @@ export function AIAgentConfigWorkbench({
           directToolOptions.map((option) => [
             option.groupLabel,
             { value: option.groupLabel, label: option.groupLabel },
-          ])
-        ).values()
+          ]),
+        ).values(),
       ),
-    [directToolOptions]
+    [directToolOptions],
   )
   const addableDirectToolOptions = useMemo(
     () =>
       directToolOptions.filter(
         (option) =>
           option.groupLabel === directToolGroupToAdd &&
-          !directTools.some((tool) => tool.toolCode === option.value)
+          !directTools.some((tool) => tool.toolCode === option.value),
       ),
-    [directToolGroupToAdd, directToolOptions, directTools]
+    [directToolGroupToAdd, directToolOptions, directTools],
+  )
+  const workflowOptions = useMemo(
+    () =>
+      publishedWorkflows
+        .filter(
+          (workflow) =>
+            !workflowBindings.some(
+              (binding) => binding.workflowVersionId === workflow.publishedVersionId,
+            ),
+        )
+        .map((workflow) => ({
+          value: String(workflow.publishedVersionId),
+          label: `${workflow.name} · 固定版本 #${workflow.publishedVersionId}`,
+        })),
+    [publishedWorkflows, workflowBindings],
   )
 
   function selectedOptions(ids: number[], options: { value: string; label: string }[]) {
     return ids
       .map((id) => options.find((option) => Number(option.value) === id))
-      .filter((option): option is { value: string; label: string } => !!option)
+      .filter((option): option is { value: string; label: string } => Boolean(option))
   }
 
   function addSelected(value: string, current: number[], setNext: (ids: number[]) => void) {
@@ -399,209 +393,241 @@ export function AIAgentConfigWorkbench({
     setDirectTools((current) =>
       current.some((tool) => tool.toolCode === option.meta.toolCode)
         ? current
-        : [...current, option.meta]
+        : [...current, option.meta],
     )
     setDirectToolToAdd("")
   }
 
-	function addWorkflowBinding(value: string) {
-		const workflow = publishedWorkflows.find((item) => item.publishedVersionId === Number(value))
-		if (!workflow || workflowBindings.some((item) => item.workflowVersionId === workflow.publishedVersionId)) return
-		setWorkflowBindings((current) => [...current, { workflowVersionId: workflow.publishedVersionId, toolName: workflow.name, triggerInstruction: "", priority: current.length + 1, enabled: true }])
-		setWorkflowToAdd("")
-	}
+  function addWorkflowBinding(value: string) {
+    const workflow = publishedWorkflows.find(
+      (item) => item.publishedVersionId === Number(value),
+    )
+    if (!workflow) return
+    if (runtimeMode === "workflow" && workflowBindings.length >= 1) {
+      toast.error("仅工作流模式只能关联一个已发布工作流")
+      return
+    }
+    setWorkflowBindings((current) => [
+      ...current,
+      {
+        workflowVersionId: workflow.publishedVersionId,
+        toolName: workflow.name,
+        triggerInstruction: "",
+        priority: current.length + 1,
+        enabled: true,
+      },
+    ])
+    setWorkflowToAdd("")
+  }
+
+  function validateForm() {
+    if (!name.trim()) {
+      setActiveSection("setup")
+      toast.error("请填写 Agent 名称")
+      return false
+    }
+    if (!Number(aiConfigId)) {
+      setActiveSection("setup")
+      toast.error("请选择 AI 配置")
+      return false
+    }
+    if (runtimeMode === "hybrid" && workflowBindings.length === 0) {
+      setActiveSection("capability")
+      toast.error("Hybrid 模式至少需要关联一个已发布工作流")
+      return false
+    }
+    if (runtimeMode === "workflow" && workflowBindings.length !== 1) {
+      setActiveSection("capability")
+      toast.error("仅工作流模式必须且只能关联一个已发布工作流")
+      return false
+    }
+    return true
+  }
 
   function buildPayload(): CreateAIAgentPayload {
     return {
       name: name.trim(),
       description: description.trim(),
       aiConfigId: Number(aiConfigId),
-		runtimeMode,
+      runtimeMode,
       serviceMode: Number(serviceMode),
       systemPrompt: systemPrompt.trim(),
       welcomeMessage: welcomeMessage.trim(),
       replyTimeoutSeconds: Number(replyTimeoutSeconds),
-		rolloutPercent: Number(rolloutPercent),
+      rolloutPercent: agent?.rolloutPercent || 100,
       teamIds: uniqueNumbers(selectedTeamIds),
       handoffMode: Number(handoffMode),
       fallbackMode: Number(fallbackMode),
       fallbackMessage: fallbackMessage.trim(),
-		knowledgeBaseIds: uniqueNumbers(selectedKnowledgeBaseIds),
+      knowledgeBaseIds: uniqueNumbers(selectedKnowledgeBaseIds),
       skillIds: uniqueNumbers(selectedSkillIds),
-		directTools,
-		workflowBindings,
+      directTools,
+      workflowBindings,
     }
   }
 
   async function saveAgentSettings() {
-    setSavingAgent(true)
+    if (!validateForm()) return
+    setSaving(true)
     try {
       const payload = buildPayload()
       if (agent) {
         await updateAIAgent({ id: agent.id, ...payload })
-        toast.success("Agent config saved")
+        toast.success("Agent 配置已保存")
         await loadData()
       } else {
         const created = await createAIAgent(payload)
         setCurrentAgentId(created.id)
         setAgent(created)
-        toast.success("Agent created")
+        toast.success("Agent 已创建")
         onAgentCreated?.(created)
       }
       onAgentSaved?.()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save Agent config")
+      toast.error(error instanceof Error ? error.message : "保存 Agent 配置失败")
     } finally {
-      setSavingAgent(false)
+      setSaving(false)
     }
   }
 
-  async function publishAutonomousAgent() {
-		if (!agent || (runtimeMode !== "autonomous" && runtimeMode !== "hybrid")) return
-		setSavingAgent(true)
-		try {
-			await publishAIAgent(agent.id)
-			await loadData()
-			toast.success("Agent published")
-		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "Failed to publish Autonomous Agent")
-		} finally {
-			setSavingAgent(false)
-		}
-	}
+  async function publishAgent() {
+    if (!agent || runtimeMode === "workflow") return
+    if (!validateForm()) return
+    setSaving(true)
+    try {
+      await publishAIAgent(agent.id)
+      await loadData()
+      toast.success("Agent 已发布")
+      onAgentSaved?.()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "发布 Agent 失败")
+    } finally {
+      setSaving(false)
+    }
+  }
 
-	async function rollbackAgentRevision(revisionId: number) {
-		if (!agent || revisionId <= 0 || revisionId === agent.publishedRevisionId) return
-		setSavingAgent(true)
-		try {
-			await rollbackAIAgent(agent.id, revisionId)
-			toast.success("已回滚到选中的 Agent 版本")
-			await loadData()
-			onAgentSaved?.()
-		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "回滚 Agent 版本失败")
-		} finally {
-			setSavingAgent(false)
-		}
-	}
+  async function rollbackAgentRevision(revisionId: number) {
+    if (!agent || revisionId <= 0 || revisionId === agent.publishedRevisionId) return
+    setSaving(true)
+    try {
+      await rollbackAIAgent(agent.id, revisionId)
+      toast.success("已回滚到选中的 Agent 版本")
+      await loadData()
+      onAgentSaved?.()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "回滚 Agent 版本失败")
+    } finally {
+      setSaving(false)
+    }
+  }
 
-	async function rollbackAgentRollout() {
-		if (!agent || agent.previousRolloutPercent < 1) return
-		setSavingAgent(true)
-		try {
-			await rollbackAIAgentRollout(agent.id)
-			toast.success("已恢复上一次灰度比例")
-			await loadData()
-			onAgentSaved?.()
-		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "恢复灰度比例失败")
-		} finally {
-			setSavingAgent(false)
-		}
-	}
+  const workflowPublished = isWorkflowPublished(agent)
+  const autonomousPublished =
+    runtimeMode === "autonomous" && (agent?.publishedRevisionId ?? 0) > 0
+  const hybridPublished =
+    runtimeMode === "hybrid" &&
+    workflowPublished &&
+    (agent?.publishedRevisionId ?? 0) > 0
+  const runtimePublished =
+    runtimeMode === "workflow"
+      ? workflowPublished
+      : runtimeMode === "hybrid"
+        ? hybridPublished
+        : autonomousPublished
 
-  const sections: { key: SectionKey; title: string; icon: ReactNode }[] = [
-    { key: "basic", title: "基础信息", icon: <SettingsIcon /> },
-    { key: "capabilities", title: "能力来源", icon: <PlugIcon /> },
-	{ key: "workflow", title: "关联工作流", icon: <GitBranchIcon /> },
+  const sections: {
+    key: SectionKey
+    title: string
+    icon: ReactNode
+  }[] = [
+    { key: "setup", title: "身份与运行", icon: <SettingsIcon /> },
+    { key: "persona", title: "角色与回复", icon: <MessageSquareTextIcon /> },
+    { key: "capability", title: "知识与能力", icon: <PlugIcon /> },
+    { key: "service", title: "服务与兜底", icon: <UserRoundCheckIcon /> },
   ]
 
-  const selectedTeamOptions = selectedOptions(selectedTeamIds, teamOptions)
-  const selectedSkillOptions = selectedOptions(selectedSkillIds, skillOptions)
-  const workflowPublished = isWorkflowPublished(agent)
-	const autonomousPublished = runtimeMode === "autonomous" && (agent?.publishedRevisionId ?? 0) > 0
-	const hybridPublished = runtimeMode === "hybrid" && workflowPublished && (agent?.publishedRevisionId ?? 0) > 0
-	const runtimePublished = runtimeMode === "workflow" ? workflowPublished : runtimeMode === "hybrid" ? hybridPublished : autonomousPublished
-	const workflowStateText =
-    agent?.workflowStateText || (workflowPublished ? "已发布" : "未发布")
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        加载中...
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b px-5 py-2 pr-28">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-            <BotMessageSquareIcon className="size-4" />
+      <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b px-5 pr-12">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/5 text-primary">
+            <BotMessageSquareIcon className="size-5" />
           </div>
           <div className="flex min-w-0 items-center gap-2">
-            <h1 className="truncate text-base font-semibold">{agent?.name ?? "新建 AI Agent"}</h1>
+            <h1 className="truncate text-base font-semibold">{agent?.name || "新建 AI Agent"}</h1>
             {agent?.statusName ? <Badge variant="secondary">{agent.statusName}</Badge> : null}
             <Badge variant={runtimePublished ? "default" : "outline"}>
-	              {runtimeMode === "autonomous" ? (autonomousPublished ? "已发布" : "未发布") : runtimeMode === "hybrid" ? (hybridPublished ? "已发布" : "未发布") : workflowStateText}
+              {runtimePublished ? "已发布" : agent ? "未发布" : "尚未创建"}
             </Badge>
-            {workflowPublished ? (
-              <Badge variant="secondary">当前生效 #{agent?.workflowVersionId}</Badge>
-            ) : null}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {activeSection === "workflow" ? (
-            null
-          ) : (
-            <>
-				  {agent && (runtimeMode === "autonomous" || runtimeMode === "hybrid") ? <Button type="button" variant="outline" disabled={savingAgent || loading} onClick={publishAutonomousAgent}>发布 Agent</Button> : null}
-              <Button
-                type="button"
-                variant="outline"
-                disabled={savingAgent || loading}
-                onClick={saveAgentSettings}
-              >
-                <SaveIcon className="size-4" />
-                保存配置
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col bg-background">
-        {agent && !runtimePublished ? (
-          <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-5 py-2 text-sm text-amber-900">
-			{runtimeMode === "autonomous" ? "未发布 Agent，AI 不会自动回复。保存配置后发布 Agent，再绑定渠道或启用自动回复。" : runtimeMode === "hybrid" ? "未发布 Hybrid Agent，AI 不会自动回复。保存配置后请关联已发布工作流，再发布 Agent。" : "未发布工作流，AI 不会自动回复。请先关联一个已发布工作流。"}
-          </div>
+        {agent ? (
+          <Button type="button" variant="ghost" onClick={() => setVersionDialogOpen(true)}>
+            <HistoryIcon />
+            版本记录
+          </Button>
         ) : null}
-        <div className="shrink-0 border-b bg-muted/30 px-4 py-2">
-          <div className="flex min-w-0 items-center gap-1 overflow-x-auto overflow-y-hidden">
-            {sections.map((section) => (
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        <aside className="hidden w-64 shrink-0 flex-col border-r bg-muted/20 p-4 md:flex">
+          <div className="px-3 pb-2 text-[11px] font-semibold tracking-wider text-muted-foreground">
+            AGENT 配置
+          </div>
+          <nav className="space-y-1">
+            {sections.map((section, index) => (
               <button
                 key={section.key}
                 type="button"
                 onClick={() => setActiveSection(section.key)}
-                className={`group flex h-8 shrink-0 items-center gap-2 rounded-md border px-2.5 text-sm shadow-xs transition-all ${
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors",
                   activeSection === section.key
-                    ? "border-primary bg-primary font-medium text-primary-foreground shadow-xs"
-                    : "border-border/70 bg-background text-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary hover:shadow-sm"
-                }`}
+                    ? "bg-primary/5 font-medium text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
               >
                 <span
-                  className={`flex size-5 shrink-0 items-center justify-center rounded-sm transition-colors ${
-                    activeSection === section.key
-                      ? "bg-primary-foreground/15 text-primary-foreground"
-                      : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
-                  }`}
+                  className={cn(
+                    "flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted [&>svg]:size-4",
+                    activeSection === section.key && "bg-background text-primary shadow-sm",
+                  )}
                 >
                   {section.icon}
                 </span>
-                <span className="whitespace-nowrap leading-none">{section.title}</span>
+                <span className="flex-1">{section.title}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
               </button>
             ))}
+          </nav>
+          <div className="mt-auto flex items-center justify-between rounded-lg border bg-background p-3 text-xs">
+            <span className="text-muted-foreground">状态</span>
+            <span className={runtimePublished ? "font-medium text-emerald-600" : "font-medium text-amber-600"}>
+              {runtimePublished ? "已发布" : agent ? "未发布" : "尚未创建"}
+            </span>
           </div>
-        </div>
+        </aside>
 
-        <main
-          className={`min-h-0 flex-1 bg-background ${
-            activeSection === "workflow" ? "overflow-hidden" : "overflow-y-auto"
-          }`}
-        >
-          {loading ? (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              加载中...
-            </div>
-          ) : (
-            <div className={activeSection === "workflow" ? "h-full min-h-0" : "w-full space-y-6 p-6"}>
-              {activeSection === "basic" ? (
-                <ConfigSection>
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <FieldBlock label="名称">
+        <main className="min-w-0 flex-1 overflow-y-auto bg-background">
+          <div className="mx-auto w-full max-w-4xl p-5 sm:p-8">
+            {activeSection === "setup" ? (
+              <div className="space-y-10">
+                <FormSection
+                  title="基本信息"
+                  description="配置 Agent 的后台名称、服务方式和职责说明。"
+                >
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <FieldBlock label="Agent 名称" required>
                       <Input value={name} onChange={(event) => setName(event.target.value)} />
                     </FieldBlock>
                     <FieldBlock label="服务模式">
@@ -612,14 +638,55 @@ export function AIAgentConfigWorkbench({
                         onChange={setServiceMode}
                       />
                     </FieldBlock>
+                    <FieldBlock label="描述" className="md:col-span-2">
+                      <Textarea
+                        rows={4}
+                        value={description}
+                        onChange={(event) => setDescription(event.target.value)}
+                      />
+                    </FieldBlock>
                   </div>
-                </ConfigSection>
-              ) : null}
+                </FormSection>
 
-              {activeSection === "basic" ? (
-                <ConfigSection>
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <FieldBlock label="AI 配置">
+                <FormSection
+                  title="运行方式"
+                  description="决定 Agent 是否自主处理请求，以及工作流的关联要求。"
+                >
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {runtimeModes.map((mode) => (
+                      <button
+                        key={mode.value}
+                        type="button"
+                        onClick={() => setRuntimeMode(mode.value)}
+                        className={cn(
+                          "relative rounded-xl border p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/[0.02]",
+                          runtimeMode === mode.value &&
+                            "border-primary bg-primary/5 ring-1 ring-primary",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "absolute top-4 right-4 size-4 rounded-full border",
+                            runtimeMode === mode.value
+                              ? "border-[5px] border-primary"
+                              : "border-muted-foreground/40",
+                          )}
+                        />
+                        <strong className="block pr-6 text-sm">{mode.title}</strong>
+                        <span className="mt-2 block pr-5 text-xs leading-5 text-muted-foreground">
+                          {mode.description}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </FormSection>
+
+                <FormSection
+                  title="模型与响应"
+                  description="选择推理模型并设置单次回复的超时时间。"
+                >
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <FieldBlock label="AI 配置" required>
                       <OptionCombobox
                         value={aiConfigId}
                         options={aiConfigOptions}
@@ -629,118 +696,109 @@ export function AIAgentConfigWorkbench({
                         onChange={setAIConfigId}
                       />
                     </FieldBlock>
-					<FieldBlock label="运行模式">
-					  <OptionCombobox value={runtimeMode} options={runtimeModeOptions} placeholder="选择运行模式" onChange={(value) => setRuntimeMode(value === "autonomous" || value === "hybrid" ? value : "workflow")} />
-					</FieldBlock>
-                    <FieldBlock label="回复超时秒数">
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={replyTimeoutSeconds}
-                        onChange={(event) => setReplyTimeoutSeconds(event.target.value)}
-                      />
-                    </FieldBlock>
-					<FieldBlock label="会话灰度比例（%）">
-					  <div className="flex items-center gap-2">
-						<Input type="number" min={1} max={100} step={1} value={rolloutPercent} onChange={(event) => setRolloutPercent(event.target.value)} />
-						{previousRolloutPercent > 0 ? (
-						  <Button type="button" variant="outline" size="sm" disabled={savingAgent} onClick={rollbackAgentRollout}>
-							<RotateCcwIcon />
-							恢复 {previousRolloutPercent}%
-						  </Button>
-						) : null}
-					  </div>
-					</FieldBlock>
-                  </div>
-                  <FieldBlock label="系统提示词">
-                    <ContentEditor
-                      value={{ mode: "markdown", raw: systemPrompt }}
-                      allowedModes={["markdown"]}
-                      height={360}
-                      onChange={(next) => setSystemPrompt(next.raw)}
-                    />
-                  </FieldBlock>
-                  <FieldBlock label="欢迎语">
-                    <Textarea rows={5} value={welcomeMessage} onChange={(event) => setWelcomeMessage(event.target.value)} />
-                  </FieldBlock>
-                </ConfigSection>
-              ) : null}
-
-              {activeSection === "basic" ? (
-                <ConfigSection>
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <FieldBlock label="转人工执行方式">
-                      <OptionCombobox value={handoffMode} options={handoffModeOptions} placeholder="选择转人工执行方式" onChange={setHandoffMode} />
-                    </FieldBlock>
-                    <FieldBlock label="知识不足回复策略">
-                      <OptionCombobox value={fallbackMode} options={fallbackModeOptions} placeholder="选择知识不足回复策略" onChange={setFallbackMode} />
+                    <FieldBlock label="回复超时">
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min={0}
+                          step={1}
+                          className="pr-12"
+                          value={replyTimeoutSeconds}
+                          onChange={(event) => setReplyTimeoutSeconds(event.target.value)}
+                        />
+                        <span className="pointer-events-none absolute top-2.5 right-3 text-sm text-muted-foreground">
+                          秒
+                        </span>
+                      </div>
                     </FieldBlock>
                   </div>
-                  <AddRow
-                    value={teamToAdd}
-                    options={teamOptions.filter((option) => !selectedTeamIds.includes(Number(option.value)))}
-                    placeholder="选择客服组"
-                    onValueChange={setTeamToAdd}
-                    onAdd={() => {
-                      addSelected(teamToAdd, selectedTeamIds, setSelectedTeamIds)
-                      setTeamToAdd("")
-                    }}
-                  />
-                  <BadgeList
-                    empty="未配置客服组。"
-                    items={selectedTeamOptions}
-                    onRemove={(id) => setSelectedTeamIds((current) => current.filter((item) => item !== id))}
-                  />
-                  <FieldBlock label="知识不足回复文案">
-                    <Textarea rows={5} value={fallbackMessage} onChange={(event) => setFallbackMessage(event.target.value)} />
-                  </FieldBlock>
-                  <FieldBlock label="描述">
-                    <Textarea rows={4} value={description} onChange={(event) => setDescription(event.target.value)} />
-                  </FieldBlock>
-                </ConfigSection>
-              ) : null}
+                </FormSection>
+              </div>
+            ) : null}
 
-              {activeSection === "capabilities" ? (
-                <ConfigSection>
-				  <div className="text-sm font-medium">知识库</div>
-				  <AddRow
-					value={knowledgeBaseToAdd}
-					options={knowledgeBaseOptions.filter((option) => !selectedKnowledgeBaseIds.includes(Number(option.value)))}
-					placeholder="选择知识库"
-					onValueChange={setKnowledgeBaseToAdd}
-					onAdd={() => {
-					  addSelected(knowledgeBaseToAdd, selectedKnowledgeBaseIds, setSelectedKnowledgeBaseIds)
-					  setKnowledgeBaseToAdd("")
-					}}
-				  />
-				  <BadgeList empty="未配置知识库。" items={selectedOptions(selectedKnowledgeBaseIds, knowledgeBaseOptions)} onRemove={(id) => setSelectedKnowledgeBaseIds((current) => current.filter((item) => item !== id))} />
-				</ConfigSection>
-			  ) : null}
-
-			  {activeSection === "capabilities" ? (
-				<ConfigSection>
-                  <AddRow
-                    value={skillToAdd}
-                    options={skillOptions.filter((option) => !selectedSkillIds.includes(Number(option.value)))}
-                    placeholder="选择 Skill"
-                    onValueChange={setSkillToAdd}
-                    onAdd={() => {
-                      addSelected(skillToAdd, selectedSkillIds, setSelectedSkillIds)
-                      setSkillToAdd("")
-                    }}
+            {activeSection === "persona" ? (
+              <div className="space-y-10">
+                <FormSection
+                  title="系统提示词"
+                  description="定义 Agent 的角色、任务和回复边界，支持 Markdown。"
+                >
+                  <ContentEditor
+                    value={{ mode: "markdown", raw: systemPrompt }}
+                    allowedModes={["markdown"]}
+                    height={360}
+                    onChange={(next) => setSystemPrompt(next.raw)}
                   />
-                  <BadgeList
-                    empty="未配置 Skill。"
-                    items={selectedSkillOptions}
-                    onRemove={(id) => setSelectedSkillIds((current) => current.filter((item) => item !== id))}
+                </FormSection>
+                <FormSection
+                  title="欢迎语"
+                  description="进入会话时发送的首次回复，留空时不主动发送。"
+                >
+                  <Textarea
+                    rows={5}
+                    value={welcomeMessage}
+                    onChange={(event) => setWelcomeMessage(event.target.value)}
                   />
-                </ConfigSection>
-              ) : null}
+                </FormSection>
+              </div>
+            ) : null}
 
-              {activeSection === "capabilities" ? (
-                <ConfigSection>
-                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-[220px_minmax(0,1fr)_auto]">
+            {activeSection === "capability" ? (
+              <div className="space-y-10">
+                <ResourceSection
+                  title="知识库"
+                  description="Agent 回答时可以检索的知识范围。"
+                  icon={<BookOpenIcon />}
+                  value={knowledgeBaseToAdd}
+                  options={knowledgeBaseOptions.filter(
+                    (option) => !selectedKnowledgeBaseIds.includes(Number(option.value)),
+                  )}
+                  placeholder="选择知识库"
+                  onValueChange={setKnowledgeBaseToAdd}
+                  onAdd={() => {
+                    addSelected(
+                      knowledgeBaseToAdd,
+                      selectedKnowledgeBaseIds,
+                      setSelectedKnowledgeBaseIds,
+                    )
+                    setKnowledgeBaseToAdd("")
+                  }}
+                  items={selectedOptions(selectedKnowledgeBaseIds, knowledgeBaseOptions)}
+                  empty="未配置知识库"
+                  onRemove={(id) =>
+                    setSelectedKnowledgeBaseIds((current) =>
+                      current.filter((item) => item !== id),
+                    )
+                  }
+                />
+
+                <ResourceSection
+                  title="Skill"
+                  description="Agent 可以调用的标准能力。"
+                  icon={<PlugIcon />}
+                  value={skillToAdd}
+                  options={skillOptions.filter(
+                    (option) => !selectedSkillIds.includes(Number(option.value)),
+                  )}
+                  placeholder="选择 Skill"
+                  onValueChange={setSkillToAdd}
+                  onAdd={() => {
+                    addSelected(skillToAdd, selectedSkillIds, setSelectedSkillIds)
+                    setSkillToAdd("")
+                  }}
+                  items={selectedOptions(selectedSkillIds, skillOptions)}
+                  empty="未配置 Skill"
+                  onRemove={(id) =>
+                    setSelectedSkillIds((current) =>
+                      current.filter((item) => item !== id),
+                    )
+                  }
+                />
+
+                <FormSection
+                  title="Direct Tool"
+                  description="从工具分组中选择 Agent 可以直接调用的工具。"
+                >
+                  <div className="grid gap-2 sm:grid-cols-[180px_minmax(0,1fr)_auto]">
                     <OptionCombobox
                       value={directToolGroupToAdd}
                       options={directToolGroupOptions}
@@ -754,10 +812,7 @@ export function AIAgentConfigWorkbench({
                       value={directToolToAdd}
                       options={addableDirectToolOptions}
                       placeholder="选择 Direct Tool"
-                      onChange={(value) => {
-                        setDirectToolToAdd(value)
-                        addDirectTool(value)
-                      }}
+                      onChange={setDirectToolToAdd}
                     />
                     <Button
                       type="button"
@@ -768,210 +823,367 @@ export function AIAgentConfigWorkbench({
                       添加
                     </Button>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="space-y-2">
                     {directTools.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">未配置 Direct Tool。</div>
+                      <EmptyResource>未配置 Direct Tool</EmptyResource>
                     ) : (
                       directTools.map((tool) => (
-                        <Badge key={tool.toolCode} variant="secondary" className="gap-1 pr-1">
-                          {tool.title || tool.toolCode}
-                          <span className="text-[10px] text-muted-foreground/80">{tool.serverCode || "MCP"}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-5"
-                            onClick={() => setDirectTools((current) => current.filter((item) => item.toolCode !== tool.toolCode))}
-                          >
-                            <Trash2Icon className="size-3" />
-                          </Button>
-                        </Badge>
+                        <ResourceRow
+                          key={tool.toolCode}
+                          icon={<PlugIcon />}
+                          title={tool.title || tool.toolCode}
+                          meta={tool.serverCode || "内置工具"}
+                          onRemove={() =>
+                            setDirectTools((current) =>
+                              current.filter((item) => item.toolCode !== tool.toolCode),
+                            )
+                          }
+                        />
                       ))
                     )}
                   </div>
-                </ConfigSection>
-              ) : null}
+                </FormSection>
 
-              {activeSection === "workflow" ? (
-                <ConfigSection>
-                  <div className="flex items-start justify-between gap-4">
-                    <div><h2 className="text-base font-semibold">关联工作流</h2><p className="mt-1 text-sm text-muted-foreground">仅可关联已发布版本。工作流内容在“工作流”中心独立维护，保存 Agent 草稿后才会更新关联。</p></div>
-                    <Button type="button" variant="outline" onClick={() => window.location.assign("/dashboard/ai-workflows")}>管理工作流</Button>
+                <FormSection
+                  title="工作流"
+                  description="关联工作流中心中已经发布的固定版本。"
+                  action={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => window.location.assign("/dashboard/ai-workflows")}
+                    >
+                      管理工作流
+                    </Button>
+                  }
+                >
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+                    {runtimeMode === "autonomous"
+                      ? "当前为自主接待模式，工作流是可选能力。"
+                      : runtimeMode === "hybrid"
+                        ? "当前为 Hybrid 模式，至少关联一个已发布工作流后才能保存。"
+                        : "当前为仅工作流模式，必须且只能关联一个已发布工作流。"}
                   </div>
-                  <div className="flex max-w-xl items-center gap-2">
-                    <OptionCombobox value={workflowToAdd} options={publishedWorkflows.filter((item) => !workflowBindings.some((binding) => binding.workflowVersionId === item.publishedVersionId)).map((item) => ({ value: String(item.publishedVersionId), label: `${item.name} · v#${item.publishedVersionId}` }))} placeholder="选择已发布工作流" onChange={setWorkflowToAdd} />
-                    <Button type="button" variant="outline" disabled={!workflowToAdd} onClick={() => addWorkflowBinding(workflowToAdd)}>关联</Button>
+                  <div className="flex gap-2">
+                    <div className="min-w-0 flex-1">
+                      <OptionCombobox
+                        value={workflowToAdd}
+                        options={workflowOptions}
+                        placeholder="选择已发布工作流"
+                        onChange={setWorkflowToAdd}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!workflowToAdd}
+                      onClick={() => addWorkflowBinding(workflowToAdd)}
+                    >
+                      关联
+                    </Button>
                   </div>
                   <div className="space-y-2">
-                    {workflowBindings.length === 0 ? <div className="rounded-md border border-dashed p-5 text-sm text-muted-foreground">尚未关联工作流。自主接待无需配置；Hybrid 至少需要关联一个已发布工作流。</div> : workflowBindings.map((binding) => {
-                      const workflow = publishedWorkflows.find((item) => item.publishedVersionId === binding.workflowVersionId)
-                      return <div key={binding.workflowVersionId} className="flex items-center gap-3 rounded-md border p-3"><GitBranchIcon className="size-4 text-muted-foreground" /><div className="min-w-0 flex-1"><div className="font-medium">{workflow?.name || binding.toolName || `工作流版本 #${binding.workflowVersionId}`}</div><div className="text-xs text-muted-foreground">固定版本 #{binding.workflowVersionId}</div></div><Button type="button" variant="ghost" size="sm" onClick={() => setWorkflowBindings((current) => current.filter((item) => item.workflowVersionId !== binding.workflowVersionId))}>移除</Button></div>
-                    })}
+                    {workflowBindings.length === 0 ? (
+                      <EmptyResource>未关联工作流</EmptyResource>
+                    ) : (
+                      workflowBindings.map((binding) => {
+                        const workflow = publishedWorkflows.find(
+                          (item) =>
+                            item.publishedVersionId === binding.workflowVersionId,
+                        )
+                        return (
+                          <ResourceRow
+                            key={binding.workflowVersionId}
+                            icon={<GitBranchIcon />}
+                            title={
+                              workflow?.name ||
+                              binding.toolName ||
+                              `工作流版本 #${binding.workflowVersionId}`
+                            }
+                            meta={`固定版本 #${binding.workflowVersionId}`}
+                            onRemove={() =>
+                              setWorkflowBindings((current) =>
+                                current.filter(
+                                  (item) =>
+                                    item.workflowVersionId !== binding.workflowVersionId,
+                                ),
+                              )
+                            }
+                          />
+                        )
+                      })
+                    )}
                   </div>
-				  <div className="flex justify-end gap-2"><Button type="button" disabled={savingAgent || loading} onClick={saveAgentSettings}>保存 Agent 配置</Button>{agent && runtimeMode === "hybrid" ? <Button type="button" disabled={savingAgent || loading} onClick={publishAutonomousAgent}>发布 Agent</Button> : null}</div>
-                </ConfigSection>
-              ) : null}
+                </FormSection>
+              </div>
+            ) : null}
 
-              <Dialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen}>
-                <DialogContent className="max-h-[80vh] overflow-hidden sm:max-w-4xl">
-                  <DialogHeader>
-                    <DialogTitle>版本记录</DialogTitle>
-                  </DialogHeader>
-                  <VersionRecordsTable
-                    agent={agent}
-                    workflowVersions={workflowVersions}
-					agentRevisions={agentRevisions}
-					onRollback={rollbackAgentRevision}
-					rollbackDisabled={savingAgent || loading}
+            {activeSection === "service" ? (
+              <div className="space-y-10">
+                <FormSection
+                  title="转人工"
+                  description="配置需要人工介入时的接入方式和承接客服组。"
+                >
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <FieldBlock label="执行方式">
+                      <OptionCombobox
+                        value={handoffMode}
+                        options={handoffModeOptions}
+                        placeholder="选择转人工执行方式"
+                        onChange={setHandoffMode}
+                      />
+                    </FieldBlock>
+                    <FieldBlock label="客服组">
+                      <div className="flex gap-2">
+                        <div className="min-w-0 flex-1">
+                          <OptionCombobox
+                            value={teamToAdd}
+                            options={teamOptions.filter(
+                              (option) =>
+                                !selectedTeamIds.includes(Number(option.value)),
+                            )}
+                            placeholder="选择客服组"
+                            onChange={setTeamToAdd}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={!teamToAdd}
+                          onClick={() => {
+                            addSelected(teamToAdd, selectedTeamIds, setSelectedTeamIds)
+                            setTeamToAdd("")
+                          }}
+                        >
+                          添加
+                        </Button>
+                      </div>
+                    </FieldBlock>
+                  </div>
+                  <BadgeList
+                    empty="未配置客服组"
+                    items={selectedOptions(selectedTeamIds, teamOptions)}
+                    onRemove={(id) =>
+                      setSelectedTeamIds((current) =>
+                        current.filter((item) => item !== id),
+                      )
+                    }
                   />
-                </DialogContent>
-              </Dialog>
+                </FormSection>
 
-            </div>
-          )}
+                <FormSection
+                  title="知识不足"
+                  description="配置 Agent 无法确定答案时的处理策略和回复内容。"
+                >
+                  <FieldBlock label="处理策略">
+                    <OptionCombobox
+                      value={fallbackMode}
+                      options={fallbackModeOptions}
+                      placeholder="选择知识不足回复策略"
+                      onChange={setFallbackMode}
+                    />
+                  </FieldBlock>
+                  <FieldBlock label="回复文案">
+                    <Textarea
+                      rows={5}
+                      value={fallbackMessage}
+                      onChange={(event) => setFallbackMessage(event.target.value)}
+                    />
+                  </FieldBlock>
+                </FormSection>
+              </div>
+            ) : null}
+          </div>
         </main>
       </div>
+
+      <footer className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-3 border-t bg-background px-5 py-3">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span
+            className={cn(
+              "size-2 rounded-full",
+              runtimePublished ? "bg-emerald-500" : "bg-amber-500",
+            )}
+          />
+          <span>{runtimePublished ? "当前配置已发布" : "保存配置后再发布 Agent"}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            取消
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={saving}
+            onClick={saveAgentSettings}
+          >
+            <SaveIcon />
+            保存配置
+          </Button>
+          {agent && runtimeMode !== "workflow" ? (
+            <Button type="button" disabled={saving} onClick={publishAgent}>
+              发布 Agent
+            </Button>
+          ) : null}
+        </div>
+      </footer>
+
+      <Dialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen}>
+        <DialogContent className="max-h-[80vh] overflow-hidden sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>版本记录</DialogTitle>
+          </DialogHeader>
+          <VersionRecordsTable
+            agent={agent}
+            agentRevisions={agentRevisions}
+            onRollback={rollbackAgentRevision}
+            rollbackDisabled={saving}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
-function ConfigSection({
+function FormSection({
+  title,
+  description,
+  action,
   children,
 }: {
+  title: string
+  description: string
+  action?: ReactNode
   children: ReactNode
 }) {
   return (
-    <section className="space-y-5">
+    <section className="space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="relative pl-3 text-[15px] font-semibold text-foreground before:absolute before:top-1 before:left-0 before:h-4 before:w-0.5 before:rounded-full before:bg-primary">
+            {title}
+          </h2>
+          <p className="mt-1 pl-3 text-xs leading-5 text-muted-foreground">{description}</p>
+        </div>
+        {action}
+      </div>
       <div className="space-y-4">{children}</div>
     </section>
   )
 }
 
-function FieldBlock({ label, children }: { label: string; children: ReactNode }) {
+function FieldBlock({
+  label,
+  required,
+  className,
+  children,
+}: {
+  label: string
+  required?: boolean
+  className?: string
+  children: ReactNode
+}) {
   return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
+    <div className={cn("space-y-2", className)}>
+      <Label>
+        {label}
+        {required ? <span className="ml-1 text-destructive">*</span> : null}
+      </Label>
       {children}
     </div>
   )
 }
 
-function AddRow({
+function ResourceSection({
+  title,
+  description,
+  icon,
   value,
   options,
   placeholder,
   onValueChange,
   onAdd,
+  items,
+  empty,
+  onRemove,
 }: {
+  title: string
+  description: string
+  icon: ReactNode
   value: string
   options: { value: string; label: string }[]
   placeholder: string
   onValueChange: (value: string) => void
   onAdd: () => void
+  items: { value: string; label: string }[]
+  empty: string
+  onRemove: (id: number) => void
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1">
-        <OptionCombobox value={value} options={options} placeholder={placeholder} onChange={onValueChange} />
+    <FormSection title={title} description={description}>
+      <div className="flex gap-2">
+        <div className="min-w-0 flex-1">
+          <OptionCombobox
+            value={value}
+            options={options}
+            placeholder={placeholder}
+            onChange={onValueChange}
+          />
+        </div>
+        <Button type="button" variant="outline" disabled={!value} onClick={onAdd}>
+          添加
+        </Button>
       </div>
-      <Button type="button" variant="outline" disabled={!value} onClick={onAdd}>
-        添加
+      <div className="space-y-2">
+        {items.length === 0 ? (
+          <EmptyResource>{empty}</EmptyResource>
+        ) : (
+          items.map((item) => (
+            <ResourceRow
+              key={item.value}
+              icon={icon}
+              title={item.label}
+              onRemove={() => onRemove(Number(item.value))}
+            />
+          ))
+        )}
+      </div>
+    </FormSection>
+  )
+}
+
+function ResourceRow({
+  icon,
+  title,
+  meta,
+  onRemove,
+}: {
+  icon: ReactNode
+  title: string
+  meta?: string
+  onRemove: () => void
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border px-3 py-2.5">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground [&>svg]:size-4">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-medium">{title}</div>
+        {meta ? <div className="text-xs text-muted-foreground">{meta}</div> : null}
+      </div>
+      <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
+        <Trash2Icon />
+        移除
       </Button>
     </div>
   )
 }
 
-function VersionRecordsTable({
-  agent,
-  workflowVersions,
-	agentRevisions,
-	onRollback,
-	rollbackDisabled,
-}: {
-  agent: AIAgent | null
-  workflowVersions: AIWorkflowVersion[]
-	agentRevisions: AgentRevision[]
-	onRollback: (revisionId: number) => void
-	rollbackDisabled: boolean
-}) {
+function EmptyResource({ children }: { children: ReactNode }) {
   return (
-		<div className="max-h-[60vh] space-y-4 overflow-auto">
-			<div className="rounded-md border">
-				<div className="border-b px-3 py-2 text-sm font-medium">Agent 版本</div>
-				{agentRevisions.length > 0 ? (
-					<Table>
-						<TableHeader className="bg-muted/40">
-							<TableRow>
-								<TableHead className="w-28">版本</TableHead>
-								<TableHead>发布时间</TableHead>
-								<TableHead>发布人</TableHead>
-								<TableHead>关联流程</TableHead>
-								<TableHead className="text-right">操作</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{agentRevisions.map((revision) => {
-								const active = agent?.publishedRevisionId === revision.id
-								return (
-									<TableRow key={revision.id}>
-										<TableCell className="font-medium">r{revision.revision}{active ? <Badge variant="secondary" className="ml-2">当前生效</Badge> : null}</TableCell>
-										<TableCell className="text-muted-foreground">{revision.publishedAt || "-"}</TableCell>
-										<TableCell>{revision.publishedByName || "-"}</TableCell>
-										<TableCell>{revision.workflowVersionId > 0 ? `#${revision.workflowVersionId}` : "-"}</TableCell>
-										<TableCell className="text-right">
-											<Button type="button" variant="outline" size="sm" disabled={active || rollbackDisabled} onClick={() => onRollback(revision.id)}>回滚</Button>
-										</TableCell>
-									</TableRow>
-								)
-							})}
-						</TableBody>
-					</Table>
-				) : <div className="p-4 text-sm text-muted-foreground">暂无已发布 Agent 版本。</div>}
-			</div>
-			<div className="rounded-md border">
-				<div className="border-b px-3 py-2 text-sm font-medium">流程版本</div>
-      {workflowVersions.length > 0 ? (
-        <Table>
-          <TableHeader className="bg-muted/40">
-            <TableRow>
-              <TableHead className="w-28">版本</TableHead>
-              <TableHead>发布时间</TableHead>
-              <TableHead>发布人</TableHead>
-              <TableHead>状态</TableHead>
-              <TableHead className="text-right">定义指纹</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {workflowVersions.map((version) => (
-              <TableRow key={version.id}>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">v{version.version}</span>
-                    {agent?.workflowVersionId === version.id ? (
-                      <Badge variant="secondary">当前生效</Badge>
-                    ) : null}
-                  </div>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {version.publishedAt || version.createdAt || "-"}
-                </TableCell>
-                <TableCell>{version.publishedByName || "-"}</TableCell>
-                <TableCell>
-                  <Badge variant={version.status === Status.Ok ? "outline" : "secondary"}>
-                    {version.status === Status.Ok ? "启用" : "禁用"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right font-mono text-xs text-muted-foreground">
-                  {version.definitionHash ? version.definitionHash.slice(0, 8) : "-"}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      ) : (
-        <div className="p-4 text-sm text-muted-foreground">暂无已发布版本。</div>
-      )}
-			</div>
+    <div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">
+      {children}
     </div>
   )
 }
@@ -993,11 +1205,86 @@ function BadgeList({
       {items.map((item) => (
         <Badge key={item.value} variant="secondary" className="gap-1 pr-1">
           {item.label}
-          <Button type="button" variant="ghost" size="icon" className="size-5" onClick={() => onRemove(Number(item.value))}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-5"
+            onClick={() => onRemove(Number(item.value))}
+          >
             <Trash2Icon className="size-3" />
           </Button>
         </Badge>
       ))}
+    </div>
+  )
+}
+
+function VersionRecordsTable({
+  agent,
+  agentRevisions,
+  onRollback,
+  rollbackDisabled,
+}: {
+  agent: AIAgent | null
+  agentRevisions: AgentRevision[]
+  onRollback: (revisionId: number) => void
+  rollbackDisabled: boolean
+}) {
+  return (
+    <div className="max-h-[60vh] overflow-auto rounded-md border">
+      {agentRevisions.length > 0 ? (
+        <Table>
+          <TableHeader className="bg-muted/40">
+            <TableRow>
+              <TableHead className="w-28">版本</TableHead>
+              <TableHead>发布时间</TableHead>
+              <TableHead>发布人</TableHead>
+              <TableHead>关联流程</TableHead>
+              <TableHead className="text-right">操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {agentRevisions.map((revision) => {
+              const active = agent?.publishedRevisionId === revision.id
+              return (
+                <TableRow key={revision.id}>
+                  <TableCell className="font-medium">
+                    r{revision.revision}
+                    {active ? (
+                      <Badge variant="secondary" className="ml-2">
+                        当前生效
+                      </Badge>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {revision.publishedAt || "-"}
+                  </TableCell>
+                  <TableCell>{revision.publishedByName || "-"}</TableCell>
+                  <TableCell>
+                    {revision.workflowVersionId > 0
+                      ? `#${revision.workflowVersionId}`
+                      : "-"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={active || rollbackDisabled}
+                      onClick={() => onRollback(revision.id)}
+                    >
+                      回滚
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      ) : (
+        <div className="p-5 text-sm text-muted-foreground">暂无已发布 Agent 版本。</div>
+      )}
     </div>
   )
 }

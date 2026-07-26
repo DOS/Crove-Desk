@@ -334,6 +334,7 @@ export default function DashboardAIAgentsPage() {
             agentId={configAgentId}
             onAgentCreated={(agent) => setConfigAgentId(agent.id)}
             onAgentSaved={() => crudActions?.onRefresh()}
+            onCancel={() => setConfigOpen(false)}
           />
         ) : null}
       </ProjectDialog>
