@@ -11,9 +11,8 @@ import (
 )
 
 const (
-	RiskLevelRead      = "read"
-	RiskLevelWrite     = "write"
-	RiskLevelSensitive = "sensitive"
+	RiskLevelRead  = "read"
+	RiskLevelWrite = "write"
 )
 
 // Definition is the normalized, engine-independent description of a tool.

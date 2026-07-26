@@ -248,7 +248,7 @@ func (s *aIAgentService) validatePublishableAgent(db *gorm.DB, agent *models.AIA
 			return errorsx.InvalidParam("ai agent direct tool definition is unavailable")
 		}
 		if definition.RequireConfirmation {
-			return errorsx.InvalidParam("ai agent sensitive direct tools must be executed through a confirmed playbook")
+			return errorsx.InvalidParam("ai agent direct tool requires confirmation and cannot be executed directly")
 		}
 	}
 	return nil
@@ -456,7 +456,7 @@ func (s *aIAgentService) normalizeToolPolicy(raw string) (string, error) {
 		if level == "" {
 			continue
 		}
-		if level != "read" && level != "write" && level != "sensitive" {
+		if level != "read" && level != "write" {
 			return "", errorsx.InvalidParam("ai agent tool policy contains an invalid risk level")
 		}
 		if _, exists := seen[level]; exists {

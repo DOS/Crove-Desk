@@ -65,7 +65,7 @@ func (e *fakeMCPToolExecutor) Execute(_ context.Context, toolCode string, argume
 	e.toolCode = toolCode
 	e.arguments = arguments
 	e.policy = policy
-	return aitooling.Definition{Code: toolCode, RiskLevel: aitooling.RiskLevelSensitive}, e.result, e.err
+	return aitooling.Definition{Code: toolCode, RiskLevel: aitooling.RiskLevelRead}, e.result, e.err
 }
 
 var _ model.ToolCallingChatModel = (*scriptedToolCallingModel)(nil)

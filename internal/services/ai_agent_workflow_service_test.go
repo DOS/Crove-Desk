@@ -185,12 +185,15 @@ func TestAIAgentServiceCreatesWorkflowDraftForHybrid(t *testing.T) {
 }
 
 func TestAIAgentServiceNormalizesToolPolicy(t *testing.T) {
-	policy, err := AIAgentService.normalizeToolPolicy(`{"maxTotalCalls":2,"maxArgumentBytes":1024,"allowedRiskLevels":["READ","read","sensitive"]}`)
+	policy, err := AIAgentService.normalizeToolPolicy(`{"maxTotalCalls":2,"maxArgumentBytes":1024,"allowedRiskLevels":["READ","read","write"]}`)
 	if err != nil {
 		t.Fatalf("normalizeToolPolicy: %v", err)
 	}
-	if !strings.Contains(policy, `"maxTotalCalls":2`) || !strings.Contains(policy, `"allowedRiskLevels":["read","sensitive"]`) {
+	if !strings.Contains(policy, `"maxTotalCalls":2`) || !strings.Contains(policy, `"allowedRiskLevels":["read","write"]`) {
 		t.Fatalf("unexpected normalized policy: %s", policy)
+	}
+	if _, err := AIAgentService.normalizeToolPolicy(`{"allowedRiskLevels":["sensitive"]}`); err == nil {
+		t.Fatal("expected removed sensitive risk level to be rejected")
 	}
 	if _, err := AIAgentService.normalizeToolPolicy(`{"allowedRiskLevels":["admin"]}`); err == nil {
 		t.Fatal("expected invalid risk level error")
