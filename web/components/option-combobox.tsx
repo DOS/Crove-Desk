@@ -24,6 +24,7 @@ import { useI18n } from "@/i18n/provider"
 export type ComboboxOption = {
   value: string
   label: string
+  group?: string
   subtitle?: string
   description?: string
 }
@@ -59,14 +60,14 @@ type OptionComboboxProps = CommonOptionComboboxProps &
 
 export function OptionCombobox(props: OptionComboboxProps) {
   const {
-  options,
-  placeholder,
-  searchPlaceholder,
-  emptyText,
-  disabled = false,
-  triggerClassName,
-  preserveExternalSelection = false,
-  renderOptionAction,
+    options,
+    placeholder,
+    searchPlaceholder,
+    emptyText,
+    disabled = false,
+    triggerClassName,
+    preserveExternalSelection = false,
+    renderOptionAction,
   } = props
   const t = useI18n()
   const [open, setOpen] = useState(false)
@@ -80,6 +81,13 @@ export function OptionCombobox(props: OptionComboboxProps) {
       : selectedOptions.length === 1
         ? selectedOptions[0].label
         : `已选择 ${selectedOptions.length} 项`
+  const optionGroups = Array.from(
+    options.reduce((groups, option) => {
+      const group = option.group ?? ""
+      groups.set(group, [...(groups.get(group) ?? []), option])
+      return groups
+    }, new Map<string, ComboboxOption[]>()),
+  )
 
   function selectOption(optionValue: string) {
     if (props.multiple) {
@@ -118,11 +126,12 @@ export function OptionCombobox(props: OptionComboboxProps) {
           <CommandInput placeholder={searchPlaceholder ?? t("common.searchKeyword")} />
           <CommandList>
             <CommandEmpty>{emptyText ?? t("common.emptyOptions")}</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
+            {optionGroups.map(([group, groupOptions]) => (
+              <CommandGroup key={group || "__default"} heading={group || undefined}>
+                {groupOptions.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={`${option.label} ${option.value} ${option.subtitle ?? ""} ${option.description ?? ""}`}
+                  value={`${option.group ?? ""} ${option.label} ${option.value} ${option.subtitle ?? ""} ${option.description ?? ""}`}
                   onSelect={() => selectOption(option.value)}
                 >
                   <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
@@ -166,8 +175,9 @@ export function OptionCombobox(props: OptionComboboxProps) {
                     ) : null}
                   </div>
                 </CommandItem>
-              ))}
-            </CommandGroup>
+                ))}
+              </CommandGroup>
+            ))}
           </CommandList>
         </Command>
       </PopoverContent>

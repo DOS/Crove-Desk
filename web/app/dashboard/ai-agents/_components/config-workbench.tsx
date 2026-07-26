@@ -50,7 +50,6 @@ import {
   type CreateAIAgentPayload,
   type KnowledgeBase,
   type MCPToolCatalogItem,
-  type MCPToolSourceType,
   type SkillDefinition,
 } from "@/lib/api/admin"
 import {
@@ -69,9 +68,10 @@ type DirectToolItem = CreateAIAgentPayload["directTools"][number]
 type DirectToolOption = {
   value: string
   label: string
+  group: string
+  subtitle: string
+  description?: string
   meta: DirectToolItem
-  sourceType: MCPToolSourceType
-  groupLabel: string
 }
 
 const runtimeModes: {
@@ -153,8 +153,6 @@ export function AIAgentConfigWorkbench({
   const [publishedWorkflows, setPublishedWorkflows] = useState<AIWorkflow[]>([])
 
   const [teamToAdd, setTeamToAdd] = useState("")
-  const [directToolGroupToAdd, setDirectToolGroupToAdd] = useState("")
-  const [directToolToAdd, setDirectToolToAdd] = useState("")
 
   useEffect(() => {
     setCurrentAgentId(agentId ?? null)
@@ -313,9 +311,10 @@ export function AIAgentConfigWorkbench({
         )
         .map((tool) => ({
           value: tool.toolCode,
-          label: `${tool.title || tool.toolName} · ${tool.toolCode}`,
-          sourceType: tool.sourceType,
-          groupLabel: tool.sourceType === "builtin" ? "内置工具" : tool.serverCode,
+          label: tool.title || tool.toolName,
+          group: tool.sourceType === "builtin" ? "内置工具" : tool.serverCode,
+          subtitle: tool.toolCode,
+          description: tool.description || undefined,
           meta: {
             toolCode: tool.toolCode,
             serverCode: tool.serverCode,
@@ -326,27 +325,6 @@ export function AIAgentConfigWorkbench({
           },
         })),
     [toolCatalog],
-  )
-  const directToolGroupOptions = useMemo(
-    () =>
-      Array.from(
-        new Map(
-          directToolOptions.map((option) => [
-            option.groupLabel,
-            { value: option.groupLabel, label: option.groupLabel },
-          ]),
-        ).values(),
-      ),
-    [directToolOptions],
-  )
-  const addableDirectToolOptions = useMemo(
-    () =>
-      directToolOptions.filter(
-        (option) =>
-          option.groupLabel === directToolGroupToAdd &&
-          !directTools.some((tool) => tool.toolCode === option.value),
-      ),
-    [directToolGroupToAdd, directToolOptions, directTools],
   )
   const workflowOptions = useMemo(
     () =>
@@ -370,15 +348,13 @@ export function AIAgentConfigWorkbench({
     setNext([...current, id])
   }
 
-  function addDirectTool(value: string) {
-    const option = directToolOptions.find((item) => item.value === value)
-    if (!option) return
-    setDirectTools((current) =>
-      current.some((tool) => tool.toolCode === option.meta.toolCode)
-        ? current
-        : [...current, option.meta],
+  function setDirectToolSelection(values: string[]) {
+    setDirectTools(
+      values.flatMap((value) => {
+        const option = directToolOptions.find((item) => item.value === value)
+        return option ? [option.meta] : []
+      }),
     )
-    setDirectToolToAdd("")
   }
 
   function setWorkflowSelection(values: string[]) {
@@ -802,50 +778,14 @@ export function AIAgentConfigWorkbench({
                   title="Direct Tool"
                   description="从工具分组中选择 Agent 可以直接调用的工具。"
                 >
-                  <div className="grid gap-2 sm:grid-cols-[180px_minmax(0,1fr)_auto]">
-                    <OptionCombobox
-                      value={directToolGroupToAdd}
-                      options={directToolGroupOptions}
-                      placeholder="选择工具分组"
-                      onChange={(value) => {
-                        setDirectToolGroupToAdd(value)
-                        setDirectToolToAdd("")
-                      }}
-                    />
-                    <OptionCombobox
-                      value={directToolToAdd}
-                      options={addableDirectToolOptions}
-                      placeholder="选择 Direct Tool"
-                      onChange={setDirectToolToAdd}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={!directToolToAdd}
-                      onClick={() => addDirectTool(directToolToAdd)}
-                    >
-                      添加
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {directTools.length === 0 ? (
-                      <EmptyResource>未配置 Direct Tool</EmptyResource>
-                    ) : (
-                      directTools.map((tool) => (
-                        <ResourceRow
-                          key={tool.toolCode}
-                          icon={<PlugIcon />}
-                          title={tool.title || tool.toolCode}
-                          meta={tool.serverCode || "内置工具"}
-                          onRemove={() =>
-                            setDirectTools((current) =>
-                              current.filter((item) => item.toolCode !== tool.toolCode),
-                            )
-                          }
-                        />
-                      ))
-                    )}
-                  </div>
+                  <OptionCombobox
+                    multiple
+                    values={directTools.map((tool) => tool.toolCode)}
+                    options={directToolOptions}
+                    placeholder="选择 Direct Tool"
+                    emptyText="没有可用 Direct Tool"
+                    onValuesChange={setDirectToolSelection}
+                  />
                 </FormSection>
               </div>
             ) : null}
@@ -1021,42 +961,6 @@ function FieldBlock({
         {label}
         {required ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
-      {children}
-    </div>
-  )
-}
-
-function ResourceRow({
-  icon,
-  title,
-  meta,
-  onRemove,
-}: {
-  icon: ReactNode
-  title: string
-  meta?: string
-  onRemove: () => void
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-lg border px-3 py-2.5">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground [&>svg]:size-4">
-        {icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium">{title}</div>
-        {meta ? <div className="text-xs text-muted-foreground">{meta}</div> : null}
-      </div>
-      <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
-        <Trash2Icon />
-        移除
-      </Button>
-    </div>
-  )
-}
-
-function EmptyResource({ children }: { children: ReactNode }) {
-  return (
-    <div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">
       {children}
     </div>
   )
