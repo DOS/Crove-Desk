@@ -336,11 +336,11 @@ func TestAIAgentServiceRejectsPublishWithUnavailableModelConfig(t *testing.T) {
 	}
 }
 
-func TestAIAgentServiceRejectsPublishWithSensitiveDirectTool(t *testing.T) {
+func TestAIAgentServiceAllowsPublishWithAdministratorSelectedMCPTool(t *testing.T) {
 	setupAIAgentWorkflowTestDB(t)
 	operator := aiAgentWorkflowTestOperator()
 	agent, err := AIAgentService.CreateAIAgent(request.CreateAIAgentRequest{
-		Name: "sensitive tool agent", AIConfigID: createAIAgentWorkflowTestConfig(t), RuntimeMode: enums.AIAgentRuntimeModeAutonomous,
+		Name: "mcp tool agent", AIConfigID: createAIAgentWorkflowTestConfig(t), RuntimeMode: enums.AIAgentRuntimeModeAutonomous,
 		ServiceMode: enums.IMConversationServiceModeAIOnly, HandoffMode: enums.AIAgentHandoffModeWaitPool, FallbackMode: enums.AIAgentFallbackModeNoAnswer,
 	}, operator)
 	if err != nil {
@@ -349,8 +349,8 @@ func TestAIAgentServiceRejectsPublishWithSensitiveDirectTool(t *testing.T) {
 	if err := sqls.DB().Model(&models.AIAgent{}).Where("id = ?", agent.ID).Update("allowed_mcp_tools", `[{"toolCode":"mcp/demo/write_order"}]`).Error; err != nil {
 		t.Fatalf("set direct tool: %v", err)
 	}
-	if _, err := AIAgentService.PublishAIAgent(agent.ID, operator); err == nil || !strings.Contains(err.Error(), "confirmed playbook") {
-		t.Fatalf("expected sensitive direct tool publish rejection, got %v", err)
+	if _, err := AIAgentService.PublishAIAgent(agent.ID, operator); err != nil {
+		t.Fatalf("expected administrator-selected MCP tool to be publishable, got %v", err)
 	}
 }
 

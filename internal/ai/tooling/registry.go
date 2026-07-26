@@ -74,15 +74,16 @@ func (r *Registry) Resolve(toolCode string) (Definition, error) {
 	if serverCode == "" || toolName == "" {
 		return Definition{}, fmt.Errorf("unsupported tool code: %s", toolCode)
 	}
-	// MCP metadata cannot reliably describe side effects. Treat it as sensitive
-	// until an administrator provides a more specific policy in a later phase.
+	// MCP tools are explicitly selected by an administrator before an Agent can
+	// call them. Treat that persisted allow-list as the authorization boundary;
+	// only tools with an explicit built-in policy require extra confirmation.
 	return Definition{
 		Code:                toolCode,
 		Name:                toolName,
 		InputSchema:         map[string]any{"type": "object", "additionalProperties": true},
 		SourceType:          enums.ToolSourceTypeMCP,
-		RiskLevel:           RiskLevelSensitive,
-		RequireConfirmation: true,
+		RiskLevel:           RiskLevelRead,
+		RequireConfirmation: false,
 		MaxCallsPerRun:      3,
 		TimeoutMS:           30000,
 		IdempotencyMode:     "caller",

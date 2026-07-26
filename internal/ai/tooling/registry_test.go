@@ -61,15 +61,15 @@ func TestRegistryIncludesAllTicketDraftToolInputs(t *testing.T) {
 	}
 }
 
-func TestRegistryTreatsMCPToolsAsSensitive(t *testing.T) {
+func TestRegistryTreatsAdministratorSelectedMCPToolsAsDirectTools(t *testing.T) {
 	definition, err := DefaultRegistry.Resolve("knowledge/search")
 	if err != nil {
 		t.Fatalf("Resolve returned error: %v", err)
 	}
-	if definition.RiskLevel != RiskLevelSensitive || !definition.RequireConfirmation {
+	if definition.RiskLevel != RiskLevelRead || definition.RequireConfirmation {
 		t.Fatalf("unexpected MCP definition: %#v", definition)
 	}
-	if err := DefaultRegistry.Authorize(definition, Policy{AllowedToolCodes: []string{"knowledge/search"}, Confirmed: true}); err != nil {
+	if err := DefaultRegistry.Authorize(definition, Policy{AllowedToolCodes: []string{"knowledge/search"}, AllowedRiskLevels: []string{RiskLevelRead}}); err != nil {
 		t.Fatalf("Authorize returned error: %v", err)
 	}
 }
@@ -91,13 +91,14 @@ func TestNormalizeCustomerReplyRejectsSecretAndNormalizesText(t *testing.T) {
 	}
 }
 
-func TestMCPExecutorRejectsUnconfirmedToolBeforeRuntimeCall(t *testing.T) {
+func TestMCPExecutorAllowsSelectedToolThroughAuthorization(t *testing.T) {
 	executor := NewMCPExecutor(DefaultRegistry, nil)
 	_, _, err := executor.Execute(t.Context(), "knowledge/search", nil, Policy{
-		AllowedToolCodes: []string{"knowledge/search"},
+		AllowedToolCodes:  []string{"knowledge/search"},
+		AllowedRiskLevels: []string{RiskLevelRead},
 	})
-	if err == nil || !strings.Contains(err.Error(), "confirmation") {
-		t.Fatalf("expected confirmation rejection, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "runtime is not configured") {
+		t.Fatalf("expected authorization to pass before the missing runtime error, got %v", err)
 	}
 }
 
