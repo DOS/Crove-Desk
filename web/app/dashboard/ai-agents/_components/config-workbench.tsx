@@ -556,11 +556,11 @@ export function AIAgentConfigWorkbench({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
-      <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b px-5 pr-12">
+      <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b px-5">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/5 text-primary">
+          {/* <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/5 text-primary">
             <BotMessageSquareIcon className="size-5" />
-          </div>
+          </div> */}
           <div className="flex min-w-0 items-center gap-2">
             <h1 className="truncate text-base font-semibold">{agent?.name || "新建 AI Agent"}</h1>
             {agent?.statusName ? <Badge variant="secondary">{agent.statusName}</Badge> : null}
@@ -568,15 +568,14 @@ export function AIAgentConfigWorkbench({
               {runtimePublished ? "已发布" : agent ? "未发布" : "尚未创建"}
             </Badge>
           </div>
+          {agent ? (
+            <Button type="button" variant="link" onClick={() => setVersionDialogOpen(true)}>
+              <HistoryIcon />
+              版本记录
+            </Button>
+          ) : null}
         </div>
-        {agent ? (
-          <Button type="button" variant="ghost" onClick={() => setVersionDialogOpen(true)}>
-            <HistoryIcon />
-            版本记录
-          </Button>
-        ) : null}
       </header>
-
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-64 shrink-0 flex-col border-r bg-muted/20 p-4 md:flex">
           <div className="px-3 pb-2 text-[11px] font-semibold tracking-wider text-muted-foreground">

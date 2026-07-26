@@ -324,7 +324,7 @@ export default function DashboardAIAgentsPage() {
         }}
         title={t("aiAgent.configure")}
         size="xxl"
-        defaultFullscreen
+        allowFullscreen
         bodyScrollable={false}
         headerClassName="sr-only"
         closeOnEsc={false}
