@@ -49,7 +49,7 @@
 
 :root,
 :root[data-palette="plain"] {
-  --radius: 0.65rem;
+  --radius: 0.3rem;
   --background: #f9f9f9;
   --foreground: #151923;
   --card: #ffffff;
