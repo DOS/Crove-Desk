@@ -40,3 +40,21 @@ test("AI Agent config uses one Agent Loop without a runtime mode selector", () =
   assert.doesNotMatch(configWorkbenchSource, /管理工作流/)
   assert.match(configWorkbenchSource, /写操作（需确认）/)
 })
+
+test("publishing an AI Agent saves the current form before publishing", () => {
+  const publishFunction = configWorkbenchSource.match(
+    /async function publishAgent\(\) \{([\s\S]*?)\n  \}/,
+  )?.[1]
+
+  assert.ok(publishFunction)
+  assert.match(publishFunction, /const payload = buildPayload\(\)/)
+
+  const saveIndex = publishFunction.indexOf(
+    "await updateAIAgent({ id: agent.id, ...payload })",
+  )
+  const publishIndex = publishFunction.indexOf("await publishAIAgent(agent.id)")
+
+  assert.ok(saveIndex >= 0)
+  assert.ok(publishIndex > saveIndex)
+  assert.match(publishFunction, /Agent 配置已保存并发布/)
+})

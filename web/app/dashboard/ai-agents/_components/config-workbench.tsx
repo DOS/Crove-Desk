@@ -412,12 +412,14 @@ export function AIAgentConfigWorkbench({
     if (!validateForm()) return
     setSaving(true)
     try {
+      const payload = buildPayload()
+      await updateAIAgent({ id: agent.id, ...payload })
       await publishAIAgent(agent.id)
       await loadData()
-      toast.success("Agent 已发布")
+      toast.success("Agent 配置已保存并发布")
       onAgentSaved?.()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "发布 Agent 失败")
+      toast.error(error instanceof Error ? error.message : "保存并发布 Agent 失败")
     } finally {
       setSaving(false)
     }
@@ -825,7 +827,9 @@ export function AIAgentConfigWorkbench({
               agentPublished ? "bg-emerald-500" : "bg-amber-500",
             )}
           />
-          <span>{agentPublished ? "当前配置已发布" : "保存配置后再发布 Agent"}</span>
+          <span>
+            {agentPublished ? "Agent 已发布；再次发布会保存当前配置" : "发布时会先保存当前配置"}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" onClick={onCancel}>
