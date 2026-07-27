@@ -24,6 +24,7 @@ import { useI18n } from "@/i18n/provider"
 export type ComboboxOption = {
   value: string
   label: string
+  disabled?: boolean
   group?: string
   subtitle?: string
   description?: string
@@ -90,6 +91,10 @@ export function OptionCombobox(props: OptionComboboxProps) {
   )
 
   function selectOption(optionValue: string) {
+    const option = options.find((item) => item.value === optionValue)
+    if (option?.disabled) {
+      return
+    }
     if (props.multiple) {
       props.onValuesChange(
         props.values.includes(optionValue)
@@ -132,6 +137,7 @@ export function OptionCombobox(props: OptionComboboxProps) {
                 <CommandItem
                   key={option.value}
                   value={`${option.group ?? ""} ${option.label} ${option.value} ${option.subtitle ?? ""} ${option.description ?? ""}`}
+                  disabled={option.disabled}
                   onSelect={() => selectOption(option.value)}
                 >
                   <div className="flex min-w-0 flex-1 items-center justify-between gap-2">

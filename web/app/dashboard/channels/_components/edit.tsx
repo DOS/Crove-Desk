@@ -417,14 +417,10 @@ function ChannelFormBody({
   ])
 
   const selectedAIAgent = aiAgents.find((item) => String(item.id) === aiAgentId)
-  const availableAIAgents = aiAgents.filter(
-    (item) => isAgentChannelBindable(item) || String(item.id) === aiAgentId
-  )
-  const aiAgentOptions = availableAIAgents.map((item) => ({
+  const aiAgentOptions = aiAgents.map((item) => ({
     value: String(item.id),
-    label: isAgentChannelBindable(item)
-      ? `${item.name} · Revision #${item.publishedRevisionId}`
-      : `${item.name} · 未发布`,
+    label: isAgentChannelBindable(item) ? item.name : `${item.name} · 未发布`,
+    disabled: !isAgentChannelBindable(item),
   }))
   const wxWorkKFAccountOptions = wxWorkKFAccounts.map((item) => ({
     value: item.openKfId,
@@ -502,7 +498,7 @@ function ChannelFormBody({
       open={true}
       onOpenChange={onOpenChange}
       title={itemId ? t("channel.editTitle") : t("channel.createTitle")}
-      size="lg"
+      size="xl"
       allowFullscreen
       footer={
         <>
