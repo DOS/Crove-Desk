@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react"
 
-import { ArrowLeftIcon } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -16,28 +14,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import {
   createAIWorkflow,
   fetchAIWorkflow,
   fetchAIWorkflowDefaultDefinition,
-  fetchAIWorkflowUsage,
-  fetchAIWorkflowVersions,
   publishAIWorkflow,
-  restoreAIWorkflowVersion,
   updateAIWorkflow,
   type AIWorkflow,
   type AIWorkflowDefinition,
-  type AIWorkflowUsage,
-  type AIWorkflowVersion,
 } from "@/lib/api/admin"
-import { formatDateTime } from "@/lib/utils"
 
 import { OfficialWorkflowEditor } from "./official-workflow-editor"
 
@@ -68,23 +54,18 @@ const emptyDefinition: AIWorkflowDefinition = {
 
 type WorkflowWorkbenchProps = {
   workflowID?: number
-  onClose?: () => void
   onSaved?: () => void
 }
 
 export function WorkflowWorkbench({
   workflowID,
-  onClose,
   onSaved,
 }: WorkflowWorkbenchProps) {
-  const router = useRouter()
   const [active, setActive] = useState<AIWorkflow | null>(null)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [definition, setDefinition] =
     useState<AIWorkflowDefinition>(emptyDefinition)
-  const [versions, setVersions] = useState<AIWorkflowVersion[]>([])
-  const [usage, setUsage] = useState<AIWorkflowUsage[]>([])
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [loaded, setLoaded] = useState(false)
@@ -100,17 +81,11 @@ export function WorkflowWorkbench({
       return
     }
 
-    const [item, versionPage, uses] = await Promise.all([
-      fetchAIWorkflow(workflowID),
-      fetchAIWorkflowVersions({ workflowId: workflowID, limit: 50 }),
-      fetchAIWorkflowUsage(workflowID),
-    ])
+    const item = await fetchAIWorkflow(workflowID)
     setActive(item)
     setName(item.name)
     setDescription(item.description)
     setDefinition(item.draftDefinition)
-    setVersions(versionPage.results ?? [])
-    setUsage(uses ?? [])
     setDirty(false)
     setLoaded(true)
   }, [workflowID])
@@ -200,23 +175,23 @@ export function WorkflowWorkbench({
     setSaving(true)
     try {
       const version = await publishAIWorkflow(active.id, definition)
-      await load()
+      setActive((current) =>
+        current
+          ? {
+              ...current,
+              draftDefinition: definition,
+              publishedVersionId: version.id,
+              updatedAt: version.updatedAt,
+            }
+          : current
+      )
+      setDirty(false)
+      onSaved?.()
       toast.success(`已发布 v${version.version}`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "发布失败")
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function restore(version: AIWorkflowVersion) {
-    if (!active) return
-    try {
-      await restoreAIWorkflowVersion(active.id, version.id)
-      await load()
-      toast.success(`已将 v${version.version} 恢复为草稿`)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "恢复失败")
     }
   }
 
@@ -260,100 +235,23 @@ export function WorkflowWorkbench({
               发布版本
             </Button>
           </div>
-          <div className="w-20 shrink-0" aria-hidden="true" />
+          <div className="w-8 shrink-0" aria-hidden="true" />
         </div>
       </header>
 
-      <Tabs defaultValue="editor" className="flex min-h-0 flex-1 flex-col">
-        <div className="shrink-0 border-b px-6">
-          <TabsList className="h-11 bg-transparent">
-            <TabsTrigger value="editor">编辑画布</TabsTrigger>
-            <TabsTrigger value="versions">
-              版本历史 ({versions.length})
-            </TabsTrigger>
-            <TabsTrigger value="usage">使用情况 ({usage.length})</TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent
-          value="editor"
-          className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
-        >
-          {loaded ? (
-            <OfficialWorkflowEditor
-              documentKey={workflowID ? `workflow-${workflowID}` : "new"}
-              definition={definition}
-              onDefinitionChange={handleDefinitionChange}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              正在加载节点能力…
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent
-          value="versions"
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6"
-        >
-          {versions.length ? (
-            versions.map((version) => (
-              <div
-                key={version.id}
-                className="mb-3 flex items-center gap-4 rounded-lg border p-4"
-              >
-                <Badge>v{version.version}</Badge>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">
-                    发布于{" "}
-                    {formatDateTime(version.publishedAt || version.createdAt)}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    发布人：{version.publishedByName || "-"}
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void restore(version)}
-                >
-                  恢复为草稿
-                </Button>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-muted-foreground">尚未发布版本。</p>
-          )}
-        </TabsContent>
-
-        <TabsContent
-          value="usage"
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6"
-        >
-          {usage.length ? (
-            usage.map((item) => (
-              <div
-                key={`${item.aiAgentId}-${item.workflowVersionId}`}
-                className="mb-3 flex items-center justify-between rounded-lg border p-4"
-              >
-                <div>
-                  <div className="font-medium">{item.aiAgentName}</div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    固定关联 v{item.workflowVersion}
-                  </div>
-                </div>
-                <Badge variant={item.enabled ? "secondary" : "outline"}>
-                  {item.enabled ? "启用" : "已停用"}
-                </Badge>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              暂未被任何 Agent 使用。
-            </p>
-          )}
-        </TabsContent>
-      </Tabs>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {loaded ? (
+          <OfficialWorkflowEditor
+            documentKey={workflowID ? `workflow-${workflowID}` : "new"}
+            definition={definition}
+            onDefinitionChange={handleDefinitionChange}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            正在加载节点能力…
+          </div>
+        )}
+      </div>
 
       <Dialog open={metadataOpen} onOpenChange={setMetadataOpen}>
         <DialogContent>
