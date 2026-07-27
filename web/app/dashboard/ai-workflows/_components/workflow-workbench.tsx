@@ -222,7 +222,7 @@ export function WorkflowWorkbench({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
-      <header className="shrink-0 border-b px-4 py-2">
+      <header className="shrink-0 border-b px-4 py-1.5">
         <div className="flex items-center gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -260,6 +260,7 @@ export function WorkflowWorkbench({
               发布版本
             </Button>
           </div>
+          <div className="w-20 shrink-0" aria-hidden="true" />
         </div>
       </header>
 

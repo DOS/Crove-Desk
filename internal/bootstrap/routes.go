@@ -238,6 +238,7 @@ func registerDashboardAIWorkflowRoutes(group *gin.RouterGroup) {
 	group.GET("/default-definition", dashboard.AIWorkflowGetDefaultDefinition)
 	group.GET("/template/list", dashboard.AIWorkflowGetTemplateList)
 	group.POST("/validate", dashboard.AIWorkflowPostValidate)
+	group.POST("/publish", dashboard.AIWorkflowPostPublish)
 	group.Any("/run/list", dashboard.AIWorkflowAnyRunList)
 	group.GET("/run/:id", dashboard.AIWorkflowGetRunBy)
 	group.Any("/version/list", dashboard.AIWorkflowAnyVersionList)
