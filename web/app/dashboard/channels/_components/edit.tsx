@@ -10,7 +10,6 @@ import { toast } from "sonner"
 import { getWidgetDemoPath } from "@/components/support-chat/demo-navigation"
 import { OptionCombobox } from "@/components/option-combobox"
 import { ProjectDialog } from "@/components/project-dialog"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -551,14 +550,6 @@ function ChannelFormBody({
                 {selectedAIAgent && !isAgentChannelBindable(selectedAIAgent) ? (
                   <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                     该 Agent 尚未发布，AI 不会自动回复。请先在 Agent 配置中发布 Revision。
-                  </div>
-                ) : null}
-                {selectedAIAgent && isAgentChannelBindable(selectedAIAgent) ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Badge variant="secondary">
-                      已发布
-                    </Badge>
-                    <span>Revision #{selectedAIAgent.publishedRevisionId}</span>
                   </div>
                 ) : null}
                 <FieldError errors={[errors.aiAgentId]} />
