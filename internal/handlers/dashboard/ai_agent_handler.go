@@ -237,10 +237,6 @@ func buildAIAgentResponse(item *models.AIAgent) response.AIAgentResponse {
 }
 
 func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) response.AIAgentResponse {
-	runtimeMode := item.RuntimeMode
-	if runtimeMode == "" {
-		runtimeMode = enums.AIAgentRuntimeModeWorkflow
-	}
 	ret := response.AIAgentResponse{
 		ID:                     item.ID,
 		Name:                   item.Name,
@@ -248,8 +244,6 @@ func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) respons
 		Status:                 item.Status,
 		StatusName:             enums.GetStatusLabel(item.Status),
 		AIConfigID:             item.AIConfigID,
-		RuntimeMode:            runtimeMode,
-		RuntimeModeName:        enums.GetAIAgentRuntimeModeLabel(runtimeMode),
 		MaxSteps:               item.MaxSteps,
 		ContextWindow:          item.ContextWindow,
 		ToolPolicy:             item.ToolPolicy,
@@ -272,11 +266,7 @@ func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) respons
 		Teams:                  make([]response.AIAgentTeamResponse, 0),
 		MCPTools:               make([]response.AIAgentMCPToolResponse, 0),
 		WorkflowBindings:       make([]response.AIAgentWorkflowBindingResponse, 0),
-		WorkflowVersionID:      item.WorkflowVersionID,
 		PublishedRevisionID:    item.PublishedRevisionID,
-		WorkflowPublished:      item.WorkflowVersionID > 0,
-		WorkflowState:          aiAgentWorkflowState(item.WorkflowVersionID),
-		WorkflowStateText:      aiAgentWorkflowStateText(item.WorkflowVersionID),
 		SortNo:                 item.SortNo,
 		CreatedAt:              item.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:              item.UpdatedAt.Format("2006-01-02 15:04:05"),
@@ -336,12 +326,14 @@ func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) respons
 					}
 				}
 				ret.MCPTools = append(ret.MCPTools, response.AIAgentMCPToolResponse{
-					ToolCode:    toolCode,
-					ServerCode:  serverCode,
-					ToolName:    toolName,
-					Title:       title,
-					Description: description,
-					Arguments:   tool.Arguments,
+					ToolCode:            toolCode,
+					ServerCode:          serverCode,
+					ToolName:            toolName,
+					Title:               title,
+					Description:         description,
+					RiskLevel:           tool.RiskLevel,
+					RequireConfirmation: tool.RequireConfirmation,
+					Arguments:           tool.Arguments,
 				})
 			}
 		}
@@ -357,18 +349,4 @@ func buildAIAgentResponseWithLocale(item *models.AIAgent, locale string) respons
 		})
 	}
 	return ret
-}
-
-func aiAgentWorkflowState(workflowVersionID int64) string {
-	if workflowVersionID > 0 {
-		return "published"
-	}
-	return "draft"
-}
-
-func aiAgentWorkflowStateText(workflowVersionID int64) string {
-	if workflowVersionID > 0 {
-		return "已发布"
-	}
-	return "未发布"
 }

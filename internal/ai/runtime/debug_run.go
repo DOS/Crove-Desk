@@ -49,7 +49,7 @@ func DebugRunSkill(ctx context.Context, req request.SkillDebugRunRequest) (*resp
 		MessageType:    enums.IMMessageTypeText,
 		Content:        strings.TrimSpace(req.UserMessage),
 	}
-	summary, err := applicationruntime.DefaultAgentApplicationService.RunPrepared(ctx, applicationruntime.Request{
+	summary, err := applicationruntime.DefaultAgentApplicationService.RunPrepared(ctx, applicationruntime.RunInput{
 		Conversation: *conversation,
 		UserMessage:  message,
 		AIAgent:      debugAgent,
@@ -93,7 +93,7 @@ func DebugResumeSkill(ctx context.Context, req request.SkillDebugResumeRequest) 
 		return nil, errorsx.InvalidParamI18n("error.e0117")
 	}
 	resumeText := strings.TrimSpace(req.UserMessage)
-	summary, err := applicationruntime.DefaultAgentApplicationService.ResumePrepared(ctx, applicationruntime.ResumeRequest{
+	summary, err := applicationruntime.DefaultAgentApplicationService.ResumePrepared(ctx, applicationruntime.ResumeInput{
 		Conversation: *conversation,
 		AIAgent:      *aiAgent,
 		AIConfig:     *aiConfig,
@@ -105,7 +105,7 @@ func DebugResumeSkill(ctx context.Context, req request.SkillDebugResumeRequest) 
 	})
 	if err != nil {
 		if isCheckpointMissingError(err) {
-			summary = &applicationruntime.Summary{
+			summary = &applicationruntime.RunResult{
 				Status:    "expired",
 				ReplyText: graphs.ConfirmationExpiredReply,
 			}
@@ -128,7 +128,7 @@ func DebugResumeSkill(ctx context.Context, req request.SkillDebugResumeRequest) 
 	return buildSkillDebugResumeResponse(req, summary, conversationID), nil
 }
 
-func buildSkillDebugRunResponse(req request.SkillDebugRunRequest, summary *applicationruntime.Summary, skill *models.SkillDefinition) *response.SkillDebugRunResponse {
+func buildSkillDebugRunResponse(req request.SkillDebugRunRequest, summary *applicationruntime.RunResult, skill *models.SkillDefinition) *response.SkillDebugRunResponse {
 	resp := &response.SkillDebugRunResponse{
 		ConversationID: req.ConversationID,
 		AIAgentID:      req.AIAgentID,
@@ -144,14 +144,8 @@ func buildSkillDebugRunResponse(req request.SkillDebugRunRequest, summary *appli
 		resp.SkillDefinitionID = summary.PlannedSkillID
 	}
 	resp.ReplyText = summary.ReplyText
-	resp.PlanReason = summary.PlanReason
-	resp.SkillRouteTrace = summary.SkillRouteTrace
 	resp.ToolWhitelist = append([]string(nil), summary.SkillAllowedToolCodes...)
-	resp.ExposedToolCodes = append([]string(nil), summary.ToolCodes...)
 	resp.InvokedToolCodes = append([]string(nil), summary.InvokedToolCodes...)
-	resp.ToolSearchTrace = extractToolSearchTrace(summary)
-	resp.GraphToolTrace = extractGraphToolTrace(summary)
-	resp.GraphToolCode = firstGraphToolCode(summary)
 	resp.InterruptType = firstInterruptType(summary)
 	resp.CheckPointID = summary.CheckPointID
 	resp.Interrupted = summary.Interrupted
@@ -160,7 +154,7 @@ func buildSkillDebugRunResponse(req request.SkillDebugRunRequest, summary *appli
 	return resp
 }
 
-func buildSkillDebugResumeResponse(req request.SkillDebugResumeRequest, summary *applicationruntime.Summary, conversationID int64) *response.SkillDebugRunResponse {
+func buildSkillDebugResumeResponse(req request.SkillDebugResumeRequest, summary *applicationruntime.RunResult, conversationID int64) *response.SkillDebugRunResponse {
 	resp := &response.SkillDebugRunResponse{
 		ConversationID: conversationID,
 		AIAgentID:      req.AIAgentID,
@@ -171,14 +165,8 @@ func buildSkillDebugResumeResponse(req request.SkillDebugResumeRequest, summary 
 	resp.SkillDefinitionID = summary.PlannedSkillID
 	resp.SkillName = strings.TrimSpace(summary.PlannedSkillName)
 	resp.ReplyText = summary.ReplyText
-	resp.PlanReason = summary.PlanReason
-	resp.SkillRouteTrace = summary.SkillRouteTrace
 	resp.ToolWhitelist = append([]string(nil), summary.SkillAllowedToolCodes...)
-	resp.ExposedToolCodes = append([]string(nil), summary.ToolCodes...)
 	resp.InvokedToolCodes = append([]string(nil), summary.InvokedToolCodes...)
-	resp.ToolSearchTrace = extractToolSearchTrace(summary)
-	resp.GraphToolTrace = extractGraphToolTrace(summary)
-	resp.GraphToolCode = firstGraphToolCode(summary)
 	resp.InterruptType = firstInterruptType(summary)
 	resp.CheckPointID = summary.CheckPointID
 	resp.Interrupted = summary.Interrupted

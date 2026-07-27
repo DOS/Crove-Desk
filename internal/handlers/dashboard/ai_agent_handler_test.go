@@ -4,39 +4,18 @@ import (
 	"testing"
 
 	"agent-desk/internal/models"
-	"agent-desk/internal/pkg/enums"
 
 	"github.com/glebarez/sqlite"
 	"github.com/mlogclub/simple/sqls"
 	"gorm.io/gorm"
 )
 
-func TestBuildAIAgentResponseExposesWorkflowPublishState(t *testing.T) {
+func TestBuildAIAgentResponseExposesPublishedRevision(t *testing.T) {
 	setupAIAgentHandlerTestDB(t)
 
-	draft := buildAIAgentResponse(&models.AIAgent{})
-	if draft.RuntimeMode != enums.AIAgentRuntimeModeWorkflow {
-		t.Fatalf("draft.RuntimeMode = %q, want %q", draft.RuntimeMode, enums.AIAgentRuntimeModeWorkflow)
-	}
-	if draft.WorkflowPublished {
-		t.Fatalf("draft.WorkflowPublished = true, want false")
-	}
-	if draft.WorkflowState != "draft" {
-		t.Fatalf("draft.WorkflowState = %q, want draft", draft.WorkflowState)
-	}
-	if draft.WorkflowStateText == "" {
-		t.Fatalf("expected draft workflow state text")
-	}
-
-	published := buildAIAgentResponse(&models.AIAgent{WorkflowVersionID: 12})
-	if !published.WorkflowPublished {
-		t.Fatalf("published.WorkflowPublished = false, want true")
-	}
-	if published.WorkflowState != "published" {
-		t.Fatalf("published.WorkflowState = %q, want published", published.WorkflowState)
-	}
-	if published.WorkflowStateText == "" {
-		t.Fatalf("expected published workflow state text")
+	published := buildAIAgentResponse(&models.AIAgent{PublishedRevisionID: 12})
+	if published.PublishedRevisionID != 12 {
+		t.Fatalf("published revision = %d, want 12", published.PublishedRevisionID)
 	}
 
 	rollout := buildAIAgentResponse(&models.AIAgent{RolloutPercent: 20, PreviousRolloutPercent: 100})

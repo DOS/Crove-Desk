@@ -138,9 +138,9 @@ export function DashboardHome() {
                   </div>
                 </div>
                 <div className="rounded-md border bg-background px-3 py-2.5">
-                  <div className="text-sm text-muted-foreground">{t("dashboardHome.todaySkillRunFailCount")}</div>
+                  <div className="text-sm text-muted-foreground">{t("dashboardHome.todayAgentRunFailCount")}</div>
                   <div className="mt-1 text-2xl font-semibold">
-                    {data.aiStats.todaySkillRunFailCount}
+                    {data.aiStats.todayAgentRunFailCount}
                   </div>
                 </div>
                 <div className="rounded-md border bg-background px-3 py-2.5">

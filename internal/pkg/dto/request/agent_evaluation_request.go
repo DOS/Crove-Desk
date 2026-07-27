@@ -1,9 +1,8 @@
 package request
 
 type RunAgentEvaluationRequest struct {
-	AIAgentID  int64                 `json:"aiAgentId"`
-	EngineCode string                `json:"engineCode"`
-	Cases      []AgentEvaluationCase `json:"cases"`
+	AIAgentID int64                 `json:"aiAgentId"`
+	Cases     []AgentEvaluationCase `json:"cases"`
 }
 
 type AgentEvaluationCase struct {

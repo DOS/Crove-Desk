@@ -26,7 +26,7 @@ type ApplicationResumeInput struct {
 
 // AgentApplicationService is the single application boundary before engine
 // dispatch. It owns persisted input loading and relationship validation; the
-// selected Engine remains responsible only for runtime execution.
+// Agent Loop remains responsible only for runtime execution.
 type AgentApplicationService struct {
 	runtime *Service
 }

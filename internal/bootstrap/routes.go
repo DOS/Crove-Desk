@@ -249,7 +249,6 @@ func registerDashboardAIWorkflowRoutes(group *gin.RouterGroup) {
 
 func registerDashboardAgentRunRoutes(group *gin.RouterGroup) {
 	group.Any("/metrics", dashboard.AgentRunAnyMetrics)
-	group.Any("/comparison", dashboard.AgentRunAnyComparison)
 	group.POST("/evaluate", dashboard.AgentRunPostEvaluate)
 	group.Any("/list", dashboard.AgentRunAnyList)
 	group.POST("/quality_feedback", dashboard.AgentRunPostSave_quality_feedback)

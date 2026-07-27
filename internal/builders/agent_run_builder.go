@@ -18,7 +18,6 @@ func BuildAgentRun(item *models.AgentRun) response.AgentRunResponse {
 		AgentRevisionID:  item.AgentRevisionID,
 		SourceMessageID:  item.SourceMessageID,
 		WorkflowRunID:    item.WorkflowRunID,
-		EngineCode:       item.EngineCode,
 		Status:           item.Status,
 		PromptTokens:     item.PromptTokens,
 		CompletionTokens: item.CompletionTokens,

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 
 	"agent-desk/internal/ai/workflow/dsl"
-	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/repositories"
@@ -18,11 +17,11 @@ type resolvedWorkflow struct {
 	VersionID  int64
 }
 
-func resolveAgentWorkflow(aiAgent models.AIAgent) (resolvedWorkflow, error) {
-	if aiAgent.WorkflowVersionID <= 0 {
-		return resolvedWorkflow{}, errorsx.InvalidParam("AI Agent workflow is not published; publish a workflow version before enabling automatic replies")
+func resolveWorkflowVersion(workflowVersionID int64) (resolvedWorkflow, error) {
+	if workflowVersionID <= 0 {
+		return resolvedWorkflow{}, errorsx.InvalidParam("workflow version is required")
 	}
-	version := repositories.AIWorkflowVersionRepository.Get(sqls.DB(), aiAgent.WorkflowVersionID)
+	version := repositories.AIWorkflowVersionRepository.Get(sqls.DB(), workflowVersionID)
 	if version == nil || version.Status != enums.StatusOk {
 		return resolvedWorkflow{}, errorsx.InvalidParam("workflow version does not exist")
 	}
@@ -35,12 +34,4 @@ func resolveAgentWorkflow(aiAgent models.AIAgent) (resolvedWorkflow, error) {
 		WorkflowID: version.WorkflowID,
 		VersionID:  version.ID,
 	}, nil
-}
-
-func prepareWorkflowAgent(aiAgent models.AIAgent) (models.AIAgent, resolvedWorkflow, error) {
-	workflow, err := resolveAgentWorkflow(aiAgent)
-	if err != nil {
-		return aiAgent, resolvedWorkflow{}, err
-	}
-	return aiAgent, workflow, nil
 }

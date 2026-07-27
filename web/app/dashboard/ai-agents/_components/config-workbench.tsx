@@ -61,7 +61,6 @@ import {
 } from "@/lib/generated/enums"
 import { cn } from "@/lib/utils"
 
-type RuntimeMode = "workflow" | "autonomous" | "hybrid"
 type SectionKey = "setup" | "persona" | "capability" | "service"
 type MCPToolItem = CreateAIAgentPayload["mcpTools"][number]
 
@@ -74,28 +73,6 @@ type MCPToolOption = {
   meta: MCPToolItem
 }
 
-const runtimeModes: {
-  value: RuntimeMode
-  title: string
-  description: string
-}[] = [
-  {
-    value: "autonomous",
-    title: "自主接待",
-    description: "自主选择知识和工具处理请求，工作流可选。",
-  },
-  {
-    value: "hybrid",
-    title: "自主接待 + 工作流",
-    description: "自主处理咨询，按需调用一个或多个工作流。",
-  },
-  {
-    value: "workflow",
-    title: "仅工作流",
-    description: "严格按一个已发布工作流处理会话。",
-  },
-]
-
 function toText(value: string | number | undefined | null) {
   if (value === undefined || value === null || value === 0) return ""
   return String(value)
@@ -103,10 +80,6 @@ function toText(value: string | number | undefined | null) {
 
 function uniqueNumbers(input: number[]) {
   return Array.from(new Set(input.filter((id) => Number.isFinite(id) && id > 0)))
-}
-
-function isWorkflowPublished(agent: AIAgent | null) {
-  return Boolean(agent?.workflowPublished ?? (agent?.workflowVersionId ?? 0) > 0)
 }
 
 export function AIAgentConfigWorkbench({
@@ -131,7 +104,6 @@ export function AIAgentConfigWorkbench({
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [aiConfigId, setAIConfigId] = useState("")
-  const [runtimeMode, setRuntimeMode] = useState<RuntimeMode>("autonomous")
   const [serviceMode, setServiceMode] = useState(String(IMConversationServiceMode.AIFirst))
   const [systemPrompt, setSystemPrompt] = useState("")
   const [welcomeMessage, setWelcomeMessage] = useState("")
@@ -186,7 +158,6 @@ export function AIAgentConfigWorkbench({
         setName("")
         setDescription("")
         setAIConfigId("")
-        setRuntimeMode("autonomous")
         setServiceMode(String(IMConversationServiceMode.AIFirst))
         setSystemPrompt("")
         setWelcomeMessage("")
@@ -211,11 +182,6 @@ export function AIAgentConfigWorkbench({
       setName(detail.name)
       setDescription(detail.description || "")
       setAIConfigId(toText(detail.aiConfigId))
-      setRuntimeMode(
-        detail.runtimeMode === "autonomous" || detail.runtimeMode === "hybrid"
-          ? detail.runtimeMode
-          : "workflow",
-      )
       setServiceMode(String(detail.serviceMode || IMConversationServiceMode.AIFirst))
       setSystemPrompt(detail.systemPrompt || "")
       setWelcomeMessage(detail.welcomeMessage || "")
@@ -315,6 +281,8 @@ export function AIAgentConfigWorkbench({
             toolName: tool.toolName,
             title: tool.title || tool.toolName,
             description: tool.description || "",
+            riskLevel: "read",
+            requireConfirmation: false,
             arguments: undefined,
           },
         })),
@@ -345,6 +313,8 @@ export function AIAgentConfigWorkbench({
   function setMCPToolSelection(values: string[]) {
     setMCPTools(
       values.flatMap((value) => {
+        const current = mcpTools.find((item) => item.toolCode === value)
+        if (current) return [current]
         const option = mcpToolOptions.find((item) => item.value === value)
         return option ? [option.meta] : []
       }),
@@ -352,12 +322,7 @@ export function AIAgentConfigWorkbench({
   }
 
   function setWorkflowSelection(values: string[]) {
-    let selectedVersionIds = values.map(Number).filter((value) => value > 0)
-    if (runtimeMode === "workflow" && selectedVersionIds.length > 1) {
-      const currentIds = workflowBindings.map((binding) => binding.workflowVersionId)
-      const newlySelected = selectedVersionIds.find((id) => !currentIds.includes(id))
-      selectedVersionIds = [newlySelected ?? selectedVersionIds.at(-1)!]
-    }
+    const selectedVersionIds = values.map(Number).filter((value) => value > 0)
     setWorkflowBindings(
       selectedVersionIds.flatMap((workflowVersionId, index) => {
         const current = workflowBindings.find(
@@ -394,16 +359,6 @@ export function AIAgentConfigWorkbench({
       toast.error("请选择 AI 配置")
       return false
     }
-    if (runtimeMode === "hybrid" && workflowBindings.length === 0) {
-      setActiveSection("capability")
-      toast.error("Hybrid 模式至少需要关联一个已发布工作流")
-      return false
-    }
-    if (runtimeMode === "workflow" && workflowBindings.length !== 1) {
-      setActiveSection("capability")
-      toast.error("仅工作流模式必须且只能关联一个已发布工作流")
-      return false
-    }
     return true
   }
 
@@ -412,7 +367,6 @@ export function AIAgentConfigWorkbench({
       name: name.trim(),
       description: description.trim(),
       aiConfigId: Number(aiConfigId),
-      runtimeMode,
       serviceMode: Number(serviceMode),
       systemPrompt: systemPrompt.trim(),
       welcomeMessage: welcomeMessage.trim(),
@@ -454,7 +408,7 @@ export function AIAgentConfigWorkbench({
   }
 
   async function publishAgent() {
-    if (!agent || runtimeMode === "workflow") return
+    if (!agent) return
     if (!validateForm()) return
     setSaving(true)
     try {
@@ -484,19 +438,7 @@ export function AIAgentConfigWorkbench({
     }
   }
 
-  const workflowPublished = isWorkflowPublished(agent)
-  const autonomousPublished =
-    runtimeMode === "autonomous" && (agent?.publishedRevisionId ?? 0) > 0
-  const hybridPublished =
-    runtimeMode === "hybrid" &&
-    workflowPublished &&
-    (agent?.publishedRevisionId ?? 0) > 0
-  const runtimePublished =
-    runtimeMode === "workflow"
-      ? workflowPublished
-      : runtimeMode === "hybrid"
-        ? hybridPublished
-        : autonomousPublished
+  const agentPublished = (agent?.publishedRevisionId ?? 0) > 0
 
   const sections: {
     key: SectionKey
@@ -527,8 +469,8 @@ export function AIAgentConfigWorkbench({
           <div className="flex min-w-0 items-center gap-2">
             <h1 className="truncate text-base font-semibold">{agent?.name || "新建 AI Agent"}</h1>
             {agent?.statusName ? <Badge variant="secondary">{agent.statusName}</Badge> : null}
-            <Badge variant={runtimePublished ? "default" : "outline"}>
-              {runtimePublished ? "已发布" : agent ? "未发布" : "尚未创建"}
+            <Badge variant={agentPublished ? "default" : "outline"}>
+              {agentPublished ? "已发布" : agent ? "未发布" : "尚未创建"}
             </Badge>
           </div>
           {agent ? (
@@ -574,8 +516,8 @@ export function AIAgentConfigWorkbench({
           </nav>
           <div className="mt-auto flex items-center justify-between rounded-lg border bg-background p-3 text-xs">
             <span className="text-muted-foreground">状态</span>
-            <span className={runtimePublished ? "font-medium text-emerald-600" : "font-medium text-amber-600"}>
-              {runtimePublished ? "已发布" : agent ? "未发布" : "尚未创建"}
+            <span className={agentPublished ? "font-medium text-emerald-600" : "font-medium text-amber-600"}>
+              {agentPublished ? "已发布" : agent ? "未发布" : "尚未创建"}
             </span>
           </div>
         </aside>
@@ -607,39 +549,6 @@ export function AIAgentConfigWorkbench({
                         onChange={(event) => setDescription(event.target.value)}
                       />
                     </FieldBlock>
-                  </div>
-                </FormSection>
-
-                <FormSection
-                  title="运行方式"
-                  description="决定 Agent 是否自主处理请求，以及工作流的关联要求。"
-                >
-                  <div className="grid gap-3 md:grid-cols-3">
-                    {runtimeModes.map((mode) => (
-                      <button
-                        key={mode.value}
-                        type="button"
-                        onClick={() => setRuntimeMode(mode.value)}
-                        className={cn(
-                          "relative rounded-xl border p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/[0.02]",
-                          runtimeMode === mode.value &&
-                            "border-primary bg-primary/5 ring-1 ring-primary",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "absolute top-4 right-4 size-4 rounded-full border",
-                            runtimeMode === mode.value
-                              ? "border-[5px] border-primary"
-                              : "border-muted-foreground/40",
-                          )}
-                        />
-                        <strong className="block pr-6 text-sm">{mode.title}</strong>
-                        <span className="mt-2 block pr-5 text-xs leading-5 text-muted-foreground">
-                          {mode.description}
-                        </span>
-                      </button>
-                    ))}
                   </div>
                 </FormSection>
 
@@ -750,11 +659,7 @@ export function AIAgentConfigWorkbench({
                   }
                 >
                   <div className="rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
-                    {runtimeMode === "autonomous"
-                      ? "当前为自主接待模式，工作流是可选能力。"
-                      : runtimeMode === "hybrid"
-                        ? "当前为 Hybrid 模式，至少关联一个已发布工作流后才能保存。"
-                        : "当前为仅工作流模式，必须且只能关联一个已发布工作流。"}
+                    Workflow 是 Agent 的可选能力。模型会结合用户消息与触发说明，自主判断是否调用。
                   </div>
                   <OptionCombobox
                     multiple
@@ -780,6 +685,67 @@ export function AIAgentConfigWorkbench({
                     emptyText="没有可用 MCP Tool"
                     onValuesChange={setMCPToolSelection}
                   />
+                  {mcpTools.length > 0 ? (
+                    <div className="space-y-2">
+                      {mcpTools.map((tool) => (
+                        <div
+                          key={tool.toolCode}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium">
+                              {tool.title || tool.toolCode}
+                            </div>
+                            <div className="truncate font-mono text-xs text-muted-foreground">
+                              {tool.toolCode}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={tool.riskLevel === "read" ? "default" : "outline"}
+                              onClick={() =>
+                                setMCPTools((items) =>
+                                  items.map((item) =>
+                                    item.toolCode === tool.toolCode
+                                      ? {
+                                          ...item,
+                                          riskLevel: "read",
+                                          requireConfirmation: false,
+                                        }
+                                      : item,
+                                  ),
+                                )
+                              }
+                            >
+                              只读
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={tool.riskLevel === "write" ? "destructive" : "outline"}
+                              onClick={() =>
+                                setMCPTools((items) =>
+                                  items.map((item) =>
+                                    item.toolCode === tool.toolCode
+                                      ? {
+                                          ...item,
+                                          riskLevel: "write",
+                                          requireConfirmation: true,
+                                        }
+                                      : item,
+                                  ),
+                                )
+                              }
+                            >
+                              写操作（需确认）
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </FormSection>
               </div>
             ) : null}
@@ -868,10 +834,10 @@ export function AIAgentConfigWorkbench({
           <span
             className={cn(
               "size-2 rounded-full",
-              runtimePublished ? "bg-emerald-500" : "bg-amber-500",
+              agentPublished ? "bg-emerald-500" : "bg-amber-500",
             )}
           />
-          <span>{runtimePublished ? "当前配置已发布" : "保存配置后再发布 Agent"}</span>
+          <span>{agentPublished ? "当前配置已发布" : "保存配置后再发布 Agent"}</span>
         </div>
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" onClick={onCancel}>
@@ -886,7 +852,7 @@ export function AIAgentConfigWorkbench({
             <SaveIcon />
             保存配置
           </Button>
-          {agent && runtimeMode !== "workflow" ? (
+          {agent ? (
             <Button type="button" disabled={saving} onClick={publishAgent}>
               发布 Agent
             </Button>
@@ -1012,7 +978,7 @@ function VersionRecordsTable({
               <TableHead className="w-28">版本</TableHead>
               <TableHead>发布时间</TableHead>
               <TableHead>发布人</TableHead>
-              <TableHead>关联流程</TableHead>
+              <TableHead>定义摘要</TableHead>
               <TableHead className="text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
@@ -1033,10 +999,8 @@ function VersionRecordsTable({
                     {revision.publishedAt || "-"}
                   </TableCell>
                   <TableCell>{revision.publishedByName || "-"}</TableCell>
-                  <TableCell>
-                    {revision.workflowVersionId > 0
-                      ? `#${revision.workflowVersionId}`
-                      : "-"}
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {revision.definitionHash?.slice(0, 12) || "-"}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button

@@ -10,7 +10,6 @@ import (
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/httpx/params"
-	"agent-desk/internal/repositories"
 
 	"github.com/glebarez/sqlite"
 	"github.com/mlogclub/simple/sqls"
@@ -26,12 +25,12 @@ func TestAgentRunServiceFindsWorkflowAuditDetail(t *testing.T) {
 		ConversationID: 11,
 		AIAgentID:      12,
 		WorkflowRunID:  13,
-		EngineCode:     "workflow",
-		Status:         "completed",
-		StartedAt:      now,
-		EndedAt:        &endedAt,
-		CreatedAt:      now,
-		UpdatedAt:      now,
+
+		Status:    "completed",
+		StartedAt: now,
+		EndedAt:   &endedAt,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 	if err := db.Create(run).Error; err != nil {
 		t.Fatalf("create agent run: %v", err)
@@ -55,38 +54,17 @@ func TestAgentRunServiceFindsWorkflowAuditDetail(t *testing.T) {
 	}
 }
 
-func TestAgentRunServiceAssociatesWorkflowRevision(t *testing.T) {
+func TestAgentRunServiceRecordsAgentLoopToolCall(t *testing.T) {
 	db := setupAgentRunServiceTestDB(t)
 	now := time.Now()
-	if err := db.Create(&models.AgentRevision{AgentID: 12, Revision: 1, WorkflowVersionID: 14}).Error; err != nil {
-		t.Fatalf("create agent revision: %v", err)
-	}
-	if _, err := AgentRunService.RecordWorkflowRun(db, WorkflowAgentRunInput{
-		WorkflowRunID: 13, WorkflowVersionID: 14, ConversationID: 11, AIAgentID: 12,
-		Status: "completed", StartedAt: now,
-	}); err != nil {
-		t.Fatalf("RecordWorkflowRun returned error: %v", err)
-	}
-	run := repositories.AgentRunRepository.TakeByWorkflowRunID(db, 13)
-	if run == nil || run.AgentRevisionID <= 0 {
-		t.Fatalf("expected AgentRun to link revision, got %#v", run)
-	}
-	if stepID := AgentRunService.GetLatestStepID(run.ID); stepID <= 0 {
-		t.Fatalf("expected normalized agent step id, got %d", stepID)
-	}
-}
-
-func TestAgentRunServiceRecordsEngineToolCall(t *testing.T) {
-	db := setupAgentRunServiceTestDB(t)
-	now := time.Now()
-	runID, err := AgentRunService.RecordEngineRun(db, EngineAgentRunInput{
-		ConversationID: 1, AIAgentID: 2, AgentRevisionID: 3, EngineCode: "autonomous", Status: "completed", StartedAt: now,
-		StepType: "model", StepCode: "chat_completion", StepInputPreview: "authorization=Bearer-secret", ToolCalls: []EngineToolCallInput{{
+	runID, err := AgentRunService.RecordAgentLoopRun(db, AgentLoopRunInput{
+		ConversationID: 1, AIAgentID: 2, AgentRevisionID: 3, Status: "completed", StartedAt: now,
+		StepType: "model", StepCode: "chat_completion", StepInputPreview: "authorization=Bearer-secret", ToolCalls: []AgentLoopToolCallInput{{
 			ToolCode: "knowledge/search", RiskLevel: "read", Status: "completed", ArgumentsPreview: `{"token":"abc123","query":"refund"}`, ResultPreview: "policy text",
 		}},
 	})
 	if err != nil {
-		t.Fatalf("RecordEngineRun returned error: %v", err)
+		t.Fatalf("RecordAgentLoopRun returned error: %v", err)
 	}
 	_, steps, toolCalls := AgentRunService.GetDetail(runID)
 	if len(toolCalls) != 1 || toolCalls[0].ToolCode != "knowledge/search" || toolCalls[0].AgentStepID <= 0 {
@@ -97,29 +75,33 @@ func TestAgentRunServiceRecordsEngineToolCall(t *testing.T) {
 	}
 }
 
-func TestAgentRunServiceRecordsHybridPlaybookResume(t *testing.T) {
+func TestAgentRunServiceRecordsResumedToolCall(t *testing.T) {
 	db := setupAgentRunServiceTestDB(t)
-	now := time.Now().Add(-time.Minute)
-	run := &models.AgentRun{EngineCode: "hybrid", Status: "interrupted", StartedAt: now, CreatedAt: now, UpdatedAt: now}
+	now := time.Now()
+	run := &models.AgentRun{Status: "interrupted", StartedAt: now, CreatedAt: now, UpdatedAt: now}
 	if err := db.Create(run).Error; err != nil {
-		t.Fatalf("create hybrid run: %v", err)
+		t.Fatalf("create interrupted run: %v", err)
 	}
-	if err := AgentRunService.RecordHybridPlaybookResume(db, run.ID, 33, "completed", "已完成工单登记。"); err != nil {
-		t.Fatalf("RecordHybridPlaybookResume returned error: %v", err)
+	err := AgentRunService.RecordResume(db, run.ID, 0, "completed", "操作已执行", &AgentLoopToolCallInput{
+		ToolCode: "crm/update_customer", RiskLevel: "write", RequireConfirm: true,
+		Status: "completed", ArgumentsPreview: `{"name":"Ada"}`, ResultPreview: "updated",
+	})
+	if err != nil {
+		t.Fatalf("RecordResume returned error: %v", err)
 	}
-	item, steps, _ := AgentRunService.GetDetail(run.ID)
-	if item == nil || item.Status != "completed" || item.EndedAt == nil {
-		t.Fatalf("expected completed hybrid run, got %#v", item)
+	item, steps, toolCalls := AgentRunService.GetDetail(run.ID)
+	if item == nil || item.Status != "completed" || len(steps) != 1 || steps[0].StepType != "resume" {
+		t.Fatalf("unexpected resumed run audit: item=%#v steps=%#v", item, steps)
 	}
-	if len(steps) != 1 || steps[0].StepCode != "playbook_resume" || steps[0].WorkflowRunID != 33 || steps[0].OutputPreview != "已完成工单登记。" {
-		t.Fatalf("unexpected playbook resume step: %#v", steps)
+	if len(toolCalls) != 1 || toolCalls[0].AgentStepID != steps[0].ID || !toolCalls[0].RequireConfirm || toolCalls[0].Status != "completed" {
+		t.Fatalf("unexpected resumed tool audit: %#v", toolCalls)
 	}
 }
 
 func TestAgentRunServiceSavesQualityFeedbackPerRun(t *testing.T) {
 	db := setupAgentRunServiceTestDB(t)
 	now := time.Now()
-	run := &models.AgentRun{AIAgentID: 4, EngineCode: "autonomous", Status: "completed", StartedAt: now, CreatedAt: now, UpdatedAt: now}
+	run := &models.AgentRun{AIAgentID: 4, Status: "completed", StartedAt: now, CreatedAt: now, UpdatedAt: now}
 	if err := db.Create(run).Error; err != nil {
 		t.Fatalf("create agent run: %v", err)
 	}
@@ -140,13 +122,13 @@ func TestAgentRunServiceSavesQualityFeedbackPerRun(t *testing.T) {
 	}
 }
 
-func TestAgentRunServiceAggregatesCrossEngineMetrics(t *testing.T) {
+func TestAgentRunServiceAggregatesMetrics(t *testing.T) {
 	db := setupAgentRunServiceTestDB(t)
 	base := time.Now().Add(-time.Minute)
 	runs := []models.AgentRun{
-		{AIAgentID: 8, EngineCode: "autonomous", Status: "completed", StartedAt: base, EndedAt: timePtr(base.Add(100 * time.Millisecond)), PromptTokens: 10, CompletionTokens: 5, CreatedAt: base, UpdatedAt: base},
-		{AIAgentID: 8, EngineCode: "workflow", Status: "failed", StartedAt: base, EndedAt: timePtr(base.Add(300 * time.Millisecond)), PromptTokens: 8, CompletionTokens: 2, CreatedAt: base, UpdatedAt: base},
-		{AIAgentID: 9, EngineCode: "hybrid", Status: "completed", StartedAt: base, EndedAt: timePtr(base.Add(900 * time.Millisecond)), CreatedAt: base, UpdatedAt: base},
+		{AIAgentID: 8, Status: "completed", StartedAt: base, EndedAt: timePtr(base.Add(100 * time.Millisecond)), PromptTokens: 10, CompletionTokens: 5, CreatedAt: base, UpdatedAt: base},
+		{AIAgentID: 8, Status: "failed", StartedAt: base, EndedAt: timePtr(base.Add(300 * time.Millisecond)), PromptTokens: 8, CompletionTokens: 2, CreatedAt: base, UpdatedAt: base},
+		{AIAgentID: 9, Status: "completed", StartedAt: base, EndedAt: timePtr(base.Add(900 * time.Millisecond)), CreatedAt: base, UpdatedAt: base},
 	}
 	for index := range runs {
 		if err := db.Create(&runs[index]).Error; err != nil {
@@ -202,13 +184,6 @@ func TestAgentRunServiceAggregatesCrossEngineMetrics(t *testing.T) {
 	}
 	if metrics.ReviewedRuns != 2 || metrics.ResolvedRuns != 1 || metrics.ResolutionRate != 0.5 || metrics.UnsupportedEvidenceRuns != 1 || metrics.UnsupportedEvidenceRate != 0.5 {
 		t.Fatalf("unexpected quality metrics: %#v", metrics)
-	}
-	comparisons := AgentRunService.GetEngineComparisons(8)
-	if len(comparisons) != 2 || comparisons[0].EngineCode != "autonomous" || comparisons[1].EngineCode != "workflow" {
-		t.Fatalf("unexpected engine comparison groups: %#v", comparisons)
-	}
-	if comparisons[0].Metrics.TotalRuns != 1 || comparisons[0].Metrics.ResolutionRate != 1 || comparisons[1].Metrics.TotalRuns != 1 || comparisons[1].Metrics.UnsupportedEvidenceRate != 1 {
-		t.Fatalf("unexpected engine comparison metrics: %#v", comparisons)
 	}
 }
 

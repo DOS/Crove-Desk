@@ -5,26 +5,7 @@ import (
 
 	applicationruntime "agent-desk/internal/ai/application/runtime"
 	"agent-desk/internal/models"
-	"agent-desk/internal/pkg/toolx"
 )
-
-func TestExtractRuntimeToolTraces(t *testing.T) {
-	summary := &applicationruntime.Summary{
-		TraceData: `{
-			"toolSearch": {"items": [{"targetToolCode":"mcp/server/tool_a"}]},
-			"graphTools": {"items": [{"toolCode":"` + toolx.GraphAnalyzeConversation.Code + `"}]}
-		}`,
-	}
-	if got := extractToolSearchTrace(summary); got == "" {
-		t.Fatalf("expected tool search trace")
-	}
-	if got := extractGraphToolTrace(summary); got == "" {
-		t.Fatalf("expected graph tool trace")
-	}
-	if got := firstGraphToolCode(summary); got != toolx.GraphAnalyzeConversation.Code {
-		t.Fatalf("unexpected graph tool code: %q", got)
-	}
-}
 
 func TestExtractInterruptMessageAndCheckpointError(t *testing.T) {
 	if got := extractInterruptMessage(`{"message":"请补充订单号"}`); got != "请补充订单号" {
@@ -44,7 +25,7 @@ func TestExtractInterruptMessageAndCheckpointError(t *testing.T) {
 }
 
 func TestBuildConversationInterruptStoresWorkflowCheckpointData(t *testing.T) {
-	item := buildConversationInterrupt(testConversation(1), testMessage(2), testAIAgent(3), &applicationruntime.Summary{
+	item := buildConversationInterrupt(testConversation(1), testMessage(2), testAIAgent(3), &applicationruntime.RunResult{
 		CheckPointData: `{"confirmNodeId":"confirm_1"}`,
 		Interrupted:    true,
 		WorkflowRunID:  99,

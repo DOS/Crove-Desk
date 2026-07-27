@@ -168,9 +168,8 @@ func (t *ToolSearchTool) invokeTargetTool(ctx context.Context, toolCode string, 
 	if !containsToolCode(t.allowedToolCodes, toolCode) {
 		return "", i18nx.Errorf("error.e0279")
 	}
-	// A workflow administrator's allow-list is the explicit approval boundary
-	// for MCP tools. The registry still enforces its call limit and normalizes
-	// the safety metadata used by future autonomous engines.
+	// The published Agent allow-list is the approval boundary for MCP tools.
+	// The registry still enforces call limits and safety metadata.
 	_, result, err := aitooling.DefaultMCPExecutor.Execute(ctx, toolCode, arguments, aitooling.Policy{
 		AllowedToolCodes: t.allowedToolCodes,
 		Confirmed:        true,

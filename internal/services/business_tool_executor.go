@@ -14,8 +14,8 @@ import (
 )
 
 // BusinessToolExecutor is the write boundary for built-in business tools.
-// Autonomous mode deliberately does not expose it; deterministic Playbooks
-// invoke it only after their human-confirm node has completed.
+// AgentDesk services remain the write boundary. Workflow nodes invoke this
+// executor only after their human-confirm node has completed.
 var BusinessToolExecutor = newBusinessToolExecutor(aitooling.DefaultRegistry)
 
 type BusinessToolInput struct {

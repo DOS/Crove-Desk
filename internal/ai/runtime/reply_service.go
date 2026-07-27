@@ -29,7 +29,7 @@ type aiReplyService struct {
 	commit      *replyCommitService
 }
 
-func firstInvokedToolCode(summary *applicationruntime.Summary) string {
+func firstInvokedToolCode(summary *applicationruntime.RunResult) string {
 	if summary == nil {
 		return ""
 	}

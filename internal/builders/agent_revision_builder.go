@@ -14,7 +14,7 @@ func BuildAgentRevision(item *models.AgentRevision) response.AgentRevisionRespon
 		publishedAt = item.PublishedAt.Format("2006-01-02 15:04:05")
 	}
 	return response.AgentRevisionResponse{
-		ID: item.ID, AgentID: item.AgentID, Revision: item.Revision, WorkflowVersionID: item.WorkflowVersionID,
+		ID: item.ID, AgentID: item.AgentID, Revision: item.Revision,
 		Status: item.Status, DefinitionHash: item.DefinitionHash, PublishedAt: publishedAt,
 		PublishedByID: item.PublishedByID, PublishedByName: item.PublishedByName,
 	}

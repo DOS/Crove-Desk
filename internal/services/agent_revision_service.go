@@ -40,10 +40,10 @@ func (s *agentRevisionService) FindByAgentID(agentID int64) []models.AgentRevisi
 type agentRevisionDefinition struct {
 	Agent            agentRevisionAgent             `json:"agent"`
 	Model            agentRevisionModel             `json:"model"`
-	WorkflowBindings []agentRevisionWorkflowBinding `json:"workflowBindings"`
+	WorkflowBindings []AgentRevisionWorkflowBinding `json:"workflowBindings"`
 }
 
-type agentRevisionWorkflowBinding struct {
+type AgentRevisionWorkflowBinding struct {
 	WorkflowID         int64  `json:"workflowId"`
 	WorkflowVersionID  int64  `json:"workflowVersionId"`
 	ToolName           string `json:"toolName"`
@@ -69,7 +69,6 @@ type agentRevisionAgent struct {
 	Name                string `json:"name"`
 	Description         string `json:"description"`
 	AIConfigID          int64  `json:"aiConfigId"`
-	RuntimeMode         string `json:"runtimeMode"`
 	MaxSteps            int    `json:"maxSteps"`
 	ContextWindow       int    `json:"contextWindow"`
 	ToolPolicy          string `json:"toolPolicy"`
@@ -94,33 +93,31 @@ type AgentRevisionSnapshot struct {
 	Revision         models.AgentRevision
 	Agent            models.AIAgent
 	AIConfig         models.AIConfig
-	WorkflowBindings []agentRevisionWorkflowBinding
+	WorkflowBindings []AgentRevisionWorkflowBinding
 }
 
-// ResolvePublishedSnapshot restores a published Agent revision for runtime
-// execution. Empty legacy definitions retain the current fields so historical
-// records created before snapshot hydration remain executable.
+// ResolvePublishedSnapshot restores an immutable published Agent revision.
 func (s *agentRevisionService) ResolvePublishedSnapshot(agent models.AIAgent, config models.AIConfig) (*AgentRevisionSnapshot, error) {
 	if agent.PublishedRevisionID <= 0 {
-		return nil, errorsx.InvalidParam("autonomous agent is not published")
+		return nil, errorsx.InvalidParam("Agent is not published")
 	}
 	revision := repositories.AgentRevisionRepository.Get(sqls.DB(), agent.PublishedRevisionID)
 	if revision == nil || revision.AgentID != agent.ID || revision.Status != enums.StatusOk {
-		return nil, errorsx.InvalidParam("autonomous agent published revision does not exist")
+		return nil, errorsx.InvalidParam("published Agent revision does not exist")
 	}
 	snapshot := &AgentRevisionSnapshot{Revision: *revision, Agent: agent, AIConfig: config}
 	if strings.TrimSpace(revision.Definition) == "" {
-		return snapshot, nil
+		return nil, errorsx.InvalidParam("published Agent revision definition is empty")
 	}
 	definition := agentRevisionDefinition{}
 	if err := json.Unmarshal([]byte(revision.Definition), &definition); err != nil {
-		return nil, errorsx.InvalidParam("autonomous agent published revision is invalid")
+		return nil, errorsx.InvalidParam("published Agent revision is invalid")
 	}
 	if definition.Agent.AIConfigID > 0 && definition.Agent.AIConfigID != config.ID {
 		return nil, errorsx.InvalidParam("published agent model config no longer matches")
 	}
 	applyRevisionAgentSnapshot(&snapshot.Agent, definition.Agent)
-	snapshot.WorkflowBindings = append([]agentRevisionWorkflowBinding(nil), definition.WorkflowBindings...)
+	snapshot.WorkflowBindings = append([]AgentRevisionWorkflowBinding(nil), definition.WorkflowBindings...)
 	applyRevisionModelSnapshot(&snapshot.AIConfig, definition.Model)
 	return snapshot, nil
 }
@@ -132,7 +129,6 @@ func applyRevisionAgentSnapshot(agent *models.AIAgent, definition agentRevisionA
 	agent.Name = definition.Name
 	agent.Description = definition.Description
 	agent.AIConfigID = definition.AIConfigID
-	agent.RuntimeMode = enums.AIAgentRuntimeMode(definition.RuntimeMode)
 	agent.MaxSteps = definition.MaxSteps
 	agent.ContextWindow = definition.ContextWindow
 	agent.ToolPolicy = definition.ToolPolicy
@@ -180,7 +176,7 @@ func (s *agentRevisionService) publishSnapshot(db *gorm.DB, agent *models.AIAgen
 	definition := agentRevisionDefinition{
 		Agent: agentRevisionAgent{
 			Name: agent.Name, Description: agent.Description, AIConfigID: agent.AIConfigID,
-			RuntimeMode: string(agent.RuntimeMode), MaxSteps: agent.MaxSteps, ContextWindow: agent.ContextWindow,
+			MaxSteps: agent.MaxSteps, ContextWindow: agent.ContextWindow,
 			ToolPolicy: agent.ToolPolicy, KnowledgePolicy: agent.KnowledgePolicy, ServiceMode: int(agent.ServiceMode), SystemPrompt: agent.SystemPrompt,
 			WelcomeMessage: agent.WelcomeMessage, ReplyTimeoutSeconds: agent.ReplyTimeoutSeconds, TeamIDs: agent.TeamIDs, HandoffMode: int(agent.HandoffMode),
 			FallbackMode: int(agent.FallbackMode), FallbackMessage: agent.FallbackMessage, KnowledgeIDs: agent.KnowledgeIDs,
@@ -189,7 +185,7 @@ func (s *agentRevisionService) publishSnapshot(db *gorm.DB, agent *models.AIAgen
 		Model: model,
 	}
 	for _, binding := range repositories.AIAgentWorkflowBindingRepository.FindEnabledByAgentID(db, agent.ID) {
-		definition.WorkflowBindings = append(definition.WorkflowBindings, agentRevisionWorkflowBinding{WorkflowID: binding.WorkflowID, WorkflowVersionID: binding.WorkflowVersionID, ToolName: binding.ToolName, TriggerInstruction: binding.TriggerInstruction, Priority: binding.Priority})
+		definition.WorkflowBindings = append(definition.WorkflowBindings, AgentRevisionWorkflowBinding{WorkflowID: binding.WorkflowID, WorkflowVersionID: binding.WorkflowVersionID, ToolName: binding.ToolName, TriggerInstruction: binding.TriggerInstruction, Priority: binding.Priority})
 	}
 	data, err := json.Marshal(definition)
 	if err != nil {

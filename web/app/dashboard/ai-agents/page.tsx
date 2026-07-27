@@ -62,10 +62,6 @@ function getNextStatus(item: AIAgent) {
   return item.status === Status.Ok ? Status.Disabled : Status.Ok;
 }
 
-function isWorkflowPublished(item: AIAgent) {
-  return Boolean(item.workflowPublished ?? item.workflowVersionId > 0);
-}
-
 export default function DashboardAIAgentsPage() {
   const t = useI18n();
   const statusOptions = useMemo(() => getStatusOptions(t), [t]);
@@ -126,31 +122,28 @@ export default function DashboardAIAgentsPage() {
         render: (item) => getServiceModeLabel(item.serviceMode, t),
       },
       {
-        key: "workflow",
-        label: "工作流状态",
+        key: "publication",
+        label: "发布状态",
         render: (item) => {
-          const published = isWorkflowPublished(item);
+          const published = item.publishedRevisionId > 0;
+          const workflowCount = item.workflowBindings?.length ?? 0;
           return (
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-1.5">
                 <Badge variant={published ? "default" : "outline"}>
-                  {item.workflowStateText || (published ? "已发布" : "未发布")}
+                  {published ? "已发布" : "未发布"}
                 </Badge>
                 {published ? (
                   <span className="font-mono text-xs text-muted-foreground">
-                    #{item.workflowVersionId}
+                    Revision #{item.publishedRevisionId}
                   </span>
                 ) : null}
               </div>
-              {!published ? (
-                <div className="text-xs text-muted-foreground">
-                  未发布工作流，AI 不会自动回复
-                </div>
-              ) : (
-                <div className="text-xs text-muted-foreground">
-                  当前生效版本 #{item.workflowVersionId}
-                </div>
-              )}
+              <div className="text-xs text-muted-foreground">
+                {workflowCount > 0
+                  ? `已配置 ${workflowCount} 个 Workflow`
+                  : "由 Agent 自主判断并直接回复"}
+              </div>
             </div>
           );
         },

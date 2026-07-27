@@ -239,39 +239,6 @@ func GetAIAgentFallbackModeLabel(mode AIAgentFallbackMode) string {
 	return aiAgentFallbackModeLabelMap[mode]
 }
 
-type AIAgentRuntimeMode string
-
-const (
-	AIAgentRuntimeModeWorkflow   AIAgentRuntimeMode = "workflow"
-	AIAgentRuntimeModeAutonomous AIAgentRuntimeMode = "autonomous"
-	AIAgentRuntimeModeHybrid     AIAgentRuntimeMode = "hybrid"
-)
-
-var AIAgentRuntimeModeValues = []AIAgentRuntimeMode{
-	AIAgentRuntimeModeWorkflow,
-	AIAgentRuntimeModeAutonomous,
-	AIAgentRuntimeModeHybrid,
-}
-
-var aiAgentRuntimeModeLabelMap = map[AIAgentRuntimeMode]string{
-	AIAgentRuntimeModeWorkflow:   "流程编排",
-	AIAgentRuntimeModeAutonomous: "自主运行",
-	AIAgentRuntimeModeHybrid:     "混合运行",
-}
-
-func GetAIAgentRuntimeModeLabel(mode AIAgentRuntimeMode) string {
-	return aiAgentRuntimeModeLabelMap[mode]
-}
-
-func IsValidAIAgentRuntimeMode(mode AIAgentRuntimeMode) bool {
-	for _, item := range AIAgentRuntimeModeValues {
-		if item == mode {
-			return true
-		}
-	}
-	return false
-}
-
 const (
 	IMRealtimeEventConnected               = "connected"
 	IMRealtimeEventPong                    = "pong"

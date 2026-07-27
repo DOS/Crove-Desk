@@ -9,7 +9,6 @@ type AgentRunResponse struct {
 	AgentRevisionID  int64                            `json:"agentRevisionId"`
 	SourceMessageID  int64                            `json:"sourceMessageId"`
 	WorkflowRunID    int64                            `json:"workflowRunId"`
-	EngineCode       string                           `json:"engineCode"`
 	Status           string                           `json:"status"`
 	PromptTokens     int                              `json:"promptTokens"`
 	CompletionTokens int                              `json:"completionTokens"`

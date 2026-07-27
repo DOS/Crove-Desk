@@ -63,11 +63,13 @@ func NormalizeMCPToolRequest(item request.AIAgentMCPToolRequest) (request.AIAgen
 		return request.AIAgentMCPToolRequest{}, errorsx.InvalidParamI18n("error.e0018")
 	}
 	ret := request.AIAgentMCPToolRequest{
-		ToolCode:    toolCode,
-		ServerCode:  serverCode,
-		ToolName:    toolName,
-		Title:       strings.TrimSpace(item.Title),
-		Description: strings.TrimSpace(item.Description),
+		ToolCode:            toolCode,
+		ServerCode:          serverCode,
+		ToolName:            toolName,
+		Title:               strings.TrimSpace(item.Title),
+		Description:         strings.TrimSpace(item.Description),
+		RiskLevel:           strings.ToLower(strings.TrimSpace(item.RiskLevel)),
+		RequireConfirmation: item.RequireConfirmation,
 	}
 	if len(item.Arguments) > 0 {
 		ret.Arguments = make(map[string]string, len(item.Arguments))

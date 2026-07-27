@@ -7,7 +7,7 @@ const zhMessagesSource = await readFile(new URL("../../../../messages/zh-CN.json
 const adminApiSource = await readFile(new URL("../../../../lib/api/admin.ts", import.meta.url), "utf8")
 const zhMessages = JSON.parse(zhMessagesSource)
 
-test("AI Agent workflow-era policy copy separates handoff execution from knowledge fallback", () => {
+test("AI Agent policy copy separates handoff execution from knowledge fallback", () => {
   const combinedSource = `${configWorkbenchSource}\n${zhMessagesSource}`
 
   assert.match(combinedSource, /转人工执行方式/)
@@ -30,4 +30,12 @@ test("AI Agent config no longer exposes legacy graph tool routing knobs", () => 
   assert.doesNotMatch(aiAgentMessages, /graphTools/)
   assert.doesNotMatch(aiAgentMessages, /Graph Tool/)
   assert.doesNotMatch(aiAgentMessages, /内置流程/)
+})
+
+test("AI Agent config uses one Agent Loop without a runtime mode selector", () => {
+  assert.doesNotMatch(configWorkbenchSource, /runtimeMode/)
+  assert.doesNotMatch(adminApiSource, /runtimeMode/)
+  assert.doesNotMatch(configWorkbenchSource, /运行方式/)
+  assert.match(configWorkbenchSource, /Workflow 是 Agent 的可选能力/)
+  assert.match(configWorkbenchSource, /写操作（需确认）/)
 })

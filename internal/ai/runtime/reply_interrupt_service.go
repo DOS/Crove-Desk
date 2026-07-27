@@ -80,7 +80,7 @@ func (s *replyInterruptService) ResumePendingInterrupt(ctx context.Context, owne
 	return svc.ConversationInterruptService.MarkResolved(replyCtx.PendingInterrupt.ID, 0)
 }
 
-func (s *replyInterruptService) HandleInterruptedSummary(owner *aiReplyService, replyCtx aiReplyContext, summary *applicationruntime.Summary) error {
+func (s *replyInterruptService) HandleInterruptedSummary(owner *aiReplyService, replyCtx aiReplyContext, summary *applicationruntime.RunResult) error {
 	pending := buildConversationInterrupt(replyCtx.Conversation, replyCtx.Message, replyCtx.AIAgent, summary)
 	if pending != nil && pending.AgentRunID > 0 {
 		pending.AgentStepID = svc.AgentRunService.GetLatestStepID(pending.AgentRunID)
@@ -107,7 +107,7 @@ func (s *replyInterruptService) HandleInterruptedSummary(owner *aiReplyService, 
 	return nil
 }
 
-func (s *replyInterruptService) HandleInterruptedResume(owner *aiReplyService, replyCtx aiReplyContext, summary *applicationruntime.Summary) error {
+func (s *replyInterruptService) HandleInterruptedResume(owner *aiReplyService, replyCtx aiReplyContext, summary *applicationruntime.RunResult) error {
 	if replyCtx.PendingInterrupt == nil {
 		return fmt.Errorf("pending interrupt is required")
 	}

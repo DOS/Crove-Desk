@@ -254,14 +254,7 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
 }
 
 function isAgentChannelBindable(agent: AIAgent | undefined) {
-  if (!agent) return false
-  if (agent.runtimeMode === "autonomous") {
-    return agent.publishedRevisionId > 0
-  }
-  if (agent.runtimeMode === "hybrid") {
-    return agent.publishedRevisionId > 0 && agent.workflowVersionId > 0
-  }
-  return Boolean(agent.workflowPublished ?? agent.workflowVersionId > 0)
+  return Boolean(agent && agent.publishedRevisionId > 0)
 }
 
 type ChannelFormBodyProps = Omit<ChannelFormDialogProps, "open">
@@ -431,7 +424,7 @@ function ChannelFormBody({
   const aiAgentOptions = availableAIAgents.map((item) => ({
     value: String(item.id),
     label: isAgentChannelBindable(item)
-      ? `${item.name} · 当前生效 #${item.workflowVersionId}`
+      ? `${item.name} · Revision #${item.publishedRevisionId}`
       : `${item.name} · 未发布`,
   }))
   const wxWorkKFAccountOptions = wxWorkKFAccounts.map((item) => ({
@@ -557,15 +550,15 @@ function ChannelFormBody({
                 />
                 {selectedAIAgent && !isAgentChannelBindable(selectedAIAgent) ? (
                   <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                    该 Agent 尚未发布流程，AI 不会自动回复。请先在 Agent 配置中发布流程版本。
+                    该 Agent 尚未发布，AI 不会自动回复。请先在 Agent 配置中发布 Revision。
                   </div>
                 ) : null}
                 {selectedAIAgent && isAgentChannelBindable(selectedAIAgent) ? (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Badge variant="secondary">
-						{selectedAIAgent.runtimeMode === "autonomous" ? "已发布" : selectedAIAgent.workflowStateText || "已发布"}
+                      已发布
                     </Badge>
-					<span>{selectedAIAgent.runtimeMode === "autonomous" ? `当前版本 #${selectedAIAgent.publishedRevisionId}` : `当前生效版本 #${selectedAIAgent.workflowVersionId}`}</span>
+                    <span>Revision #{selectedAIAgent.publishedRevisionId}</span>
                   </div>
                 ) : null}
                 <FieldError errors={[errors.aiAgentId]} />

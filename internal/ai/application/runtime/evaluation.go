@@ -25,7 +25,6 @@ type OfflineEvaluationCase struct {
 type OfflineEvaluationResult struct {
 	CaseID      string `json:"caseId"`
 	Category    string `json:"category"`
-	EngineCode  string `json:"engineCode"`
 	Passed      bool   `json:"passed"`
 	ReplyText   string `json:"replyText"`
 	Interrupted bool   `json:"interrupted"`
@@ -34,10 +33,9 @@ type OfflineEvaluationResult struct {
 }
 
 type OfflineEvaluationReport struct {
-	EngineCode string                    `json:"engineCode"`
-	Total      int                       `json:"total"`
-	Passed     int                       `json:"passed"`
-	Results    []OfflineEvaluationResult `json:"results"`
+	Total   int                       `json:"total"`
+	Passed  int                       `json:"passed"`
+	Results []OfflineEvaluationResult `json:"results"`
 }
 
 // OfflineEvaluationRunner executes only isolated Debug requests. The supplied
@@ -51,10 +49,10 @@ func NewOfflineEvaluationRunner(run func(context.Context, RunInput) (*RunResult,
 	return &OfflineEvaluationRunner{run: run}
 }
 
-func (r *OfflineEvaluationRunner) Run(ctx context.Context, engineCode string, agent models.AIAgent, config models.AIConfig, cases []OfflineEvaluationCase) OfflineEvaluationReport {
-	report := OfflineEvaluationReport{EngineCode: strings.TrimSpace(engineCode), Results: make([]OfflineEvaluationResult, 0, len(cases))}
+func (r *OfflineEvaluationRunner) Run(ctx context.Context, agent models.AIAgent, config models.AIConfig, cases []OfflineEvaluationCase) OfflineEvaluationReport {
+	report := OfflineEvaluationReport{Results: make([]OfflineEvaluationResult, 0, len(cases))}
 	for _, item := range cases {
-		result := OfflineEvaluationResult{CaseID: strings.TrimSpace(item.ID), Category: strings.TrimSpace(item.Category), EngineCode: report.EngineCode}
+		result := OfflineEvaluationResult{CaseID: strings.TrimSpace(item.ID), Category: strings.TrimSpace(item.Category)}
 		if r == nil || r.run == nil {
 			result.Error, result.Finding = "evaluation runner is not configured", "runner_missing"
 			report.Results = append(report.Results, result)
@@ -89,11 +87,11 @@ func (r *OfflineEvaluationRunner) Run(ctx context.Context, engineCode string, ag
 func (r OfflineEvaluationReport) CSV() (string, error) {
 	var output strings.Builder
 	writer := csv.NewWriter(&output)
-	if err := writer.Write([]string{"caseId", "category", "engineCode", "passed", "interrupted", "finding", "error", "replyText"}); err != nil {
+	if err := writer.Write([]string{"caseId", "category", "passed", "interrupted", "finding", "error", "replyText"}); err != nil {
 		return "", err
 	}
 	for _, item := range r.Results {
-		if err := writer.Write([]string{item.CaseID, item.Category, item.EngineCode, strconv.FormatBool(item.Passed), strconv.FormatBool(item.Interrupted), item.Finding, item.Error, item.ReplyText}); err != nil {
+		if err := writer.Write([]string{item.CaseID, item.Category, strconv.FormatBool(item.Passed), strconv.FormatBool(item.Interrupted), item.Finding, item.Error, item.ReplyText}); err != nil {
 			return "", err
 		}
 	}

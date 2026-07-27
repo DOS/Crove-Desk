@@ -103,8 +103,8 @@ func TestAIWorkflowServicePublishCreatesImmutableVersion(t *testing.T) {
 	}
 }
 
-func TestAIWorkflowServicePlaybookTemplatesAreValid(t *testing.T) {
-	templates := AIWorkflowService.ListPlaybookTemplates()
+func TestAIWorkflowServiceWorkflowTemplatesAreValid(t *testing.T) {
+	templates := AIWorkflowService.ListWorkflowTemplates()
 	if len(templates) != 4 {
 		t.Fatalf("template count = %d, want 4", len(templates))
 	}

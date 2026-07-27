@@ -28,7 +28,7 @@ func RunAgentEvaluation(ctx context.Context, req request.RunAgentEvaluationReque
 	for _, item := range req.Cases {
 		cases = append(cases, applicationruntime.OfflineEvaluationCase{ID: item.ID, Category: item.Category, Message: item.Message, History: item.History, Expect: item.Expect})
 	}
-	report, err := applicationruntime.NewService().RunOfflineEvaluation(ctx, req.EngineCode, *agent, *config, cases)
+	report, err := applicationruntime.NewService().RunOfflineEvaluation(ctx, *agent, *config, cases)
 	if err != nil {
 		return nil, err
 	}
@@ -36,9 +36,9 @@ func RunAgentEvaluation(ctx context.Context, req request.RunAgentEvaluationReque
 	if err != nil {
 		return nil, err
 	}
-	ret := &response.AgentEvaluationReportResponse{EngineCode: report.EngineCode, Total: report.Total, Passed: report.Passed, CSV: csv, Results: make([]response.AgentEvaluationResultResponse, 0, len(report.Results))}
+	ret := &response.AgentEvaluationReportResponse{Total: report.Total, Passed: report.Passed, CSV: csv, Results: make([]response.AgentEvaluationResultResponse, 0, len(report.Results))}
 	for _, item := range report.Results {
-		ret.Results = append(ret.Results, response.AgentEvaluationResultResponse{CaseID: item.CaseID, Category: item.Category, EngineCode: item.EngineCode, Passed: item.Passed, ReplyText: item.ReplyText, Interrupted: item.Interrupted, Error: item.Error, Finding: item.Finding})
+		ret.Results = append(ret.Results, response.AgentEvaluationResultResponse{CaseID: item.CaseID, Category: item.Category, Passed: item.Passed, ReplyText: item.ReplyText, Interrupted: item.Interrupted, Error: item.Error, Finding: item.Finding})
 	}
 	return ret, nil
 }

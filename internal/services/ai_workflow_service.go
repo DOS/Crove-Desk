@@ -163,16 +163,16 @@ func (s *aiWorkflowService) DefaultAgentWorkflowDefinition() dsl.Definition {
 	return defaultAgentWorkflowDefinition()
 }
 
-func (s *aiWorkflowService) ListPlaybookTemplates() []AIWorkflowTemplate {
+func (s *aiWorkflowService) ListWorkflowTemplates() []AIWorkflowTemplate {
 	return []AIWorkflowTemplate{
-		{Code: "ticket-with-confirmation", Name: "创建工单", Description: "整理工单草稿，经客户确认后创建工单。", Definition: ticketWithConfirmationPlaybookDefinition()},
-		{Code: "identity-confirmation", Name: "身份确认", Description: "在执行后续业务前收集客户的明确确认。", Definition: identityConfirmationPlaybookDefinition()},
-		{Code: "complaint-escalation", Name: "投诉升级", Description: "投诉场景经客户确认后转入人工客服处理。", Definition: complaintEscalationPlaybookDefinition()},
-		{Code: "refund-request-preparation", Name: "退款申请准备", Description: "整理退款诉求，确认后转人工继续核验和处理。", Definition: refundRequestPreparationPlaybookDefinition()},
+		{Code: "ticket-with-confirmation", Name: "创建工单", Description: "整理工单草稿，经客户确认后创建工单。", Definition: ticketWithConfirmationWorkflowDefinition()},
+		{Code: "identity-confirmation", Name: "身份确认", Description: "在执行后续业务前收集客户的明确确认。", Definition: identityConfirmationWorkflowDefinition()},
+		{Code: "complaint-escalation", Name: "投诉升级", Description: "投诉场景经客户确认后转入人工客服处理。", Definition: complaintEscalationWorkflowDefinition()},
+		{Code: "refund-request-preparation", Name: "退款申请准备", Description: "整理退款诉求，确认后转人工继续核验和处理。", Definition: refundRequestPreparationWorkflowDefinition()},
 	}
 }
 
-func ticketWithConfirmationPlaybookDefinition() dsl.Definition {
+func ticketWithConfirmationWorkflowDefinition() dsl.Definition {
 	return dsl.Definition{SchemaVersion: dsl.SchemaVersion,
 		Nodes: []dsl.Node{
 			workflowNode("start_1", workflowregistry.NodeTypeStart, "开始", 180, 180, nil, nil),
@@ -522,7 +522,7 @@ func legacyDefaultAgentWorkflowDefinition() dsl.Definition {
 	}
 }
 
-func identityConfirmationPlaybookDefinition() dsl.Definition {
+func identityConfirmationWorkflowDefinition() dsl.Definition {
 	return dsl.Definition{SchemaVersion: dsl.SchemaVersion,
 		Nodes: []dsl.Node{
 			workflowNode("start_1", workflowregistry.NodeTypeStart, "开始", 180, 180, nil, nil),
@@ -546,11 +546,11 @@ func identityConfirmationPlaybookDefinition() dsl.Definition {
 	}
 }
 
-func complaintEscalationPlaybookDefinition() dsl.Definition {
-	return confirmationHandoffPlaybookDefinition("投诉升级确认", "我们将把本次投诉升级给人工客服处理。请确认是否继续。", "已为你升级投诉，人工客服会尽快跟进。", "投诉升级已取消。")
+func complaintEscalationWorkflowDefinition() dsl.Definition {
+	return confirmationHandoffWorkflowDefinition("投诉升级确认", "我们将把本次投诉升级给人工客服处理。请确认是否继续。", "已为你升级投诉，人工客服会尽快跟进。", "投诉升级已取消。")
 }
 
-func confirmationHandoffPlaybookDefinition(title, prompt, confirmedReply, cancelledReply string) dsl.Definition {
+func confirmationHandoffWorkflowDefinition(title, prompt, confirmedReply, cancelledReply string) dsl.Definition {
 	return dsl.Definition{SchemaVersion: dsl.SchemaVersion,
 		Nodes: []dsl.Node{
 			workflowNode("start_1", workflowregistry.NodeTypeStart, "开始", 180, 180, nil, nil),
@@ -574,8 +574,8 @@ func confirmationHandoffPlaybookDefinition(title, prompt, confirmedReply, cancel
 	}
 }
 
-func refundRequestPreparationPlaybookDefinition() dsl.Definition {
-	return confirmationHandoffPlaybookDefinition("退款申请确认", "我会先整理退款申请并转交人工客服核验。请确认是否继续。", "退款申请已准备完成，人工客服将继续核验订单和退款条件。", "退款申请准备已取消。")
+func refundRequestPreparationWorkflowDefinition() dsl.Definition {
+	return confirmationHandoffWorkflowDefinition("退款申请确认", "我会先整理退款申请并转交人工客服核验。请确认是否继续。", "退款申请已准备完成，人工客服将继续核验订单和退款条件。", "退款申请准备已取消。")
 }
 
 func workflowNode(id string, nodeType string, title string, x float64, y float64, inputs map[string]dsl.Value, config any) dsl.Node {

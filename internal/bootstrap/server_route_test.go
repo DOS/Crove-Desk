@@ -47,7 +47,6 @@ func TestNewServerRegistersGinRoutes(t *testing.T) {
 		http.MethodGet + " /api/dashboard/ai-workflow/run/list",
 		http.MethodGet + " /api/dashboard/ai-workflow/run/:id",
 		http.MethodGet + " /api/dashboard/agent-run/metrics",
-		http.MethodGet + " /api/dashboard/agent-run/comparison",
 		http.MethodPost + " /api/dashboard/agent-run/evaluate",
 		http.MethodGet + " /api/dashboard/agent-run/:id",
 		http.MethodPost + " /api/dashboard/ai-agent/rollback_rollout",

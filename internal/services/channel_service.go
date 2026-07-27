@@ -436,20 +436,8 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 	if aiAgent == nil || aiAgent.Status != enums.StatusOk {
 		return nil, errorsx.InvalidParamI18n("error.e0004")
 	}
-	if aiAgent.RuntimeMode == "" || aiAgent.RuntimeMode == enums.AIAgentRuntimeModeWorkflow {
-		if len(AIAgentService.ListEnabledWorkflowBindings(sqls.DB(), aiAgent.ID)) != 1 {
-			return nil, errorsx.InvalidParam("ai agent workflow must be published before binding channel")
-		}
-	} else if aiAgent.RuntimeMode == enums.AIAgentRuntimeModeAutonomous {
-		if aiAgent.PublishedRevisionID <= 0 {
-			return nil, errorsx.InvalidParam("autonomous ai agent must be published before binding channel")
-		}
-	} else if aiAgent.RuntimeMode == enums.AIAgentRuntimeModeHybrid {
-		if aiAgent.PublishedRevisionID <= 0 {
-			return nil, errorsx.InvalidParam("hybrid ai agent and workflow must be published before binding channel")
-		}
-	} else {
-		return nil, errorsx.InvalidParam("ai agent runtime mode is not available yet")
+	if aiAgent.PublishedRevisionID <= 0 {
+		return nil, errorsx.InvalidParam("ai agent must be published before binding channel")
 	}
 	status := enums.Status(req.Status)
 	if req.Status == 0 {

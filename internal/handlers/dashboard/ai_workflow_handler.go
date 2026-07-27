@@ -158,7 +158,7 @@ func AIWorkflowGetTemplateList(ctx *gin.Context) {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, builders.BuildAIWorkflowTemplates(services.AIWorkflowService.ListPlaybookTemplates()))
+	httpx.WriteJSON(ctx, builders.BuildAIWorkflowTemplates(services.AIWorkflowService.ListWorkflowTemplates()))
 }
 
 func AIWorkflowPostValidate(ctx *gin.Context) {

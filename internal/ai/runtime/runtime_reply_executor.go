@@ -29,7 +29,7 @@ func newRuntimeReplyExecutor() *runtimeReplyExecutor {
 	return &runtimeReplyExecutor{}
 }
 
-func (e *runtimeReplyExecutor) Run(ctx context.Context, input runtimeReplyRunInput) (*applicationruntime.Summary, error) {
+func (e *runtimeReplyExecutor) Run(ctx context.Context, input runtimeReplyRunInput) (*applicationruntime.RunResult, error) {
 	summary, err := applicationruntime.DefaultAgentApplicationService.Run(ctx, applicationruntime.ApplicationRunInput{
 		ConversationID: input.Conversation.ID,
 		MessageID:      input.Message.ID,
@@ -38,7 +38,7 @@ func (e *runtimeReplyExecutor) Run(ctx context.Context, input runtimeReplyRunInp
 	return summary, err
 }
 
-func (e *runtimeReplyExecutor) ResumePendingInterrupt(ctx context.Context, input runtimeReplyResumeInput) (*applicationruntime.Summary, error) {
+func (e *runtimeReplyExecutor) ResumePendingInterrupt(ctx context.Context, input runtimeReplyResumeInput) (*applicationruntime.RunResult, error) {
 	if input.PendingInterrupt == nil {
 		return nil, fmt.Errorf("pending interrupt is required")
 	}
@@ -56,8 +56,8 @@ func (e *runtimeReplyExecutor) ResumePendingInterrupt(ctx context.Context, input
 	return summary, err
 }
 
-func expiredInterruptSummary() *applicationruntime.Summary {
-	return &applicationruntime.Summary{
+func expiredInterruptSummary() *applicationruntime.RunResult {
+	return &applicationruntime.RunResult{
 		Status:    "expired",
 		ReplyText: graphs.ConfirmationExpiredReply,
 	}

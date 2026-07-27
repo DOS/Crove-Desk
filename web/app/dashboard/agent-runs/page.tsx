@@ -11,7 +11,7 @@ import { ProjectDialog } from "@/components/project-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { fetchAgentRun, fetchAgentRunMetrics, fetchAgentRuns, fetchAIWorkflowRun, fetchAgentRunEngineComparisons, saveAgentRunQualityFeedback, type AgentRun, type AgentRunEngineComparison, type AgentRunMetrics, type AgentStep, type AgentToolCall, type AIWorkflowRun } from "@/lib/api/admin"
+import { fetchAgentRun, fetchAgentRunMetrics, fetchAgentRuns, fetchAIWorkflowRun, saveAgentRunQualityFeedback, type AgentRun, type AgentRunMetrics, type AgentStep, type AgentToolCall, type AIWorkflowRun } from "@/lib/api/admin"
 import { formatDateTime } from "@/lib/utils"
 import { useI18n } from "@/i18n/provider"
 import { WorkflowRunAuditGraph } from "../ai-workflow-runs/_components/workflow-run-audit-graph"
@@ -32,11 +32,9 @@ export default function DashboardAgentRunsPage() {
 	const [workflowAuditLoading, setWorkflowAuditLoading] = useState(false)
 	const [workflowRun, setWorkflowRun] = useState<AIWorkflowRun | null>(null)
 	const [metrics, setMetrics] = useState<AgentRunMetrics | null>(null)
-	const [comparisons, setComparisons] = useState<AgentRunEngineComparison[]>([])
 
 	useEffect(() => {
 		void fetchAgentRunMetrics().then(setMetrics).catch(() => setMetrics(null))
-		void fetchAgentRunEngineComparisons().then(setComparisons).catch(() => setComparisons([]))
 	}, [])
 
   async function openDetail(id: number) {
@@ -80,12 +78,10 @@ export default function DashboardAgentRunsPage() {
 			<Metric label="知识兜底率" value={`${Math.round(metrics.knowledgeFallbackRate * 100)}%`} detail="证据不足或检索失败" />
 			<Metric label="中断恢复率" value={metrics.resumedInterrupts ? `${Math.round(metrics.interruptRecoveryRate * 100)}%` : "-"} detail={`${metrics.resolvedInterrupts}/${metrics.resumedInterrupts}`} />
 		</div> : null}
-		{comparisons.length > 0 ? <section className="border-b"><div className="px-4 py-3 text-sm font-medium">运行模式对比</div><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead className="border-y bg-muted/30 text-left text-xs text-muted-foreground"><tr><th className="px-4 py-2 font-medium">模式</th><th className="px-4 py-2 text-right font-medium">运行</th><th className="px-4 py-2 text-right font-medium">完成率</th><th className="px-4 py-2 text-right font-medium">解决率</th><th className="px-4 py-2 text-right font-medium">无依据率</th><th className="px-4 py-2 text-right font-medium">工具成功率</th><th className="px-4 py-2 text-right font-medium">P95</th><th className="px-4 py-2 text-right font-medium">Token</th></tr></thead><tbody>{comparisons.map((item) => <tr key={item.engineCode} className="border-b last:border-0"><td className="px-4 py-2 font-medium">{item.engineCode}</td><td className="px-4 py-2 text-right">{item.metrics.totalRuns}</td><td className="px-4 py-2 text-right">{Math.round(item.metrics.completionRate * 100)}%</td><td className="px-4 py-2 text-right">{item.metrics.reviewedRuns ? `${Math.round(item.metrics.resolutionRate * 100)}%` : "-"}</td><td className="px-4 py-2 text-right">{item.metrics.reviewedRuns ? `${Math.round(item.metrics.unsupportedEvidenceRate * 100)}%` : "-"}</td><td className="px-4 py-2 text-right">{item.metrics.toolCalls ? `${Math.round(item.metrics.toolSuccessRate * 100)}%` : "-"}</td><td className="px-4 py-2 text-right">{item.metrics.p95DurationMs} ms</td><td className="px-4 py-2 text-right">{item.metrics.promptTokens + item.metrics.completionTokens}</td></tr>)}</tbody></table></div></section> : null}
       <DashboardListPage<AgentRun>
         filters={[
           { name: "conversationId", label: t("agentRun.conversation"), defaultValue: "", valueType: "number", className: "w-full sm:w-40" },
           { name: "aiAgentId", label: t("agentRun.agent"), defaultValue: "", valueType: "number", className: "w-full sm:w-40" },
-          { name: "engineCode", label: t("agentRun.engine"), defaultValue: "", className: "w-full sm:w-40" },
           { name: "status", label: t("agentRun.status"), defaultValue: "", className: "w-full sm:w-40" },
         ]}
         fetchList={fetchAgentRuns}
@@ -94,7 +90,6 @@ export default function DashboardAgentRunsPage() {
         onRowClick={(item) => void openDetail(item.id)}
         columns={[
           { key: "startedAt", label: t("agentRun.startedAt"), className: "w-42 text-xs text-muted-foreground", render: (item) => formatDateTime(item.startedAt || item.createdAt) },
-          { key: "engine", label: t("agentRun.engine"), className: "w-32", render: (item) => item.engineCode || "-" },
           { key: "agent", label: t("agentRun.agent"), className: "w-28", render: (item) => `#${item.aiAgentId || "-"}` },
           { key: "conversation", label: t("agentRun.conversation"), className: "w-28", render: (item) => `#${item.conversationId || "-"}` },
           { key: "status", label: t("agentRun.status"), className: "w-30", render: (item) => <Badge variant={statusVariant(item.status)}>{item.status || "-"}</Badge> },
@@ -115,8 +110,8 @@ function Metric({ label, value, detail }: { label: string; value: string; detail
 function AgentRunDetailDialog({ open, loading, run, onOpenChange, onOpenWorkflowAudit, onQualityFeedbackSaved, t }: { open: boolean; loading: boolean; run: AgentRun | null; onOpenChange: (open: boolean) => void; onOpenWorkflowAudit: (workflowRunId: number) => void; onQualityFeedbackSaved: (agentRunId: number) => void; t: (key: string) => string }) {
   return <ProjectDialog open={open} onOpenChange={onOpenChange} size="xl" allowFullscreen defaultFullscreen title={<span className="flex items-center gap-2"><BotMessageSquareIcon className="size-4" />{t("agentRun.detailTitle")}</span>} description={run ? `Run #${run.id}` : t("agentRun.detailDescription")} footer={<Button variant="outline" onClick={() => onOpenChange(false)}>{t("agentRun.close")}</Button>}>
     {loading ? <div className="py-10 text-sm text-muted-foreground">{t("agentRun.loadingDetail")}</div> : run ? <div className="space-y-4">
-		<div className="flex flex-wrap gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs"><Meta label={t("agentRun.engine")} value={run.engineCode} /><Meta label={t("agentRun.status")} value={run.status} /><Meta label={t("agentRun.agent")} value={`#${run.aiAgentId}`} /><Meta label={t("agentRun.revision")} value={`#${run.agentRevisionId || "-"}`} /><Meta label={t("agentRun.duration")} value={`${run.durationMs || 0} ms`} /><Meta label={t("agentRun.tokens")} value={`${run.promptTokens || 0}/${run.completionTokens || 0}`} /></div>
-		{run.workflowRunId > 0 ? <section className="flex items-center justify-between gap-3 border px-3 py-2"><div><div className="text-sm font-medium">关联 Playbook 审计</div><div className="text-xs text-muted-foreground">Workflow Run #{run.workflowRunId} 的节点输入、输出和状态</div></div><Button type="button" variant="outline" size="sm" onClick={() => onOpenWorkflowAudit(run.workflowRunId)}><WorkflowIcon />查看节点审计</Button></section> : null}
+		<div className="flex flex-wrap gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs"><Meta label={t("agentRun.status")} value={run.status} /><Meta label={t("agentRun.agent")} value={`#${run.aiAgentId}`} /><Meta label={t("agentRun.revision")} value={`#${run.agentRevisionId || "-"}`} /><Meta label={t("agentRun.duration")} value={`${run.durationMs || 0} ms`} /><Meta label={t("agentRun.tokens")} value={`${run.promptTokens || 0}/${run.completionTokens || 0}`} /></div>
+		{run.workflowRunId > 0 ? <section className="flex items-center justify-between gap-3 border px-3 py-2"><div><div className="text-sm font-medium">关联 Workflow 审计</div><div className="text-xs text-muted-foreground">Workflow Run #{run.workflowRunId} 的节点输入、输出和状态</div></div><Button type="button" variant="outline" size="sm" onClick={() => onOpenWorkflowAudit(run.workflowRunId)}><WorkflowIcon />查看节点审计</Button></section> : null}
 		<QualityFeedbackPanel run={run} onSaved={onQualityFeedbackSaved} />
       {run.errorMessage ? <div className="flex gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><AlertTriangleIcon className="size-4 shrink-0" />{run.errorMessage}</div> : null}
       <Preview title={t("agentRun.trace")} raw={run.traceData} />
@@ -155,7 +150,7 @@ function QualityFeedbackPanel({ run, onSaved }: { run: AgentRun; onSaved: (agent
 }
 
 function WorkflowAuditDialog({ open, loading, run, onOpenChange }: { open: boolean; loading: boolean; run: AIWorkflowRun | null; onOpenChange: (open: boolean) => void }) {
-	return <ProjectDialog open={open} onOpenChange={onOpenChange} size="xl" allowFullscreen defaultFullscreen title={<span className="flex items-center gap-2"><WorkflowIcon className="size-4" />Workflow 节点审计</span>} description={run ? `Workflow Run #${run.id}` : "加载关联 Playbook 的节点审计"} footer={<Button variant="outline" onClick={() => onOpenChange(false)}>关闭</Button>}>
+	return <ProjectDialog open={open} onOpenChange={onOpenChange} size="xl" allowFullscreen defaultFullscreen title={<span className="flex items-center gap-2"><WorkflowIcon className="size-4" />Workflow 节点审计</span>} description={run ? `Workflow Run #${run.id}` : "加载关联 Workflow 的节点审计"} footer={<Button variant="outline" onClick={() => onOpenChange(false)}>关闭</Button>}>
 		{loading ? <div className="py-10 text-sm text-muted-foreground">加载节点审计中...</div> : run ? <div className="space-y-3"><div className="flex flex-wrap gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs"><Meta label="状态" value={run.statusName} /><Meta label="Workflow" value={run.workflowName || `#${run.workflowId}`} /><Meta label="版本" value={`v${run.workflowVersion || "-"}`} /><Meta label="时延" value={`${run.durationMs || 0} ms`} /></div>{run.errorMessage ? <div className="flex gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><AlertTriangleIcon className="size-4 shrink-0" />{run.errorMessage}</div> : null}<WorkflowRunAuditGraph run={run} /></div> : <div className="py-10 text-sm text-muted-foreground">未找到关联 Workflow Run。</div>}
 	</ProjectDialog>
 }

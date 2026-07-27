@@ -45,7 +45,7 @@ func (s *aiReplyService) TriggerReplyAsync(conversation models.Conversation, mes
 }
 
 func (s *aiReplyService) TriggerReply(ctx context.Context, conversation models.Conversation, message models.Message, aiAgent models.AIAgent) (retErr error) {
-	var summary *applicationruntime.Summary
+	var summary *applicationruntime.RunResult
 	replyCtx := aiReplyContext{
 		Conversation: conversation,
 		Message:      message,

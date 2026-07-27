@@ -86,7 +86,7 @@ func TestResolveReplyTimeout(t *testing.T) {
 }
 
 func TestResolveInterruptPrompt(t *testing.T) {
-	summary := &applicationruntime.Summary{
+	summary := &applicationruntime.RunResult{
 		Interrupts: []applicationruntime.InterruptContextSummary{
 			{
 				ID:          "interrupt-1",

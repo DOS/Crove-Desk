@@ -16,12 +16,14 @@ type AIAgentSkillResponse struct {
 }
 
 type AIAgentMCPToolResponse struct {
-	ToolCode    string            `json:"toolCode"`
-	ServerCode  string            `json:"serverCode"`
-	ToolName    string            `json:"toolName"`
-	Title       string            `json:"title"`
-	Description string            `json:"description"`
-	Arguments   map[string]string `json:"arguments"`
+	ToolCode            string            `json:"toolCode"`
+	ServerCode          string            `json:"serverCode"`
+	ToolName            string            `json:"toolName"`
+	Title               string            `json:"title"`
+	Description         string            `json:"description"`
+	RiskLevel           string            `json:"riskLevel"`
+	RequireConfirmation bool              `json:"requireConfirmation"`
+	Arguments           map[string]string `json:"arguments"`
 }
 
 type AIAgentWorkflowBindingResponse struct {
@@ -37,15 +39,14 @@ type AIAgentWorkflowBindingResponse struct {
 }
 
 type AgentRevisionResponse struct {
-	ID                int64        `json:"id"`
-	AgentID           int64        `json:"agentId"`
-	Revision          int          `json:"revision"`
-	WorkflowVersionID int64        `json:"workflowVersionId"`
-	Status            enums.Status `json:"status"`
-	DefinitionHash    string       `json:"definitionHash"`
-	PublishedAt       string       `json:"publishedAt"`
-	PublishedByID     int64        `json:"publishedById"`
-	PublishedByName   string       `json:"publishedByName"`
+	ID              int64        `json:"id"`
+	AgentID         int64        `json:"agentId"`
+	Revision        int          `json:"revision"`
+	Status          enums.Status `json:"status"`
+	DefinitionHash  string       `json:"definitionHash"`
+	PublishedAt     string       `json:"publishedAt"`
+	PublishedByID   int64        `json:"publishedById"`
+	PublishedByName string       `json:"publishedByName"`
 }
 
 type AIConfigResponse struct {
@@ -98,8 +99,6 @@ type AIAgentResponse struct {
 	StatusName             string                           `json:"statusName"`
 	AIConfigID             int64                            `json:"aiConfigId"`
 	AIConfigName           string                           `json:"aiConfigName"`
-	RuntimeMode            enums.AIAgentRuntimeMode         `json:"runtimeMode"`
-	RuntimeModeName        string                           `json:"runtimeModeName"`
 	MaxSteps               int                              `json:"maxSteps"`
 	ContextWindow          int                              `json:"contextWindow"`
 	ToolPolicy             string                           `json:"toolPolicy"`
@@ -122,11 +121,7 @@ type AIAgentResponse struct {
 	Skills                 []AIAgentSkillResponse           `json:"skills"`
 	MCPTools               []AIAgentMCPToolResponse         `json:"mcpTools"`
 	WorkflowBindings       []AIAgentWorkflowBindingResponse `json:"workflowBindings"`
-	WorkflowVersionID      int64                            `json:"workflowVersionId"`
 	PublishedRevisionID    int64                            `json:"publishedRevisionId"`
-	WorkflowPublished      bool                             `json:"workflowPublished"`
-	WorkflowState          string                           `json:"workflowState"`
-	WorkflowStateText      string                           `json:"workflowStateText"`
 	SortNo                 int                              `json:"sortNo"`
 	CreatedAt              string                           `json:"createdAt"`
 	UpdatedAt              string                           `json:"updatedAt"`

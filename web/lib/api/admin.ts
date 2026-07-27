@@ -219,8 +219,6 @@ export type AIAgent = {
   statusName: string
   aiConfigId: number
   aiConfigName?: string
-	runtimeMode: "workflow" | "autonomous" | "hybrid"
-	runtimeModeName: string
 	maxSteps: number
 	contextWindow: number
 	toolPolicy: string
@@ -247,14 +245,12 @@ export type AIAgent = {
     toolName: string
     title: string
     description: string
+    riskLevel: "read" | "write"
+    requireConfirmation: boolean
     arguments?: Record<string, string>
   }[]
 	workflowBindings: AIAgentWorkflowBinding[]
-  workflowVersionId: number
 	publishedRevisionId: number
-  workflowPublished: boolean
-  workflowState: string
-  workflowStateText: string
   sortNo: number
   createdAt: string
   updatedAt: string
@@ -266,7 +262,6 @@ export type CreateAIAgentPayload = {
   name: string
   description: string
   aiConfigId: number
-  runtimeMode?: "workflow" | "autonomous" | "hybrid"
 	maxSteps?: number
 	contextWindow?: number
 	toolPolicy?: string
@@ -288,6 +283,8 @@ export type CreateAIAgentPayload = {
     toolName: string
     title: string
     description: string
+    riskLevel: "read" | "write"
+    requireConfirmation: boolean
     arguments?: Record<string, string>
   }[]
 	workflowBindings: AIAgentWorkflowBindingInput[]
@@ -321,7 +318,6 @@ export type AgentRevision = {
   id: number
   agentId: number
   revision: number
-  workflowVersionId: number
   status: number
   definitionHash: string
   publishedAt: string
@@ -536,14 +532,8 @@ export type SkillDebugRunResult = {
   skillDefinitionId: number
   skillName: string
   replyText: string
-  planReason: string
-  skillRouteTrace: string
   toolWhitelist: string[]
-  exposedToolCodes: string[]
   invokedToolCodes: string[]
-  toolSearchTrace: string
-  graphToolTrace: string
-  graphToolCode: string
   interruptType: string
   checkPointId: string
   interrupted: boolean
@@ -650,7 +640,6 @@ export type AgentRun = {
   agentRevisionId: number
   sourceMessageId: number
   workflowRunId: number
-  engineCode: string
   status: string
   promptTokens: number
   completionTokens: number
@@ -701,11 +690,6 @@ export type AgentRunMetrics = {
 	unsupportedEvidenceRate: number
 }
 
-export type AgentRunEngineComparison = {
-	engineCode: string
-	metrics: AgentRunMetrics
-}
-
 export type AgentEvaluationCase = {
   id: string
   category?: string
@@ -715,13 +699,11 @@ export type AgentEvaluationCase = {
 }
 
 export type AgentEvaluationReport = {
-  engineCode: string
   total: number
   passed: number
   results: {
     caseId: string
     category: string
-    engineCode: string
     passed: boolean
     replyText: string
     interrupted: boolean
@@ -1394,11 +1376,7 @@ export function fetchAgentRunMetrics(aiAgentId?: number) {
   return request<AgentRunMetrics>(`/api/dashboard/agent-run/metrics${toQueryString(aiAgentId ? { aiAgentId } : undefined)}`)
 }
 
-export function fetchAgentRunEngineComparisons(aiAgentId?: number) {
-	return request<AgentRunEngineComparison[]>(`/api/dashboard/agent-run/comparison${toQueryString(aiAgentId ? { aiAgentId } : undefined)}`)
-}
-
-export function runAgentEvaluation(payload: { aiAgentId: number; engineCode: string; cases: AgentEvaluationCase[] }) {
+export function runAgentEvaluation(payload: { aiAgentId: number; cases: AgentEvaluationCase[] }) {
   return request<AgentEvaluationReport>("/api/dashboard/agent-run/evaluate", {
     method: "POST",
     body: JSON.stringify(payload),

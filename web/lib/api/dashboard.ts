@@ -69,7 +69,7 @@ export type DashboardOverview = {
     todayKnowledgeRetrieves: number
     todayKnowledgeRetrieveFailCount: number
     todayKnowledgeRetrieveFailRate: number
-    todaySkillRunFailCount: number
+    todayAgentRunFailCount: number
     todayAiHandoffCount: number
   }
   alerts: DashboardAlert[]

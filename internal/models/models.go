@@ -56,7 +56,6 @@ var Models = []any{
 	&KnowledgeRetrieveHit{},
 	&KnowledgeFeedback{},
 	&SkillDefinition{},
-	&SkillRunLog{},
 	&AgentRevision{},
 	&AgentRun{},
 	&AgentStep{},
@@ -530,51 +529,48 @@ type QuickReply struct {
 
 // AIAgent AI 接待实例。
 type AIAgent struct {
-	ID                     int64                           `gorm:"primaryKey;autoIncrement"`                           // ID 为 AI Agent 主键。
-	Name                   string                          `gorm:"type:varchar(100);not null;default:'';index"`        // Name 为 AI Agent 名称。
-	Description            string                          `gorm:"type:varchar(255);not null;default:''"`              // Description 为 AI Agent 描述。
-	Status                 enums.Status                    `gorm:"type:int;not null;index"`                            // Status 为 AI Agent
-	AIConfigID             int64                           `gorm:"type:bigint;not null;default:0;index"`               // AIConfigID 为关联的 AI 配置ID。
-	RuntimeMode            enums.AIAgentRuntimeMode        `gorm:"type:varchar(30);not null;default:'workflow';index"` // RuntimeMode 为 Agent 的运行引擎模式。
-	MaxSteps               int                             `gorm:"type:int;not null;default:6"`                        // MaxSteps 为一次自主运行允许的最大推理步骤数。
-	ContextWindow          int                             `gorm:"type:int;not null;default:0"`                        // ContextWindow 为会话上下文消息窗口，0 表示使用运行时默认值。
-	ToolPolicy             string                          `gorm:"type:text"`                                          // ToolPolicy 为工具风险与确认策略JSON。
-	KnowledgePolicy        string                          `gorm:"type:text"`                                          // KnowledgePolicy 为知识检索与无依据回答策略JSON。
-	ServiceMode            enums.IMConversationServiceMode `gorm:"type:int;not null;default:3;index"`                  // ServiceMode 为服务模式，如仅AI、仅人工、AI优先人工接管。
-	SystemPrompt           string                          `gorm:"type:text"`                                          // SystemPrompt 为该 Agent 的系统提示词。
-	WelcomeMessage         string                          `gorm:"type:text"`                                          // WelcomeMessage 为该 Agent 的欢迎语或首响模板。
-	ReplyTimeoutSeconds    int                             `gorm:"type:int;not null;default:180"`                      // ReplyTimeoutSeconds 为异步自动回复超时秒数。
-	RolloutPercent         int                             `gorm:"type:int;not null;default:100"`                      // RolloutPercent 为该 Agent 的会话灰度百分比，100 表示全量。
-	PreviousRolloutPercent int                             `gorm:"type:int;not null;default:0"`                        // PreviousRolloutPercent 保存上一次生效的灰度比例，0 表示尚无可回滚值。
-	TeamIDs                string                          `gorm:"type:varchar(500);not null;default:''"`              // TeamIDs 为转人工时可路由的客服组ID列表，多个之间使用逗号分隔。
-	HandoffMode            enums.AIAgentHandoffMode        `gorm:"type:int;not null;default:1"`                        // HandoffMode 为转人工执行方式，如进入待接入池、进入默认客服组待接入池。
-	FallbackMode           enums.AIAgentFallbackMode       `gorm:"type:int;not null;default:1"`                        // FallbackMode 为知识不足时的回复策略。
-	FallbackMessage        string                          `gorm:"type:text"`                                          // FallbackMessage 为知识不足回复文案。
-	KnowledgeIDs           string                          `gorm:"type:varchar(500);not null;default:''"`              // KnowledgeIDs 为绑定的知识库ID列表，按顺序表示优先级。
-	SkillIDs               string                          `gorm:"type:varchar(500);not null;default:''"`              // SkillIDs 为绑定的技能ID列表，按顺序表示允许路由的范围。
-	AllowedMCPTools        string                          `gorm:"type:text"`                                          // AllowedMCPTools 为 Agent 允许调用的 MCP 工具白名单配置 JSON。
-	WorkflowVersionID      int64                           `gorm:"type:bigint;not null;default:0;index"`               // WorkflowVersionID is retained as the single-workflow runtime pointer.
-	PublishedRevisionID    int64                           `gorm:"type:bigint;not null;default:0;index"`               // PublishedRevisionID 为当前已发布 Agent 配置快照ID。
-	SortNo                 int                             `gorm:"type:int;not null;default:0;index"`                  // SortNo 为后台展示排序号。
+	ID                     int64                           `gorm:"primaryKey;autoIncrement"`                    // ID 为 AI Agent 主键。
+	Name                   string                          `gorm:"type:varchar(100);not null;default:'';index"` // Name 为 AI Agent 名称。
+	Description            string                          `gorm:"type:varchar(255);not null;default:''"`       // Description 为 AI Agent 描述。
+	Status                 enums.Status                    `gorm:"type:int;not null;index"`                     // Status 为 AI Agent
+	AIConfigID             int64                           `gorm:"type:bigint;not null;default:0;index"`        // AIConfigID 为关联的 AI 配置ID。
+	MaxSteps               int                             `gorm:"type:int;not null;default:6"`                 // MaxSteps 为一次 Agent Loop 允许的最大推理步骤数。
+	ContextWindow          int                             `gorm:"type:int;not null;default:0"`                 // ContextWindow 为会话上下文消息窗口，0 表示使用运行时默认值。
+	ToolPolicy             string                          `gorm:"type:text"`                                   // ToolPolicy 为工具风险与确认策略JSON。
+	KnowledgePolicy        string                          `gorm:"type:text"`                                   // KnowledgePolicy 为知识检索与无依据回答策略JSON。
+	ServiceMode            enums.IMConversationServiceMode `gorm:"type:int;not null;default:3;index"`           // ServiceMode 为服务模式，如仅AI、仅人工、AI优先人工接管。
+	SystemPrompt           string                          `gorm:"type:text"`                                   // SystemPrompt 为该 Agent 的系统提示词。
+	WelcomeMessage         string                          `gorm:"type:text"`                                   // WelcomeMessage 为该 Agent 的欢迎语或首响模板。
+	ReplyTimeoutSeconds    int                             `gorm:"type:int;not null;default:180"`               // ReplyTimeoutSeconds 为异步自动回复超时秒数。
+	RolloutPercent         int                             `gorm:"type:int;not null;default:100"`               // RolloutPercent 为该 Agent 的会话灰度百分比，100 表示全量。
+	PreviousRolloutPercent int                             `gorm:"type:int;not null;default:0"`                 // PreviousRolloutPercent 保存上一次生效的灰度比例，0 表示尚无可回滚值。
+	TeamIDs                string                          `gorm:"type:varchar(500);not null;default:''"`       // TeamIDs 为转人工时可路由的客服组ID列表，多个之间使用逗号分隔。
+	HandoffMode            enums.AIAgentHandoffMode        `gorm:"type:int;not null;default:1"`                 // HandoffMode 为转人工执行方式，如进入待接入池、进入默认客服组待接入池。
+	FallbackMode           enums.AIAgentFallbackMode       `gorm:"type:int;not null;default:1"`                 // FallbackMode 为知识不足时的回复策略。
+	FallbackMessage        string                          `gorm:"type:text"`                                   // FallbackMessage 为知识不足回复文案。
+	KnowledgeIDs           string                          `gorm:"type:varchar(500);not null;default:''"`       // KnowledgeIDs 为绑定的知识库ID列表，按顺序表示优先级。
+	SkillIDs               string                          `gorm:"type:varchar(500);not null;default:''"`       // SkillIDs 为绑定的技能ID列表，按顺序表示允许路由的范围。
+	AllowedMCPTools        string                          `gorm:"type:text"`                                   // AllowedMCPTools 为 Agent 允许调用的 MCP 工具白名单配置 JSON。
+	PublishedRevisionID    int64                           `gorm:"type:bigint;not null;default:0;index"`        // PublishedRevisionID 为当前已发布 Agent 配置快照ID。
+	SortNo                 int                             `gorm:"type:int;not null;default:0;index"`           // SortNo 为后台展示排序号。
 	AuditFields
 }
 
 // AgentRevision stores an immutable published Agent configuration snapshot.
 type AgentRevision struct {
-	ID                int64        `gorm:"primaryKey;autoIncrement"`
-	AgentID           int64        `gorm:"type:bigint;not null;index;uniqueIndex:uk_agent_revision"`
-	Revision          int          `gorm:"type:int;not null;uniqueIndex:uk_agent_revision"`
-	WorkflowVersionID int64        `gorm:"type:bigint;not null;default:0;index"`
-	Status            enums.Status `gorm:"type:int;not null;default:0;index"`
-	Definition        string       `gorm:"type:longtext"`
-	DefinitionHash    string       `gorm:"type:varchar(64);not null;default:'';index"`
-	PublishedAt       *time.Time   `gorm:"type:datetime;index"`
-	PublishedByID     int64        `gorm:"type:bigint;not null;default:0;index"`
-	PublishedByName   string       `gorm:"type:varchar(100);not null;default:''"`
+	ID              int64        `gorm:"primaryKey;autoIncrement"`
+	AgentID         int64        `gorm:"type:bigint;not null;index;uniqueIndex:uk_agent_revision"`
+	Revision        int          `gorm:"type:int;not null;uniqueIndex:uk_agent_revision"`
+	Status          enums.Status `gorm:"type:int;not null;default:0;index"`
+	Definition      string       `gorm:"type:longtext"`
+	DefinitionHash  string       `gorm:"type:varchar(64);not null;default:'';index"`
+	PublishedAt     *time.Time   `gorm:"type:datetime;index"`
+	PublishedByID   int64        `gorm:"type:bigint;not null;default:0;index"`
+	PublishedByName string       `gorm:"type:varchar(100);not null;default:''"`
 	AuditFields
 }
 
-// AgentRun is an Engine-independent record for one Agent reply execution.
+// AgentRun is the parent audit record for one Agent Loop execution.
 type AgentRun struct {
 	ID               int64      `gorm:"primaryKey;autoIncrement"`
 	ConversationID   int64      `gorm:"type:bigint;not null;default:0;index"`
@@ -582,7 +578,6 @@ type AgentRun struct {
 	AgentRevisionID  int64      `gorm:"type:bigint;not null;default:0;index"`
 	SourceMessageID  int64      `gorm:"type:bigint;not null;default:0;index"`
 	WorkflowRunID    int64      `gorm:"type:bigint;not null;default:0;index"`
-	EngineCode       string     `gorm:"type:varchar(50);not null;default:'';index"`
 	Status           string     `gorm:"type:varchar(30);not null;default:'';index"`
 	PromptTokens     int        `gorm:"type:int;not null;default:0"`
 	CompletionTokens int        `gorm:"type:int;not null;default:0"`
@@ -1013,25 +1008,6 @@ type SkillDefinition struct {
 	Status        enums.Status `gorm:"type:int;not null;default:0;index"`           // Status 为 Skill 当前状态，使用全局通用状态：0启用 1禁用 2删除。
 	Remark        string       `gorm:"type:text"`                                   // Remark 为后台备注，用于记录配置说明、维护信息或内部协作信息。
 	AuditFields
-}
-
-// SkillRunLog 表示一次 Skill 运行过程的审计日志。
-type SkillRunLog struct {
-	ID                int64            `gorm:"primaryKey;autoIncrement"`              // ID 为 Skill 运行日志主键。
-	ConversationID    int64            `gorm:"type:bigint;not null;default:0;index"`  // ConversationID 为关联会话ID，无会话上下文时为0。
-	AIAgentID         int64            `gorm:"type:bigint;not null;default:0;index"`  // AIAgentID 为本次运行所属的 AI Agent ID。
-	AIConfigID        int64            `gorm:"type:bigint;not null;default:0;index"`  // AIConfigID 为本次运行实际使用的 AI 配置ID。
-	SkillDefinitionID int64            `gorm:"type:bigint;not null;default:0;index"`  // SkillDefinitionID 为最终命中的 Skill 定义ID，未命中时为0。
-	ManualSkillID     int64            `gorm:"type:bigint;not null;default:0;index"`  // ManualSkillID 为本次请求显式指定的 Skill 定义ID。
-	UserMessage       string           `gorm:"type:longtext"`                         // UserMessage 为本次请求的用户输入内容。
-	Matched           bool             `gorm:"not null;default:false;index"`          // Matched 表示本次请求是否命中了 Skill。
-	MatchReason       string           `gorm:"type:varchar(500);not null;default:''"` // MatchReason 为命中或未命中的原因说明。
-	FinalSelected     bool             `gorm:"not null;default:false;index"`          // FinalSelected 表示该日志记录的 Skill 是否为最终选中的执行 Skill。
-	UsedModel         string           `gorm:"type:varchar(100);not null;default:''"` // UsedModel 为本次实际调用的模型名称。
-	UsedProvider      enums.AIProvider `gorm:"type:varchar(50);not null;default:''"`  // UsedProvider 为本次实际调用的模型供应商。
-	ErrorMessage      string           `gorm:"type:text"`                             // ErrorMessage 为运行过程中的错误信息。
-	TraceData         string           `gorm:"type:text"`                             // TraceData 为 Skill 执行链路追踪数据JSON。
-	CreatedAt         time.Time        `gorm:"type:datetime;not null;index"`          // CreatedAt 为运行日志创建时间。
 }
 
 // ConversationInterrupt 表示会话级待恢复中断记录。

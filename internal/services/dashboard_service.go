@@ -70,8 +70,8 @@ func (s *dashboardService) GetOverview(rangeValue string, locale string) respons
 	knowledgeRetrieveFailCount := repositories.DashboardRepository.CountKnowledgeRetrieveLogs(db, func(tx *gorm.DB) *gorm.DB {
 		return tx.Where("created_at >= ? AND answer_status IN ?", todayStart, []int{2, 3, 4})
 	})
-	skillRunFailCount := repositories.DashboardRepository.CountSkillRunLogs(db, func(tx *gorm.DB) *gorm.DB {
-		return tx.Where("created_at >= ? AND error_message <> ''", todayStart)
+	agentRunFailCount := repositories.DashboardRepository.CountAgentRuns(db, func(tx *gorm.DB) *gorm.DB {
+		return tx.Where("created_at >= ? AND status = ?", todayStart, "failed")
 	})
 	aiHandoffCount := repositories.DashboardRepository.CountConversations(db, func(tx *gorm.DB) *gorm.DB {
 		return tx.Where("handoff_at >= ?", todayStart)
@@ -108,7 +108,7 @@ func (s *dashboardService) GetOverview(rangeValue string, locale string) respons
 			TodayKnowledgeRetrieves:         knowledgeRetrieveCount,
 			TodayKnowledgeRetrieveFailCount: knowledgeRetrieveFailCount,
 			TodayKnowledgeRetrieveFailRate:  calcRate(knowledgeRetrieveFailCount, knowledgeRetrieveCount),
-			TodaySkillRunFailCount:          skillRunFailCount,
+			TodayAgentRunFailCount:          agentRunFailCount,
 			TodayAIHandoffCount:             aiHandoffCount,
 		},
 		Alerts:     alerts,

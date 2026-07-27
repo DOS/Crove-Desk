@@ -14,9 +14,9 @@ func TestAgentEvaluationServiceValidatesAndCallsRunner(t *testing.T) {
 	called := false
 	AgentEvaluationRunHook = func(_ context.Context, req request.RunAgentEvaluationRequest) (*response.AgentEvaluationReportResponse, error) {
 		called = true
-		return &response.AgentEvaluationReportResponse{EngineCode: req.EngineCode, Total: len(req.Cases)}, nil
+		return &response.AgentEvaluationReportResponse{Total: len(req.Cases)}, nil
 	}
-	result, err := AgentEvaluationService.Run(context.Background(), request.RunAgentEvaluationRequest{AIAgentID: 1, EngineCode: "autonomous", Cases: []request.AgentEvaluationCase{{ID: "faq", Message: "hello"}}})
+	result, err := AgentEvaluationService.Run(context.Background(), request.RunAgentEvaluationRequest{AIAgentID: 1, Cases: []request.AgentEvaluationCase{{ID: "faq", Message: "hello"}}})
 	if err != nil || !called || result.Total != 1 {
 		t.Fatalf("result=%#v called=%t err=%v", result, called, err)
 	}

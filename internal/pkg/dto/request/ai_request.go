@@ -3,12 +3,14 @@ package request
 import "agent-desk/internal/pkg/enums"
 
 type AIAgentMCPToolRequest struct {
-	ToolCode    string            `json:"toolCode"`
-	ServerCode  string            `json:"serverCode"`
-	ToolName    string            `json:"toolName"`
-	Title       string            `json:"title"`
-	Description string            `json:"description"`
-	Arguments   map[string]string `json:"arguments"`
+	ToolCode            string            `json:"toolCode"`
+	ServerCode          string            `json:"serverCode"`
+	ToolName            string            `json:"toolName"`
+	Title               string            `json:"title"`
+	Description         string            `json:"description"`
+	RiskLevel           string            `json:"riskLevel"`
+	RequireConfirmation bool              `json:"requireConfirmation"`
+	Arguments           map[string]string `json:"arguments"`
 }
 
 type AIAgentWorkflowBindingRequest struct {
@@ -54,7 +56,6 @@ type CreateAIAgentRequest struct {
 	Name                string                          `json:"name"`
 	Description         string                          `json:"description"`
 	AIConfigID          int64                           `json:"aiConfigId"`
-	RuntimeMode         enums.AIAgentRuntimeMode        `json:"runtimeMode"`
 	MaxSteps            int                             `json:"maxSteps"`
 	ContextWindow       int                             `json:"contextWindow"`
 	ToolPolicy          string                          `json:"toolPolicy"`

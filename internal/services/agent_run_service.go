@@ -53,11 +53,6 @@ type AgentRunMetrics struct {
 	UnsupportedEvidenceRate float64 `json:"unsupportedEvidenceRate"`
 }
 
-type AgentRunEngineComparison struct {
-	EngineCode string          `json:"engineCode"`
-	Metrics    AgentRunMetrics `json:"metrics"`
-}
-
 const maxAgentAuditPreviewChars = 4000
 
 var agentAuditSecretPattern = regexp.MustCompile(`(?i)(?:"|')?(api[_-]?key|authorization|password|secret|token|cookie)(?:"|')?\s*([:=])\s*(?:"[^"]*"|'[^']*'|[^\s,;}]+)`)
@@ -146,32 +141,6 @@ func (s *agentRunService) GetMetrics(aiAgentID int64) AgentRunMetrics {
 	return metrics
 }
 
-// GetEngineComparisons keeps Workflow, Autonomous, and Hybrid reports based on
-// the same normalized audit and reviewed-quality records. Conversation-level
-// handoff is deliberately excluded because it cannot be attributed to one
-// Engine after a mode change.
-func (s *agentRunService) GetEngineComparisons(aiAgentID int64) []AgentRunEngineComparison {
-	runs := repositories.AgentRunRepository.FindRecent(sqls.DB(), aiAgentID, 5000)
-	groups := make(map[string][]models.AgentRun)
-	for _, run := range runs {
-		engineCode := strings.TrimSpace(run.EngineCode)
-		if engineCode == "" {
-			engineCode = "unknown"
-		}
-		groups[engineCode] = append(groups[engineCode], run)
-	}
-	engineCodes := make([]string, 0, len(groups))
-	for engineCode := range groups {
-		engineCodes = append(engineCodes, engineCode)
-	}
-	sort.Strings(engineCodes)
-	ret := make([]AgentRunEngineComparison, 0, len(engineCodes))
-	for _, engineCode := range engineCodes {
-		ret = append(ret, AgentRunEngineComparison{EngineCode: engineCode, Metrics: s.aggregateMetrics(sqls.DB(), groups[engineCode])})
-	}
-	return ret
-}
-
 func (s *agentRunService) aggregateMetrics(db *gorm.DB, runs []models.AgentRun) AgentRunMetrics {
 	metrics := AgentRunMetrics{TotalRuns: len(runs)}
 	if len(runs) == 0 {
@@ -258,29 +227,12 @@ func (s *agentRunService) aggregateMetrics(db *gorm.DB, runs []models.AgentRun) 
 	return metrics
 }
 
-type WorkflowAgentRunInput struct {
-	WorkflowRunID     int64
-	WorkflowVersionID int64
-	ConversationID    int64
-	AIAgentID         int64
-	SourceMessageID   int64
-	Status            string
-	PromptTokens      int
-	CompletionTokens  int
-	StartedAt         time.Time
-	EndedAt           *time.Time
-	ErrorMessage      string
-	TraceData         string
-	StepInputPreview  string
-	StepOutputPreview string
-}
-
-type EngineAgentRunInput struct {
+type AgentLoopRunInput struct {
 	ConversationID    int64
 	AIAgentID         int64
 	AgentRevisionID   int64
 	SourceMessageID   int64
-	EngineCode        string
+	WorkflowRunID     int64
 	Status            string
 	PromptTokens      int
 	CompletionTokens  int
@@ -292,11 +244,11 @@ type EngineAgentRunInput struct {
 	StepCode          string
 	StepInputPreview  string
 	StepOutputPreview string
-	AdditionalSteps   []EngineStepInput
-	ToolCalls         []EngineToolCallInput
+	AdditionalSteps   []AgentLoopStepInput
+	ToolCalls         []AgentLoopToolCallInput
 }
 
-type EngineStepInput struct {
+type AgentLoopStepInput struct {
 	StepType      string
 	StepCode      string
 	WorkflowRunID int64
@@ -306,7 +258,7 @@ type EngineStepInput struct {
 	ErrorMessage  string
 }
 
-type EngineToolCallInput struct {
+type AgentLoopToolCallInput struct {
 	ToolCode         string
 	RiskLevel        string
 	RequireConfirm   bool
@@ -317,47 +269,47 @@ type EngineToolCallInput struct {
 	DurationMS       int
 }
 
-// RecordHybridPlaybookResume closes or re-interrupts the Hybrid AgentRun that
-// originally selected a Playbook. The detailed WorkflowRun remains separately
-// auditable; this step preserves the parent AgentRun -> AgentStep -> WorkflowRun
-// relationship across a human confirmation pause.
-func (s *agentRunService) RecordHybridPlaybookResume(db *gorm.DB, agentRunID, workflowRunID int64, status, replyText string) error {
+// RecordResume closes or re-interrupts the original Agent Loop parent run,
+// appends a normalized resume step, and records an optional resumed tool call.
+func (s *agentRunService) RecordResume(db *gorm.DB, agentRunID, workflowRunID int64, status, replyText string, toolCall *AgentLoopToolCallInput) error {
 	if agentRunID <= 0 {
 		return nil
 	}
 	run := repositories.AgentRunRepository.Get(db, agentRunID)
-	if run == nil || run.EngineCode != "hybrid" {
+	if run == nil {
 		return nil
 	}
-	status = strings.TrimSpace(status)
-	if status == "" {
-		status = "completed"
-	}
+	status = firstNonEmptyString(status, "completed")
 	now := time.Now()
-	durationMS := int(now.Sub(run.StartedAt).Milliseconds())
-	if durationMS < 0 {
-		durationMS = 0
-	}
 	if err := repositories.AgentRunRepository.Updates(db, run.ID, map[string]any{
-		"status":        status,
-		"ended_at":      &now,
-		"error_message": "",
-		"updated_at":    now,
+		"status": status, "ended_at": &now, "error_message": "", "updated_at": now,
 	}); err != nil {
 		return err
 	}
-	return repositories.AgentStepRepository.Create(db, &models.AgentStep{
+	step := &models.AgentStep{
 		AgentRunID: run.ID, WorkflowRunID: workflowRunID,
-		StepType: "playbook", StepCode: "playbook_resume", Status: status,
-		InputPreview:  "human confirmation resume",
-		OutputPreview: sanitizeAgentAuditPreview(replyText),
-		StartedAt:     now, EndedAt: &now, DurationMS: durationMS, CreatedAt: now,
+		StepType: "resume", StepCode: "confirmation_resume", Status: status,
+		InputPreview: "customer confirmation", OutputPreview: sanitizeAgentAuditPreview(replyText),
+		StartedAt: now, EndedAt: &now, CreatedAt: now,
+	}
+	if err := repositories.AgentStepRepository.Create(db, step); err != nil {
+		return err
+	}
+	if toolCall == nil {
+		return nil
+	}
+	return repositories.AgentToolCallRepository.Create(db, &models.AgentToolCall{
+		AgentRunID: run.ID, AgentStepID: step.ID, ToolCode: strings.TrimSpace(toolCall.ToolCode),
+		RiskLevel: strings.TrimSpace(toolCall.RiskLevel), RequireConfirm: toolCall.RequireConfirm,
+		Status: firstNonEmptyString(toolCall.Status, status), ArgumentsPreview: sanitizeAgentAuditPreview(toolCall.ArgumentsPreview),
+		ResultPreview: sanitizeAgentAuditPreview(toolCall.ResultPreview), ErrorMessage: sanitizeAgentAuditPreview(toolCall.ErrorMessage),
+		DurationMS: toolCall.DurationMS, CreatedAt: now,
 	})
 }
 
-// RecordEngineRun writes a non-workflow Engine audit run and its normalized
+// RecordAgentLoopRun writes the Agent Loop parent audit run and its normalized
 // root step in one transaction owned by the caller.
-func (s *agentRunService) RecordEngineRun(db *gorm.DB, input EngineAgentRunInput) (int64, error) {
+func (s *agentRunService) RecordAgentLoopRun(db *gorm.DB, input AgentLoopRunInput) (int64, error) {
 	now := time.Now()
 	startedAt := input.StartedAt
 	if startedAt.IsZero() {
@@ -369,7 +321,7 @@ func (s *agentRunService) RecordEngineRun(db *gorm.DB, input EngineAgentRunInput
 	}
 	run := &models.AgentRun{
 		ConversationID: input.ConversationID, AIAgentID: input.AIAgentID, AgentRevisionID: input.AgentRevisionID,
-		SourceMessageID: input.SourceMessageID, EngineCode: strings.TrimSpace(input.EngineCode), Status: status,
+		SourceMessageID: input.SourceMessageID, WorkflowRunID: input.WorkflowRunID, Status: status,
 		PromptTokens: input.PromptTokens, CompletionTokens: input.CompletionTokens, StartedAt: startedAt, EndedAt: input.EndedAt,
 		ErrorMessage: sanitizeAgentAuditPreview(input.ErrorMessage), TraceData: sanitizeAgentAuditPreview(input.TraceData), CreatedAt: now, UpdatedAt: now,
 	}
@@ -434,81 +386,4 @@ func firstNonEmptyString(items ...string) string {
 		}
 	}
 	return ""
-}
-
-// RecordWorkflowRun writes the Engine-independent audit record inside the
-// caller's transaction. Workflow-specific tables remain the detailed source
-// for node-level diagnosis while AgentRun becomes the cross-engine summary.
-func (s *agentRunService) RecordWorkflowRun(db *gorm.DB, input WorkflowAgentRunInput) (int64, error) {
-	now := time.Now()
-	status := strings.TrimSpace(input.Status)
-	if status == "" {
-		status = "completed"
-	}
-	startedAt := input.StartedAt
-	if startedAt.IsZero() {
-		startedAt = now
-	}
-	run := repositories.AgentRunRepository.TakeByWorkflowRunID(db, input.WorkflowRunID)
-	agentRevisionID := int64(0)
-	if revision := repositories.AgentRevisionRepository.TakeByAgentIDAndWorkflowVersionID(db, input.AIAgentID, input.WorkflowVersionID); revision != nil {
-		agentRevisionID = revision.ID
-	}
-	if run == nil {
-		run = &models.AgentRun{
-			ConversationID:   input.ConversationID,
-			AIAgentID:        input.AIAgentID,
-			AgentRevisionID:  agentRevisionID,
-			SourceMessageID:  input.SourceMessageID,
-			WorkflowRunID:    input.WorkflowRunID,
-			EngineCode:       "workflow",
-			Status:           status,
-			PromptTokens:     input.PromptTokens,
-			CompletionTokens: input.CompletionTokens,
-			StartedAt:        startedAt,
-			EndedAt:          input.EndedAt,
-			ErrorMessage:     sanitizeAgentAuditPreview(input.ErrorMessage),
-			TraceData:        sanitizeAgentAuditPreview(input.TraceData),
-			CreatedAt:        now,
-			UpdatedAt:        now,
-		}
-		if err := repositories.AgentRunRepository.Create(db, run); err != nil {
-			return 0, err
-		}
-	} else if err := repositories.AgentRunRepository.Updates(db, run.ID, map[string]any{
-		"agent_revision_id": agentRevisionID,
-		"status":            status,
-		"prompt_tokens":     input.PromptTokens,
-		"completion_tokens": input.CompletionTokens,
-		"ended_at":          input.EndedAt,
-		"error_message":     sanitizeAgentAuditPreview(input.ErrorMessage),
-		"trace_data":        sanitizeAgentAuditPreview(input.TraceData),
-		"updated_at":        now,
-	}); err != nil {
-		return 0, err
-	}
-	durationMS := 0
-	if input.EndedAt != nil {
-		durationMS = int(input.EndedAt.Sub(startedAt).Milliseconds())
-		if durationMS < 0 {
-			durationMS = 0
-		}
-	}
-	step := &models.AgentStep{
-		AgentRunID:    run.ID,
-		StepType:      "workflow",
-		StepCode:      "workflow",
-		Status:        status,
-		InputPreview:  sanitizeAgentAuditPreview(input.StepInputPreview),
-		OutputPreview: sanitizeAgentAuditPreview(input.StepOutputPreview),
-		ErrorMessage:  sanitizeAgentAuditPreview(input.ErrorMessage),
-		StartedAt:     startedAt,
-		EndedAt:       input.EndedAt,
-		DurationMS:    durationMS,
-		CreatedAt:     now,
-	}
-	if err := repositories.AgentStepRepository.Create(db, step); err != nil {
-		return 0, err
-	}
-	return run.ID, nil
 }

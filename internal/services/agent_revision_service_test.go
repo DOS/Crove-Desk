@@ -24,7 +24,7 @@ func TestAgentRevisionServiceRestoresPublishedSnapshotAndKeepsAPIKey(t *testing.
 	sqls.SetDB(db)
 	definition := agentRevisionDefinition{
 		Agent: agentRevisionAgent{
-			Name: "published agent", AIConfigID: 8, RuntimeMode: string(enums.AIAgentRuntimeModeAutonomous),
+			Name: "published agent", AIConfigID: 8,
 			MaxSteps: 5, ContextWindow: 9, SystemPrompt: "published instruction", KnowledgeIDs: "4", ReplyTimeoutSeconds: 90,
 		},
 		Model: agentRevisionModel{ConfigID: 8, Provider: string(enums.AIProviderOpenAI), BaseURL: "https://published.example/v1", ModelType: string(enums.AIModelTypeLLM), ModelName: "published-model", TimeoutMS: 12000},

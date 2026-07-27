@@ -18,10 +18,10 @@ type service struct {
 	app *applicationruntime.Service
 }
 
-func (s *service) Run(ctx context.Context, req applicationruntime.Request) (*applicationruntime.Summary, error) {
+func (s *service) Run(ctx context.Context, req applicationruntime.RunInput) (*applicationruntime.RunResult, error) {
 	return s.app.Run(ctx, req)
 }
 
-func (s *service) Resume(ctx context.Context, req applicationruntime.ResumeRequest) (*applicationruntime.Summary, error) {
+func (s *service) Resume(ctx context.Context, req applicationruntime.ResumeInput) (*applicationruntime.RunResult, error) {
 	return s.app.Resume(ctx, req)
 }

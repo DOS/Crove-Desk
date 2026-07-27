@@ -63,7 +63,7 @@ type DashboardAIStatsResponse struct {
 	TodayKnowledgeRetrieves         int64   `json:"todayKnowledgeRetrieves"`
 	TodayKnowledgeRetrieveFailCount int64   `json:"todayKnowledgeRetrieveFailCount"`
 	TodayKnowledgeRetrieveFailRate  float64 `json:"todayKnowledgeRetrieveFailRate"`
-	TodaySkillRunFailCount          int64   `json:"todaySkillRunFailCount"`
+	TodayAgentRunFailCount          int64   `json:"todayAgentRunFailCount"`
 	TodayAIHandoffCount             int64   `json:"todayAiHandoffCount"`
 }
 

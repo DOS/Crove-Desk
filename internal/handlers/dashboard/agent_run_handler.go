@@ -24,7 +24,6 @@ func AgentRunAnyList(ctx *gin.Context) {
 		params.QueryFilter{ParamName: "agentRevisionId"},
 		params.QueryFilter{ParamName: "sourceMessageId"},
 		params.QueryFilter{ParamName: "workflowRunId"},
-		params.QueryFilter{ParamName: "engineCode"},
 		params.QueryFilter{ParamName: "status"},
 	).Desc("id")
 	list, paging := services.AgentRunService.FindPageByParams(queryParams)
@@ -73,15 +72,6 @@ func AgentRunAnyMetrics(ctx *gin.Context) {
 	}
 	aiAgentID, _ := params.GetInt64(ctx, "aiAgentId")
 	httpx.WriteJSON(ctx, services.AgentRunService.GetMetrics(aiAgentID))
-}
-
-func AgentRunAnyComparison(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionAIAgentView); err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	aiAgentID, _ := params.GetInt64(ctx, "aiAgentId")
-	httpx.WriteJSON(ctx, services.AgentRunService.GetEngineComparisons(aiAgentID))
 }
 
 func AgentRunPostEvaluate(ctx *gin.Context) {

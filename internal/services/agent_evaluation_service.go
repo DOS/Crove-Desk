@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/dto/response"
@@ -20,9 +19,6 @@ func newAgentEvaluationService() *agentEvaluationService { return &agentEvaluati
 func (s *agentEvaluationService) Run(ctx context.Context, req request.RunAgentEvaluationRequest) (*response.AgentEvaluationReportResponse, error) {
 	if req.AIAgentID <= 0 {
 		return nil, errorsx.InvalidParam("ai agent id is required")
-	}
-	if strings.TrimSpace(req.EngineCode) == "" {
-		return nil, errorsx.InvalidParam("engine code is required")
 	}
 	if len(req.Cases) == 0 {
 		return nil, errorsx.InvalidParam("evaluation cases are required")

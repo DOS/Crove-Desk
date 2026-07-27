@@ -360,9 +360,6 @@ function DebugDialogBody({
             <CardContent className="space-y-3 text-sm">
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">{result?.skillName || skillName}</Badge>
-                {result?.graphToolCode ? (
-                  <Badge variant="secondary">{result.graphToolCode}</Badge>
-                ) : null}
                 {result?.interruptType ? (
                   <Badge variant="secondary">{result.interruptType}</Badge>
                 ) : null}
@@ -375,12 +372,6 @@ function DebugDialogBody({
               <div className="rounded-lg bg-muted/50 p-3">
                 <div className="text-xs text-muted-foreground">{t("skillDefinition.skillName")}</div>
                 <div className="mt-1 font-medium">{result?.skillName || skillName}</div>
-              </div>
-              <div className="rounded-lg bg-muted/50 p-3">
-                <div className="text-xs text-muted-foreground">Plan Reason</div>
-                <div className="mt-1 whitespace-pre-wrap break-words">
-                  {result?.planReason || t("skillDefinition.none")}
-                </div>
               </div>
               <div className="rounded-lg bg-muted/50 p-3">
                 <div className="text-xs text-muted-foreground">Reply</div>
@@ -425,20 +416,6 @@ function DebugDialogBody({
                 </div>
               </div>
               <div className="rounded-lg bg-muted/50 p-3">
-                <div className="text-xs text-muted-foreground">{t("skillDefinition.exposedTools")}</div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {(result?.exposedToolCodes ?? []).length > 0 ? (
-                    result?.exposedToolCodes.map((toolCode) => (
-                      <Badge key={toolCode} variant="outline">
-                        {toolCode}
-                      </Badge>
-                    ))
-                  ) : (
-                    <span className="text-muted-foreground">{t("skillDefinition.none")}</span>
-                  )}
-                </div>
-              </div>
-              <div className="rounded-lg bg-muted/50 p-3">
                 <div className="text-xs text-muted-foreground">{t("skillDefinition.invokedTools")}</div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {(result?.invokedToolCodes ?? []).length > 0 ? (
@@ -457,9 +434,6 @@ function DebugDialogBody({
         </div>
 
         <div className="grid grid-cols-1 gap-4">
-          <ResultBlock title={t("skillDefinition.skillRouteTrace")} value={result?.skillRouteTrace} emptyText={t("skillDefinition.emptyData")} />
-          <ResultBlock title={t("skillDefinition.toolSearchTrace")} value={result?.toolSearchTrace} emptyText={t("skillDefinition.emptyData")} />
-          <ResultBlock title={t("skillDefinition.graphToolTrace")} value={result?.graphToolTrace} emptyText={t("skillDefinition.emptyData")} />
           <ResultBlock title={t("skillDefinition.traceData")} value={result?.traceData} emptyText={t("skillDefinition.emptyData")} />
         </div>
 
@@ -523,9 +497,6 @@ function DebugDialogBody({
               <CardContent className="space-y-3 text-sm">
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="outline">{resumeResult.skillName || skillName}</Badge>
-                  {resumeResult.graphToolCode ? (
-                    <Badge variant="secondary">{resumeResult.graphToolCode}</Badge>
-                  ) : null}
                   {resumeResult.interruptType ? (
                     <Badge variant="secondary">{resumeResult.interruptType}</Badge>
                   ) : null}
@@ -547,16 +518,8 @@ function DebugDialogBody({
                     {resumeResult.replyText || t("skillDefinition.none")}
                   </div>
                 </div>
-                <div className="rounded-lg bg-muted/50 p-3">
-                  <div className="text-xs text-muted-foreground">Resume Plan Reason</div>
-                  <div className="mt-1 whitespace-pre-wrap break-words">
-                    {resumeResult.planReason || t("skillDefinition.none")}
-                  </div>
-                </div>
               </CardContent>
             </Card>
-            <ResultBlock title={t("skillDefinition.resumeToolSearchTrace")} value={resumeResult.toolSearchTrace} emptyText={t("skillDefinition.emptyData")} />
-            <ResultBlock title={t("skillDefinition.resumeGraphToolTrace")} value={resumeResult.graphToolTrace} emptyText={t("skillDefinition.emptyData")} />
             <ResultBlock title={t("skillDefinition.resumeTraceData")} value={resumeResult.traceData} emptyText={t("skillDefinition.emptyData")} />
           </div>
         ) : null}

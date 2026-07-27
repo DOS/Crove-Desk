@@ -97,9 +97,9 @@ func (r *dashboardRepository) CountKnowledgeRetrieveLogs(db *gorm.DB, query func
 	return count
 }
 
-func (r *dashboardRepository) CountSkillRunLogs(db *gorm.DB, query func(tx *gorm.DB) *gorm.DB) int64 {
+func (r *dashboardRepository) CountAgentRuns(db *gorm.DB, query func(tx *gorm.DB) *gorm.DB) int64 {
 	var count int64
-	tx := db.Model(&models.SkillRunLog{})
+	tx := db.Model(&models.AgentRun{})
 	if query != nil {
 		tx = query(tx)
 	}

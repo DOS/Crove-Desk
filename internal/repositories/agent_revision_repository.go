@@ -43,14 +43,3 @@ func (r *agentRevisionRepository) MaxRevisionByAgentID(db *gorm.DB, agentID int6
 	db.Model(&models.AgentRevision{}).Where("agent_id = ?", agentID).Select("COALESCE(MAX(revision), 0)").Scan(&ret)
 	return ret
 }
-
-func (r *agentRevisionRepository) TakeByAgentIDAndWorkflowVersionID(db *gorm.DB, agentID int64, workflowVersionID int64) *models.AgentRevision {
-	if agentID <= 0 || workflowVersionID <= 0 {
-		return nil
-	}
-	ret := &models.AgentRevision{}
-	if err := db.Where("agent_id = ? AND workflow_version_id = ?", agentID, workflowVersionID).Order("id DESC").First(ret).Error; err != nil {
-		return nil
-	}
-	return ret
-}
