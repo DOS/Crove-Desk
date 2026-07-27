@@ -1,20 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
+import { PencilIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import {
   createAIWorkflow,
   fetchAIWorkflow,
@@ -69,9 +62,12 @@ export function WorkflowWorkbench({
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [loaded, setLoaded] = useState(false)
-  const [metadataOpen, setMetadataOpen] = useState(false)
-  const [metadataName, setMetadataName] = useState("")
-  const [metadataDescription, setMetadataDescription] = useState("")
+  const [editingField, setEditingField] = useState<
+    "name" | "description" | null
+  >(null)
+  const editSnapshotRef = useRef({ value: "", dirty: false })
+  const cancellingEditRef = useRef(false)
+  const savingRef = useRef(false)
 
   const load = useCallback(async () => {
     setLoaded(false)
@@ -104,26 +100,99 @@ export function WorkflowWorkbench({
     )
   }, [load])
 
-  function openMetadata() {
-    setMetadataName(name)
-    setMetadataDescription(description)
-    setMetadataOpen(true)
+  function beginEditing(field: "name" | "description") {
+    cancellingEditRef.current = false
+    editSnapshotRef.current = {
+      value: field === "name" ? name : description,
+      dirty,
+    }
+    setEditingField(field)
   }
 
-  function applyMetadata() {
-    setName(metadataName)
-    setDescription(metadataDescription)
-    setDirty(true)
-    setMetadataOpen(false)
+  async function finishEditing(field: "name" | "description") {
+    if (cancellingEditRef.current) {
+      cancellingEditRef.current = false
+      return
+    }
+    setEditingField(null)
+    const currentValue = field === "name" ? name.trim() : description.trim()
+    if (currentValue === editSnapshotRef.current.value) {
+      setDirty(editSnapshotRef.current.dirty)
+      return
+    }
+    if (field === "name" && !currentValue) {
+      setName(editSnapshotRef.current.value)
+      setDirty(editSnapshotRef.current.dirty)
+      toast.error("请填写工作流名称")
+      return
+    }
+
+    const nextName = field === "name" ? currentValue : name.trim()
+    const nextDescription =
+      field === "description" ? currentValue : description.trim()
+    if (savingRef.current) return
+    savingRef.current = true
+    setSaving(true)
+    try {
+      if (active) {
+        await updateAIWorkflow({
+          id: active.id,
+          name: nextName,
+          description: nextDescription,
+          definition: active.draftDefinition,
+        })
+        setActive((current) =>
+          current
+            ? {
+                ...current,
+                name: nextName,
+                description: nextDescription,
+                updatedAt: new Date().toISOString(),
+              }
+            : current
+        )
+      } else {
+        const created = await createAIWorkflow({
+          name: nextName,
+          description: nextDescription,
+          definition,
+        })
+        setActive(created)
+      }
+      setName(nextName)
+      setDescription(nextDescription)
+      setDirty(active ? editSnapshotRef.current.dirty : false)
+      onSaved?.()
+      toast.success(field === "name" ? "名称已保存" : "描述已保存")
+    } catch (error) {
+      setDirty(true)
+      toast.error(error instanceof Error ? error.message : "保存失败")
+    } finally {
+      savingRef.current = false
+      setSaving(false)
+    }
+  }
+
+  function cancelEditing(field: "name" | "description") {
+    cancellingEditRef.current = true
+    if (field === "name") {
+      setName(editSnapshotRef.current.value)
+    } else {
+      setDescription(editSnapshotRef.current.value)
+    }
+    setDirty(editSnapshotRef.current.dirty)
+    setEditingField(null)
   }
 
   async function save() {
+    if (savingRef.current) return
     if (!name.trim()) {
       toast.error("请填写工作流名称")
       return
     }
     const savedName = name.trim()
     const savedDescription = description.trim()
+    savingRef.current = true
     setSaving(true)
     try {
       if (active) {
@@ -163,15 +232,18 @@ export function WorkflowWorkbench({
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "保存失败")
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
 
   async function publish() {
+    if (savingRef.current) return
     if (!active) {
       toast.error("请先保存")
       return
     }
+    savingRef.current = true
     setSaving(true)
     try {
       const version = await publishAIWorkflow(active.id, definition)
@@ -191,6 +263,7 @@ export function WorkflowWorkbench({
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "发布失败")
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -201,9 +274,40 @@ export function WorkflowWorkbench({
         <div className="flex items-center gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="truncate text-lg font-semibold">
-                {name || "新建工作流"}
-              </h1>
+              {editingField === "name" ? (
+                <Input
+                  autoFocus
+                  aria-label="工作流名称"
+                  value={name}
+                  onFocus={(event) => event.currentTarget.select()}
+                  onChange={(event) => {
+                    setName(event.target.value)
+                    setDirty(true)
+                  }}
+                  onBlur={() => void finishEditing("name")}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault()
+                      event.currentTarget.blur()
+                    } else if (event.key === "Escape") {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      cancelEditing("name")
+                    }
+                  }}
+                  className="h-7 min-w-48 max-w-xl flex-1 px-2 text-lg font-semibold"
+                />
+              ) : (
+                <button
+                  type="button"
+                  aria-label="编辑工作流名称"
+                  onClick={() => beginEditing("name")}
+                  className="group flex h-7 min-w-0 max-w-xl items-center gap-1.5 rounded-md px-1 text-left text-lg font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <span className="truncate">{name || "新建工作流"}</span>
+                  <PencilIcon className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+                </button>
+              )}
               <Badge
                 variant={active?.publishedVersionId ? "secondary" : "outline"}
               >
@@ -213,14 +317,45 @@ export function WorkflowWorkbench({
                 <span className="text-xs text-amber-600">未保存</span>
               ) : null}
             </div>
-            <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">
-              {description || "暂未填写业务说明"}
-            </p>
+            {editingField === "description" ? (
+              <Input
+                autoFocus
+                aria-label="工作流描述"
+                value={description}
+                onFocus={(event) => event.currentTarget.select()}
+                onChange={(event) => {
+                  setDescription(event.target.value)
+                  setDirty(true)
+                }}
+                onBlur={() => void finishEditing("description")}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault()
+                    event.currentTarget.blur()
+                  } else if (event.key === "Escape") {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    cancelEditing("description")
+                  }
+                }}
+                placeholder="添加工作流描述"
+                className="mt-0.5 h-6 max-w-2xl px-1 text-sm font-normal"
+              />
+            ) : (
+              <button
+                type="button"
+                aria-label="编辑工作流描述"
+                onClick={() => beginEditing("description")}
+                className="group mt-0.5 flex h-6 max-w-2xl items-center gap-1.5 rounded-md px-1 text-left text-sm text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="truncate">
+                  {description || "添加工作流描述"}
+                </span>
+                <PencilIcon className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+              </button>
+            )}
           </div>
           <div className="flex shrink-0 gap-2">
-            <Button variant="outline" onClick={openMetadata}>
-              编辑信息
-            </Button>
             <Button
               variant="outline"
               disabled={saving}
@@ -252,32 +387,6 @@ export function WorkflowWorkbench({
           </div>
         )}
       </div>
-
-      <Dialog open={metadataOpen} onOpenChange={setMetadataOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>编辑工作流信息</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              value={metadataName}
-              onChange={(event) => setMetadataName(event.target.value)}
-              placeholder="工作流名称"
-            />
-            <Textarea
-              value={metadataDescription}
-              onChange={(event) => setMetadataDescription(event.target.value)}
-              placeholder="适用场景、目标与业务边界"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setMetadataOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={applyMetadata}>确认</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
