@@ -648,19 +648,7 @@ export function AIAgentConfigWorkbench({
                 <FormSection
                   title="工作流"
                   description="关联工作流中心中已经发布的固定版本。"
-                  action={
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => window.location.assign("/dashboard/ai-workflows")}
-                    >
-                      管理工作流
-                    </Button>
-                  }
                 >
-                  <div className="rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
-                    Workflow 是 Agent 的可选能力。模型会结合用户消息与触发说明，自主判断是否调用。
-                  </div>
                   <OptionCombobox
                     multiple
                     values={workflowBindings.map((binding) =>

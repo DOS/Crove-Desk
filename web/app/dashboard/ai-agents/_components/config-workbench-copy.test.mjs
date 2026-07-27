@@ -36,6 +36,7 @@ test("AI Agent config uses one Agent Loop without a runtime mode selector", () =
   assert.doesNotMatch(configWorkbenchSource, /runtimeMode/)
   assert.doesNotMatch(adminApiSource, /runtimeMode/)
   assert.doesNotMatch(configWorkbenchSource, /运行方式/)
-  assert.match(configWorkbenchSource, /Workflow 是 Agent 的可选能力/)
+  assert.doesNotMatch(configWorkbenchSource, /Workflow 是 Agent 的可选能力/)
+  assert.doesNotMatch(configWorkbenchSource, /管理工作流/)
   assert.match(configWorkbenchSource, /写操作（需确认）/)
 })
