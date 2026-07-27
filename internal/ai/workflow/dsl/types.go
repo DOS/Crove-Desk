@@ -7,6 +7,7 @@ const SchemaVersion = 2
 type Definition struct {
 	SchemaVersion int    `json:"schemaVersion"`
 	Nodes         []Node `json:"nodes"`
+	Annotations   []Node `json:"annotations,omitempty"`
 	Edges         []Edge `json:"edges"`
 }
 
@@ -186,4 +187,23 @@ func (d *NodeData) UnmarshalJSON(data []byte) error {
 		d.Extra = extra
 	}
 	return nil
+}
+
+func (d NodeData) MarshalJSON() ([]byte, error) {
+	type alias NodeData
+	base, err := json.Marshal(alias(d))
+	if err != nil {
+		return nil, err
+	}
+	values := make(map[string]json.RawMessage)
+	if err := json.Unmarshal(base, &values); err != nil {
+		return nil, err
+	}
+	for key, value := range d.Extra {
+		if _, exists := values[key]; exists {
+			continue
+		}
+		values[key] = value
+	}
+	return json.Marshal(values)
 }

@@ -2,6 +2,7 @@ package dsl_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"agent-desk/internal/ai/workflow/dsl"
@@ -79,5 +80,34 @@ func TestDefinitionUnmarshalsFlowGramStyleSchema(t *testing.T) {
 	edge := def.Edges[0]
 	if edge.SourceNodeID != "start_1" || edge.TargetNodeID != "send_1" || edge.SourcePortID != "default" {
 		t.Fatalf("unexpected edge: %#v", edge)
+	}
+}
+
+func TestDefinitionPreservesCanvasAnnotations(t *testing.T) {
+	var def dsl.Definition
+	err := json.Unmarshal([]byte(`{
+		"schemaVersion": 2,
+		"nodes": [],
+		"annotations": [{
+			"id": "comment_1",
+			"type": "comment",
+			"meta": {"position": {"x": 12, "y": 34}},
+			"data": {"note": "check this branch", "size": {"width": 240, "height": 150}}
+		}],
+		"edges": []
+	}`), &def)
+	if err != nil {
+		t.Fatalf("unmarshal definition: %v", err)
+	}
+	if len(def.Annotations) != 1 || def.Annotations[0].ID != "comment_1" {
+		t.Fatalf("expected annotation to be preserved, got %#v", def.Annotations)
+	}
+	encoded, err := json.Marshal(def)
+	if err != nil {
+		t.Fatalf("marshal definition: %v", err)
+	}
+	if !strings.Contains(string(encoded), `"annotations"`) ||
+		!strings.Contains(string(encoded), `"check this branch"`) {
+		t.Fatalf("expected annotation JSON to round trip, got %s", encoded)
 	}
 }

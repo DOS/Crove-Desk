@@ -23,18 +23,33 @@ importers:
       '@dnd-kit/utilities':
         specifier: ^3.2.2
         version: 3.2.2(react@19.2.3)
+      '@flowgram.ai/export-plugin':
+        specifier: 1.0.11
+        version: 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@flowgram.ai/free-auto-layout-plugin':
+        specifier: 1.0.11
+        version: 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(styled-components@6.4.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
       '@flowgram.ai/free-layout-editor':
         specifier: 1.0.11
         version: 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(styled-components@6.4.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
       '@flowgram.ai/free-lines-plugin':
         specifier: 1.0.11
         version: 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(styled-components@6.4.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
+      '@flowgram.ai/free-node-panel-plugin':
+        specifier: 1.0.11
+        version: 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@flowgram.ai/free-snap-plugin':
+        specifier: 1.0.11
+        version: 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(styled-components@6.4.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
+      '@flowgram.ai/free-stack-plugin':
         specifier: 1.0.11
         version: 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(styled-components@6.4.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
       '@flowgram.ai/minimap-plugin':
         specifier: 1.0.11
         version: 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@flowgram.ai/panel-manager-plugin':
+        specifier: 1.0.11
+        version: 1.0.11(@types/react@19.2.14)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(reflect-metadata@0.2.2)
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.71.2(react@19.2.3))
@@ -572,6 +587,12 @@ packages:
       react: '>=16.8'
       react-dom: '>=16.8'
 
+  '@flowgram.ai/export-plugin@1.0.11':
+    resolution: {integrity: sha512-drJley1YMVqANTcl+n/TDvxa75F07z7u1jme/Y1H8P1h9aOAhem+q1oJZgw7WSAK7eG7Sy1qxNb6yeqaKlzz6g==}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+
   '@flowgram.ai/form-core@1.0.11':
     resolution: {integrity: sha512-qucie8ekXkfJbXMvPSUGR1CZufBZ1qqHbYNITZhxwR3X54MF7vieFD/6fb7H7jic2z5ad4aCOJcIDe5uD0hQjg==}
     peerDependencies:
@@ -621,6 +642,12 @@ packages:
       react: '>=16.8'
       react-dom: '>=16.8'
       styled-components: '>=5'
+
+  '@flowgram.ai/free-node-panel-plugin@1.0.11':
+    resolution: {integrity: sha512-1XqzHZhimJLK6G3zUhHUKBHgLlnWNRmWYmpCci0e9yKzOBduS6xZTfMSgc7bl5TeaG9u++nooTqirx6xP5kwXQ==}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
 
   '@flowgram.ai/free-snap-plugin@1.0.11':
     resolution: {integrity: sha512-6YPtxwIYkUgj2BBBQgJvIPeSgDZQJpHSDl9r6FyJyalAdQKHeKniCBAR8b3tgaQf/oKR1v/8zt01h+IzMFhodQ==}
@@ -680,6 +707,15 @@ packages:
     peerDependencies:
       react: '>=16.8'
       react-dom: '>=16.8'
+
+  '@flowgram.ai/panel-manager-plugin@1.0.11':
+    resolution: {integrity: sha512-piax49+HwMiU+zHT5L8ttQ7O64gqJSpvlHXt68jrVDMlExMPX62R89imvTSuFDyPVjOGjoqsVaRFb8cUlNtbtw==}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   '@flowgram.ai/playground-react@1.0.11':
     resolution: {integrity: sha512-4NORKKYGoH2lyRzf7VW2NFlaHZbE1dpXVAi1ehr27g4L24TUxJCWVRWi8vrCph9hrlucs86Iw1SAFOVP1dnsSQ==}
@@ -3407,6 +3443,9 @@ packages:
   minimist@1.2.8:
     resolution: {integrity: sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==}
 
+  modern-screenshot@4.6.7:
+    resolution: {integrity: sha512-0GhgI6i6le4AhKzCvLYjwEmsP47kTsX45iT5yuAzsLTi/7i3Rjxe8fbH2VjGJLuyOThwsa0CdQAPd4auoEtsZg==}
+
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
@@ -4460,6 +4499,21 @@ packages:
   zod@4.3.6:
     resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
 
+  zustand@4.5.7:
+    resolution: {integrity: sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw==}
+    engines: {node: '>=12.7.0'}
+    peerDependencies:
+      '@types/react': '>=16.8'
+      immer: '>=9.0.6'
+      react: '>=16.8'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      immer:
+        optional: true
+      react:
+        optional: true
+
   zustand@5.0.12:
     resolution: {integrity: sha512-i77ae3aZq4dhMlRhJVCYgMLKuSiZAaUPAct2AksxQ+gOtimhGMdXljRT21P5BNpeT4kXlLIckvkPM029OljD7g==}
     engines: {node: '>=12.20.0'}
@@ -5153,6 +5207,20 @@ snapshots:
       react-dom: 19.2.3(react@19.2.3)
       reflect-metadata: 0.2.2
 
+  '@flowgram.ai/export-plugin@1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      '@flowgram.ai/core': 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@flowgram.ai/document': 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@flowgram.ai/utils': 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      inversify: 6.2.2(reflect-metadata@0.2.2)
+      js-yaml: 4.1.1
+      lodash-es: 4.18.1
+      modern-screenshot: 4.6.7
+      nanoid: 5.1.16
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+      reflect-metadata: 0.2.2
+
   '@flowgram.ai/form-core@1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
     dependencies:
       '@flowgram.ai/core': 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -5262,6 +5330,18 @@ snapshots:
       react-dom: 19.2.3(react@19.2.3)
       reflect-metadata: 0.2.2
       styled-components: 6.4.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+
+  '@flowgram.ai/free-node-panel-plugin@1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      '@flowgram.ai/core': 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@flowgram.ai/document': 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@flowgram.ai/free-history-plugin': 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@flowgram.ai/free-layout-core': 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@flowgram.ai/utils': 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      inversify: 6.2.2(reflect-metadata@0.2.2)
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+      reflect-metadata: 0.2.2
 
   '@flowgram.ai/free-snap-plugin@1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(styled-components@6.4.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3))':
     dependencies:
@@ -5387,6 +5467,23 @@ snapshots:
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
       reflect-metadata: 0.2.2
+
+  '@flowgram.ai/panel-manager-plugin@1.0.11(@types/react@19.2.14)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(reflect-metadata@0.2.2)':
+    dependencies:
+      '@flowgram.ai/core': 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@flowgram.ai/utils': 1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      clsx: 1.2.1
+      inversify: 6.2.2(reflect-metadata@0.2.2)
+      nanoid: 5.1.16
+      react-dom: 19.2.3(react@19.2.3)
+      use-sync-external-store: 1.6.0(react@19.2.3)
+      zustand: 4.5.7(@types/react@19.2.14)(react@19.2.3)
+    optionalDependencies:
+      react: 19.2.3
+    transitivePeerDependencies:
+      - '@types/react'
+      - immer
+      - reflect-metadata
 
   '@flowgram.ai/playground-react@1.0.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
     dependencies:
@@ -8145,6 +8242,8 @@ snapshots:
 
   minimist@1.2.8: {}
 
+  modern-screenshot@4.6.7: {}
+
   ms@2.1.3: {}
 
   msw@2.12.10(@types/node@20.19.37)(typescript@5.9.3):
@@ -9422,6 +9521,13 @@ snapshots:
   zod@3.25.76: {}
 
   zod@4.3.6: {}
+
+  zustand@4.5.7(@types/react@19.2.14)(react@19.2.3):
+    dependencies:
+      use-sync-external-store: 1.6.0(react@19.2.3)
+    optionalDependencies:
+      '@types/react': 19.2.14
+      react: 19.2.3
 
   zustand@5.0.12(@types/react@19.2.14)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3)):
     optionalDependencies:

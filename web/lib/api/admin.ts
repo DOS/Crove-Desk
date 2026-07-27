@@ -375,7 +375,17 @@ export type AIWorkflowVariableSpec = {
 
 export type AIWorkflowDefinition = {
   schemaVersion: number
-  nodes: {
+  nodes: AIWorkflowCanvasNode[]
+  annotations?: AIWorkflowCanvasNode[]
+  edges: {
+    sourceNodeID: string
+    targetNodeID: string
+    sourcePortID?: string
+    targetPortID?: string
+  }[]
+}
+
+export type AIWorkflowCanvasNode = {
     id: string
     type: string
     meta: {
@@ -389,13 +399,6 @@ export type AIWorkflowDefinition = {
       inputsValues?: Record<string, AIWorkflowValue>
       [key: string]: unknown
     }
-  }[]
-  edges: {
-    sourceNodeID: string
-    targetNodeID: string
-    sourcePortID?: string
-    targetPortID?: string
-  }[]
 }
 
 export type AIWorkflow = {

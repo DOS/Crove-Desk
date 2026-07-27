@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react"
 
-import { EditorRenderer, FreeLayoutEditorProvider } from "@flowgram.ai/free-layout-editor"
 import { AlertTriangleIcon, CheckCircle2Icon, TimerIcon } from "lucide-react"
 
 import { JsonTreeViewer } from "@/components/json-tree-viewer"
@@ -11,26 +10,21 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import type { AIWorkflowNodeRun, AIWorkflowRun } from "@/lib/api/admin"
 import { cn } from "@/lib/utils"
 
-import { useFlowgramEditorProps } from "../../ai-workflows/_components/flowgram-editor-provider"
+import { WorkflowReadonlyCanvas } from "../../ai-workflows/_components/editor/workflow-editor"
 
 export function WorkflowRunAuditGraph({ run }: { run: AIWorkflowRun }) {
-  const nodeRuns = run.nodes ?? []
+  const nodeRuns = useMemo(() => run.nodes ?? [], [run.nodes])
   const firstNodeId = nodeRuns[0]?.nodeId ?? run.definition?.nodes?.[0]?.id ?? ""
   const [selectedNodeId, setSelectedNodeId] = useState(firstNodeId)
   const selectedNodeRun = nodeRuns.find((item) => item.nodeId === selectedNodeId) ?? nodeRuns[0]
   const executedNodeIds = useMemo(() => new Set(nodeRuns.map((item) => item.nodeId)), [nodeRuns])
-  const editorProps = useFlowgramEditorProps({
-    definition: run.definition ?? { schemaVersion: 2, nodes: [], edges: [] },
-    nodeSpecs: [],
-    readonly: true,
-  })
 
   return (
     <div className="grid min-h-[520px] grid-cols-[minmax(0,1fr)_320px] overflow-hidden border">
       <div className="relative min-w-0">
-        <FreeLayoutEditorProvider {...editorProps}>
-          <EditorRenderer className="h-full w-full" />
-        </FreeLayoutEditorProvider>
+        <WorkflowReadonlyCanvas
+          definition={run.definition ?? { schemaVersion: 2, nodes: [], edges: [] }}
+        />
         <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap gap-2">
           <Badge variant="secondary" className="gap-1">
             <CheckCircle2Icon className="size-3" />

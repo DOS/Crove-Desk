@@ -1,35 +1,373 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+
 import { ArrowLeftIcon } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  createAIWorkflow,
+  fetchAIWorkflow,
+  fetchAIWorkflowNodeSpecs,
+  fetchAIWorkflowUsage,
+  fetchAIWorkflowVersions,
+  publishAIWorkflow,
+  restoreAIWorkflowVersion,
+  updateAIWorkflow,
+  validateAIWorkflow,
+  type AIWorkflow,
+  type AIWorkflowDefinition,
+  type AIWorkflowNodeSpec,
+  type AIWorkflowUsage,
+  type AIWorkflowVersion,
+} from "@/lib/api/admin"
 import { formatDateTime } from "@/lib/utils"
-import { createAIWorkflow, fetchAIWorkflow, fetchAIWorkflowNodeSpecs, fetchAIWorkflowUsage, fetchAIWorkflowVersions, publishAIWorkflow, restoreAIWorkflowVersion, updateAIWorkflow, validateAIWorkflow, type AIWorkflow, type AIWorkflowDefinition, type AIWorkflowNodeSpec, type AIWorkflowUsage, type AIWorkflowVersion } from "@/lib/api/admin"
 
-import { WorkflowEditor } from "./workflow-editor"
+import { WorkflowEditor } from "./editor/workflow-editor"
 
-const emptyDefinition: AIWorkflowDefinition = { schemaVersion: 2, nodes: [{ id: "start_1", type: "start", meta: { position: { x: 0, y: 80 } }, data: { title: "开始", config: {}, inputsValues: {} } }, { id: "end_1", type: "end", meta: { position: { x: 260, y: 80 } }, data: { title: "结束", config: {}, inputsValues: {} } }], edges: [{ sourceNodeID: "start_1", targetNodeID: "end_1", sourcePortID: "edge_start_end" }] }
+const emptyDefinition: AIWorkflowDefinition = {
+  schemaVersion: 2,
+  nodes: [
+    {
+      id: "start_1",
+      type: "start",
+      meta: { position: { x: 0, y: 80 } },
+      data: { title: "开始", config: {}, inputsValues: {} },
+    },
+    {
+      id: "end_1",
+      type: "end",
+      meta: { position: { x: 260, y: 80 } },
+      data: { title: "结束", config: {}, inputsValues: {} },
+    },
+  ],
+  edges: [
+    {
+      sourceNodeID: "start_1",
+      targetNodeID: "end_1",
+      sourcePortID: "edge_start_end",
+    },
+  ],
+}
 
-export function WorkflowWorkbench({ workflowID, onClose, onSaved }: { workflowID?: number; onClose?: () => void; onSaved?: () => void }) {
+type WorkflowWorkbenchProps = {
+  workflowID?: number
+  onClose?: () => void
+  onSaved?: () => void
+}
+
+export function WorkflowWorkbench({
+  workflowID,
+  onClose,
+  onSaved,
+}: WorkflowWorkbenchProps) {
   const router = useRouter()
-  const [active, setActive] = useState<AIWorkflow | null>(null); const [nodeSpecs, setNodeSpecs] = useState<AIWorkflowNodeSpec[]>([])
-  const [name, setName] = useState(""); const [description, setDescription] = useState(""); const [definition, setDefinition] = useState<AIWorkflowDefinition>(emptyDefinition)
-  const [versions, setVersions] = useState<AIWorkflowVersion[]>([]); const [usage, setUsage] = useState<AIWorkflowUsage[]>([]); const [saving, setSaving] = useState(false); const [dirty, setDirty] = useState(false)
-  const [metadataOpen, setMetadataOpen] = useState(false); const [metadataName, setMetadataName] = useState(""); const [metadataDescription, setMetadataDescription] = useState("")
-  const load = useCallback(async () => { const specs = await fetchAIWorkflowNodeSpecs(); setNodeSpecs(specs ?? []); if (!workflowID) return; const [item, versionPage, uses] = await Promise.all([fetchAIWorkflow(workflowID), fetchAIWorkflowVersions({ workflowId: workflowID, limit: 50 }), fetchAIWorkflowUsage(workflowID)]); setActive(item); setName(item.name); setDescription(item.description); setDefinition(item.draftDefinition); setVersions(versionPage.results ?? []); setUsage(uses ?? []); setDirty(false) }, [workflowID])
-  useEffect(() => { void load().catch((error) => toast.error(error instanceof Error ? error.message : "加载工作流失败")) }, [load])
-  const openMetadata = () => { setMetadataName(name); setMetadataDescription(description); setMetadataOpen(true) }
-  const applyMetadata = () => { setName(metadataName); setDescription(metadataDescription); setDirty(true); setMetadataOpen(false) }
-  async function save() { if (!name.trim()) return toast.error("请填写工作流名称"); setSaving(true); try { if (active) { await updateAIWorkflow({ id: active.id, name: name.trim(), description: description.trim(), definition }); await load() } else { const created = await createAIWorkflow({ name: name.trim(), description: description.trim(), definition }); setActive(created); setName(created.name); setDescription(created.description); setDefinition(created.draftDefinition) }; onSaved?.(); toast.success("草稿已保存") } catch (error) { toast.error(error instanceof Error ? error.message : "保存失败") } finally { setSaving(false) } }
-  async function publish() { if (!active) return toast.error("请先保存草稿"); setSaving(true); try { const version = await publishAIWorkflow(active.id, definition); await load(); toast.success(`已发布 v${version.version}`) } catch (error) { toast.error(error instanceof Error ? error.message : "发布失败") } finally { setSaving(false) } }
-  async function restore(version: AIWorkflowVersion) { if (!active) return; try { await restoreAIWorkflowVersion(active.id, version.id); await load(); toast.success(`已将 v${version.version} 恢复为草稿`) } catch (error) { toast.error(error instanceof Error ? error.message : "恢复失败") } }
-  return <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background"><header className="shrink-0 border-b px-6 py-4"><div className="flex items-center gap-4"><Button variant="ghost" size="icon" onClick={() => router.push("/dashboard/ai-workflows")}><ArrowLeftIcon className="size-4" /></Button><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h1 className="truncate text-lg font-semibold">{name || "新建工作流"}</h1><Badge variant={active?.publishedVersionId ? "secondary" : "outline"}>{active?.publishedVersionId ? "已发布" : "草稿"}</Badge>{dirty ? <span className="text-xs text-amber-600">未保存</span> : null}</div><p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{description || "暂未填写业务说明"}</p></div><div className="flex shrink-0 gap-2"><Button variant="ghost" onClick={openMetadata}>编辑信息</Button><Button variant="outline" disabled={saving} onClick={() => void validateAIWorkflow(definition).then((result) => toast[result.valid ? "success" : "error"](result.valid ? "校验通过" : `发现 ${result.errors.length} 个问题`))}>校验</Button><Button variant="outline" disabled={saving} onClick={() => void save()}>保存草稿</Button><Button disabled={saving || !active} onClick={() => void publish()}>发布版本</Button></div></div></header><Tabs defaultValue="editor" className="flex min-h-0 flex-1 flex-col"><div className="shrink-0 border-b px-6"><TabsList className="h-11 bg-transparent"><TabsTrigger value="editor">编辑画布</TabsTrigger><TabsTrigger value="versions">版本历史 ({versions.length})</TabsTrigger><TabsTrigger value="usage">使用情况 ({usage.length})</TabsTrigger></TabsList></div><TabsContent value="editor" className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"><WorkflowEditor definition={definition} nodeSpecs={nodeSpecs} onDefinitionChange={(next) => { setDefinition(next); setDirty(true) }} onSaveDraft={() => void save()} onPublish={() => void publish()} saveDraftDisabled={saving} publishDisabled={saving || !active} /></TabsContent><TabsContent value="versions" className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6">{versions.length ? versions.map((version) => <div key={version.id} className="mb-3 flex items-center gap-4 rounded-lg border p-4"><Badge>v{version.version}</Badge><div className="min-w-0 flex-1"><div className="text-sm font-medium">发布于 {formatDateTime(version.publishedAt || version.createdAt)}</div><div className="text-xs text-muted-foreground">发布人：{version.publishedByName || "-"}</div></div><Button variant="outline" size="sm" onClick={() => void restore(version)}>恢复为草稿</Button></div>) : <p className="text-sm text-muted-foreground">尚未发布版本。</p>}</TabsContent><TabsContent value="usage" className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6">{usage.length ? usage.map((item) => <div key={`${item.aiAgentId}-${item.workflowVersionId}`} className="mb-3 flex items-center justify-between rounded-lg border p-4"><div><div className="font-medium">{item.aiAgentName}</div><div className="mt-1 text-sm text-muted-foreground">固定关联 v{item.workflowVersion}</div></div><Badge variant={item.enabled ? "secondary" : "outline"}>{item.enabled ? "启用" : "已停用"}</Badge></div>) : <p className="text-sm text-muted-foreground">暂未被任何 Agent 使用。</p>}</TabsContent></Tabs><Dialog open={metadataOpen} onOpenChange={setMetadataOpen}><DialogContent><DialogHeader><DialogTitle>编辑工作流信息</DialogTitle></DialogHeader><div className="space-y-4"><Input value={metadataName} onChange={(event) => setMetadataName(event.target.value)} placeholder="工作流名称" /><Textarea value={metadataDescription} onChange={(event) => setMetadataDescription(event.target.value)} placeholder="适用场景、目标与业务边界" /></div><DialogFooter><Button variant="outline" onClick={() => setMetadataOpen(false)}>取消</Button><Button onClick={applyMetadata}>确认</Button></DialogFooter></DialogContent></Dialog></div>
+  const [active, setActive] = useState<AIWorkflow | null>(null)
+  const [nodeSpecs, setNodeSpecs] = useState<AIWorkflowNodeSpec[]>([])
+  const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
+  const [definition, setDefinition] =
+    useState<AIWorkflowDefinition>(emptyDefinition)
+  const [versions, setVersions] = useState<AIWorkflowVersion[]>([])
+  const [usage, setUsage] = useState<AIWorkflowUsage[]>([])
+  const [saving, setSaving] = useState(false)
+  const [dirty, setDirty] = useState(false)
+  const [metadataOpen, setMetadataOpen] = useState(false)
+  const [metadataName, setMetadataName] = useState("")
+  const [metadataDescription, setMetadataDescription] = useState("")
+
+  const load = useCallback(async () => {
+    const specs = await fetchAIWorkflowNodeSpecs()
+    setNodeSpecs(specs ?? [])
+    if (!workflowID) return
+
+    const [item, versionPage, uses] = await Promise.all([
+      fetchAIWorkflow(workflowID),
+      fetchAIWorkflowVersions({ workflowId: workflowID, limit: 50 }),
+      fetchAIWorkflowUsage(workflowID),
+    ])
+    setActive(item)
+    setName(item.name)
+    setDescription(item.description)
+    setDefinition(item.draftDefinition)
+    setVersions(versionPage.results ?? [])
+    setUsage(uses ?? [])
+    setDirty(false)
+  }, [workflowID])
+
+  useEffect(() => {
+    void load().catch((error) =>
+      toast.error(error instanceof Error ? error.message : "加载工作流失败")
+    )
+  }, [load])
+
+  function openMetadata() {
+    setMetadataName(name)
+    setMetadataDescription(description)
+    setMetadataOpen(true)
+  }
+
+  function applyMetadata() {
+    setName(metadataName)
+    setDescription(metadataDescription)
+    setDirty(true)
+    setMetadataOpen(false)
+  }
+
+  async function save() {
+    if (!name.trim()) {
+      toast.error("请填写工作流名称")
+      return
+    }
+    setSaving(true)
+    try {
+      if (active) {
+        await updateAIWorkflow({
+          id: active.id,
+          name: name.trim(),
+          description: description.trim(),
+          definition,
+        })
+        await load()
+      } else {
+        const created = await createAIWorkflow({
+          name: name.trim(),
+          description: description.trim(),
+          definition,
+        })
+        setActive(created)
+        setName(created.name)
+        setDescription(created.description)
+        setDefinition(created.draftDefinition)
+        setDirty(false)
+      }
+      onSaved?.()
+      toast.success("草稿已保存")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "保存失败")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function publish() {
+    if (!active) {
+      toast.error("请先保存草稿")
+      return
+    }
+    setSaving(true)
+    try {
+      const version = await publishAIWorkflow(active.id, definition)
+      await load()
+      toast.success(`已发布 v${version.version}`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "发布失败")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function restore(version: AIWorkflowVersion) {
+    if (!active) return
+    try {
+      await restoreAIWorkflowVersion(active.id, version.id)
+      await load()
+      toast.success(`已将 v${version.version} 恢复为草稿`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "恢复失败")
+    }
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
+      <header className="shrink-0 border-b px-6 py-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() =>
+              onClose ? onClose() : router.push("/dashboard/ai-workflows")
+            }
+          >
+            <ArrowLeftIcon className="size-4" />
+          </Button>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h1 className="truncate text-lg font-semibold">
+                {name || "新建工作流"}
+              </h1>
+              <Badge
+                variant={active?.publishedVersionId ? "secondary" : "outline"}
+              >
+                {active?.publishedVersionId ? "已发布" : "草稿"}
+              </Badge>
+              {dirty ? (
+                <span className="text-xs text-amber-600">未保存</span>
+              ) : null}
+            </div>
+            <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">
+              {description || "暂未填写业务说明"}
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button variant="ghost" onClick={openMetadata}>
+              编辑信息
+            </Button>
+            <Button
+              variant="outline"
+              disabled={saving}
+              onClick={() => void save()}
+            >
+              保存草稿
+            </Button>
+            <Button
+              disabled={saving || !active}
+              onClick={() => void publish()}
+            >
+              发布版本
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <Tabs defaultValue="editor" className="flex min-h-0 flex-1 flex-col">
+        <div className="shrink-0 border-b px-6">
+          <TabsList className="h-11 bg-transparent">
+            <TabsTrigger value="editor">编辑画布</TabsTrigger>
+            <TabsTrigger value="versions">
+              版本历史 ({versions.length})
+            </TabsTrigger>
+            <TabsTrigger value="usage">使用情况 ({usage.length})</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent
+          value="editor"
+          className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+        >
+          {nodeSpecs.length ? (
+            <WorkflowEditor
+              definition={definition}
+              nodeSpecs={nodeSpecs}
+              onDefinitionChange={(next) => {
+                setDefinition(next)
+                setDirty(true)
+              }}
+              onValidate={() => validateAIWorkflow(definition)}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              正在加载节点能力…
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent
+          value="versions"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6"
+        >
+          {versions.length ? (
+            versions.map((version) => (
+              <div
+                key={version.id}
+                className="mb-3 flex items-center gap-4 rounded-lg border p-4"
+              >
+                <Badge>v{version.version}</Badge>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium">
+                    发布于{" "}
+                    {formatDateTime(version.publishedAt || version.createdAt)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    发布人：{version.publishedByName || "-"}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void restore(version)}
+                >
+                  恢复为草稿
+                </Button>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">尚未发布版本。</p>
+          )}
+        </TabsContent>
+
+        <TabsContent
+          value="usage"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6"
+        >
+          {usage.length ? (
+            usage.map((item) => (
+              <div
+                key={`${item.aiAgentId}-${item.workflowVersionId}`}
+                className="mb-3 flex items-center justify-between rounded-lg border p-4"
+              >
+                <div>
+                  <div className="font-medium">{item.aiAgentName}</div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    固定关联 v{item.workflowVersion}
+                  </div>
+                </div>
+                <Badge variant={item.enabled ? "secondary" : "outline"}>
+                  {item.enabled ? "启用" : "已停用"}
+                </Badge>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              暂未被任何 Agent 使用。
+            </p>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={metadataOpen} onOpenChange={setMetadataOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>编辑工作流信息</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              value={metadataName}
+              onChange={(event) => setMetadataName(event.target.value)}
+              placeholder="工作流名称"
+            />
+            <Textarea
+              value={metadataDescription}
+              onChange={(event) => setMetadataDescription(event.target.value)}
+              placeholder="适用场景、目标与业务边界"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMetadataOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={applyMetadata}>确认</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
 }
