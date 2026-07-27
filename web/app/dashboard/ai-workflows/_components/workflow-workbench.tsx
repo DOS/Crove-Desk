@@ -147,30 +147,44 @@ export function WorkflowWorkbench({
       toast.error("请填写工作流名称")
       return
     }
+    const savedName = name.trim()
+    const savedDescription = description.trim()
     setSaving(true)
     try {
       if (active) {
         await updateAIWorkflow({
           id: active.id,
-          name: name.trim(),
-          description: description.trim(),
+          name: savedName,
+          description: savedDescription,
           definition,
         })
-        await load()
+        setActive((current) =>
+          current
+            ? {
+                ...current,
+                name: savedName,
+                description: savedDescription,
+                draftDefinition: definition,
+                updatedAt: new Date().toISOString(),
+              }
+            : current
+        )
+        setName(savedName)
+        setDescription(savedDescription)
+        setDirty(false)
       } else {
         const created = await createAIWorkflow({
-          name: name.trim(),
-          description: description.trim(),
+          name: savedName,
+          description: savedDescription,
           definition,
         })
         setActive(created)
         setName(created.name)
         setDescription(created.description)
-        setDefinition(created.draftDefinition)
         setDirty(false)
       }
       onSaved?.()
-      toast.success("草稿已保存")
+      toast.success("保存成功")
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "保存失败")
     } finally {
@@ -180,7 +194,7 @@ export function WorkflowWorkbench({
 
   async function publish() {
     if (!active) {
-      toast.error("请先保存草稿")
+      toast.error("请先保存")
       return
     }
     setSaving(true)
@@ -208,17 +222,8 @@ export function WorkflowWorkbench({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
-      <header className="shrink-0 border-b px-6 py-4">
+      <header className="shrink-0 border-b px-4 py-2">
         <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() =>
-              onClose ? onClose() : router.push("/dashboard/ai-workflows")
-            }
-          >
-            <ArrowLeftIcon className="size-4" />
-          </Button>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h1 className="truncate text-lg font-semibold">
@@ -238,7 +243,7 @@ export function WorkflowWorkbench({
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
-            <Button variant="ghost" onClick={openMetadata}>
+            <Button variant="outline" onClick={openMetadata}>
               编辑信息
             </Button>
             <Button
@@ -246,7 +251,7 @@ export function WorkflowWorkbench({
               disabled={saving}
               onClick={() => void save()}
             >
-              保存草稿
+              保存
             </Button>
             <Button
               disabled={saving || !active}
@@ -275,7 +280,7 @@ export function WorkflowWorkbench({
         >
           {loaded ? (
             <OfficialWorkflowEditor
-              documentKey={String(active?.id ?? (workflowID ? `loading-${workflowID}` : "new"))}
+              documentKey={workflowID ? `workflow-${workflowID}` : "new"}
               definition={definition}
               onDefinitionChange={handleDefinitionChange}
             />
