@@ -3,6 +3,7 @@ import type {
   AIWorkflowNodeSpec,
   AIWorkflowValue,
 } from "@/lib/api/admin"
+import type { WorkflowNodeJSON } from "@flowgram.ai/free-layout-editor"
 
 import type {
   WorkflowConditionBranch,
@@ -104,14 +105,13 @@ export function serializeDefinition(
 export function createNodeJSON(
   spec: AIWorkflowNodeSpec,
   existingNodeIDs: string[] = []
-): WorkflowNode {
+): WorkflowNodeJSON {
   const id = uniqueNodeID(spec.type, existingNodeIDs)
   const config =
     spec.type === "condition" ? { branches: [defaultBranch] } : {}
   return {
     id,
     type: spec.type,
-    meta: { position: { x: 0, y: 0 } },
     data: {
       title: spec.title || spec.type,
       config,

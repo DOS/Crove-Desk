@@ -265,6 +265,7 @@ export function WorkflowWorkbench({
         >
           {nodeSpecs.length ? (
             <WorkflowEditor
+              key={active?.id ?? (workflowID ? `loading-${workflowID}` : "new")}
               definition={definition}
               nodeSpecs={nodeSpecs}
               onDefinitionChange={(next) => {

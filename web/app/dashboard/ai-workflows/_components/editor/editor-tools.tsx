@@ -9,6 +9,7 @@ import {
 import { WorkflowNodePanelService } from "@flowgram.ai/free-node-panel-plugin"
 import {
   type InteractiveType,
+  getAntiOverlapPosition,
   useClientContext,
   usePlayground,
   usePlaygroundTools,
@@ -112,14 +113,35 @@ export function EditorTools({
     await nodePanel.callNodePanel({
       position,
       enableMultiAdd: true,
-      onSelect: (result) => {
+      onSelect: async (result) => {
         if (!result) return
+        const rect = playground.node.getBoundingClientRect()
+        const center = playground.config.getPosFromMouseEvent({
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.top + rect.height / 2,
+        })
+        const existingBounds = document
+          .getAllNodes()
+          .map((item) => item.transform.bounds)
+        const position =
+          existingBounds.length > 0
+            ? {
+                x:
+                  Math.max(...existingBounds.map((bounds) => bounds.right)) +
+                  200,
+                y: Math.min(...existingBounds.map((bounds) => bounds.top)),
+              }
+            : center
         const node: WorkflowNodeEntity = document.createWorkflowNodeByType(
           result.nodeType,
-          undefined,
+          getAntiOverlapPosition(document, position),
           result.nodeJSON ?? ({} as WorkflowNodeJSON)
         )
         selection.selectNode(node)
+        await new Promise<void>((resolve) =>
+          window.requestAnimationFrame(() => resolve())
+        )
+        tools.fitView(false)
       },
       onClose: () => undefined,
     })

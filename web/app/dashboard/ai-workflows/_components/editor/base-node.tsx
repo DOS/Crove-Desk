@@ -39,7 +39,8 @@ export function BaseNode(props: WorkflowNodeProps) {
         className={cn(
           "relative flex w-[360px] flex-col rounded-lg border bg-white",
           "border-[rgba(6,7,9,0.15)] shadow-[0_2px_6px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.02)]",
-          render.selected && "border-[#4e40e5]"
+          render.selected && "border-[#4e40e5]",
+          render.form?.state.invalid && "border-destructive"
         )}
         draggable={!render.readonly}
         onDragStart={(event) => {
