@@ -26,22 +26,20 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   createAIWorkflow,
   fetchAIWorkflow,
-  fetchAIWorkflowNodeSpecs,
+  fetchAIWorkflowDefaultDefinition,
   fetchAIWorkflowUsage,
   fetchAIWorkflowVersions,
   publishAIWorkflow,
   restoreAIWorkflowVersion,
   updateAIWorkflow,
-  validateAIWorkflow,
   type AIWorkflow,
   type AIWorkflowDefinition,
-  type AIWorkflowNodeSpec,
   type AIWorkflowUsage,
   type AIWorkflowVersion,
 } from "@/lib/api/admin"
 import { formatDateTime } from "@/lib/utils"
 
-import { WorkflowEditor } from "./editor/workflow-editor"
+import { OfficialWorkflowEditor } from "./official-workflow-editor"
 
 const emptyDefinition: AIWorkflowDefinition = {
   schemaVersion: 2,
@@ -81,7 +79,6 @@ export function WorkflowWorkbench({
 }: WorkflowWorkbenchProps) {
   const router = useRouter()
   const [active, setActive] = useState<AIWorkflow | null>(null)
-  const [nodeSpecs, setNodeSpecs] = useState<AIWorkflowNodeSpec[]>([])
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [definition, setDefinition] =
@@ -90,14 +87,18 @@ export function WorkflowWorkbench({
   const [usage, setUsage] = useState<AIWorkflowUsage[]>([])
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
+  const [loaded, setLoaded] = useState(false)
   const [metadataOpen, setMetadataOpen] = useState(false)
   const [metadataName, setMetadataName] = useState("")
   const [metadataDescription, setMetadataDescription] = useState("")
 
   const load = useCallback(async () => {
-    const specs = await fetchAIWorkflowNodeSpecs()
-    setNodeSpecs(specs ?? [])
-    if (!workflowID) return
+    setLoaded(false)
+    if (!workflowID) {
+      setDefinition(await fetchAIWorkflowDefaultDefinition())
+      setLoaded(true)
+      return
+    }
 
     const [item, versionPage, uses] = await Promise.all([
       fetchAIWorkflow(workflowID),
@@ -111,7 +112,16 @@ export function WorkflowWorkbench({
     setVersions(versionPage.results ?? [])
     setUsage(uses ?? [])
     setDirty(false)
+    setLoaded(true)
   }, [workflowID])
+
+  const handleDefinitionChange = useCallback(
+    (next: AIWorkflowDefinition) => {
+      setDefinition(next)
+      setDirty(true)
+    },
+    []
+  )
 
   useEffect(() => {
     void load().catch((error) =>
@@ -263,16 +273,11 @@ export function WorkflowWorkbench({
           value="editor"
           className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
         >
-          {nodeSpecs.length ? (
-            <WorkflowEditor
-              key={active?.id ?? (workflowID ? `loading-${workflowID}` : "new")}
+          {loaded ? (
+            <OfficialWorkflowEditor
+              documentKey={String(active?.id ?? (workflowID ? `loading-${workflowID}` : "new"))}
               definition={definition}
-              nodeSpecs={nodeSpecs}
-              onDefinitionChange={(next) => {
-                setDefinition(next)
-                setDirty(true)
-              }}
-              onValidate={() => validateAIWorkflow(definition)}
+              onDefinitionChange={handleDefinitionChange}
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">

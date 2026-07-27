@@ -374,9 +374,10 @@ export type AIWorkflowVariableSpec = {
 }
 
 export type AIWorkflowDefinition = {
-  schemaVersion: number
+  schemaVersion?: number
   nodes: AIWorkflowCanvasNode[]
   annotations?: AIWorkflowCanvasNode[]
+  globalVariable?: Record<string, unknown>
   edges: {
     sourceNodeID: string
     targetNodeID: string
@@ -399,6 +400,8 @@ export type AIWorkflowCanvasNode = {
       inputsValues?: Record<string, AIWorkflowValue>
       [key: string]: unknown
     }
+    blocks?: AIWorkflowCanvasNode[]
+    edges?: AIWorkflowDefinition["edges"]
 }
 
 export type AIWorkflow = {

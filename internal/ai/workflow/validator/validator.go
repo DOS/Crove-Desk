@@ -257,6 +257,10 @@ func (v *definitionValidator) validateConditions() {
 		if strings.TrimSpace(node.Type) != registry.NodeTypeCondition {
 			continue
 		}
+		if rawConditions, ok := node.Data.Extra["conditions"]; ok {
+			v.validateFlowGramConditions(index, node, rawConditions)
+			continue
+		}
 		field := fmt.Sprintf("nodes[%d].config.branches", index)
 		config := dsl.ConditionConfig{}
 		if len(node.Data.Config) > 0 {
@@ -305,6 +309,72 @@ func (v *definitionValidator) validateConditions() {
 			v.addError(field, "condition node must include exactly one default branch")
 		}
 	}
+}
+
+func (v *definitionValidator) validateFlowGramConditions(index int, node dsl.Node, raw json.RawMessage) {
+	field := fmt.Sprintf("nodes[%d].data.conditions", index)
+	var conditions []dsl.FlowGramConditionItem
+	if err := json.Unmarshal(raw, &conditions); err != nil {
+		v.addError(field, "condition data must be valid JSON")
+		return
+	}
+	if len(conditions) == 0 {
+		v.addError(field, "condition node must include at least one condition")
+		return
+	}
+	seenKeys := make(map[string]struct{}, len(conditions))
+	for conditionIndex, item := range conditions {
+		itemField := fmt.Sprintf("%s[%d]", field, conditionIndex)
+		key := strings.TrimSpace(item.Key)
+		if key == "" {
+			v.addError(itemField+".key", "condition key is required")
+		} else if _, exists := seenKeys[key]; exists {
+			v.addError(itemField+".key", "duplicate condition key: "+key)
+		}
+		seenKeys[key] = struct{}{}
+		if !v.hasConditionPortEdge(strings.TrimSpace(node.ID), key) {
+			v.addError(itemField+".key", "condition output port must have an outgoing edge: "+key)
+		}
+		v.validateFlowGramCondition(itemField+".value", strings.TrimSpace(node.ID), item.Value)
+	}
+	if !v.hasConditionPortEdge(strings.TrimSpace(node.ID), "else") {
+		v.addError(field, "condition else port must have an outgoing edge")
+	}
+}
+
+func (v *definitionValidator) validateFlowGramCondition(field string, sourceNodeID string, condition dsl.FlowGramCondition) {
+	operator := strings.TrimSpace(condition.Operator)
+	if !isSupportedConditionOperator(operator) {
+		v.addError(field+".operator", "unsupported condition operator: "+operator)
+		return
+	}
+	sourceSelectorNodeID, sourceField, ok := condition.Left.Ref()
+	sourceSelectorNodeID = strings.TrimSpace(sourceSelectorNodeID)
+	sourceField = strings.TrimSpace(sourceField)
+	if !ok || sourceSelectorNodeID == "" || sourceField == "" {
+		v.addError(field+".left", "condition left variable is required")
+		return
+	}
+	if _, exists := v.nodesByID[sourceSelectorNodeID]; !exists {
+		v.addError(field+".left", "condition source node does not exist: "+sourceSelectorNodeID)
+		return
+	}
+	if sourceNodeID != "" && !v.hasPath(sourceSelectorNodeID, sourceNodeID, make(map[string]struct{})) && sourceSelectorNodeID != sourceNodeID {
+		v.addError(field+".left", "condition source node is not available before branch: "+sourceSelectorNodeID)
+	}
+	if !conditionOperatorWithoutRight(operator) && condition.Right.Type == "" {
+		v.addError(field+".right", "condition comparison value is required")
+	}
+}
+
+func (v *definitionValidator) hasConditionPortEdge(sourceID string, sourcePortID string) bool {
+	for _, edge := range v.def.Edges {
+		if strings.TrimSpace(edge.SourceNodeID) == sourceID &&
+			strings.TrimSpace(edge.SourcePortID) == sourcePortID {
+			return true
+		}
+	}
+	return false
 }
 
 func (v *definitionValidator) validateKnowledgeRetrieveConfigs() {

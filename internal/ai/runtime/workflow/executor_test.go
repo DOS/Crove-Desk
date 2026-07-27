@@ -44,6 +44,61 @@ func TestExecutorRoutesByConditionNodeBranch(t *testing.T) {
 	assertPath(t, result.NodePath, []string{"start_1", "condition_1", "vip_reply", "send_vip", "end_1"})
 }
 
+func TestExecutorRoutesOfficialFlowGramConditionPorts(t *testing.T) {
+	definition := officialFlowGramConditionDefinition()
+	result, err := NewExecutor().Execute(context.Background(), Input{
+		Definition:  definition,
+		UserMessage: models.Message{Content: "hello FlowGram"},
+	})
+	if err != nil {
+		t.Fatalf("execute workflow: %v", err)
+	}
+	assertPath(t, result.NodePath, []string{"start_0", "condition_0", "matched_end"})
+
+	result, err = NewExecutor().Execute(context.Background(), Input{
+		Definition:  definition,
+		UserMessage: models.Message{Content: "goodbye"},
+	})
+	if err != nil {
+		t.Fatalf("execute workflow else branch: %v", err)
+	}
+	assertPath(t, result.NodePath, []string{"start_0", "condition_0", "else_end"})
+}
+
+func officialFlowGramConditionDefinition() dsl.Definition {
+	return dsl.Definition{
+		Nodes: []dsl.Node{
+			{ID: "start_0", Type: workflowregistry.NodeTypeStart, Data: dsl.NodeData{Title: "Start"}},
+			{
+				ID:   "condition_0",
+				Type: workflowregistry.NodeTypeCondition,
+				Data: dsl.NodeData{
+					Title: "Condition",
+					Extra: map[string]json.RawMessage{
+						"conditions": mustMarshalWorkflowTestConfig([]dsl.FlowGramConditionItem{
+							{
+								Key: "if_0",
+								Value: dsl.FlowGramCondition{
+									Left:     dsl.RefValue("start_0", "query"),
+									Operator: "contains",
+									Right:    dsl.ConstantValue("hello"),
+								},
+							},
+						}),
+					},
+				},
+			},
+			{ID: "matched_end", Type: workflowregistry.NodeTypeEnd, Data: dsl.NodeData{Title: "End"}},
+			{ID: "else_end", Type: workflowregistry.NodeTypeEnd, Data: dsl.NodeData{Title: "End"}},
+		},
+		Edges: []dsl.Edge{
+			{SourceNodeID: "start_0", TargetNodeID: "condition_0"},
+			{SourceNodeID: "condition_0", TargetNodeID: "matched_end", SourcePortID: "if_0"},
+			{SourceNodeID: "condition_0", TargetNodeID: "else_end", SourcePortID: "else"},
+		},
+	}
+}
+
 func TestExecutorConditionNodeTraceExplainsMatchedEdge(t *testing.T) {
 	result, err := NewExecutor().Execute(context.Background(), Input{
 		Definition: conditionalReplyDefinition(),

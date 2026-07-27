@@ -12,6 +12,7 @@ dist/
 __debug_bin*
 node_modules/
 .next/
+.task/
 *.tsbuildinfo
 
 .superpowers
@@ -19,3 +20,4 @@ node_modules/
 agent-desk
 
 test-reports
+web/public/flowgram-editor/

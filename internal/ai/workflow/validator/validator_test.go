@@ -18,6 +18,46 @@ func TestValidateDefinitionAcceptsMinimalFlowGramStyleFlow(t *testing.T) {
 	}
 }
 
+func TestValidateDefinitionAcceptsOfficialFlowGramCondition(t *testing.T) {
+	def := dsl.Definition{
+		Nodes: []dsl.Node{
+			node("start_0", "start", nil, nil),
+			{
+				ID:   "condition_0",
+				Type: "condition",
+				Data: dsl.NodeData{
+					Title: "Condition",
+					Extra: map[string]json.RawMessage{
+						"conditions": mustJSON([]dsl.FlowGramConditionItem{
+							{
+								Key: "if_0",
+								Value: dsl.FlowGramCondition{
+									Left:     dsl.RefValue("start_0", "query"),
+									Operator: "contains",
+									Right:    dsl.ConstantValue("hello"),
+								},
+							},
+						}),
+					},
+				},
+			},
+			node("matched_end", "end", nil, nil),
+			node("else_end", "end", nil, nil),
+		},
+		Edges: []dsl.Edge{
+			edge("start_0", "condition_0"),
+			portEdge("condition_0", "matched_end", "if_0"),
+			portEdge("condition_0", "else_end", "else"),
+		},
+	}
+
+	result := validator.ValidateDefinition(def, registry.DefaultRegistry())
+
+	if !result.Valid {
+		t.Fatalf("expected official FlowGram condition to be valid, got %#v", result.Errors)
+	}
+}
+
 func TestValidateDefinitionRejectsMissingStart(t *testing.T) {
 	def := minimalDefinition()
 	def.Nodes = []dsl.Node{

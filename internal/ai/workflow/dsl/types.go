@@ -5,10 +5,11 @@ import "encoding/json"
 const SchemaVersion = 2
 
 type Definition struct {
-	SchemaVersion int    `json:"schemaVersion"`
-	Nodes         []Node `json:"nodes"`
-	Annotations   []Node `json:"annotations,omitempty"`
-	Edges         []Edge `json:"edges"`
+	SchemaVersion  int             `json:"schemaVersion,omitempty"`
+	Nodes          []Node          `json:"nodes"`
+	Annotations    []Node          `json:"annotations,omitempty"`
+	Edges          []Edge          `json:"edges"`
+	GlobalVariable json.RawMessage `json:"globalVariable,omitempty"`
 }
 
 type Node struct {
@@ -77,6 +78,17 @@ type Condition struct {
 	Left       *Value `json:"left,omitempty"`
 	Operator   string `json:"operator,omitempty"`
 	Right      any    `json:"right,omitempty"`
+}
+
+type FlowGramConditionItem struct {
+	Key   string            `json:"key"`
+	Value FlowGramCondition `json:"value"`
+}
+
+type FlowGramCondition struct {
+	Left     Value  `json:"left"`
+	Operator string `json:"operator"`
+	Right    Value  `json:"right"`
 }
 
 func RefValue(nodeID string, field string) Value {

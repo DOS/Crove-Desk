@@ -10,7 +10,6 @@ import { Toaster } from "@/components/ui/sonner"
 import { AppI18nProvider } from "@/i18n/provider"
 
 import "@/app/globals.css"
-import "@flowgram.ai/free-layout-editor/index.css"
 import "md-editor-rt/lib/style.css"
 import "@/styles/main.scss"
 

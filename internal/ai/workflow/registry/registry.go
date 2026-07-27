@@ -9,6 +9,18 @@ const (
 	NodeTypeKnowledgeRetrieve         = "knowledge_retrieve"
 	NodeTypeAnswerabilityGate         = "answerability_gate"
 	NodeTypeLLMReply                  = "llm_reply"
+	NodeTypeLLM                       = "llm"
+	NodeTypeHTTP                      = "http"
+	NodeTypeCode                      = "code"
+	NodeTypeVariable                  = "variable"
+	NodeTypeMultiCondition            = "multi-condition"
+	NodeTypeLoop                      = "loop"
+	NodeTypeBlockStart                = "block-start"
+	NodeTypeBlockEnd                  = "block-end"
+	NodeTypeComment                   = "comment"
+	NodeTypeContinue                  = "continue"
+	NodeTypeBreak                     = "break"
+	NodeTypeGroup                     = "group"
 	NodeTypeCondition                 = "condition"
 	NodeTypeAnalyzeConversation       = "analyze_conversation"
 	NodeTypePrepareTicketDraft        = "prepare_ticket_draft"
@@ -297,7 +309,37 @@ func DefaultRegistry() *Registry {
 				output("status", "结束状态", VariableTypeString, "工作流执行结束时的状态。"),
 			},
 		},
+		NodeSpec{
+			Type:        NodeTypeLLM,
+			Title:       "LLM",
+			Description: "Call the large language model and generate responses.",
+			RiskLevel:   NodeRiskLevelLow,
+			OutputSchema: []VariableSpec{
+				output("result", "Result", VariableTypeString, "The generated model response."),
+			},
+		},
+		officialNodeSpec(NodeTypeHTTP, "HTTP", "Send an HTTP request."),
+		officialNodeSpec(NodeTypeCode, "Code", "Run JavaScript code."),
+		officialNodeSpec(NodeTypeVariable, "Variable", "Assign workflow variables."),
+		officialNodeSpec(NodeTypeMultiCondition, "Multi Condition", "Route through multiple condition branches."),
+		officialNodeSpec(NodeTypeLoop, "Loop", "Iterate over an array in a sub-canvas."),
+		officialNodeSpec(NodeTypeBlockStart, "Block Start", "Start a container block."),
+		officialNodeSpec(NodeTypeBlockEnd, "Block End", "End a container block."),
+		officialNodeSpec(NodeTypeComment, "Comment", "Add a canvas annotation."),
+		officialNodeSpec(NodeTypeContinue, "Continue", "Continue the current loop."),
+		officialNodeSpec(NodeTypeBreak, "Break", "Break the current loop."),
+		officialNodeSpec(NodeTypeGroup, "Group", "Group related workflow nodes."),
 	)
+}
+
+func officialNodeSpec(nodeType string, title string, description string) NodeSpec {
+	return NodeSpec{
+		Type:        nodeType,
+		Title:       title,
+		Description: description,
+		Icon:        "",
+		RiskLevel:   NodeRiskLevelLow,
+	}
 }
 
 func requiredInput(name string, label string, variableType VariableType, description string) VariableSpec {

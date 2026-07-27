@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import type { AIWorkflowNodeRun, AIWorkflowRun } from "@/lib/api/admin"
 import { cn } from "@/lib/utils"
 
-import { WorkflowReadonlyCanvas } from "../../ai-workflows/_components/editor/workflow-editor"
+import { OfficialWorkflowEditor } from "../../ai-workflows/_components/official-workflow-editor"
 
 export function WorkflowRunAuditGraph({ run }: { run: AIWorkflowRun }) {
   const nodeRuns = useMemo(() => run.nodes ?? [], [run.nodes])
@@ -22,8 +22,11 @@ export function WorkflowRunAuditGraph({ run }: { run: AIWorkflowRun }) {
   return (
     <div className="grid min-h-[520px] grid-cols-[minmax(0,1fr)_320px] overflow-hidden border">
       <div className="relative min-w-0">
-        <WorkflowReadonlyCanvas
-          definition={run.definition ?? { schemaVersion: 2, nodes: [], edges: [] }}
+        <OfficialWorkflowEditor
+          documentKey={`run-${run.id}`}
+          definition={run.definition ?? { nodes: [], edges: [] }}
+          onDefinitionChange={() => undefined}
+          readonly
         />
         <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap gap-2">
           <Badge variant="secondary" className="gap-1">

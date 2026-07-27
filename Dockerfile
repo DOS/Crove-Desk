@@ -1,5 +1,16 @@
 # syntax=docker/dockerfile:1.7
 
+FROM node:24-alpine AS flowgram-editor-builder
+WORKDIR /src/flowgram-editor
+
+RUN corepack enable && corepack prepare pnpm@10.30.2 --activate
+COPY flowgram-editor/package.json flowgram-editor/pnpm-lock.yaml ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+	pnpm install --frozen-lockfile
+
+COPY flowgram-editor/ ./
+RUN pnpm build
+
 FROM node:24-alpine AS web-builder
 WORKDIR /src/web
 
@@ -9,6 +20,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 	pnpm install --frozen-lockfile
 
 COPY web/ ./
+COPY --from=flowgram-editor-builder /src/web/public/flowgram-editor ./public/flowgram-editor
 RUN pnpm build:sdk && pnpm build
 
 FROM golang:1.26-alpine AS server-builder

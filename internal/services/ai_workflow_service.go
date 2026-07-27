@@ -339,6 +339,63 @@ func (s *aiWorkflowService) PublishWorkflow(req request.PublishAIWorkflowRequest
 }
 
 func defaultAgentWorkflowDefinition() dsl.Definition {
+	return officialDefaultAgentWorkflowDefinition()
+}
+
+func officialDefaultAgentWorkflowDefinition() dsl.Definition {
+	return dsl.Definition{
+		Nodes: []dsl.Node{
+			{
+				ID:   "start_0",
+				Type: workflowregistry.NodeTypeStart,
+				Meta: dsl.NodeMeta{Position: dsl.Position{X: 180, Y: 300}},
+				Data: dsl.NodeData{
+					Title:   "Start",
+					Outputs: json.RawMessage(`{"type":"object","properties":{"query":{"type":"string","default":"Hello Flow."}}}`),
+				},
+			},
+			{
+				ID:   "llm_0",
+				Type: workflowregistry.NodeTypeLLM,
+				Meta: dsl.NodeMeta{Position: dsl.Position{X: 640, Y: 220}},
+				Data: dsl.NodeData{
+					Title: "LLM",
+					InputsValues: map[string]dsl.Value{
+						"modelName":   dsl.ConstantValue("gpt-3.5-turbo"),
+						"apiKey":      dsl.ConstantValue("sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
+						"apiHost":     dsl.ConstantValue("https://mock-ai-url/api/v3"),
+						"temperature": dsl.ConstantValue(0.5),
+						"systemPrompt": dsl.TemplateValue(
+							"# Role\nYou are an AI assistant.\n",
+						),
+						"prompt": dsl.TemplateValue(""),
+					},
+					Inputs:  json.RawMessage(`{"type":"object","required":["modelName","apiKey","apiHost","temperature","prompt"],"properties":{"modelName":{"type":"string"},"apiKey":{"type":"string"},"apiHost":{"type":"string"},"temperature":{"type":"number"},"systemPrompt":{"type":"string","extra":{"formComponent":"prompt-editor"}},"prompt":{"type":"string","extra":{"formComponent":"prompt-editor"}}}}`),
+					Outputs: json.RawMessage(`{"type":"object","properties":{"result":{"type":"string"}}}`),
+				},
+			},
+			{
+				ID:   "end_0",
+				Type: workflowregistry.NodeTypeEnd,
+				Meta: dsl.NodeMeta{Position: dsl.Position{X: 1100, Y: 300}},
+				Data: dsl.NodeData{
+					Title: "End",
+					InputsValues: map[string]dsl.Value{
+						"result": dsl.RefValue("llm_0", "result"),
+					},
+					Inputs: json.RawMessage(`{"type":"object","properties":{"result":{"type":"string"}}}`),
+				},
+			},
+		},
+		Edges: []dsl.Edge{
+			{SourceNodeID: "start_0", TargetNodeID: "llm_0"},
+			{SourceNodeID: "llm_0", TargetNodeID: "end_0"},
+		},
+		GlobalVariable: json.RawMessage(`{"type":"object","properties":{}}`),
+	}
+}
+
+func legacyDefaultAgentWorkflowDefinition() dsl.Definition {
 	return dsl.Definition{
 		SchemaVersion: dsl.SchemaVersion,
 		Nodes: []dsl.Node{

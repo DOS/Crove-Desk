@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,6 +38,26 @@ func TestAIWorkflowServiceValidateDefinitionReportsErrors(t *testing.T) {
 	}
 	if len(result.Errors) == 0 {
 		t.Fatalf("expected validation errors")
+	}
+}
+
+func TestAIWorkflowServiceDefaultDefinitionUsesOfficialFlowGramModel(t *testing.T) {
+	definition := defaultAgentWorkflowDefinition()
+	if definition.SchemaVersion != 0 {
+		t.Fatalf("official FlowGram definition must not contain the legacy schemaVersion, got %d", definition.SchemaVersion)
+	}
+	if len(definition.Nodes) != 3 {
+		t.Fatalf("default node count = %d, want 3", len(definition.Nodes))
+	}
+	nodeTypes := []string{definition.Nodes[0].Type, definition.Nodes[1].Type, definition.Nodes[2].Type}
+	if strings.Join(nodeTypes, ",") != "start,llm,end" {
+		t.Fatalf("default node types = %v, want [start llm end]", nodeTypes)
+	}
+	if len(definition.GlobalVariable) == 0 {
+		t.Fatalf("official FlowGram globalVariable is required")
+	}
+	if result := AIWorkflowService.ValidateDefinition(definition); !result.Valid {
+		t.Fatalf("default official FlowGram definition is invalid: %#v", result.Errors)
 	}
 }
 

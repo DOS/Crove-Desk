@@ -185,6 +185,8 @@ tasks:
 
   dev:frontend:
     internal: true
+    deps:
+      - task: build:flowgram-editor
     cmds:
       - |
         echo "Starting frontend on http://localhost:3000 ..."
@@ -192,8 +194,23 @@ tasks:
 
   build:web:
     internal: true
+    deps:
+      - task: build:flowgram-editor
     cmds:
       - 'cd {{.WEB_DIR}} && {{.PNPM}} build:sdk && {{.PNPM}} build'
+
+  build:flowgram-editor:
+    internal: true
+    sources:
+      - flowgram-editor/src/**/*
+      - flowgram-editor/package.json
+      - flowgram-editor/pnpm-lock.yaml
+      - flowgram-editor/rsbuild.config.ts
+    generates:
+      - web/public/flowgram-editor/index.html
+    cmds:
+      - 'cd flowgram-editor && {{.PNPM}} install --frozen-lockfile'
+      - 'cd flowgram-editor && {{.PNPM}} build'
 
   build:dist:
     internal: true

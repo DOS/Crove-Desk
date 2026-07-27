@@ -265,11 +265,13 @@ func (s *runState) startNodeID() string {
 func (e *Executor) executeNode(ctx context.Context, state *runState, node dsl.Node) error {
 	switch node.Type {
 	case workflowregistry.NodeTypeStart:
+		userMessage := strings.TrimSpace(state.input.UserMessage.Content)
 		state.setNodeVars(node.ID, map[string]any{
 			"conversationId":    state.input.Conversation.ID,
 			"messageId":         state.input.UserMessage.ID,
 			"aiAgentId":         state.input.AIAgent.ID,
-			"userMessage":       strings.TrimSpace(state.input.UserMessage.Content),
+			"userMessage":       userMessage,
+			"query":             userMessage,
 			"conversationState": state.input.Conversation.Status,
 		})
 	case workflowregistry.NodeTypeConversationUnderstanding:
@@ -292,6 +294,8 @@ func (e *Executor) executeNode(ctx context.Context, state *runState, node dsl.No
 		return e.executeCreateTicket(state, node)
 	case workflowregistry.NodeTypeLLMReply:
 		return e.executeLLMReply(ctx, state, node)
+	case workflowregistry.NodeTypeLLM:
+		return e.executeOfficialLLM(ctx, state, node)
 	case workflowregistry.NodeTypeSendReply:
 		replyText := strings.TrimSpace(toString(state.resolveInput(node, "replyText")))
 		state.result.ReplyText = replyText
@@ -302,10 +306,35 @@ func (e *Executor) executeNode(ctx context.Context, state *runState, node dsl.No
 	case workflowregistry.NodeTypeHandoffToHuman:
 		return e.executeHandoffToHuman(state, node)
 	case workflowregistry.NodeTypeEnd:
-		state.setNodeVars(node.ID, map[string]any{"status": "completed"})
+		outputs := state.resolvedInputs(node)
+		outputs["status"] = "completed"
+		state.setNodeVars(node.ID, outputs)
+		if state.result.ReplyText == "" {
+			state.result.ReplyText = strings.TrimSpace(toString(outputs["result"]))
+		}
 	default:
 		return fmt.Errorf("unsupported workflow node type: %s", node.Type)
 	}
+	return nil
+}
+
+func (e *Executor) executeOfficialLLM(ctx context.Context, state *runState, node dsl.Node) error {
+	systemPrompt := strings.TrimSpace(toString(state.resolveInput(node, "systemPrompt")))
+	if systemPrompt == "" {
+		systemPrompt = strings.TrimSpace(state.input.AIAgent.SystemPrompt)
+	}
+	userPrompt := strings.TrimSpace(toString(state.resolveInput(node, "prompt")))
+	if userPrompt == "" {
+		userPrompt = strings.TrimSpace(state.input.UserMessage.Content)
+	}
+	result, err := ai.LLM.ChatWithConfig(ctx, state.input.AIConfig, systemPrompt, userPrompt)
+	if err != nil {
+		return err
+	}
+	state.result.PromptTokens += result.PromptTokens
+	state.result.CompletionTokens += result.CompletionTokens
+	state.result.ReplyText = strings.TrimSpace(result.Content)
+	state.setNodeVars(node.ID, map[string]any{"result": result.Content})
 	return nil
 }
 
@@ -862,6 +891,9 @@ func (s *runState) nextNodeID(sourceNodeID string) (string, bool, error) {
 	if strings.TrimSpace(node.Type) != workflowregistry.NodeTypeCondition {
 		return strings.TrimSpace(edges[0].TargetNodeID), true, nil
 	}
+	if rawConditions, ok := node.Data.Extra["conditions"]; ok {
+		return s.nextFlowGramConditionNodeID(sourceNodeID, rawConditions)
+	}
 	config := dsl.ConditionConfig{}
 	if len(node.Data.Config) > 0 {
 		if err := json.Unmarshal(node.Data.Config, &config); err != nil {
@@ -911,6 +943,100 @@ func (s *runState) nextNodeID(sourceNodeID string) (string, bool, error) {
 		Evaluations: evaluations,
 	}
 	return "", false, nil
+}
+
+func (s *runState) nextFlowGramConditionNodeID(sourceNodeID string, raw json.RawMessage) (string, bool, error) {
+	var conditions []dsl.FlowGramConditionItem
+	if err := json.Unmarshal(raw, &conditions); err != nil {
+		return "", false, fmt.Errorf("invalid FlowGram condition data: %w", err)
+	}
+	evaluations := make([]conditionEvaluation, 0, len(conditions))
+	for _, item := range conditions {
+		matched, evaluation, err := s.evaluateFlowGramCondition(sourceNodeID, item)
+		if err != nil {
+			return "", false, err
+		}
+		evaluations = append(evaluations, evaluation)
+		if !matched {
+			continue
+		}
+		if edge, ok := s.edgeForSourcePort(sourceNodeID, item.Key); ok {
+			targetNodeID := strings.TrimSpace(edge.TargetNodeID)
+			s.branchDecisions[sourceNodeID] = branchDecision{
+				SelectedEdgeID:       strings.TrimSpace(item.Key),
+				SelectedBranchID:     strings.TrimSpace(item.Key),
+				SelectedTargetNodeID: targetNodeID,
+				Reason:               "condition branch matched",
+				Evaluations:          evaluations,
+			}
+			return targetNodeID, true, nil
+		}
+	}
+	if edge, ok := s.edgeForSourcePort(sourceNodeID, "else"); ok {
+		targetNodeID := strings.TrimSpace(edge.TargetNodeID)
+		s.branchDecisions[sourceNodeID] = branchDecision{
+			SelectedEdgeID:       "else",
+			SelectedBranchID:     "else",
+			SelectedTargetNodeID: targetNodeID,
+			Reason:               "no condition branch matched; selected else branch",
+			Evaluations:          evaluations,
+		}
+		return targetNodeID, true, nil
+	}
+	return "", false, nil
+}
+
+func (s *runState) evaluateFlowGramCondition(sourceNodeID string, item dsl.FlowGramConditionItem) (bool, conditionEvaluation, error) {
+	left := s.resolveValue(item.Value.Left)
+	right := s.resolveValue(item.Value.Right)
+	operator := strings.TrimSpace(item.Value.Operator)
+	evaluation := conditionEvaluation{
+		EdgeID:       strings.TrimSpace(item.Key),
+		BranchID:     strings.TrimSpace(item.Key),
+		SourceNodeID: sourceNodeID,
+		Operator:     operator,
+		LeftValue:    left,
+		RightValue:   right,
+	}
+	evaluation.SourceNodeID, evaluation.SourceField, _ = item.Value.Left.Ref()
+	var matched bool
+	switch operator {
+	case "eq", "equals":
+		matched = compareString(left, right) == 0
+	case "neq", "not_equals":
+		matched = compareString(left, right) != 0
+	case "contains":
+		matched = strings.Contains(toString(left), toString(right))
+	case "exists":
+		matched = exists(left)
+	case "not_exists":
+		matched = !exists(left)
+	case "truthy", "is_true":
+		matched = truthy(left)
+	case "falsy", "is_false":
+		matched = !truthy(left)
+	case "gt":
+		matched = compareNumber(left, right) > 0
+	case "gte":
+		matched = compareNumber(left, right) >= 0
+	case "lt":
+		matched = compareNumber(left, right) < 0
+	case "lte":
+		matched = compareNumber(left, right) <= 0
+	default:
+		return false, evaluation, fmt.Errorf("unsupported workflow condition operator: %s", operator)
+	}
+	evaluation.Matched = matched
+	return matched, evaluation, nil
+}
+
+func (s *runState) edgeForSourcePort(sourceNodeID string, sourcePortID string) (dsl.Edge, bool) {
+	for _, edge := range s.outgoing[sourceNodeID] {
+		if strings.TrimSpace(edge.SourcePortID) == strings.TrimSpace(sourcePortID) {
+			return edge, true
+		}
+	}
+	return dsl.Edge{}, false
 }
 
 func (s *runState) evaluateConditionBranch(sourceNodeID string, branch dsl.ConditionBranch) (bool, conditionEvaluation, error) {
