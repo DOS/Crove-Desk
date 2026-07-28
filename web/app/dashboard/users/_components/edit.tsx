@@ -216,7 +216,7 @@ function UserEditDrawerBody({
                 <FieldError errors={[errors.nickname]} />
               </FieldContent>
             </Field>
-            <Field className="min-h-32" data-invalid={!!errors.avatar}>
+            <Field data-invalid={!!errors.avatar}>
               <FieldLabel>{t("user.avatar")}</FieldLabel>
               <FieldContent>
                 <Controller
