@@ -136,11 +136,11 @@ export default function KnowledgeBaseDetailPage() {
               </Button>
             </div>
           ) : null}
-          <TabsList className="ml-auto h-8 shrink-0 border bg-muted/40 p-0.5">
-            <TabsTrigger value="documents" className="h-7 px-3 text-xs text-muted-foreground data-[state=active]:bg-background data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+          <TabsList>
+            <TabsTrigger value="documents">
               {isFAQKnowledgeBase ? t("knowledge.faq") : t("knowledge.document")}
             </TabsTrigger>
-            <TabsTrigger value="retrieveLogs" className="h-7 px-3 text-xs text-muted-foreground data-[state=active]:bg-background data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+            <TabsTrigger value="retrieveLogs">
               {t("knowledge.retrieveLogs")}
             </TabsTrigger>
           </TabsList>
