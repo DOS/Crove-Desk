@@ -339,17 +339,21 @@ export default function DashboardUsersPage() {
             <Table>
               <TableHeader className="bg-muted/40">
                 <TableRow>
+                  <TableHead className="w-20">ID</TableHead>
                   <TableHead>{t("user.columnUser")}</TableHead>
                   <TableHead>{t("user.columnRoles")}</TableHead>
                   <TableHead>{t("user.columnStatus")}</TableHead>
-                  <TableHead>{t("user.columnLastLogin")}</TableHead>
                   <TableHead>{t("user.columnContact")}</TableHead>
+                  <TableHead>{t("user.columnLastLogin")}</TableHead>
                   <TableHead className="w-[92px] text-right">{t("user.columnActions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {list.result.results.map((item) => (
                   <TableRow key={item.id}>
+                    <TableCell className="font-mono text-sm text-muted-foreground">
+                      {item.id}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="flex size-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -386,15 +390,15 @@ export default function DashboardUsersPage() {
                       ) : null}
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">{formatDateTime(item.lastLoginAt)}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {item.lastLoginIp || "-"}
-                      </div>
-                    </TableCell>
-                    <TableCell>
                       <div className="text-sm">{item.mobile || "-"}</div>
                       <div className="text-xs text-muted-foreground">
                         {item.email || "-"}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">{formatDateTime(item.lastLoginAt)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {item.lastLoginIp || "-"}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
@@ -450,7 +454,7 @@ export default function DashboardUsersPage() {
                 ))}
                 {list.loading || list.result.results.length === 0 ? (
                   <DashboardTableStateRow
-                    colSpan={6}
+                    colSpan={7}
                     loading={list.loading}
                     loadingText={t("user.loadingRows")}
                     emptyText={t("user.emptyRows")}
