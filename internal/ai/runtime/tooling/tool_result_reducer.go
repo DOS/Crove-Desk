@@ -98,5 +98,27 @@ func appendNonBlankSegment(input []string, value string) []string {
 	if value == "" {
 		return input
 	}
+	key := canonicalToolResultSegment(value)
+	for _, existing := range input {
+		if canonicalToolResultSegment(existing) == key {
+			return input
+		}
+	}
 	return append(input, value)
+}
+
+func canonicalToolResultSegment(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	var payload any
+	if err := json.Unmarshal([]byte(value), &payload); err != nil {
+		return value
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return value
+	}
+	return string(data)
 }

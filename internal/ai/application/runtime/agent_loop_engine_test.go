@@ -187,6 +187,54 @@ func TestAgentLoopPromptAvoidsRepeatingWelcomeMessage(t *testing.T) {
 	}
 }
 
+func TestCompleteConfirmedMCPReplyGeneratesCustomerFacingAnswerWithoutTools(t *testing.T) {
+	engine := NewAgentLoopEngine()
+	var systemPrompt string
+	var userPrompt string
+	engine.complete = func(_ context.Context, _ models.AIConfig, system, user string) (*ai.ChatCompletionResult, error) {
+		systemPrompt = system
+		userPrompt = user
+		return &ai.ChatCompletionResult{
+			Content:          "当前服务端时间是 2026-07-28 11:51:52。",
+			ModelName:        "test-model",
+			PromptTokens:     20,
+			CompletionTokens: 10,
+		}, nil
+	}
+
+	result, err := engine.completeConfirmedMCPReply(
+		context.Background(),
+		models.AIAgent{},
+		models.AIConfig{ModelName: "test-model"},
+		"获取当前时间",
+		"现在几点钟？",
+		`{"timestamp":"2026-07-28 11:51:52","timezone":"Local"}`,
+	)
+	if err != nil {
+		t.Fatalf("complete confirmed MCP reply: %v", err)
+	}
+	if result.Content != "当前服务端时间是 2026-07-28 11:51:52。" {
+		t.Fatalf("unexpected customer reply: %#v", result)
+	}
+	for _, expected := range []string{
+		"Do not request or invoke another tool",
+		"现在几点钟？",
+		"获取当前时间",
+		`"timestamp":"2026-07-28 11:51:52"`,
+	} {
+		if !strings.Contains(systemPrompt+"\n"+userPrompt, expected) {
+			t.Fatalf("post-tool completion context missing %q: system=%q user=%q", expected, systemPrompt, userPrompt)
+		}
+	}
+}
+
+func TestConfirmedMCPReplyFallbackDoesNotExposeRawResult(t *testing.T) {
+	got := buildAgentLoopConfirmedMCPFallback("获取当前时间")
+	if got != "“获取当前时间”已成功执行。" || strings.Contains(got, "{") {
+		t.Fatalf("unexpected confirmed MCP fallback: %q", got)
+	}
+}
+
 func TestAgentTurnPublishesAllConfiguredCapabilityKinds(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
