@@ -3,12 +3,12 @@ package aiagent
 import (
 	"agent-desk/cmd/testdata/seedlang"
 	"agent-desk/cmd/testdata/seeds"
-	"agent-desk/cmd/testdata/skill"
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/utils"
 	"agent-desk/internal/repositories"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/mlogclub/simple/sqls"
@@ -38,24 +38,30 @@ func Init(lang seedlang.Language) (*InitResult, error) {
 	}
 
 	defaultTeamIDs := getDefaultTeamIDs()
-	defaultSkillIDs, err := getDefaultSkillIDs()
-	if err != nil {
-		return result, fmt.Errorf("get default skill ids failed: %w", err)
-	}
-
-	seedItems := buildModels(lang, aiConfigID, knowledgeIDs, defaultTeamIDs, defaultSkillIDs)
-	for _, item := range seedItems {
+	agentSeeds := seeds.AIAgentSeeds(lang)
+	seedItems := buildModels(lang, aiConfigID, knowledgeIDs, defaultTeamIDs)
+	for index, item := range seedItems {
 		itemCopy := item
 		if err := sqls.WithTransaction(func(ctx *sqls.TxContext) error {
 			existing := repositories.AIAgentRepository.Take(ctx.Tx, "name = ?", itemCopy.Name)
+			if existing == nil {
+				for _, legacyName := range agentSeeds[index].LegacyNames {
+					legacyName = strings.TrimSpace(legacyName)
+					if legacyName == "" {
+						continue
+					}
+					existing = repositories.AIAgentRepository.Take(ctx.Tx, "name = ?", legacyName)
+					if existing != nil {
+						break
+					}
+				}
+			}
 			if existing != nil {
-				// 更新
-				if err := ctx.Tx.Model(existing).Updates(&itemCopy).Error; err != nil {
+				if err := ctx.Tx.Model(existing).Updates(seedUpdateColumns(itemCopy)).Error; err != nil {
 					return err
 				}
 				result.Updated++
 			} else {
-				// 创建
 				if err := ctx.Tx.Create(&itemCopy).Error; err != nil {
 					return err
 				}
@@ -70,7 +76,7 @@ func Init(lang seedlang.Language) (*InitResult, error) {
 	return result, nil
 }
 
-func buildModels(lang seedlang.Language, aiConfigID int64, knowledgeIDs []int64, defaultTeamIDs string, defaultSkillIDs string) []models.AIAgent {
+func buildModels(lang seedlang.Language, aiConfigID int64, knowledgeIDs []int64, defaultTeamIDs string) []models.AIAgent {
 	now := time.Now()
 	seedItems := seeds.AIAgentSeeds(lang)
 	items := make([]models.AIAgent, 0, len(seedItems))
@@ -89,7 +95,8 @@ func buildModels(lang seedlang.Language, aiConfigID int64, knowledgeIDs []int64,
 			FallbackMode:        seed.FallbackMode,
 			FallbackMessage:     seed.FallbackMessage,
 			KnowledgeIDs:        utils.JoinInt64s(knowledgeIDs),
-			SkillIDs:            defaultSkillIDs,
+			SkillIDs:            "",
+			AllowedMCPTools:     "",
 			SortNo:              seed.SortNo,
 			AuditFields: models.AuditFields{
 				CreatedAt:      now,
@@ -102,6 +109,30 @@ func buildModels(lang seedlang.Language, aiConfigID int64, knowledgeIDs []int64,
 		})
 	}
 	return items
+}
+
+func seedUpdateColumns(item models.AIAgent) map[string]any {
+	return map[string]any{
+		"name":                  item.Name,
+		"description":           item.Description,
+		"status":                item.Status,
+		"ai_config_id":          item.AIConfigID,
+		"service_mode":          item.ServiceMode,
+		"system_prompt":         item.SystemPrompt,
+		"welcome_message":       item.WelcomeMessage,
+		"reply_timeout_seconds": item.ReplyTimeoutSeconds,
+		"team_ids":              item.TeamIDs,
+		"handoff_mode":          item.HandoffMode,
+		"fallback_mode":         item.FallbackMode,
+		"fallback_message":      item.FallbackMessage,
+		"knowledge_ids":         item.KnowledgeIDs,
+		"skill_ids":             item.SkillIDs,
+		"allowed_mcp_tools":     item.AllowedMCPTools,
+		"sort_no":               item.SortNo,
+		"updated_at":            item.UpdatedAt,
+		"update_user_id":        item.UpdateUserID,
+		"update_user_name":      item.UpdateUserName,
+	}
 }
 
 func getDefaultAIConfigID() (int64, error) {
@@ -139,15 +170,4 @@ func getDefaultTeamIDs() string {
 		teamIDs = append(teamIDs, team.ID)
 	}
 	return utils.JoinInt64s(teamIDs)
-}
-
-func getDefaultSkillIDs() (string, error) {
-	skillItem := repositories.SkillDefinitionRepository.FindOne(
-		sqls.DB(),
-		sqls.NewCnd().Where("status = ?", enums.StatusOk).Desc("id"),
-	)
-	if skillItem == nil {
-		return "", fmt.Errorf("default test skill not found")
-	}
-	return utils.JoinInt64s([]int64{skillItem.ID}), nil
 }
