@@ -191,18 +191,18 @@ function CreateUserDrawerBody({
   }
 
   return (
-    <DrawerContent className="min-w-2xl">
-      <DrawerHeader>
+    <DrawerContent className="min-w-2xl overflow-hidden">
+      <DrawerHeader className="shrink-0">
         <DrawerTitle>{t("user.createTitle")}</DrawerTitle>
         <DrawerDescription>
           {t("user.createDescription")}
         </DrawerDescription>
       </DrawerHeader>
       <form
-        className="flex h-full flex-col"
+        className="flex min-h-0 flex-1 flex-col"
         onSubmit={handleSubmit(onFormSubmit)}
       >
-        <div className="space-y-4 overflow-y-auto px-4 pb-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4">
           <Field data-invalid={!!errors.username}>
             <FieldLabel htmlFor="create-username">{t("user.username")}</FieldLabel>
             <FieldContent>
@@ -371,7 +371,7 @@ function CreateUserDrawerBody({
             </FieldContent>
           </Field>
         </div>
-        <DrawerFooter className="border-t">
+        <DrawerFooter className="shrink-0 border-t bg-background">
           <Button type="submit" disabled={saving || rolesLoading}>
             {saving ? t("user.creating") : t("user.createUser")}
           </Button>

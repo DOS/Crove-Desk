@@ -187,23 +187,23 @@ function UserEditDrawerBody({
   }
 
   return (
-    <DrawerContent className="min-w-2xl">
-      <DrawerHeader>
+    <DrawerContent className="min-w-2xl overflow-hidden">
+      <DrawerHeader className="shrink-0">
         <DrawerTitle>{t("user.editTitle")}</DrawerTitle>
         <DrawerDescription>
           {t("user.currentUser", { username: item?.username || "-" })}
         </DrawerDescription>
       </DrawerHeader>
       {loading ? (
-        <div className="flex items-center justify-center py-12">
+        <div className="flex min-h-0 flex-1 items-center justify-center py-12">
           <div className="text-muted-foreground">{t("user.loading")}</div>
         </div>
       ) : (
         <form
-          className="flex h-full flex-col"
+          className="flex min-h-0 flex-1 flex-col"
           onSubmit={handleSubmit(onFormSubmit)}
         >
-          <div className="space-y-4 px-4 pb-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4">
             <Field data-invalid={!!errors.nickname}>
               <FieldLabel htmlFor="user-nickname">{t("user.nickname")}</FieldLabel>
               <FieldContent>
@@ -261,7 +261,7 @@ function UserEditDrawerBody({
               </FieldContent>
             </Field>
           </div>
-          <DrawerFooter className="border-t">
+          <DrawerFooter className="shrink-0 border-t bg-background">
             <Button type="submit" disabled={saving || loading}>
               {saving ? t("user.saving") : t("user.saveEdit")}
             </Button>
