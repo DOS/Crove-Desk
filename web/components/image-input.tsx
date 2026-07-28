@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
+import Image from "next/image"
 import { UploadIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -111,14 +112,21 @@ export function ImageInput({
       >
         {value ? (
           <>
-            <img src={value} alt={t("upload.uploadedImage")} className="size-full object-cover" />
+            <Image
+              src={value}
+              alt={t("upload.uploadedImage")}
+              fill
+              sizes="96px"
+              unoptimized
+              className="object-cover"
+            />
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
-              <span className="text-sm text-white">{t("upload.replaceImage")}</span>
+              <span className="text-xs text-white">{t("upload.replaceImage")}</span>
             </div>
           </>
         ) : (
           <div className="flex flex-col items-center gap-1 text-muted-foreground">
-            <UploadIcon className="size-6" />
+            <UploadIcon className="size-4" />
             <span className="text-xs">{uploading ? t("upload.uploading") : resolvedPlaceholder}</span>
           </div>
         )}
@@ -132,7 +140,7 @@ export function ImageInput({
         <button
           type="button"
           onClick={handleClear}
-          className="absolute -right-2 -top-2 flex size-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm transition-colors hover:bg-destructive/80"
+          className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-red-600 text-white shadow-sm transition-colors hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
           aria-label={t("upload.deleteImage")}
         >
           <XIcon className="size-3" />
