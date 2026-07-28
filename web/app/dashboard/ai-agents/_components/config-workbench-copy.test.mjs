@@ -60,6 +60,12 @@ test("publishing an AI Agent saves the current form before publishing", () => {
 })
 
 test("saving a published AI Agent keeps the active revision online", () => {
+  const saveFunction = configWorkbenchSource.match(
+    /async function saveAgentSettings\(\) \{([\s\S]*?)\n  \}/,
+  )?.[1]
+
+  assert.ok(saveFunction)
   assert.match(configWorkbenchSource, /配置已保存，当前已发布版本继续生效/)
   assert.match(configWorkbenchSource, /已发布版本正在生效；再次发布后应用当前配置/)
+  assert.doesNotMatch(saveFunction, /loadData\(\)/)
 })

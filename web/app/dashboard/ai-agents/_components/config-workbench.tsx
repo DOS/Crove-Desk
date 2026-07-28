@@ -215,6 +215,19 @@ export function AIAgentConfigWorkbench({
     void loadData()
   }, [loadData])
 
+  async function refreshAgentPublicationState(id: number) {
+    const [detail, revisions] = await Promise.all([
+      fetchAIAgent(id),
+      fetchAIAgentRevisions(id),
+    ])
+    setAgent((current) =>
+      current
+        ? { ...current, publishedRevisionId: detail.publishedRevisionId }
+        : detail,
+    )
+    setAgentRevisions(revisions ?? [])
+  }
+
   const serviceModeOptions = useMemo(
     () => [
       { value: String(IMConversationServiceMode.AIOnly), label: "仅 AI" },
@@ -395,7 +408,6 @@ export function AIAgentConfigWorkbench({
             ? "配置已保存，当前已发布版本继续生效"
             : "Agent 配置已保存",
         )
-        await loadData()
       } else {
         const created = await createAIAgent(payload)
         setCurrentAgentId(created.id)
@@ -419,7 +431,7 @@ export function AIAgentConfigWorkbench({
       const payload = buildPayload()
       await updateAIAgent({ id: agent.id, ...payload })
       await publishAIAgent(agent.id)
-      await loadData()
+      await refreshAgentPublicationState(agent.id)
       toast.success("Agent 配置已保存并发布")
       onAgentSaved?.()
     } catch (error) {
@@ -435,7 +447,7 @@ export function AIAgentConfigWorkbench({
     try {
       await rollbackAIAgent(agent.id, revisionId)
       toast.success("已回滚到选中的 Agent 版本")
-      await loadData()
+      await refreshAgentPublicationState(agent.id)
       onAgentSaved?.()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "回滚 Agent 版本失败")
