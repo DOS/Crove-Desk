@@ -69,3 +69,11 @@ test("saving a published AI Agent keeps the active revision online", () => {
   assert.match(configWorkbenchSource, /已发布版本正在生效；再次发布后应用当前配置/)
   assert.doesNotMatch(saveFunction, /loadData\(\)/)
 })
+
+test("trusted MCP tools use backend risk metadata and cannot be edited", () => {
+  assert.match(adminApiSource, /riskEditable: boolean/)
+  assert.match(configWorkbenchSource, /riskLevel: tool\.riskLevel/)
+  assert.match(configWorkbenchSource, /requireConfirmation: tool\.requireConfirmation/)
+  assert.match(configWorkbenchSource, /只读（系统定义）/)
+  assert.match(configWorkbenchSource, /!catalogTool\.riskEditable/)
+})

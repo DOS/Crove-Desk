@@ -103,6 +103,22 @@ func TestResolveInterruptPrompt(t *testing.T) {
 	if got := resolveInterruptPrompt(summary); got != "直接补充手机号" {
 		t.Fatalf("unexpected raw interrupt prompt: %q", got)
 	}
+
+	summary.ReplyText = ""
+	summary.Interrupts[0] = applicationruntime.InterruptContextSummary{
+		ID:          "system/server_time",
+		Type:        "tool_confirmation",
+		DisplayName: "获取当前时间",
+		InfoPreview: "system/server_time",
+	}
+	if got := resolveInterruptPrompt(summary); got != "即将执行“获取当前时间”，是否确认继续？" {
+		t.Fatalf("tool code leaked into customer prompt: %q", got)
+	}
+
+	summary.Interrupts[0].PromptText = "请确认是否更新客户资料。"
+	if got := resolveInterruptPrompt(summary); got != "请确认是否更新客户资料。" {
+		t.Fatalf("explicit customer prompt was not preferred: %q", got)
+	}
 }
 
 func newConversationFixture() models.Conversation {

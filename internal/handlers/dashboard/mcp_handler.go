@@ -36,15 +36,18 @@ func MCPAnyCatalog(ctx *gin.Context) {
 	ret := make([]response.MCPToolCatalogResponse, 0, len(items))
 	for _, item := range items {
 		ret = append(ret, response.MCPToolCatalogResponse{
-			ToolCode:     item.ToolCode,
-			ServerCode:   item.ServerCode,
-			ToolName:     item.ToolName,
-			SourceType:   item.SourceType,
-			AutoInjected: item.AutoInjected,
-			Title:        item.Title,
-			Description:  item.Description,
-			InputSchema:  item.InputSchema,
-			OutputSchema: item.OutputSchema,
+			ToolCode:            item.ToolCode,
+			ServerCode:          item.ServerCode,
+			ToolName:            item.ToolName,
+			SourceType:          item.SourceType,
+			AutoInjected:        item.AutoInjected,
+			Title:               item.Title,
+			Description:         item.Description,
+			InputSchema:         item.InputSchema,
+			OutputSchema:        item.OutputSchema,
+			RiskLevel:           item.RiskLevel,
+			RequireConfirmation: item.RequireConfirmation,
+			RiskEditable:        item.RiskEditable,
 		})
 	}
 	httpx.WriteJSON(ctx, ret)

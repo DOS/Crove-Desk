@@ -28,6 +28,7 @@ type ToolInfo struct {
 	Description  string `json:"description"`
 	InputSchema  any    `json:"inputSchema"`
 	OutputSchema any    `json:"outputSchema,omitempty"`
+	ReadOnlyHint bool   `json:"readOnlyHint"`
 }
 
 type ToolResultContent struct {

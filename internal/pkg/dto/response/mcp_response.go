@@ -52,6 +52,7 @@ type MCPToolInfoResponse struct {
 	Description  string `json:"description"`
 	InputSchema  any    `json:"inputSchema"`
 	OutputSchema any    `json:"outputSchema,omitempty"`
+	ReadOnlyHint bool   `json:"readOnlyHint"`
 }
 
 func BuildMCPToolInfoResponses(items []mcps.ToolInfo) []MCPToolInfoResponse {
@@ -63,21 +64,25 @@ func BuildMCPToolInfoResponses(items []mcps.ToolInfo) []MCPToolInfoResponse {
 			Description:  item.Description,
 			InputSchema:  item.InputSchema,
 			OutputSchema: item.OutputSchema,
+			ReadOnlyHint: item.ReadOnlyHint,
 		})
 	}
 	return ret
 }
 
 type MCPToolCatalogResponse struct {
-	ToolCode     string               `json:"toolCode"`
-	ServerCode   string               `json:"serverCode"`
-	ToolName     string               `json:"toolName"`
-	SourceType   enums.ToolSourceType `json:"sourceType"`
-	AutoInjected bool                 `json:"autoInjected"`
-	Title        string               `json:"title"`
-	Description  string               `json:"description"`
-	InputSchema  any                  `json:"inputSchema"`
-	OutputSchema any                  `json:"outputSchema,omitempty"`
+	ToolCode            string               `json:"toolCode"`
+	ServerCode          string               `json:"serverCode"`
+	ToolName            string               `json:"toolName"`
+	SourceType          enums.ToolSourceType `json:"sourceType"`
+	AutoInjected        bool                 `json:"autoInjected"`
+	Title               string               `json:"title"`
+	Description         string               `json:"description"`
+	InputSchema         any                  `json:"inputSchema"`
+	OutputSchema        any                  `json:"outputSchema,omitempty"`
+	RiskLevel           string               `json:"riskLevel"`
+	RequireConfirmation bool                 `json:"requireConfirmation"`
+	RiskEditable        bool                 `json:"riskEditable"`
 }
 
 type MCPToolResultContentResponse struct {

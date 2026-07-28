@@ -578,6 +578,9 @@ export type MCPToolCatalogItem = {
   description: string
   inputSchema: unknown
   outputSchema?: unknown
+  riskLevel: "read" | "write"
+  requireConfirmation: boolean
+  riskEditable: boolean
 }
 
 export type MCPToolResultContent = {

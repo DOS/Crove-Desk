@@ -23,7 +23,11 @@ func (p *systemToolProvider) Register(server *mcp.Server) error {
 		server,
 		&mcp.Tool{
 			Name:        "server_time",
+			Title:       "获取当前时间",
 			Description: "获取当前服务端时间，可选传入时区。",
+			Annotations: &mcp.ToolAnnotations{
+				ReadOnlyHint: true,
+			},
 		},
 		func(_ context.Context, _ *mcp.CallToolRequest, args serverTimeArgs) (*mcp.CallToolResult, map[string]any, error) {
 			loc := time.Local
@@ -46,7 +50,11 @@ func (p *systemToolProvider) Register(server *mcp.Server) error {
 		server,
 		&mcp.Tool{
 			Name:        "service_info",
+			Title:       "查看服务信息",
 			Description: "查看当前 agent-desk 服务的基础运行信息。",
+			Annotations: &mcp.ToolAnnotations{
+				ReadOnlyHint: true,
+			},
 		},
 		func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, map[string]any, error) {
 			cfg := config.Current()

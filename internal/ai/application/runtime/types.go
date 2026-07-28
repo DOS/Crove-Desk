@@ -29,6 +29,8 @@ type ResumeInput struct {
 type InterruptContextSummary struct {
 	Type        string `json:"type,omitempty"`
 	ID          string `json:"id"`
+	DisplayName string `json:"displayName,omitempty"`
+	PromptText  string `json:"promptText,omitempty"`
 	InfoPreview string `json:"infoPreview,omitempty"`
 }
 

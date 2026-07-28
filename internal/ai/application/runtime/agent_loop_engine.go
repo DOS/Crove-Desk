@@ -206,6 +206,7 @@ func (e *AgentLoopEngine) Resume(ctx context.Context, req ResumeInput) (*RunResu
 		return nil, err
 	}
 	req.AIAgent, req.AIConfig = snapshot.Agent, snapshot.AIConfig
+	req.ResumeData = normalizeAgentLoopResumeData(req.UserMessage.MessageType, req.ResumeData)
 	if interrupt.WorkflowRunID > 0 {
 		workflowRun, _ := svc.AIWorkflowService.GetRunDetail(interrupt.WorkflowRunID)
 		if workflowRun == nil {
@@ -240,16 +241,35 @@ func (e *AgentLoopEngine) Resume(ctx context.Context, req ResumeInput) (*RunResu
 	if err := json.Unmarshal([]byte(interrupt.RequestData), &checkpoint); err != nil {
 		return nil, errorsx.InvalidParam("invalid MCP checkpoint data")
 	}
-	if !isAgentLoopConfirmation(firstAgentLoopResumeText(req.ResumeData)) {
+	tool, err := configuredMCPTool(req.AIAgent.AllowedMCPTools, checkpoint.ToolCode)
+	if err != nil {
+		return nil, err
+	}
+	switch parseAgentLoopConfirmation(firstAgentLoopResumeText(req.ResumeData)) {
+	case agentLoopConfirmationCancelled:
 		ret := &RunResult{
 			Status: "completed", ReplyText: "操作已取消。", ModelName: req.AIConfig.ModelName,
 			AgentRunID: interrupt.AgentRunID,
 		}
 		return ret, recordAgentLoopResume(interrupt.AgentRunID, 0, ret.Status, ret.ReplyText, nil)
-	}
-	tool, err := configuredMCPTool(req.AIAgent.AllowedMCPTools, checkpoint.ToolCode)
-	if err != nil {
-		return nil, err
+	case agentLoopConfirmationUnknown:
+		prompt := buildAgentLoopMCPConfirmationRetryPrompt(tool.Title)
+		ret := &RunResult{
+			Status:         "interrupted",
+			ReplyText:      prompt,
+			ModelName:      req.AIConfig.ModelName,
+			AgentRunID:     interrupt.AgentRunID,
+			CheckPointID:   interrupt.CheckPointID,
+			CheckPointData: interrupt.RequestData,
+			Interrupted:    true,
+			Interrupts: []InterruptContextSummary{{
+				Type:        "tool_confirmation",
+				ID:          checkpoint.ToolCode,
+				DisplayName: tool.Title,
+				PromptText:  prompt,
+			}},
+		}
+		return ret, recordAgentLoopResume(interrupt.AgentRunID, 0, ret.Status, ret.ReplyText, nil)
 	}
 	policy := parseAgentLoopToolPolicy(req.AIAgent.ToolPolicy)
 	executionPolicy := aitooling.Policy{
@@ -299,12 +319,32 @@ func firstAgentLoopResumeText(data map[string]string) string {
 	return ""
 }
 
-func isAgentLoopConfirmation(value string) bool {
-	switch strings.ToLower(strings.TrimSpace(value)) {
+type agentLoopConfirmationDecision int
+
+const (
+	agentLoopConfirmationUnknown agentLoopConfirmationDecision = iota
+	agentLoopConfirmationConfirmed
+	agentLoopConfirmationCancelled
+)
+
+func normalizeAgentLoopResumeData(messageType enums.IMMessageType, data map[string]string) map[string]string {
+	ret := make(map[string]string, len(data))
+	for key, value := range data {
+		ret[key] = strings.TrimSpace(utils.BuildRuntimeMessageText(messageType, value))
+	}
+	return ret
+}
+
+func parseAgentLoopConfirmation(value string) agentLoopConfirmationDecision {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	normalized = strings.TrimSpace(strings.Trim(normalized, "。.!！?？"))
+	switch normalized {
 	case "确认", "确认执行", "同意", "继续", "是", "yes", "y", "confirm", "approve", "approved":
-		return true
+		return agentLoopConfirmationConfirmed
+	case "取消", "取消执行", "不同意", "拒绝", "否", "不要", "停止", "no", "n", "cancel", "reject", "rejected":
+		return agentLoopConfirmationCancelled
 	default:
-		return false
+		return agentLoopConfirmationUnknown
 	}
 }
 
@@ -610,9 +650,15 @@ func executeAgentLoopMCP(ctx context.Context, runInput RunInput, toolCode string
 		checkpoint := agentLoopMCPCheckpoint{ToolCode: toolCode, Arguments: arguments}
 		data, _ := json.Marshal(checkpoint)
 		checkPointID := fmt.Sprintf("tool:%d:%d", runInput.Conversation.ID, time.Now().UnixNano())
+		prompt := buildAgentLoopMCPConfirmationPrompt(configured.Title)
 		state.Interrupted = &RunResult{
-			Status: "interrupted", ReplyText: "请确认是否执行该操作。", CheckPointID: checkPointID, CheckPointData: string(data), Interrupted: true,
-			Interrupts: []InterruptContextSummary{{Type: "tool_confirmation", ID: toolCode, InfoPreview: configured.Title}},
+			Status: "interrupted", ReplyText: prompt, CheckPointID: checkPointID, CheckPointData: string(data), Interrupted: true,
+			Interrupts: []InterruptContextSummary{{
+				Type:        "tool_confirmation",
+				ID:          toolCode,
+				DisplayName: configured.Title,
+				PromptText:  prompt,
+			}},
 		}
 		return definition, "", &agentLoopInterruptError{reason: "Agent Loop interrupted for MCP confirmation"}
 	}
@@ -633,10 +679,26 @@ func configuredMCPTool(raw, toolCode string) (request.AIAgentMCPToolRequest, err
 	}
 	for _, item := range items {
 		if item.ToolCode == toolCode {
-			return item, nil
+			return toolx.ApplyTrustedMCPToolPolicy(item), nil
 		}
 	}
 	return request.AIAgentMCPToolRequest{}, errorsx.InvalidParam("MCP tool is not configured for this Agent")
+}
+
+func buildAgentLoopMCPConfirmationPrompt(title string) string {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return "即将执行一项操作，是否确认继续？"
+	}
+	return fmt.Sprintf("即将执行“%s”，是否确认继续？", title)
+}
+
+func buildAgentLoopMCPConfirmationRetryPrompt(title string) string {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return "未识别您的选择，请回复“确认”继续执行，或回复“取消”终止操作。"
+	}
+	return fmt.Sprintf("未识别您的选择。若要继续执行“%s”，请回复“确认”；若要终止，请回复“取消”。", title)
 }
 
 func executeAgentLoopReadTool(ctx context.Context, conversation models.Conversation, agent models.AIAgent, toolCode string, arguments map[string]any, policy aitooling.Policy) (aitooling.Definition, string, error) {
@@ -728,6 +790,7 @@ func buildAgentLoopSystemPrompt(agent models.AIAgent, hasKnowledgeBase bool, kno
 	if prompt == "" {
 		prompt = "You are a customer service assistant. Answer accurately, ask for clarification when evidence is insufficient, and do not invent facts."
 	}
+	prompt += "\n\nMaintain conversational continuity. If the immediately preceding assistant message already welcomed the customer and the current customer message is only a greeting, reply briefly without repeating the welcome wording, service capabilities, or service scope."
 	if retrieveErr != nil {
 		prompt += "\n\nKnowledge retrieval is temporarily unavailable for this message. You may answer greetings, acknowledgements, gratitude, farewells, and requests for clarification naturally. For product facts, policies, pricing, functions, procedures, timing, refunds, accounts, permissions, or after-sales questions, do not claim that any detail is verified. Explain that you cannot verify it now, ask one focused question when useful, or offer human handoff."
 	} else if hasKnowledgeBase && strings.TrimSpace(knowledgeContext) == "" {

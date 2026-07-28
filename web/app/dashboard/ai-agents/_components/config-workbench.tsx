@@ -73,6 +73,23 @@ type MCPToolOption = {
   meta: MCPToolItem
 }
 
+function normalizeMCPToolsWithCatalog(
+  tools: MCPToolItem[],
+  catalog: MCPToolCatalogItem[],
+) {
+  return tools.map((tool) => {
+    const catalogTool = catalog.find((item) => item.toolCode === tool.toolCode)
+    if (!catalogTool || catalogTool.riskEditable) return tool
+    return {
+      ...tool,
+      title: catalogTool.title || tool.title,
+      description: catalogTool.description || tool.description,
+      riskLevel: catalogTool.riskLevel,
+      requireConfirmation: catalogTool.requireConfirmation,
+    }
+  })
+}
+
 function toText(value: string | number | undefined | null) {
   if (value === undefined || value === null || value === 0) return ""
   return String(value)
@@ -192,7 +209,7 @@ export function AIAgentConfigWorkbench({
       setSelectedTeamIds((detail.teams ?? []).map((team) => team.id))
       setSelectedSkillIds(detail.skillIds ?? [])
       setSelectedKnowledgeBaseIds(detail.knowledgeBaseIds ?? [])
-      setMCPTools(detail.mcpTools ?? [])
+      setMCPTools(normalizeMCPToolsWithCatalog(detail.mcpTools ?? [], catalog ?? []))
       setWorkflowBindings(
         (detail.workflowBindings ?? []).map(
           ({ workflowVersionId, toolName, triggerInstruction, priority, enabled }) => ({
@@ -294,8 +311,8 @@ export function AIAgentConfigWorkbench({
             toolName: tool.toolName,
             title: tool.title || tool.toolName,
             description: tool.description || "",
-            riskLevel: "read",
-            requireConfirmation: false,
+            riskLevel: tool.riskLevel,
+            requireConfirmation: tool.requireConfirmation,
             arguments: undefined,
           },
         })),
@@ -693,63 +710,84 @@ export function AIAgentConfigWorkbench({
                   />
                   {mcpTools.length > 0 ? (
                     <div className="space-y-2">
-                      {mcpTools.map((tool) => (
-                        <div
-                          key={tool.toolCode}
-                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2"
-                        >
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-medium">
-                              {tool.title || tool.toolCode}
+                      {mcpTools.map((tool) => {
+                        const catalogTool = toolCatalog.find(
+                          (item) => item.toolCode === tool.toolCode,
+                        )
+                        return (
+                          <div
+                            key={tool.toolCode}
+                            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2"
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-medium">
+                                {tool.title || tool.toolCode}
+                              </div>
+                              <div className="truncate font-mono text-xs text-muted-foreground">
+                                {tool.toolCode}
+                              </div>
                             </div>
-                            <div className="truncate font-mono text-xs text-muted-foreground">
-                              {tool.toolCode}
+                            <div className="flex items-center gap-2">
+                              {catalogTool && !catalogTool.riskEditable ? (
+                                <Badge variant="secondary">
+                                  {tool.riskLevel === "read"
+                                    ? "只读（系统定义）"
+                                    : "写操作（系统定义）"}
+                                </Badge>
+                              ) : (
+                                <>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                      tool.riskLevel === "read" ? "default" : "outline"
+                                    }
+                                    onClick={() =>
+                                      setMCPTools((items) =>
+                                        items.map((item) =>
+                                          item.toolCode === tool.toolCode
+                                            ? {
+                                                ...item,
+                                                riskLevel: "read",
+                                                requireConfirmation: false,
+                                              }
+                                            : item,
+                                        ),
+                                      )
+                                    }
+                                  >
+                                    只读
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                      tool.riskLevel === "write"
+                                        ? "destructive"
+                                        : "outline"
+                                    }
+                                    onClick={() =>
+                                      setMCPTools((items) =>
+                                        items.map((item) =>
+                                          item.toolCode === tool.toolCode
+                                            ? {
+                                                ...item,
+                                                riskLevel: "write",
+                                                requireConfirmation: true,
+                                              }
+                                            : item,
+                                        ),
+                                      )
+                                    }
+                                  >
+                                    写操作（需确认）
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={tool.riskLevel === "read" ? "default" : "outline"}
-                              onClick={() =>
-                                setMCPTools((items) =>
-                                  items.map((item) =>
-                                    item.toolCode === tool.toolCode
-                                      ? {
-                                          ...item,
-                                          riskLevel: "read",
-                                          requireConfirmation: false,
-                                        }
-                                      : item,
-                                  ),
-                                )
-                              }
-                            >
-                              只读
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={tool.riskLevel === "write" ? "destructive" : "outline"}
-                              onClick={() =>
-                                setMCPTools((items) =>
-                                  items.map((item) =>
-                                    item.toolCode === tool.toolCode
-                                      ? {
-                                          ...item,
-                                          riskLevel: "write",
-                                          requireConfirmation: true,
-                                        }
-                                      : item,
-                                  ),
-                                )
-                              }
-                            >
-                              写操作（需确认）
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   ) : null}
                 </FormSection>

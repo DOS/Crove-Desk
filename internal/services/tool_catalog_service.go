@@ -22,15 +22,18 @@ func newToolCatalogService() *toolCatalogService {
 type toolCatalogService struct{}
 
 type MCPToolCatalogItem struct {
-	ToolCode     string
-	ServerCode   string
-	ToolName     string
-	SourceType   enums.ToolSourceType
-	AutoInjected bool
-	Title        string
-	Description  string
-	InputSchema  any
-	OutputSchema any
+	ToolCode            string
+	ServerCode          string
+	ToolName            string
+	SourceType          enums.ToolSourceType
+	AutoInjected        bool
+	Title               string
+	Description         string
+	InputSchema         any
+	OutputSchema        any
+	RiskLevel           string
+	RequireConfirmation bool
+	RiskEditable        bool
 }
 
 func (s *toolCatalogService) ListMCPTools(ctx context.Context) ([]MCPToolCatalogItem, error) {
@@ -71,16 +74,37 @@ func (s *toolCatalogService) ListMCPToolsWithLocale(ctx context.Context, locale 
 			return nil, err
 		}
 		for _, item := range tools {
+			toolCode := toolx.BuildMCPToolCode(serverCode, item.Name)
+			title := strings.TrimSpace(item.Title)
+			riskLevel := toolx.MCPRiskLevelWrite
+			requireConfirmation := true
+			riskEditable := true
+			if item.ReadOnlyHint {
+				riskLevel = toolx.MCPRiskLevelRead
+				requireConfirmation = false
+			}
+			if policy, ok := toolx.GetTrustedMCPToolPolicy(toolCode); ok {
+				title = policy.Title
+				riskLevel = policy.RiskLevel
+				requireConfirmation = policy.RequireConfirmation
+				riskEditable = false
+			}
+			if title == "" {
+				title = strings.TrimSpace(item.Name)
+			}
 			ret = append(ret, MCPToolCatalogItem{
-				ToolCode:     toolx.BuildMCPToolCode(serverCode, item.Name),
-				ServerCode:   serverCode,
-				ToolName:     strings.TrimSpace(item.Name),
-				SourceType:   enums.ToolSourceTypeMCP,
-				AutoInjected: false,
-				Title:        strings.TrimSpace(item.Title),
-				Description:  strings.TrimSpace(item.Description),
-				InputSchema:  item.InputSchema,
-				OutputSchema: item.OutputSchema,
+				ToolCode:            toolCode,
+				ServerCode:          serverCode,
+				ToolName:            strings.TrimSpace(item.Name),
+				SourceType:          enums.ToolSourceTypeMCP,
+				AutoInjected:        false,
+				Title:               title,
+				Description:         strings.TrimSpace(item.Description),
+				InputSchema:         item.InputSchema,
+				OutputSchema:        item.OutputSchema,
+				RiskLevel:           riskLevel,
+				RequireConfirmation: requireConfirmation,
+				RiskEditable:        riskEditable,
 			})
 		}
 	}

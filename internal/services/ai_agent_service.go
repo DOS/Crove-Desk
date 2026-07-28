@@ -216,11 +216,8 @@ func (s *aIAgentService) validatePublishableAgent(db *gorm.DB, agent *models.AIA
 		if err != nil || definition.InputSchema == nil {
 			return errorsx.InvalidParam("ai agent MCP tool definition is unavailable")
 		}
-		if item.RiskLevel != aitooling.RiskLevelRead && item.RiskLevel != aitooling.RiskLevelWrite {
-			return errorsx.InvalidParam("ai agent MCP tool risk level is invalid")
-		}
-		if item.RiskLevel == aitooling.RiskLevelWrite && !item.RequireConfirmation {
-			return errorsx.InvalidParam("write MCP tools must require confirmation")
+		if _, err := validateMCPToolRiskPolicy(item); err != nil {
+			return err
 		}
 	}
 	for _, binding := range s.ListEnabledWorkflowBindings(db, agent.ID) {
@@ -522,12 +519,10 @@ func (s *aIAgentService) normalizeMCPTools(input []request.AIAgentMCPToolRequest
 			return nil, err
 		}
 		normalized.RiskLevel = strings.ToLower(strings.TrimSpace(item.RiskLevel))
-		if normalized.RiskLevel != aitooling.RiskLevelRead && normalized.RiskLevel != aitooling.RiskLevelWrite {
-			return nil, errorsx.InvalidParam("MCP tool risk level must be read or write")
-		}
 		normalized.RequireConfirmation = item.RequireConfirmation
-		if normalized.RiskLevel == aitooling.RiskLevelWrite && !normalized.RequireConfirmation {
-			return nil, errorsx.InvalidParam("write MCP tools must require confirmation")
+		normalized, err = validateMCPToolRiskPolicy(normalized)
+		if err != nil {
+			return nil, err
 		}
 		key := strings.TrimSpace(normalized.ToolCode)
 		if _, exists := seen[key]; exists {
@@ -537,6 +532,22 @@ func (s *aIAgentService) normalizeMCPTools(input []request.AIAgentMCPToolRequest
 		ret = append(ret, normalized)
 	}
 	return ret, nil
+}
+
+func validateMCPToolRiskPolicy(item request.AIAgentMCPToolRequest) (request.AIAgentMCPToolRequest, error) {
+	if policy, ok := toolx.GetTrustedMCPToolPolicy(item.ToolCode); ok {
+		if item.RiskLevel != policy.RiskLevel || item.RequireConfirmation != policy.RequireConfirmation {
+			return request.AIAgentMCPToolRequest{}, errorsx.InvalidParam("system MCP tool risk policy cannot be changed")
+		}
+		return toolx.ApplyTrustedMCPToolPolicy(item), nil
+	}
+	if item.RiskLevel != aitooling.RiskLevelRead && item.RiskLevel != aitooling.RiskLevelWrite {
+		return request.AIAgentMCPToolRequest{}, errorsx.InvalidParam("MCP tool risk level must be read or write")
+	}
+	if item.RiskLevel == aitooling.RiskLevelWrite && !item.RequireConfirmation {
+		return request.AIAgentMCPToolRequest{}, errorsx.InvalidParam("write MCP tools must require confirmation")
+	}
+	return item, nil
 }
 
 func (s *aIAgentService) UpdateSort(ids []int64) error {

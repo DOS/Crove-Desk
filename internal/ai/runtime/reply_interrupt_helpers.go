@@ -46,11 +46,23 @@ func resolveInterruptPrompt(summary *applicationruntime.RunResult) string {
 	if summary == nil || len(summary.Interrupts) == 0 {
 		return i18nx.Get("conversation.interrupt.defaultPrompt")
 	}
-	if prompt := extractInterruptMessage(summary.Interrupts[0].InfoPreview); prompt != "" {
+	interrupt := summary.Interrupts[0]
+	if prompt := strings.TrimSpace(interrupt.PromptText); prompt != "" {
 		return prompt
 	}
-	if prompt := strings.TrimSpace(summary.Interrupts[0].InfoPreview); prompt != "" {
+	if prompt := extractInterruptMessage(interrupt.InfoPreview); prompt != "" {
 		return prompt
+	}
+	if prompt := strings.TrimSpace(summary.ReplyText); prompt != "" {
+		return prompt
+	}
+	if interrupt.Type != "tool_confirmation" {
+		if prompt := strings.TrimSpace(interrupt.InfoPreview); prompt != "" {
+			return prompt
+		}
+	}
+	if displayName := strings.TrimSpace(interrupt.DisplayName); displayName != "" {
+		return "即将执行“" + displayName + "”，是否确认继续？"
 	}
 	return i18nx.Get("conversation.interrupt.defaultPrompt")
 }

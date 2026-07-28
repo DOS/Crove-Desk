@@ -74,6 +74,11 @@ func TestAgentLoopInterruptsBeforeWriteMCPTool(t *testing.T) {
 	if state.Interrupted == nil || !state.Interrupted.Interrupted || !strings.HasPrefix(state.Interrupted.CheckPointID, "tool:9:") {
 		t.Fatalf("missing MCP confirmation checkpoint: %#v", state.Interrupted)
 	}
+	if state.Interrupted.ReplyText != "即将执行“更新客户”，是否确认继续？" ||
+		len(state.Interrupted.Interrupts) != 1 ||
+		state.Interrupted.Interrupts[0].PromptText != state.Interrupted.ReplyText {
+		t.Fatalf("unexpected customer confirmation prompt: %#v", state.Interrupted)
+	}
 	if len(calls) != 1 || calls[0].RiskLevel != "write" || !calls[0].RequireConfirm || calls[0].Status != "interrupted" {
 		t.Fatalf("unexpected MCP safety audit: %#v", calls)
 	}
@@ -139,6 +144,46 @@ func TestAgentLoopKnowledgeFallbackCanRequestHandoff(t *testing.T) {
 	prompt := buildAgentLoopSystemPrompt(agent, true, "", nil)
 	if !policy.RequestHandoff || !strings.Contains(prompt, agent.FallbackMessage) {
 		t.Fatalf("knowledge fallback was not applied: policy=%#v prompt=%q", policy, prompt)
+	}
+}
+
+func TestAgentLoopConfirmationNormalizesHTMLAndKeepsUnknownPending(t *testing.T) {
+	data := normalizeAgentLoopResumeData(enums.IMMessageTypeHTML, map[string]string{
+		"message": "<p>确认。</p>",
+	})
+	if got := parseAgentLoopConfirmation(firstAgentLoopResumeText(data)); got != agentLoopConfirmationConfirmed {
+		t.Fatalf("expected HTML confirmation, got %v from %#v", got, data)
+	}
+	if got := parseAgentLoopConfirmation("取消！"); got != agentLoopConfirmationCancelled {
+		t.Fatalf("expected cancellation, got %v", got)
+	}
+	if got := parseAgentLoopConfirmation("稍后再说"); got != agentLoopConfirmationUnknown {
+		t.Fatalf("ambiguous input must stay pending, got %v", got)
+	}
+}
+
+func TestConfiguredMCPToolAppliesTrustedSystemPolicy(t *testing.T) {
+	configured, _ := json.Marshal([]request.AIAgentMCPToolRequest{{
+		ToolCode:            "system/server_time",
+		ServerCode:          "system",
+		ToolName:            "server_time",
+		Title:               "server_time",
+		RiskLevel:           "write",
+		RequireConfirmation: true,
+	}})
+	tool, err := configuredMCPTool(string(configured), "system/server_time")
+	if err != nil {
+		t.Fatalf("resolve configured system tool: %v", err)
+	}
+	if tool.Title != "获取当前时间" || tool.RiskLevel != "read" || tool.RequireConfirmation {
+		t.Fatalf("trusted policy was not applied at runtime: %#v", tool)
+	}
+}
+
+func TestAgentLoopPromptAvoidsRepeatingWelcomeMessage(t *testing.T) {
+	prompt := buildAgentLoopSystemPrompt(models.AIAgent{}, false, "", nil)
+	if !strings.Contains(prompt, "without repeating the welcome wording") {
+		t.Fatalf("conversation continuity instruction missing: %q", prompt)
 	}
 }
 

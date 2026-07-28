@@ -56,12 +56,14 @@ func (c *Client) ListTools(ctx context.Context, cfg ServerConfig) ([]ToolInfo, e
 	}
 	ret := make([]ToolInfo, 0, len(result.Tools))
 	for _, tool := range result.Tools {
+		readOnlyHint := tool.Annotations != nil && tool.Annotations.ReadOnlyHint
 		ret = append(ret, ToolInfo{
 			Name:         tool.Name,
 			Title:        tool.Title,
 			Description:  tool.Description,
 			InputSchema:  tool.InputSchema,
 			OutputSchema: tool.OutputSchema,
+			ReadOnlyHint: readOnlyHint,
 		})
 	}
 	return ret, nil
