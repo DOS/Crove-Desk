@@ -12,7 +12,7 @@ export default function nextConfig(phase: string): NextConfig {
     output: "export",
     basePath: productionBasePath,
     assetPrefix: `${productionBasePath}/`,
-    trailingSlash: false,
+    trailingSlash: true,
     devIndicators: false,
     reactStrictMode: false,
   }
