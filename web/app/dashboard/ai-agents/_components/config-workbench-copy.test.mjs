@@ -58,3 +58,8 @@ test("publishing an AI Agent saves the current form before publishing", () => {
   assert.ok(publishIndex > saveIndex)
   assert.match(publishFunction, /Agent 配置已保存并发布/)
 })
+
+test("saving a published AI Agent keeps the active revision online", () => {
+  assert.match(configWorkbenchSource, /配置已保存，当前已发布版本继续生效/)
+  assert.match(configWorkbenchSource, /已发布版本正在生效；再次发布后应用当前配置/)
+})

@@ -113,8 +113,16 @@ func (s *agentRevisionService) ResolvePublishedSnapshot(agent models.AIAgent, co
 	if err := json.Unmarshal([]byte(revision.Definition), &definition); err != nil {
 		return nil, errorsx.InvalidParam("published Agent revision is invalid")
 	}
-	if definition.Agent.AIConfigID > 0 && definition.Agent.AIConfigID != config.ID {
-		return nil, errorsx.InvalidParam("published agent model config no longer matches")
+	publishedConfigID := definition.Agent.AIConfigID
+	if publishedConfigID <= 0 {
+		publishedConfigID = definition.Model.ConfigID
+	}
+	if publishedConfigID > 0 && publishedConfigID != config.ID {
+		publishedConfig := repositories.AIConfigRepository.Get(sqls.DB(), publishedConfigID)
+		if publishedConfig == nil || publishedConfig.Status != enums.StatusOk {
+			return nil, errorsx.InvalidParam("published agent model config is unavailable")
+		}
+		snapshot.AIConfig = *publishedConfig
 	}
 	applyRevisionAgentSnapshot(&snapshot.Agent, definition.Agent)
 	snapshot.WorkflowBindings = append([]AgentRevisionWorkflowBinding(nil), definition.WorkflowBindings...)

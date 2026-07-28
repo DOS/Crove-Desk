@@ -123,7 +123,6 @@ func (s *aIAgentService) UpdateAIAgent(req request.UpdateAIAgentRequest, operato
 		"knowledge_ids":         item.KnowledgeIDs,
 		"skill_ids":             item.SkillIDs,
 		"allowed_mcp_tools":     item.AllowedMCPTools,
-		"published_revision_id": 0,
 		"update_user_id":        operator.UserID,
 		"update_user_name":      operator.Username,
 		"updated_at":            time.Now(),

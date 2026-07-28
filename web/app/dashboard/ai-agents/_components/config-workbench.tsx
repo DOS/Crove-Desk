@@ -390,7 +390,11 @@ export function AIAgentConfigWorkbench({
       const payload = buildPayload()
       if (agent) {
         await updateAIAgent({ id: agent.id, ...payload })
-        toast.success("Agent 配置已保存")
+        toast.success(
+          agent.publishedRevisionId > 0
+            ? "配置已保存，当前已发布版本继续生效"
+            : "Agent 配置已保存",
+        )
         await loadData()
       } else {
         const created = await createAIAgent(payload)
@@ -828,7 +832,9 @@ export function AIAgentConfigWorkbench({
             )}
           />
           <span>
-            {agentPublished ? "Agent 已发布；再次发布会保存当前配置" : "发布时会先保存当前配置"}
+            {agentPublished
+              ? "已发布版本正在生效；再次发布后应用当前配置"
+              : "发布时会先保存当前配置"}
           </span>
         </div>
         <div className="flex items-center gap-2">
