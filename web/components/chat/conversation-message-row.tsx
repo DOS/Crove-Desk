@@ -64,7 +64,12 @@ export function ConversationMessageRow({
   return (
     <Message align={align} className={className}>
       {avatar ? (
-        <MessageAvatar className={cn("bg-transparent", avatarClassName)}>
+        <MessageAvatar
+          className={cn(
+            "self-start group-has-data-[slot=message-footer]/message:translate-y-0 bg-transparent",
+            avatarClassName,
+          )}
+        >
           {avatar}
         </MessageAvatar>
       ) : null}
