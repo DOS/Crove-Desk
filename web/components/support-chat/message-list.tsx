@@ -237,8 +237,8 @@ const MessageItem = memo(
             className={cn(
               "rounded-lg border-0 px-3 py-2 text-sm leading-normal shadow-[0_10px_22px_rgba(15,23,42,0.06)]",
               isCustomer
-                ? "bg-[#a9ea7a] text-[#161616] dark:bg-emerald-500 dark:text-emerald-950"
-                : "border border-border bg-card text-card-foreground dark:bg-background"
+                ? "!bg-[#a9ea7a] !text-[#161616] dark:!bg-emerald-500 dark:!text-emerald-950"
+                : "!border-border !bg-card !text-card-foreground dark:!bg-background"
             )}
           >
             <ImMessageHTML
