@@ -69,7 +69,8 @@ func (e *AgentLoopEngine) Run(ctx context.Context, req RunInput) (*RunResult, er
 	turn := e.prepareTurn(ctx, req, snapshot)
 	var toolCalls []svc.AgentLoopToolCallInput
 	state := agentLoopExecutionState{}
-	loopResult, loopErr := e.loop(ctx, req.AIConfig, turn.SystemPrompt, turn.UserPrompt, agentLoopToolDefinitions(turn), req.AIAgent.MaxSteps,
+	definitions := append(agentLoopToolDefinitions(turn), agentLoopDecisionTool)
+	loopResult, loopErr := e.loop(ctx, req.AIConfig, turn.SystemPrompt, turn.UserPrompt, definitions, req.AIAgent.MaxSteps,
 		e.toolSearchExecutor(req, turn, &state, &toolCalls))
 	if state.Interrupted != nil {
 		result := state.Interrupted
@@ -90,12 +91,18 @@ func (e *AgentLoopEngine) Run(ctx context.Context, req RunInput) (*RunResult, er
 		return nil, err
 	}
 	result := &loopResult.ChatCompletionResult
-	if strings.TrimSpace(result.Content) == "" {
+	replyText, handoffRequested, handoffReason, err := resolveAgentLoopReply(result.Content, state.Decision)
+	if err != nil {
+		_, _ = writeAgentLoopRun(req, startedAt, nil, turn.UserPrompt, turn.HistoryCount, turn.RetrieverCount, turn.RetrieveErr, state.SkillContext, turn.ResponsePolicy, toolCalls, err, false, state.WorkflowSteps)
+		return nil, err
+	}
+	result.Content = replyText
+	if result.Content == "" && !handoffRequested {
 		err = errorsx.InvalidParam("Agent Loop returned an empty reply")
 		_, _ = writeAgentLoopRun(req, startedAt, nil, turn.UserPrompt, turn.HistoryCount, turn.RetrieverCount, turn.RetrieveErr, state.SkillContext, turn.ResponsePolicy, toolCalls, err, false, state.WorkflowSteps)
 		return nil, err
 	}
-	result.Content, err = aitooling.NormalizeCustomerReply(result.Content)
+	result.Content, err = normalizeAgentLoopReply(result.Content, handoffRequested)
 	if err != nil {
 		_, _ = writeAgentLoopRun(req, startedAt, nil, turn.UserPrompt, turn.HistoryCount, turn.RetrieverCount, turn.RetrieveErr, state.SkillContext, turn.ResponsePolicy, toolCalls, err, false, state.WorkflowSteps)
 		return nil, err
@@ -128,9 +135,32 @@ func (e *AgentLoopEngine) Run(ctx context.Context, req RunInput) (*RunResult, er
 		InvokedToolCodes:      agentLoopInvokedToolCodes(toolCalls),
 		WorkflowRunID:         state.WorkflowRunID,
 		AgentRunID:            runID,
-		HandoffRequested:      turn.ResponsePolicy.RequestHandoff && !req.Debug,
+		HandoffRequested:      handoffRequested && !req.Debug,
+		HandoffReason:         handoffReason,
+		ConversationDecision:  state.Decision,
 		TraceData:             string(trace),
 	}, nil
+}
+
+func resolveAgentLoopReply(modelReply string, decision *ConversationDecision) (reply string, handoffRequested bool, handoffReason string, err error) {
+	if decision == nil {
+		return strings.TrimSpace(modelReply), false, "", nil
+	}
+	switch decision.Action {
+	case ConversationActionHandoff:
+		return "", true, decision.Reason, nil
+	case ConversationActionReply, ConversationActionAskHandoffConfirmation:
+		return strings.TrimSpace(decision.Reply), false, "", nil
+	default:
+		return "", false, "", fmt.Errorf("invalid conversation decision action: %s", decision.Action)
+	}
+}
+
+func normalizeAgentLoopReply(reply string, handoffRequested bool) (string, error) {
+	if handoffRequested {
+		return "", nil
+	}
+	return aitooling.NormalizeCustomerReply(reply)
 }
 
 func (e *AgentLoopEngine) buildUserPrompt(req RunInput) (string, int) {
@@ -470,8 +500,8 @@ func parseAgentLoopToolPolicy(raw string) agentLoopToolPolicy {
 	return policy
 }
 
-func agentLoopToolSearchDefinition() ai.ToolDefinition {
-	return ai.ToolDefinition{
+var (
+	agentLoopToolSearchTool = ai.ToolDefinition{
 		Name:        "tool_search",
 		Description: "Activate a configured Skill or execute a configured Workflow, builtin capability, or MCP tool. Pass the exact capability code and arguments.",
 		Parameters: map[string]any{
@@ -483,7 +513,22 @@ func agentLoopToolSearchDefinition() ai.ToolDefinition {
 			"required": []string{"toolCode", "arguments"},
 		},
 	}
-}
+	agentLoopDecisionTool = ai.ToolDefinition{
+		Name:        "conversation_decision",
+		Description: "Return the final structured conversation decision after completing any needed analysis or tool calls.",
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"action":           map[string]any{"type": "string", "enum": []string{"reply", "handoff", "ask_handoff_confirmation"}},
+				"reason":           map[string]any{"type": "string"},
+				"reply":            map[string]any{"type": "string"},
+				"handoffInitiator": map[string]any{"type": "string", "enum": []string{"none", "customer", "agent"}},
+				"handoffConfirmed": map[string]any{"type": "boolean"},
+			},
+			"required": []string{"action", "reason", "reply", "handoffInitiator", "handoffConfirmed"},
+		},
+	}
+)
 
 // agentLoopToolDefinitions registers the capability codes as compatibility
 // aliases in addition to tool_search. Some OpenAI-compatible providers invoke
@@ -492,7 +537,7 @@ func agentLoopToolSearchDefinition() ai.ToolDefinition {
 // those calls must be registered here and then routed through the same policy
 // boundary below.
 func agentLoopToolDefinitions(turn agentLoopTurn) []ai.ToolDefinition {
-	definitions := []ai.ToolDefinition{agentLoopToolSearchDefinition()}
+	definitions := []ai.ToolDefinition{agentLoopToolSearchTool}
 	seen := map[string]struct{}{"tool_search": {}}
 	for _, code := range turn.AllowedTools {
 		code = strings.TrimSpace(code)
@@ -552,6 +597,7 @@ type agentLoopExecutionState struct {
 	WorkflowRunID int64
 	WorkflowSteps []svc.AgentLoopStepInput
 	Interrupted   *RunResult
+	Decision      *ConversationDecision
 }
 
 type agentLoopInterruptError struct {
@@ -565,6 +611,23 @@ func (e *agentLoopInterruptError) Error() string {
 func (e *AgentLoopEngine) toolSearchExecutor(runInput RunInput, turn agentLoopTurn, state *agentLoopExecutionState, records *[]svc.AgentLoopToolCallInput) ai.ToolCallExecutor {
 	return func(ctx context.Context, call ai.ToolCall) (string, error) {
 		startedAt := time.Now()
+		if call.Name == "conversation_decision" {
+			decision, err := parseConversationDecision(call.Arguments)
+			if err != nil {
+				return "", err
+			}
+			state.Decision = decision
+			result, _ := json.Marshal(decision)
+			*records = append(*records, svc.AgentLoopToolCallInput{
+				ToolCode:         "conversation_decision",
+				RiskLevel:        aitooling.RiskLevelRead,
+				Status:           "completed",
+				ArgumentsPreview: aitooling.SanitizePreview(call.Arguments),
+				ResultPreview:    aitooling.SanitizePreview(string(result)),
+				DurationMS:       int(time.Since(startedAt).Milliseconds()),
+			})
+			return string(result), nil
+		}
 		toolCode, arguments, err := resolveAgentLoopToolCall(call)
 		if err != nil {
 			return "", err
@@ -627,6 +690,35 @@ func (e *AgentLoopEngine) toolSearchExecutor(runInput RunInput, turn agentLoopTu
 		*records = append(*records, record)
 		return record.ResultPreview, nil
 	}
+}
+
+func parseConversationDecision(raw string) (*ConversationDecision, error) {
+	decision := &ConversationDecision{}
+	if err := json.Unmarshal([]byte(raw), decision); err != nil {
+		return nil, fmt.Errorf("invalid conversation decision: %w", err)
+	}
+	decision.Reason = strings.TrimSpace(decision.Reason)
+	decision.Reply = strings.TrimSpace(decision.Reply)
+	switch decision.Action {
+	case ConversationActionReply:
+		if decision.HandoffInitiator != HandoffInitiatorNone || decision.HandoffConfirmed {
+			return nil, fmt.Errorf("reply decision must not contain handoff state")
+		}
+	case ConversationActionHandoff:
+		if decision.HandoffInitiator == HandoffInitiatorNone || !decision.HandoffConfirmed {
+			return nil, fmt.Errorf("handoff decision requires a confirmed handoff initiator")
+		}
+	case ConversationActionAskHandoffConfirmation:
+		if decision.HandoffInitiator != HandoffInitiatorAgent || decision.HandoffConfirmed {
+			return nil, fmt.Errorf("handoff confirmation may only be requested for an unconfirmed agent recommendation")
+		}
+	default:
+		return nil, fmt.Errorf("invalid conversation decision action: %s", decision.Action)
+	}
+	if decision.Action != ConversationActionHandoff && decision.Reply == "" {
+		return nil, fmt.Errorf("conversation decision reply is required")
+	}
+	return decision, nil
 }
 
 func resolveAgentLoopToolCall(call ai.ToolCall) (string, map[string]any, error) {

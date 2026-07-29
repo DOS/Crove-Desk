@@ -58,9 +58,37 @@ type RunResult struct {
 	CheckPointData        string
 	Interrupted           bool
 	HandoffRequested      bool
+	HandoffReason         string
+	ConversationDecision  *ConversationDecision
 	Interrupts            []InterruptContextSummary
 	TraceData             string
 	ErrorMessage          string
+}
+
+type ConversationAction string
+
+const (
+	ConversationActionReply                  ConversationAction = "reply"
+	ConversationActionHandoff                ConversationAction = "handoff"
+	ConversationActionAskHandoffConfirmation ConversationAction = "ask_handoff_confirmation"
+)
+
+type HandoffInitiator string
+
+const (
+	HandoffInitiatorNone     HandoffInitiator = "none"
+	HandoffInitiatorCustomer HandoffInitiator = "customer"
+	HandoffInitiatorAgent    HandoffInitiator = "agent"
+)
+
+// ConversationDecision is the model's structured, non-side-effect decision.
+// The runtime remains the only component that can execute a handoff.
+type ConversationDecision struct {
+	Action           ConversationAction `json:"action"`
+	Reason           string             `json:"reason"`
+	Reply            string             `json:"reply"`
+	HandoffInitiator HandoffInitiator   `json:"handoffInitiator"`
+	HandoffConfirmed bool               `json:"handoffConfirmed"`
 }
 
 type StreamEventType string

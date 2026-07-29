@@ -69,6 +69,68 @@ func TestAgentLoopRegistersDirectCapabilityAliases(t *testing.T) {
 	}
 }
 
+func TestConversationDecisionIsStructuredAndValidated(t *testing.T) {
+	decision, err := parseConversationDecision(`{"action":"handoff","reason":"customer requested a human","reply":"","handoffInitiator":"customer","handoffConfirmed":true}`)
+	if err != nil {
+		t.Fatalf("parse handoff decision: %v", err)
+	}
+	if decision.Action != ConversationActionHandoff || decision.Reason != "customer requested a human" {
+		t.Fatalf("unexpected handoff decision: %#v", decision)
+	}
+	for _, raw := range []string{
+		`{"action":"unknown","reason":"x","reply":"x","handoffInitiator":"none","handoffConfirmed":false}`,
+		`{"action":"reply","reason":"x","reply":"","handoffInitiator":"none","handoffConfirmed":false}`,
+		`{"action":"ask_handoff_confirmation","reason":"x","reply":"confirm?","handoffInitiator":"customer","handoffConfirmed":false}`,
+	} {
+		if _, err := parseConversationDecision(raw); err == nil {
+			t.Fatalf("expected invalid decision to fail: %s", raw)
+		}
+	}
+}
+
+func TestAgentLoopRecordsConversationDecision(t *testing.T) {
+	state := agentLoopExecutionState{}
+	var calls []svc.AgentLoopToolCallInput
+	execute := NewAgentLoopEngine().toolSearchExecutor(RunInput{}, agentLoopTurn{}, &state, &calls)
+	if _, err := execute(context.Background(), ai.ToolCall{
+		Name: "conversation_decision", Arguments: `{"action":"handoff","reason":"customer requested a human","reply":"","handoffInitiator":"customer","handoffConfirmed":true}`,
+	}); err != nil {
+		t.Fatalf("record decision: %v", err)
+	}
+	if state.Decision == nil || state.Decision.Action != ConversationActionHandoff {
+		t.Fatalf("decision was not stored: %#v", state.Decision)
+	}
+	if len(calls) != 1 || calls[0].ToolCode != "conversation_decision" || calls[0].Status != "completed" {
+		t.Fatalf("decision audit missing: %#v", calls)
+	}
+}
+
+func TestResolveAgentLoopReplyKeepsNormalModelReplyWithoutDecision(t *testing.T) {
+	reply, handoff, reason, err := resolveAgentLoopReply("你好，有什么可以帮你？", nil)
+	if err != nil || handoff || reason != "" || reply != "你好，有什么可以帮你？" {
+		t.Fatalf("unexpected normal reply resolution: reply=%q handoff=%t reason=%q err=%v", reply, handoff, reason, err)
+	}
+}
+
+func TestResolveAgentLoopReplyUsesStructuredHandoffDecision(t *testing.T) {
+	reply, handoff, reason, err := resolveAgentLoopReply("模型自由文本不应生效", &ConversationDecision{
+		Action: ConversationActionHandoff, Reason: "customer requested human support", HandoffInitiator: HandoffInitiatorCustomer, HandoffConfirmed: true,
+	})
+	if err != nil || !handoff || reply != "" || reason != "customer requested human support" {
+		t.Fatalf("unexpected handoff resolution: reply=%q handoff=%t reason=%q err=%v", reply, handoff, reason, err)
+	}
+}
+
+func TestNormalizeAgentLoopReplyAllowsEmptyInternalHandoff(t *testing.T) {
+	reply, err := normalizeAgentLoopReply("", true)
+	if err != nil || reply != "" {
+		t.Fatalf("handoff must bypass customer reply normalization: reply=%q err=%v", reply, err)
+	}
+	if _, err := normalizeAgentLoopReply("", false); err == nil {
+		t.Fatal("ordinary empty model replies must still be rejected")
+	}
+}
+
 func TestAgentLoopDirectCapabilityAliasUsesSamePolicyBoundary(t *testing.T) {
 	skill := models.SkillDefinition{
 		ID: 7, Name: "售后升级处理", Instruction: "先确认升级诉求。", Status: enums.StatusOk,

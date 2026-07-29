@@ -89,11 +89,12 @@ func (s *aiReplyService) executeReply(ctx context.Context, replyCtx aiReplyConte
 		if _, err := svc.ConversationHumanDispatchService.HandoffByAIWithRequestID(
 			replyCtx.Conversation.ID,
 			replyCtx.AIAgent,
-			"knowledge evidence unavailable",
+			summary.HandoffReason,
 			replyCtx.Message.RequestID,
-		); err == nil {
-			return nil
+		); err != nil {
+			return err
 		}
+		return nil
 	}
 	if summary != nil && strings.TrimSpace(summary.ReplyText) != "" {
 		_, err := s.commit.CommitAIReply(replyCommitInput{
