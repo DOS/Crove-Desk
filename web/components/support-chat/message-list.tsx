@@ -6,10 +6,16 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
-  useLayoutEffect,
   useRef,
 } from "react"
 
+import { ConversationMessageBubble } from "@/components/chat/conversation-message-bubble"
+import { ConversationMessageRow } from "@/components/chat/conversation-message-row"
+import {
+  ConversationMessageScroller,
+  ConversationMessageScrollerItem,
+  type ConversationMessageScrollerHandle,
+} from "@/components/chat/conversation-message-scroller"
 import { ImMessageHTML } from "@/components/im-message-html"
 import { useImageLightbox } from "@/components/image-lightbox"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -79,150 +85,52 @@ export const SupportChatMessageList = forwardRef<SupportChatMessageListHandle, S
     ref
   ) {
     const t = useI18n()
-    const containerRef = useRef<HTMLDivElement>(null)
-    const contentRef = useRef<HTMLDivElement>(null)
-    const frameRef = useRef<number | null>(null)
+    const scrollerRef = useRef<ConversationMessageScrollerHandle | null>(null)
     const shouldStickToBottomRef = useRef(true)
     const onNearBottomVisibleRef = useRef(onNearBottomVisible)
     const safeMessages = Array.isArray(messages) ? messages : []
-    const lastMessageId = safeMessages.at(-1)?.id
 
     useEffect(() => {
       onNearBottomVisibleRef.current = onNearBottomVisible
     }, [onNearBottomVisible])
 
-    const isNearBottom = useCallback(
-      (element: HTMLElement, threshold = 80) =>
-        element.scrollHeight - element.scrollTop - element.clientHeight <= threshold,
-      []
-    )
-
     const scrollToBottom = useCallback(() => {
-      const container = containerRef.current
-      if (!container) {
-        return
-      }
-      container.scrollTop = container.scrollHeight
+      scrollerRef.current?.scrollToBottom()
     }, [])
-
-    const scheduleScrollToBottom = useCallback(
-      (attempts = 4) => {
-        if (frameRef.current !== null) {
-          cancelAnimationFrame(frameRef.current)
-        }
-
-        const run = (remaining: number, previousHeight = -1) => {
-          frameRef.current = requestAnimationFrame(() => {
-            const container = containerRef.current
-            if (!container) {
-              frameRef.current = null
-              return
-            }
-
-            const currentHeight = container.scrollHeight
-            scrollToBottom()
-            if (remaining > 1 && currentHeight !== previousHeight) {
-              run(remaining - 1, currentHeight)
-              return
-            }
-            frameRef.current = null
-          })
-        }
-
-        run(attempts)
-      },
-      [scrollToBottom]
-    )
 
     const handleImageSettled = useCallback(() => {
       if (shouldStickToBottomRef.current) {
-        scheduleScrollToBottom()
+        scrollToBottom()
         onNearBottomVisibleRef.current?.()
       }
-    }, [scheduleScrollToBottom])
+    }, [scrollToBottom])
 
     useImperativeHandle(ref, () => ({
       scrollToBottom,
     }))
 
-    useLayoutEffect(() => {
-      shouldStickToBottomRef.current = true
-      scheduleScrollToBottom()
-      return () => {
-        if (frameRef.current !== null) {
-          cancelAnimationFrame(frameRef.current)
-          frameRef.current = null
-        }
-      }
-    }, [lastMessageId, scheduleScrollToBottom])
-
-    useEffect(() => {
-      const container = containerRef.current
-      const content = contentRef.current
-      if (!container || !content) {
-        return
-      }
-
-      const handleScroll = () => {
-        shouldStickToBottomRef.current = isNearBottom(container)
-        if (shouldStickToBottomRef.current) {
-          onNearBottomVisible?.()
-        }
-      }
-
-      const resizeObserver = new ResizeObserver(() => {
-        if (shouldStickToBottomRef.current) {
-          scheduleScrollToBottom()
-        }
-      })
-
-      handleScroll()
-      container.addEventListener("scroll", handleScroll)
-      resizeObserver.observe(container)
-      resizeObserver.observe(content)
-      scrollToBottom()
-
-      return () => {
-        container.removeEventListener("scroll", handleScroll)
-        resizeObserver.disconnect()
-      }
-    }, [isNearBottom, onNearBottomVisible, scheduleScrollToBottom, scrollToBottom])
-
     const handleLoadOlder = useCallback(async () => {
       if (!onLoadOlder || loadingOlder || !hasMoreOlder) {
         return
       }
-      const container = containerRef.current
-      if (!container) {
-        return
-      }
-      const anchor = {
-        height: container.scrollHeight,
-        top: container.scrollTop,
-      }
-      try {
-        await onLoadOlder()
-      } catch {
-        return
-      }
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const current = containerRef.current
-          if (!current) {
-            return
-          }
-          current.scrollTop = current.scrollHeight - anchor.height + anchor.top
-        })
-      })
+      await onLoadOlder()
     }, [hasMoreOlder, loadingOlder, onLoadOlder])
 
     return (
-      <div
-        ref={containerRef}
-        className="agent-desk-scrollbar flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4"
-      >
-        <div ref={contentRef} className="flex flex-col gap-4">
-          {hasMoreOlder && onLoadOlder ? (
+      <ConversationMessageScroller
+        ref={scrollerRef}
+        className="flex min-h-0 flex-1"
+        viewportClassName="bg-transparent"
+        contentClassName="gap-4 px-4 py-4"
+        hasMoreOlder={hasMoreOlder}
+        loadingOlder={loadingOlder}
+        onLoadOlder={onLoadOlder}
+        onNearBottomChange={(nearBottom) => {
+          shouldStickToBottomRef.current = nearBottom
+        }}
+        onNearBottomVisible={onNearBottomVisible}
+        topSlot={
+          hasMoreOlder && onLoadOlder ? (
             <div className="flex justify-center py-1">
               <Button
                 type="button"
@@ -235,32 +143,36 @@ export const SupportChatMessageList = forwardRef<SupportChatMessageListHandle, S
                 {loadingOlder ? t("supportChat.loadingOlder") : t("supportChat.loadOlder")}
               </Button>
             </div>
-          ) : null}
+          ) : null
+        }
+      >
+        {safeMessages.length === 0 ? (
+          <div className="flex min-h-32 items-center justify-center px-3 py-6 text-center text-sm leading-6 text-muted-foreground">
+            {t("supportChat.emptyPrompt")}
+          </div>
+        ) : null}
 
-          {safeMessages.length === 0 ? (
-            <div className="flex min-h-32 items-center justify-center px-3 py-6 text-center text-sm leading-6 text-muted-foreground">
-              {t("supportChat.emptyPrompt")}
-            </div>
-          ) : null}
+        {safeMessages.map((message, index) => {
+          const previousMessage = index > 0 ? safeMessages[index - 1] : null
+          const showTimeline =
+            index === 0 ||
+            getDayKey(previousMessage?.sentAt) !== getDayKey(message.sentAt)
 
-          {safeMessages.map((message, index) => {
-            const previousMessage = index > 0 ? safeMessages[index - 1] : null
-            const showTimeline =
-              index === 0 ||
-              getDayKey(previousMessage?.sentAt) !== getDayKey(message.sentAt)
-
-            return (
+          return (
+            <ConversationMessageScrollerItem
+              key={message.id}
+              messageId={`${message.id}`}
+            >
               <MessageItem
-                key={message.id}
                 message={message}
                 showTimeline={showTimeline}
                 onImageSettled={handleImageSettled}
                 timelineLabel={getTimelineLabel(message.sentAt, t)}
               />
-            )
-          })}
-        </div>
-      </div>
+            </ConversationMessageScrollerItem>
+          )
+        })}
+      </ConversationMessageScroller>
     )
   }
 )
@@ -296,50 +208,51 @@ const MessageItem = memo(
           </div>
         ) : null}
 
-        <div className={cn("flex gap-2.5", isCustomer ? "justify-end" : "justify-start")}>
-          {!isCustomer ? (
-            <Avatar className="mt-5">
-              {avatarSrc ? <AvatarImage src={avatarSrc} alt="" /> : null}
-              <AvatarFallback className="bg-muted text-muted-foreground">
-                {fallbackName || t("supportChat.customerFallback")}
-              </AvatarFallback>
-            </Avatar>
-          ) : null}
-
-          <div
-            className={cn(
-              "flex max-w-[86%] flex-col gap-1.5",
-              isCustomer ? "items-end" : "items-start"
-            )}
-          >
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-[11px] text-muted-foreground">
+        <ConversationMessageRow
+          align={isCustomer ? "end" : "start"}
+          avatar={
+            !isCustomer ? (
+              <Avatar>
+                {avatarSrc ? <AvatarImage src={avatarSrc} alt="" /> : null}
+                <AvatarFallback className="bg-muted text-muted-foreground">
+                  {fallbackName || t("supportChat.customerFallback")}
+                </AvatarFallback>
+              </Avatar>
+            ) : null
+          }
+          contentClassName="max-w-[86%] gap-1.5"
+          headerClassName="flex-wrap gap-x-2 gap-y-1 px-1 text-[11px]"
+          header={
+            <>
               <span className="font-medium">{senderName}</span>
               <span>{formatDateTime(message.sentAt)}</span>
               {isCustomer ? (
                 <span>{message.agentRead ? t("supportChat.agentRead") : t("supportChat.agentUnread")}</span>
               ) : null}
-            </div>
-            <div
+            </>
+          }
+        >
+          <ConversationMessageBubble
+            variant={isCustomer ? "customer" : "system"}
+            className={cn(
+              "rounded-lg border-0 px-3 py-2 text-sm leading-normal shadow-[0_10px_22px_rgba(15,23,42,0.06)]",
+              isCustomer
+                ? "bg-[#a9ea7a] text-[#161616] dark:bg-emerald-500 dark:text-emerald-950"
+                : "border border-border bg-card text-card-foreground dark:bg-background"
+            )}
+          >
+            <ImMessageHTML
+              html={htmlContent}
               className={cn(
-                "rounded-lg px-3 py-2 text-sm leading-normal shadow-[0_10px_22px_rgba(15,23,42,0.06)]",
                 isCustomer
-                  ? "bg-[#a9ea7a] text-[#161616] dark:bg-emerald-500 dark:text-emerald-950"
-                  : "border border-border bg-card text-card-foreground dark:bg-background"
+                  ? "[&_p]:text-[#161616] dark:[&_p]:text-emerald-950 [&_a]:text-[#161616] dark:[&_a]:text-emerald-950 [&_a]:underline [&_img]:cursor-zoom-in"
+                  : "[&_a]:text-card-foreground [&_a]:underline [&_img]:cursor-zoom-in"
               )}
-            >
-              <ImMessageHTML
-                html={htmlContent}
-                className={cn(
-                  isCustomer
-                    ? "[&_p]:text-[#161616] dark:[&_p]:text-emerald-950 [&_a]:text-[#161616] dark:[&_a]:text-emerald-950 [&_a]:underline [&_img]:cursor-zoom-in"
-                    : "[&_a]:text-card-foreground [&_a]:underline [&_img]:cursor-zoom-in"
-                )}
-                onImageSettled={onImageSettled}
-                onImageClick={open}
-              />
-            </div>
-          </div>
-        </div>
+              onImageSettled={onImageSettled}
+              onImageClick={open}
+            />
+          </ConversationMessageBubble>
+        </ConversationMessageRow>
       </div>
     )
   },

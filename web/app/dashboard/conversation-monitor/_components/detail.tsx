@@ -2,13 +2,16 @@
 
 import { CheckCheckIcon, EyeIcon, MessageCircleMoreIcon } from "lucide-react";
 import Image from "next/image";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-} from "react";
+import { useEffect } from "react";
 
+import { ConversationMessageBubble } from "@/components/chat/conversation-message-bubble";
+import {
+  ConversationMessageRow,
+} from "@/components/chat/conversation-message-row";
+import {
+  ConversationMessageScroller,
+  ConversationMessageScrollerItem,
+} from "@/components/chat/conversation-message-scroller";
 import { ImMessageHTML } from "@/components/im-message-html";
 import { useImageLightbox } from "@/components/image-lightbox";
 import { ProjectDialog } from "@/components/project-dialog";
@@ -114,51 +117,41 @@ function getParticipantIdentity(
   return participant.participantId || participant.externalParticipantId || "-";
 }
 
-function getMessageLayout(message: AdminMessage) {
-  if (message.senderType === "customer") {
-    return {
-      rowClassName: "justify-start",
-      bubbleClassName: "border-border/70 bg-muted/60 text-foreground shadow-sm",
-      htmlClassName: "[&_a]:text-foreground [&_a]:underline [&_img]:rounded-md",
-      recalledBubbleClassName:
-        "border-dashed border-border/70 bg-muted/40 text-muted-foreground",
-      recalledHtmlClassName: "text-muted-foreground [&_p]:text-muted-foreground",
-      metaClassName: "text-left",
-    };
+function getMessageAlign(message: AdminMessage): "start" | "end" {
+  return message.senderType === "customer" || message.senderType === "system"
+    ? "start"
+    : "end";
+}
+
+function getMessageVariant(message: AdminMessage) {
+  switch (message.senderType) {
+    case "agent":
+      return "agent" as const;
+    case "ai":
+      return "ai" as const;
+    case "system":
+      return "system" as const;
+    default:
+      return "customer" as const;
   }
-  if (message.senderType === "system") {
-    return {
-      rowClassName: "justify-center",
-      bubbleClassName:
-        "border-dashed border-border bg-muted/60 text-muted-foreground",
-      htmlClassName: "[&_a]:text-foreground [&_a]:underline [&_img]:rounded-md",
-      recalledBubbleClassName:
-        "border-dashed border-border/70 bg-muted/40 text-muted-foreground",
-      recalledHtmlClassName: "text-muted-foreground [&_p]:text-muted-foreground",
-      metaClassName: "text-center",
-    };
+}
+
+function getMessageHtmlClassName(message: AdminMessage, isRecalled: boolean) {
+  if (isRecalled) {
+    return message.senderType === "agent" || message.senderType === "ai"
+      ? "text-emerald-800 [&_p]:text-emerald-800"
+      : "text-muted-foreground [&_p]:text-muted-foreground";
   }
-  if (message.senderType === "ai") {
-    return {
-      rowClassName: "justify-end",
-      bubbleClassName: "border-primary/15 bg-primary/5 text-foreground shadow-sm",
-      htmlClassName: "[&_a]:text-foreground [&_a]:underline [&_img]:rounded-md",
-      recalledBubbleClassName:
-        "border-dashed border-emerald-200 bg-emerald-50 text-emerald-800",
-      recalledHtmlClassName: "text-emerald-800 [&_p]:text-emerald-800",
-      metaClassName: "text-right",
-    };
+  if (message.senderType === "agent") {
+    return "[&_p]:text-white [&_a]:text-white [&_a]:underline [&_img]:rounded-md";
   }
-  return {
-    rowClassName: "justify-end",
-    bubbleClassName: "border-transparent bg-emerald-600 text-white shadow-sm",
-    htmlClassName:
-      "[&_p]:text-white [&_a]:text-white [&_a]:underline [&_img]:rounded-md",
-    recalledBubbleClassName:
-      "border-dashed border-emerald-200 bg-emerald-50 text-emerald-800",
-    recalledHtmlClassName: "text-emerald-800 [&_p]:text-emerald-800",
-    metaClassName: "text-right",
-  };
+  return "[&_a]:text-foreground [&_a]:underline [&_img]:rounded-md";
+}
+
+function getRecalledBubbleClassName(message: AdminMessage) {
+  return message.senderType === "agent" || message.senderType === "ai"
+    ? "border-dashed border-emerald-200 bg-emerald-50 text-emerald-800"
+    : "border-dashed border-border/70 bg-muted/40 text-muted-foreground";
 }
 
 export function ConversationDetailDialog({
@@ -187,91 +180,14 @@ export function ConversationDetailDialog({
   const statusMeta = currentConversation
     ? getStatusMeta(currentConversation.status, t)
     : null;
-  const messageBottomRef = useRef<HTMLDivElement | null>(null);
-  const messagesScrollRootRef = useRef<HTMLDivElement | null>(null);
-  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
-  const pendingScrollAnchorRef = useRef<{
-    scrollHeight: number;
-    scrollTop: number;
-  } | null>(null);
-  const prevLoadingMoreRef = useRef(false);
   const { open: openImageLightbox, close: closeImageLightbox } =
     useImageLightbox();
-
-  const getMessagesViewport = useCallback((): HTMLElement | null => {
-    return (
-      messagesScrollRootRef.current?.querySelector(
-        '[data-slot="scroll-area-viewport"]',
-      ) ?? null
-    );
-  }, []);
 
   useEffect(() => {
     if (!open) {
       closeImageLightbox();
-      return;
     }
-    if (loading) {
-      return;
-    }
-    const bottom = messageBottomRef.current;
-    if (!bottom) {
-      return;
-    }
-    bottom.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [open, loading, closeImageLightbox]);
-
-  useLayoutEffect(() => {
-    const wasLoading = prevLoadingMoreRef.current;
-    prevLoadingMoreRef.current = loadingMoreMessages;
-    if (wasLoading && !loadingMoreMessages && pendingScrollAnchorRef.current) {
-      const vp = getMessagesViewport();
-      const anchor = pendingScrollAnchorRef.current;
-      pendingScrollAnchorRef.current = null;
-      if (vp && anchor) {
-        const delta = vp.scrollHeight - anchor.scrollHeight;
-        vp.scrollTop = anchor.scrollTop + delta;
-      }
-    }
-  }, [loadingMoreMessages, messages, getMessagesViewport]);
-
-  useEffect(() => {
-    if (!open || loading || !messagesHasMore || !onLoadMoreMessages) {
-      return;
-    }
-    const root = getMessagesViewport();
-    const sentinel = loadMoreSentinelRef.current;
-    if (!root || !sentinel) {
-      return;
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const hit = entries.some((e) => e.isIntersecting);
-        if (!hit || loadingMoreMessages) {
-          return;
-        }
-        const vp = getMessagesViewport();
-        if (vp) {
-          pendingScrollAnchorRef.current = {
-            scrollHeight: vp.scrollHeight,
-            scrollTop: vp.scrollTop,
-          };
-        }
-        void onLoadMoreMessages();
-      },
-      { root, rootMargin: "120px 0px 0px 0px", threshold: 0 },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [
-    open,
-    loading,
-    messagesHasMore,
-    loadingMoreMessages,
-    messages.length,
-    onLoadMoreMessages,
-    getMessagesViewport,
-  ]);
+  }, [open, closeImageLightbox]);
 
   return (
     <ProjectDialog
@@ -364,8 +280,8 @@ export function ConversationDetailDialog({
           {t("conversationMonitor.loadingDetail")}
         </div>
       ) : currentConversation ? (
-        <div className="flex min-h-0 flex-1 flex-row overflow-hidden border-t">
-          <aside className="flex w-90 h-full shrink-0 flex-col overflow-hidden bg-muted/20 border-r border-b-0">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t md:flex-row">
+          <aside className="flex max-h-[46%] w-full shrink-0 flex-col overflow-hidden border-b bg-muted/20 md:h-full md:max-h-none md:w-90 md:border-r md:border-b-0">
             <div className="space-y-4 p-6">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <InfoItem
@@ -452,103 +368,40 @@ export function ConversationDetailDialog({
           </aside>
 
           <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
-            <div ref={messagesScrollRootRef} className="min-h-0 flex-1">
-              <ScrollArea className="h-full min-h-0 bg-muted/10">
-                <div className="space-y-4 px-6 py-5">
-                  {messagesHasMore ? (
-                    <div
-                      ref={loadMoreSentinelRef}
-                      className="flex min-h-8 flex-col items-center justify-center py-2 text-xs text-muted-foreground"
-                    >
-                      {loadingMoreMessages
-                        ? t("conversationMonitor.loadingOlder")
-                        : t("conversationMonitor.loadOlderHint")}
-                    </div>
-                  ) : null}
-                  {messages.length ? (
-                    messages.map((message) => {
-                      const layout = getMessageLayout(message);
-                      const isRecalled =
-                        Boolean(message.recalledAt) || message.sendStatus === 6;
-                      const isHtmlMessage =
-                        !isRecalled &&
-                        (message.messageType === "html" ||
-                          message.messageType === "attachment");
-                      const isImageMessage = !isRecalled && message.messageType === "image";
-
-                      return (
-                        <div
-                          key={message.id}
-                          className={`flex ${layout.rowClassName}`}
-                        >
-                          <div className="max-w-[85%] space-y-2">
-                            <div
-                              className={`text-xs text-muted-foreground ${layout.metaClassName}`}
-                            >
-                              <span>{getSenderLabel(message, t)}</span>
-                              <span className="mx-2">·</span>
-                              <span>{formatDateTime(message.sentAt)}</span>
-                              {isRecalled ? (
-                                <>
-                                  <span className="mx-2">·</span>
-                                  <span>{t("conversationMonitor.messageRecalled")}</span>
-                                </>
-                              ) : null}
-                            </div>
-                            <div
-                              className={`rounded-2xl border px-4 py-3 text-sm leading-6 ${
-                                isRecalled
-                                  ? layout.recalledBubbleClassName
-                                  : layout.bubbleClassName
-                              }`}
-                            >
-                              {isRecalled ? (
-                                <div className={layout.recalledHtmlClassName}>
-                                  {t("conversationMonitor.messageRecalledBody")}
-                                </div>
-                              ) : isHtmlMessage ? (
-                                <ImMessageHTML
-                                  html={renderIMMessageHTML(message)}
-                                  className={`${layout.htmlClassName} [&_img]:max-w-full [&_img]:cursor-zoom-in`}
-                                  onImageClick={openImageLightbox}
-                                />
-                              ) : isImageMessage ? (
-                                <MessageImage
-                                  src={getImageMessageUrl(message)}
-                                  alt={getMessageContent(message)}
-                                  onPreview={openImageLightbox}
-                                />
-                              ) : (
-                                <div className="whitespace-pre-wrap break-words">
-                                  {getMessageContent(message)}
-                                </div>
-                              )}
-                            </div>
-                            <div
-                              className={`text-xs text-muted-foreground ${layout.metaClassName}`}
-                            >
-                              {t("conversationMonitor.readStatus", {
-                                agent: message.agentRead
-                                  ? t("conversationMonitor.read")
-                                  : t("conversationMonitor.unread"),
-                                customer: message.customerRead
-                                  ? t("conversationMonitor.read")
-                                  : t("conversationMonitor.unread"),
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="flex h-full min-h-80 items-center justify-center rounded-xl border border-dashed bg-background text-sm text-muted-foreground">
-                      {t("conversationMonitor.emptyMessages")}
-                    </div>
-                  )}
-                  <div ref={messageBottomRef} />
+            <ConversationMessageScroller
+              key={currentConversation.id}
+              className="min-h-0 flex-1"
+              hasMoreOlder={messagesHasMore}
+              loadingOlder={loadingMoreMessages}
+              onLoadOlder={onLoadMoreMessages}
+              topSlot={
+                messagesHasMore ? (
+                  <div className="flex min-h-8 flex-col items-center justify-center py-2 text-xs text-muted-foreground">
+                    {loadingMoreMessages
+                      ? t("conversationMonitor.loadingOlder")
+                      : t("conversationMonitor.loadOlderHint")}
+                  </div>
+                ) : null
+              }
+            >
+              {messages.length ? (
+                messages.map((message) => (
+                  <ConversationMessageScrollerItem
+                    key={message.id}
+                    messageId={`${message.id}`}
+                  >
+                    <ConversationMonitorMessage
+                      message={message}
+                      onImagePreview={openImageLightbox}
+                    />
+                  </ConversationMessageScrollerItem>
+                ))
+              ) : (
+                <div className="flex h-full min-h-80 items-center justify-center rounded-xl border border-dashed bg-background text-sm text-muted-foreground">
+                  {t("conversationMonitor.emptyMessages")}
                 </div>
-              </ScrollArea>
-            </div>
+              )}
+            </ConversationMessageScroller>
           </section>
         </div>
       ) : (
@@ -557,6 +410,82 @@ export function ConversationDetailDialog({
         </div>
       )}
     </ProjectDialog>
+  );
+}
+
+type ConversationMonitorMessageProps = {
+  message: AdminMessage;
+  onImagePreview: (src: string, alt?: string) => void;
+};
+
+function ConversationMonitorMessage({
+  message,
+  onImagePreview,
+}: ConversationMonitorMessageProps) {
+  const t = useI18n();
+  const isRecalled = Boolean(message.recalledAt) || message.sendStatus === 6;
+  const isHtmlMessage =
+    !isRecalled &&
+    (message.messageType === "html" || message.messageType === "attachment");
+  const isImageMessage = !isRecalled && message.messageType === "image";
+  const isSystem = message.senderType === "system";
+  const align = getMessageAlign(message);
+  const variant = isRecalled ? "recalled" : getMessageVariant(message);
+  const htmlClassName = getMessageHtmlClassName(message, isRecalled);
+
+  return (
+    <ConversationMessageRow
+      align={align}
+      centered={isSystem}
+      header={
+        <>
+          <span>{getSenderLabel(message, t)}</span>
+          <span>·</span>
+          <span>{formatDateTime(message.sentAt)}</span>
+          {isRecalled ? (
+            <>
+              <span>·</span>
+              <span>{t("conversationMonitor.messageRecalled")}</span>
+            </>
+          ) : null}
+        </>
+      }
+      footer={t("conversationMonitor.readStatus", {
+        agent: message.agentRead
+          ? t("conversationMonitor.read")
+          : t("conversationMonitor.unread"),
+        customer: message.customerRead
+          ? t("conversationMonitor.read")
+          : t("conversationMonitor.unread"),
+      })}
+    >
+      <ConversationMessageBubble
+        variant={variant}
+        className={isRecalled ? getRecalledBubbleClassName(message) : undefined}
+      >
+        {isRecalled ? (
+          <div className={htmlClassName}>
+            {t("conversationMonitor.messageRecalledBody")}
+          </div>
+        ) : isHtmlMessage ? (
+          <ImMessageHTML
+            html={renderIMMessageHTML(message)}
+            className={`${htmlClassName} [&_img]:max-w-full [&_img]:cursor-zoom-in`}
+            onImageClick={onImagePreview}
+          />
+        ) : isImageMessage ? (
+          <MessageImage
+            src={getImageMessageUrl(message)}
+            alt={getMessageContent(message)}
+            onPreview={onImagePreview}
+          />
+        ) : (
+          <div className="whitespace-pre-wrap break-words">
+            {getMessageContent(message)}
+          </div>
+        )}
+      </ConversationMessageBubble>
+    </ConversationMessageRow>
   );
 }
 

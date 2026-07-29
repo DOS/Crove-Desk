@@ -5,7 +5,6 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -20,6 +19,11 @@ import {
 import { toast } from "sonner";
 
 import { ConversationTransferDialog } from "@/components/conversation-actions/transfer-dialog";
+import {
+  ConversationMessageScroller,
+  ConversationMessageScrollerItem,
+  type ConversationMessageScrollerHandle,
+} from "@/components/chat/conversation-message-scroller";
 import { ImMessageHTML } from "@/components/im-message-html";
 import { useImageLightbox } from "@/components/image-lightbox";
 import { JsonTreeViewer } from "@/components/json-tree-viewer";
@@ -158,13 +162,10 @@ export function ChatPanel() {
   const setConversationFilter = useAgentConversationsStore(
     (state) => state.setConversationFilter,
   );
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const messagesContentRef = useRef<HTMLDivElement>(null);
-  const scrollBottomRafRef = useRef<number | null>(null);
-  const shouldStickToBottomRef = useRef(true);
-  const prependScrollAnchorRef = useRef<{ height: number; top: number } | null>(
+  const messagesScrollerRef = useRef<ConversationMessageScrollerHandle | null>(
     null,
   );
+  const shouldStickToBottomRef = useRef(true);
   const [claiming, setClaiming] = useState(false);
   const [claimDialogOpen, setClaimDialogOpen] = useState(false);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
@@ -185,66 +186,19 @@ export function ChatPanel() {
     setConversationFilter("active" satisfies AgentConversationFilterKey);
   };
 
-  const getViewport = useCallback(
-    () => messagesContainerRef.current,
-    [],
-  );
-
-  const isNearBottom = useCallback(
-    (element: HTMLElement, threshold = 80) =>
-      element.scrollHeight - element.scrollTop - element.clientHeight <=
-      threshold,
-    [],
-  );
-
   const scrollToBottom = useCallback(() => {
-    const viewport = getViewport();
-    if (!viewport) {
-      return;
-    }
-    viewport.scrollTop = viewport.scrollHeight;
-  }, [getViewport]);
-
-  /**
-   * Match the widget message list: keep scrolling for a few frames until
-   * scrollHeight stabilizes, which prevents stacked scroll jumps.
-   */
-  const scheduleScrollToBottom = useCallback(
-    (attempts = 4) => {
-      if (scrollBottomRafRef.current !== null) {
-        cancelAnimationFrame(scrollBottomRafRef.current);
-      }
-      const run = (remaining: number, previousHeight = -1) => {
-        scrollBottomRafRef.current = requestAnimationFrame(() => {
-          const viewport = getViewport();
-          if (!viewport) {
-            scrollBottomRafRef.current = null;
-            return;
-          }
-          const currentHeight = viewport.scrollHeight;
-          scrollToBottom();
-          if (remaining > 1 && currentHeight !== previousHeight) {
-            run(remaining - 1, currentHeight);
-            return;
-          }
-          scrollBottomRafRef.current = null;
-        });
-      };
-      run(attempts);
-    },
-    [getViewport, scrollToBottom],
-  );
+    messagesScrollerRef.current?.scrollToBottom();
+  }, []);
 
   const handleImageSettled = useCallback(() => {
     if (!shouldStickToBottomRef.current) {
       return;
     }
-    scheduleScrollToBottom();
-  }, [scheduleScrollToBottom]);
+    scrollToBottom();
+  }, [scrollToBottom]);
 
   const maybeMarkConversationRead = useCallback(() => {
-    const viewport = getViewport();
-    if (!viewport || !conversation || loading) {
+    if (!conversation || loading || !shouldStickToBottomRef.current) {
       return;
     }
     if (
@@ -253,87 +207,19 @@ export function ChatPanel() {
     ) {
       return;
     }
-    if (!isNearBottom(viewport)) {
-      return;
-    }
     void markSelectedConversationRead().catch((error) => {
       toast.error(error instanceof Error ? error.message : t("conversation.markReadFailed"));
     });
   }, [
     conversation,
-    getViewport,
-    isNearBottom,
     loading,
     markSelectedConversationRead,
     t,
   ]);
 
   useEffect(() => {
-    const viewport = getViewport();
-    if (!viewport) {
-      return;
-    }
-
-    const handleScroll = () => {
-      shouldStickToBottomRef.current = isNearBottom(viewport);
-      if (shouldStickToBottomRef.current) {
-        maybeMarkConversationRead();
-      }
-    };
-
-    handleScroll();
-    viewport.addEventListener("scroll", handleScroll);
-    return () => {
-      viewport.removeEventListener("scroll", handleScroll);
-    };
-  }, [conversation?.id, getViewport, isNearBottom, maybeMarkConversationRead]);
-
-  useLayoutEffect(() => {
     shouldStickToBottomRef.current = true;
-    scheduleScrollToBottom();
-    return () => {
-      if (scrollBottomRafRef.current !== null) {
-        cancelAnimationFrame(scrollBottomRafRef.current);
-        scrollBottomRafRef.current = null;
-      }
-    };
-  }, [conversation?.id, scheduleScrollToBottom]);
-
-  useLayoutEffect(() => {
-    const viewport = getViewport();
-    if (!viewport) {
-      return;
-    }
-    const anchor = prependScrollAnchorRef.current;
-    if (anchor) {
-      prependScrollAnchorRef.current = null;
-      const nextHeight = viewport.scrollHeight;
-      viewport.scrollTop = nextHeight - anchor.height + anchor.top;
-      return;
-    }
-    if (shouldStickToBottomRef.current) {
-      scheduleScrollToBottom();
-    }
-  }, [messages, getViewport, scheduleScrollToBottom]);
-
-  useEffect(() => {
-    const content = messagesContentRef.current;
-    if (!content) {
-      return;
-    }
-
-    const observer = new ResizeObserver(() => {
-      if (!shouldStickToBottomRef.current) {
-        return;
-      }
-      scheduleScrollToBottom();
-    });
-
-    observer.observe(content);
-    return () => {
-      observer.disconnect();
-    };
-  }, [conversation?.id, scheduleScrollToBottom]);
+  }, [conversation?.id]);
 
   useEffect(() => {
     maybeMarkConversationRead();
@@ -358,18 +244,12 @@ export function ChatPanel() {
   }, [maybeMarkConversationRead]);
 
   const handleLoadOlder = async () => {
-    const viewport = getViewport();
-    if (!viewport || messagesLoadingMore || !messagesHasMore) {
+    if (messagesLoadingMore || !messagesHasMore) {
       return;
     }
-    prependScrollAnchorRef.current = {
-      height: viewport.scrollHeight,
-      top: viewport.scrollTop,
-    };
     try {
       await loadOlderMessages();
     } catch (error) {
-      prependScrollAnchorRef.current = null;
       toast.error(error instanceof Error ? error.message : t("conversation.loadHistoryFailed"));
     }
   };
@@ -450,12 +330,21 @@ export function ChatPanel() {
   }
 
   const messagesScroll = (
-    <div
-      ref={messagesContainerRef}
-      className="h-full min-h-0 flex-1 overflow-y-auto p-4 agent-desk-scrollbar"
-    >
-      <div ref={messagesContentRef} className="flex flex-col">
-        {!loading && messages.length > 0 && messagesHasMore ? (
+    <ConversationMessageScroller
+      key={conversation.id}
+      ref={messagesScrollerRef}
+      className="h-full min-h-0 flex-1"
+      viewportClassName="bg-transparent"
+      contentClassName="gap-0 p-4"
+      hasMoreOlder={!loading && messages.length > 0 && messagesHasMore}
+      loadingOlder={messagesLoadingMore}
+      onLoadOlder={handleLoadOlder}
+      onNearBottomChange={(nearBottom) => {
+        shouldStickToBottomRef.current = nearBottom;
+      }}
+      onNearBottomVisible={maybeMarkConversationRead}
+      topSlot={
+        !loading && messages.length > 0 && messagesHasMore ? (
           <div className="mb-4 flex justify-center">
             <Button
               type="button"
@@ -467,15 +356,20 @@ export function ChatPanel() {
               {messagesLoadingMore ? t("conversation.loading") : t("conversation.loadOlder")}
             </Button>
           </div>
-        ) : null}
-        {loading ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            {t("conversation.loading")}
-          </div>
-        ) : messages.length > 0 ? (
-          messages.map((message) => (
+        ) : null
+      }
+    >
+      {loading ? (
+        <div className="py-8 text-center text-sm text-muted-foreground">
+          {t("conversation.loading")}
+        </div>
+      ) : messages.length > 0 ? (
+        messages.map((message) => (
+          <ConversationMessageScrollerItem
+            key={message.id}
+            messageId={`${message.id}`}
+          >
             <MessageItem
-              key={message.id}
               message={message}
               onImageSettled={handleImageSettled}
               canRecall={message.senderType === "agent" && message.senderId === currentUserId}
@@ -485,14 +379,14 @@ export function ChatPanel() {
               }}
               onOpenWorkflowRun={openWorkflowRunDetail}
             />
-          ))
-        ) : (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            {t("conversation.emptyMessages")}
-          </div>
-        )}
-      </div>
-    </div>
+          </ConversationMessageScrollerItem>
+        ))
+      ) : (
+        <div className="py-8 text-center text-sm text-muted-foreground">
+          {t("conversation.emptyMessages")}
+        </div>
+      )}
+    </ConversationMessageScroller>
   );
 
   const bottomPanel = (
