@@ -24,6 +24,7 @@ import {
   ConversationMessageScrollerItem,
   type ConversationMessageScrollerHandle,
 } from "@/components/chat/conversation-message-scroller";
+import { ConversationMessageBubble } from "@/components/chat/conversation-message-bubble";
 import { ImMessageHTML } from "@/components/im-message-html";
 import { useImageLightbox } from "@/components/image-lightbox";
 import { JsonTreeViewer } from "@/components/json-tree-viewer";
@@ -599,6 +600,13 @@ const MessageItem = memo(
       ? "[&_p]:text-emerald-800"
       : "[&_p]:text-muted-foreground";
     const showRecallAction = canRecall && !isRecalled;
+    const bubbleVariant = isRecalled
+      ? "recalled"
+      : isAi
+        ? "ai"
+        : isAgentSide
+          ? "agent"
+          : "customer";
 
     return (
       <div
@@ -612,8 +620,9 @@ const MessageItem = memo(
               <div className="mb-1 text-xs text-muted-foreground">
                 {senderName}
               </div>
-              <div
-                className={`w-fit rounded-2xl px-3 py-2 text-left ${
+              <ConversationMessageBubble
+                variant={bubbleVariant}
+                className={`px-3 py-2 text-left ${
                   isRecalled ? recalledBubbleClassName : bubbleClassName
                 }`}
               >
@@ -623,7 +632,7 @@ const MessageItem = memo(
                   onImageSettled={onImageSettled}
                   onImageClick={isRecalled ? undefined : openImageLightbox}
                 />
-              </div>
+              </ConversationMessageBubble>
               <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                 <span>{formatDateTime(message.sentAt || "")}</span>
                 {isRecalled ? <span>{t("conversation.messageRecalled")}</span> : null}
@@ -685,8 +694,9 @@ const MessageItem = memo(
               <div className="mb-1 text-xs text-muted-foreground">
                 {senderName}
               </div>
-              <div
-                className={`w-fit rounded-2xl px-3 py-2 ${
+              <ConversationMessageBubble
+                variant={bubbleVariant}
+                className={`px-3 py-2 ${
                   isRecalled ? recalledBubbleClassName : bubbleClassName
                 }`}
               >
@@ -696,7 +706,7 @@ const MessageItem = memo(
                   onImageSettled={onImageSettled}
                   onImageClick={isRecalled ? undefined : openImageLightbox}
                 />
-              </div>
+              </ConversationMessageBubble>
               <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                 <span>{formatDateTime(message.sentAt || "")}</span>
                 {isRecalled ? <span>{t("conversation.messageRecalled")}</span> : null}
