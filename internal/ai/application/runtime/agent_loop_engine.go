@@ -69,7 +69,7 @@ func (e *AgentLoopEngine) Run(ctx context.Context, req RunInput) (*RunResult, er
 	turn := e.prepareTurn(ctx, req, snapshot)
 	var toolCalls []svc.AgentLoopToolCallInput
 	state := agentLoopExecutionState{}
-	loopResult, loopErr := e.loop(ctx, req.AIConfig, turn.SystemPrompt, turn.UserPrompt, []ai.ToolDefinition{agentLoopToolSearchDefinition()}, req.AIAgent.MaxSteps,
+	loopResult, loopErr := e.loop(ctx, req.AIConfig, turn.SystemPrompt, turn.UserPrompt, agentLoopToolDefinitions(turn), req.AIAgent.MaxSteps,
 		e.toolSearchExecutor(req, turn, &state, &toolCalls))
 	if state.Interrupted != nil {
 		result := state.Interrupted
@@ -485,6 +485,33 @@ func agentLoopToolSearchDefinition() ai.ToolDefinition {
 	}
 }
 
+// agentLoopToolDefinitions registers the capability codes as compatibility
+// aliases in addition to tool_search. Some OpenAI-compatible providers invoke
+// a capability code mentioned in the prompt directly instead of wrapping it in
+// tool_search. Eino validates the function name before our executor runs, so
+// those calls must be registered here and then routed through the same policy
+// boundary below.
+func agentLoopToolDefinitions(turn agentLoopTurn) []ai.ToolDefinition {
+	definitions := []ai.ToolDefinition{agentLoopToolSearchDefinition()}
+	seen := map[string]struct{}{"tool_search": {}}
+	for _, code := range turn.AllowedTools {
+		code = strings.TrimSpace(code)
+		if code == "" {
+			continue
+		}
+		if _, exists := seen[code]; exists {
+			continue
+		}
+		seen[code] = struct{}{}
+		definitions = append(definitions, ai.ToolDefinition{
+			Name:        code,
+			Description: "Execute the configured capability " + code + " with its arguments.",
+			Parameters:  map[string]any{"type": "object", "additionalProperties": true},
+		})
+	}
+	return definitions
+}
+
 func agentLoopSafeBuiltinCodes() []string {
 	return []string{
 		toolx.BuiltinConversationContext.Code,
@@ -538,14 +565,10 @@ func (e *agentLoopInterruptError) Error() string {
 func (e *AgentLoopEngine) toolSearchExecutor(runInput RunInput, turn agentLoopTurn, state *agentLoopExecutionState, records *[]svc.AgentLoopToolCallInput) ai.ToolCallExecutor {
 	return func(ctx context.Context, call ai.ToolCall) (string, error) {
 		startedAt := time.Now()
-		if call.Name != "tool_search" {
-			return "", fmt.Errorf("unsupported agent loop tool: %s", call.Name)
+		toolCode, arguments, err := resolveAgentLoopToolCall(call)
+		if err != nil {
+			return "", err
 		}
-		var toolRequest agentLoopToolSearchRequest
-		if err := json.Unmarshal([]byte(call.Arguments), &toolRequest); err != nil {
-			return "", fmt.Errorf("invalid tool_search arguments: %w", err)
-		}
-		toolCode := strings.TrimSpace(toolRequest.ToolCode)
 		if !slices.Contains(turn.AllowedTools, toolCode) {
 			return "", fmt.Errorf("capability is not configured for this Agent: %s", toolCode)
 		}
@@ -563,22 +586,22 @@ func (e *AgentLoopEngine) toolSearchExecutor(runInput RunInput, turn agentLoopTu
 		}
 		definition := aitooling.Definition{Code: toolCode, RiskLevel: aitooling.RiskLevelRead}
 		var resultPreview string
-		var err error
+		var executeErr error
 		switch {
 		case strings.HasPrefix(toolCode, "skill/"):
-			resultPreview, err = activateAgentLoopSkill(toolCode, turn.Skills, state)
+			resultPreview, executeErr = activateAgentLoopSkill(toolCode, turn.Skills, state)
 		case strings.HasPrefix(toolCode, "workflow/"):
 			definition.RiskLevel = aitooling.RiskLevelWrite
 			definition.RequireConfirmation = true
 			workflowPolicy := policy
 			workflowPolicy.Confirmed = true
-			if err = aitooling.DefaultRegistry.Authorize(definition, workflowPolicy); err == nil {
-				resultPreview, err = executeAgentLoopWorkflow(ctx, runInput, toolCode, turn.Workflows, state)
+			if executeErr = aitooling.DefaultRegistry.Authorize(definition, workflowPolicy); executeErr == nil {
+				resultPreview, executeErr = executeAgentLoopWorkflow(ctx, runInput, toolCode, turn.Workflows, state)
 			}
 		default:
-			definition, resultPreview, err = executeAgentLoopReadTool(ctx, runInput.Conversation, runInput.AIAgent, toolCode, toolRequest.Arguments, policy)
-			if err != nil && definition.Code == "" {
-				definition, resultPreview, err = executeAgentLoopMCP(ctx, runInput, toolCode, toolRequest.Arguments, policy, state)
+			definition, resultPreview, executeErr = executeAgentLoopReadTool(ctx, runInput.Conversation, runInput.AIAgent, toolCode, arguments, policy)
+			if executeErr != nil && definition.Code == "" {
+				definition, resultPreview, executeErr = executeAgentLoopMCP(ctx, runInput, toolCode, arguments, policy, state)
 			}
 		}
 		durationMS := int(time.Since(startedAt).Milliseconds())
@@ -590,20 +613,42 @@ func (e *AgentLoopEngine) toolSearchExecutor(runInput RunInput, turn agentLoopTu
 			record.RiskLevel = definition.RiskLevel
 			record.RequireConfirm = definition.RequireConfirmation
 		}
-		if err != nil {
+		if executeErr != nil {
 			record.Status = "failed"
 			var interruptErr *agentLoopInterruptError
-			if errors.As(err, &interruptErr) {
+			if errors.As(executeErr, &interruptErr) {
 				record.Status = "interrupted"
 			}
-			record.ErrorMessage = err.Error()
+			record.ErrorMessage = executeErr.Error()
 			*records = append(*records, record)
-			return "", err
+			return "", executeErr
 		}
 		record.ResultPreview = aitooling.SanitizePreview(resultPreview)
 		*records = append(*records, record)
 		return record.ResultPreview, nil
 	}
+}
+
+func resolveAgentLoopToolCall(call ai.ToolCall) (string, map[string]any, error) {
+	if call.Name == "tool_search" {
+		var request agentLoopToolSearchRequest
+		if err := json.Unmarshal([]byte(call.Arguments), &request); err != nil {
+			return "", nil, fmt.Errorf("invalid tool_search arguments: %w", err)
+		}
+		return strings.TrimSpace(request.ToolCode), request.Arguments, nil
+	}
+	toolCode := strings.TrimSpace(call.Name)
+	if toolCode == "" {
+		return "", nil, fmt.Errorf("agent loop tool name is required")
+	}
+	arguments := map[string]any{}
+	if strings.TrimSpace(call.Arguments) == "" {
+		return toolCode, arguments, nil
+	}
+	if err := json.Unmarshal([]byte(call.Arguments), &arguments); err != nil {
+		return "", nil, fmt.Errorf("invalid direct capability arguments for %s: %w", toolCode, err)
+	}
+	return toolCode, arguments, nil
 }
 
 func activateAgentLoopSkill(code string, skills map[int64]models.SkillDefinition, state *agentLoopExecutionState) (string, error) {

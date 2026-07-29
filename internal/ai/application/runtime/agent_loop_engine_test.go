@@ -45,6 +45,55 @@ func TestAgentLoopActivatesSkillInsideSameToolLoop(t *testing.T) {
 	}
 }
 
+func TestAgentLoopRegistersDirectCapabilityAliases(t *testing.T) {
+	turn := agentLoopTurn{AllowedTools: []string{
+		"builtin/conversation_context",
+		"graph/triage_service_request",
+		"graph/triage_service_request",
+		"workflow/47",
+	}}
+	definitions := agentLoopToolDefinitions(turn)
+	names := make(map[string]bool, len(definitions))
+	for _, definition := range definitions {
+		names[definition.Name] = true
+	}
+	for _, expected := range []string{
+		"tool_search",
+		"builtin/conversation_context",
+		"graph/triage_service_request",
+		"workflow/47",
+	} {
+		if !names[expected] {
+			t.Fatalf("missing registered function alias %q: %#v", expected, definitions)
+		}
+	}
+}
+
+func TestAgentLoopDirectCapabilityAliasUsesSamePolicyBoundary(t *testing.T) {
+	skill := models.SkillDefinition{
+		ID: 7, Name: "售后升级处理", Instruction: "先确认升级诉求。", Status: enums.StatusOk,
+	}
+	turn := agentLoopTurn{
+		AllowedTools: []string{"skill/7"},
+		ToolPolicy:   parseAgentLoopToolPolicy(""),
+		Skills:       map[int64]models.SkillDefinition{skill.ID: skill},
+	}
+	state := agentLoopExecutionState{}
+	var calls []svc.AgentLoopToolCallInput
+	execute := NewAgentLoopEngine().toolSearchExecutor(RunInput{}, turn, &state, &calls)
+
+	result, err := execute(context.Background(), ai.ToolCall{Name: "skill/7", Arguments: `{}`})
+	if err != nil {
+		t.Fatalf("execute direct capability alias: %v", err)
+	}
+	if state.SkillContext.SkillID() != skill.ID || !strings.Contains(result, skill.Instruction) {
+		t.Fatalf("direct capability was not routed through Skill activation: state=%#v result=%q", state, result)
+	}
+	if len(calls) != 1 || calls[0].ToolCode != "skill/7" || calls[0].Status != "completed" {
+		t.Fatalf("unexpected direct capability audit: %#v", calls)
+	}
+}
+
 func TestAgentLoopInterruptsBeforeWriteMCPTool(t *testing.T) {
 	configured, err := json.Marshal([]request.AIAgentMCPToolRequest{{
 		ToolCode: "crm/update_customer", ServerCode: "crm", ToolName: "update_customer",

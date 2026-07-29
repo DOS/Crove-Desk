@@ -36,6 +36,7 @@ func (e *AgentLoopEngine) prepareTurn(ctx context.Context, req RunInput, snapsho
 	skills := svc.SkillDefinitionService.GetByIDs(utils.SplitInt64s(req.AIAgent.SkillIDs))
 	workflows := make(map[int64]svc.AgentRevisionWorkflowBinding, len(snapshot.WorkflowBindings))
 	allowedTools := agentLoopSafeBuiltinCodes()
+	// TODO 这么实现我觉得不太好，最好是能够有个统一的能力目录
 	catalog := []string{
 		"- " + toolx.BuiltinConversationContext.Code + " | Builtin | 读取当前会话和客户上下文",
 		"- " + toolx.BuiltinKnowledgeRetrieve.Code + " | Builtin | 按需再次检索已绑定知识库",
