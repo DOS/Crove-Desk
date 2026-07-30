@@ -53,7 +53,7 @@ import { cn } from "@/lib/utils"
 import { useI18n } from "@/i18n/provider"
 
 const windowActionButtonClass =
-  "size-8 rounded-md border-0 bg-transparent text-muted-foreground shadow-none hover:bg-foreground/[0.06] hover:text-foreground focus-visible:ring-primary/20 dark:hover:bg-white/10"
+  "size-7 rounded-md border-0 bg-transparent text-muted-foreground shadow-none hover:bg-foreground/[0.06] hover:text-foreground focus-visible:ring-primary/20 dark:hover:bg-white/10"
 
 function WindowActionButton({
   className,
@@ -298,11 +298,11 @@ export function SupportChatShell() {
       style={{ "--primary": themeColor } as CSSProperties}
     >
       <section className="flex h-full w-full flex-col overflow-hidden bg-card text-card-foreground">
-        <header className="shrink-0 border-b border-border/80 bg-card px-3 py-2 shadow-none dark:border-border/70 sm:border-primary/[0.10] sm:bg-primary/[0.06] sm:px-4 sm:py-3 sm:shadow-[0_10px_26px_rgba(15,23,42,0.06)] sm:dark:border-primary/20 sm:dark:bg-primary/10 sm:dark:shadow-none">
-          <div className="flex min-w-0 items-center justify-between gap-2 sm:gap-3">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <div className="hidden size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-[0_8px_18px_rgba(37,99,235,0.18)] sm:flex">
-                <HeadphonesIcon className="size-[18px]" />
+        <header className="shrink-0 border-b border-border/80 bg-card px-3 py-1.5 shadow-none dark:border-border/70 sm:border-primary/[0.10] sm:bg-primary/[0.04] sm:px-3 sm:py-2 sm:dark:border-primary/20 sm:dark:bg-primary/10">
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="hidden size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-[0_6px_14px_rgba(37,99,235,0.16)] sm:flex">
+                <HeadphonesIcon className="size-4" />
               </div>
               <div className="min-w-0">
                 <div className="flex min-w-0 items-center gap-2">
@@ -313,11 +313,11 @@ export function SupportChatShell() {
                     )}
                     aria-hidden="true"
                   />
-                  <div className="truncate text-sm font-semibold text-foreground sm:text-base">
+                  <div className="truncate text-sm font-semibold leading-5 text-foreground">
                     {title}
                   </div>
                 </div>
-                <div className="hidden truncate text-xs text-muted-foreground sm:mt-1 sm:block">
+                <div className="hidden truncate text-[11px] leading-4 text-muted-foreground sm:block">
                   {subtitle}
                 </div>
               </div>
@@ -376,11 +376,11 @@ export function SupportChatShell() {
                 </WindowActionButton>
               )}
             </div>
-            <div className="hidden shrink-0 items-center gap-1 sm:flex sm:gap-2">
+            <div className="hidden shrink-0 items-center gap-1 sm:flex">
               {status !== "connected" ? (
                 <SupportChatConnectionStatus status={status} />
               ) : null}
-              <div className="flex items-center gap-0.5 rounded-lg bg-background/55 p-0.5 shadow-sm ring-1 ring-border/70 dark:bg-background/25 dark:ring-white/10">
+              <div className="flex items-center gap-0.5 rounded-md bg-background/55 p-0.5 shadow-sm ring-1 ring-border/70 dark:bg-background/25 dark:ring-white/10">
                 <WindowActionButton
                   onClick={retry}
                   aria-label={t("supportChat.retry")}
