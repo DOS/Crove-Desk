@@ -5,8 +5,8 @@
 
 data/
 config/config.yaml
-include/
-lib/
+/include/
+/lib/
 
 dist/
 __debug_bin*
