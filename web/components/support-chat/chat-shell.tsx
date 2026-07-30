@@ -53,7 +53,7 @@ import { cn } from "@/lib/utils"
 import { useI18n } from "@/i18n/provider"
 
 const windowActionButtonClass =
-  "size-7 rounded-md border-0 bg-transparent text-muted-foreground shadow-none hover:bg-foreground/[0.06] hover:text-foreground focus-visible:ring-primary/20 dark:hover:bg-white/10"
+  "size-8 rounded-full border-0 bg-transparent text-muted-foreground shadow-none hover:bg-foreground/[0.06] hover:text-foreground focus-visible:ring-primary/20 dark:hover:bg-white/10"
 
 function WindowActionButton({
   className,
@@ -70,7 +70,7 @@ function WindowActionButton({
   )
 }
 
-function getMobileStatusDotClass(status: string) {
+function getStatusDotClass(status: string) {
   if (status === "connected") {
     return "bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.14)]"
   }
@@ -298,26 +298,24 @@ export function SupportChatShell() {
       style={{ "--primary": themeColor } as CSSProperties}
     >
       <section className="flex h-full w-full flex-col overflow-hidden bg-card text-card-foreground">
-        <header className="shrink-0 border-b border-border/80 bg-card px-3 py-1.5 shadow-none dark:border-border/70 sm:border-primary/[0.10] sm:bg-primary/[0.04] sm:px-3 sm:py-2 sm:dark:border-primary/20 sm:dark:bg-primary/10">
-          <div className="flex min-w-0 items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <div className="hidden size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-[0_6px_14px_rgba(37,99,235,0.16)] sm:flex">
+        <header className="shrink-0 border-b border-border/70 bg-card/95 px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.02)] backdrop-blur dark:border-border/60 dark:bg-card/90 sm:px-4">
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="relative flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/15 dark:bg-primary/15 dark:ring-primary/25">
                 <HeadphonesIcon className="size-4" />
+                <span
+                  className={cn(
+                    "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-card",
+                    getStatusDotClass(status)
+                  )}
+                  aria-hidden="true"
+                />
               </div>
-              <div className="min-w-0">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span
-                    className={cn(
-                      "size-1.5 shrink-0 rounded-full sm:hidden",
-                      getMobileStatusDotClass(status)
-                    )}
-                    aria-hidden="true"
-                  />
-                  <div className="truncate text-sm font-semibold leading-5 text-foreground">
-                    {title}
-                  </div>
+              <div className="min-w-0 space-y-0.5">
+                <div className="truncate text-sm font-semibold leading-5 text-foreground">
+                  {title}
                 </div>
-                <div className="hidden truncate text-[11px] leading-4 text-muted-foreground sm:block">
+                <div className="truncate text-[11px] leading-4 text-muted-foreground">
                   {subtitle}
                 </div>
               </div>
@@ -380,45 +378,43 @@ export function SupportChatShell() {
               {status !== "connected" ? (
                 <SupportChatConnectionStatus status={status} />
               ) : null}
-              <div className="flex items-center gap-0.5 rounded-md bg-background/55 p-0.5 shadow-sm ring-1 ring-border/70 dark:bg-background/25 dark:ring-white/10">
-                <WindowActionButton
-                  onClick={retry}
-                  aria-label={t("supportChat.retry")}
-                  title={t("supportChat.retry")}
-                >
-                  <RotateCwIcon className="size-4" />
-                </WindowActionButton>
-                {isEmbedded ? (
-                  <>
-                    <WindowActionButton
-                      onClick={handleMinimize}
-                      aria-label={t("supportChat.minimize")}
-                      title={t("supportChat.minimize")}
-                    >
-                      <MinusIcon className="size-4" />
-                    </WindowActionButton>
-                    <WindowActionButton
-                      onClick={handleToggleMaximize}
-                      aria-label={isMaximized ? t("supportChat.restoreWindow") : t("supportChat.maximizeWindow")}
-                      title={isMaximized ? t("supportChat.restoreWindow") : t("supportChat.maximizeWindow")}
-                    >
-                      {isMaximized ? (
-                        <Minimize2Icon className="size-4" />
-                      ) : (
-                        <Maximize2Icon className="size-4" />
-                      )}
-                    </WindowActionButton>
-                  </>
-                ) : null}
-                <WindowActionButton
-                  onClick={() => setIsCloseDialogOpen(true)}
-                  aria-label={t("supportChat.closeChatWindow")}
-                  title={t("supportChat.closeChatWindow")}
-                  className="hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/45 dark:hover:text-rose-300"
-                >
-                  <XIcon className="size-4" />
-                </WindowActionButton>
-              </div>
+              <WindowActionButton
+                onClick={retry}
+                aria-label={t("supportChat.retry")}
+                title={t("supportChat.retry")}
+              >
+                <RotateCwIcon className="size-4" />
+              </WindowActionButton>
+              {isEmbedded ? (
+                <>
+                  <WindowActionButton
+                    onClick={handleMinimize}
+                    aria-label={t("supportChat.minimize")}
+                    title={t("supportChat.minimize")}
+                  >
+                    <MinusIcon className="size-4" />
+                  </WindowActionButton>
+                  <WindowActionButton
+                    onClick={handleToggleMaximize}
+                    aria-label={isMaximized ? t("supportChat.restoreWindow") : t("supportChat.maximizeWindow")}
+                    title={isMaximized ? t("supportChat.restoreWindow") : t("supportChat.maximizeWindow")}
+                  >
+                    {isMaximized ? (
+                      <Minimize2Icon className="size-4" />
+                    ) : (
+                      <Maximize2Icon className="size-4" />
+                    )}
+                  </WindowActionButton>
+                </>
+              ) : null}
+              <WindowActionButton
+                onClick={() => setIsCloseDialogOpen(true)}
+                aria-label={t("supportChat.closeChatWindow")}
+                title={t("supportChat.closeChatWindow")}
+                className="hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/45 dark:hover:text-rose-300"
+              >
+                <XIcon className="size-4" />
+              </WindowActionButton>
             </div>
           </div>
         </header>
