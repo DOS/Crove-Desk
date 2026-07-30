@@ -275,7 +275,7 @@ type FrameMessage =
       frame.style.maxWidth = "none"
       frame.style.height =
         "calc(100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom)))"
-      frame.style.borderRadius = "20px"
+      frame.style.borderRadius = "16px"
       return
     }
 
@@ -288,7 +288,7 @@ type FrameMessage =
       "calc(100vw - max(12px, env(safe-area-inset-left)) - max(12px, env(safe-area-inset-right)))"
     frame.style.height =
       "min(760px, calc(100dvh - max(104px, calc(88px + env(safe-area-inset-bottom))) - max(12px, env(safe-area-inset-top))))"
-    frame.style.borderRadius = "24px"
+    frame.style.borderRadius = "18px"
   }
 
   function postToFrame(message: FrameMessage) {

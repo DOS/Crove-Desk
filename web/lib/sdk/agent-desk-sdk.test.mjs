@@ -174,4 +174,5 @@ test("chat iframe layout uses dynamic viewport height for iOS browser chrome", a
   assert.ok(frame)
   assert.match(frame.style.height, /100dvh/)
   assert.match(frame.style.maxWidth, /100vw/)
+  assert.equal(frame.style.borderRadius, "18px")
 })
