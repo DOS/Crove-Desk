@@ -8,7 +8,12 @@
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/server/main.go",
       "cwd": "${workspaceFolder}",
-      "buildFlags": "-tags=dev",
+      "buildFlags": "-tags=dev,lancedb",
+      "env": {
+        "CGO_ENABLED": "1",
+        "CGO_CFLAGS": "-I${workspaceFolder}/include",
+        "CGO_LDFLAGS": "${workspaceFolder}/lib/darwin_arm64/liblancedb_go.a -framework Security -framework CoreFoundation"
+      },
       "args": [
         "-config",
         "${workspaceFolder}/config/config.yaml"
