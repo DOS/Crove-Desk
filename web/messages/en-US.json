@@ -2341,6 +2341,7 @@
     "agents": "Human Agents",
     "agentTeamSchedules": "Team Schedules",
     "channels": "Channels",
+    "wxworkOutbox": "WeCom Outbox",
     "aiCapabilities": "AI Capabilities",
     "knowledge": "Knowledge Base",
     "aiConfigs": "Model Settings",

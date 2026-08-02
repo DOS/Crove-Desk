@@ -2,7 +2,9 @@ package services
 
 import (
 	"agent-desk/internal/models"
+	"agent-desk/internal/pkg/dto"
 	"agent-desk/internal/pkg/enums"
+	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/repositories"
 	"encoding/json"
 	"strings"
@@ -136,4 +138,47 @@ func (s *channelMessageOutboxService) ListPending(channelType string, limit int)
 		Asc("id").
 		Limit(limit)
 	return s.Find(cnd)
+}
+
+func (s *channelMessageOutboxService) RetryWxWorkFailure(id int64, operator *dto.AuthPrincipal) error {
+	item := s.Get(id)
+	if item == nil || item.ChannelType != enums.ChannelTypeWxWorkKF {
+		return errorsx.InvalidParam("outbox record does not exist")
+	}
+	if item.SendStatus != string(enums.ChannelMessageOutboxStatusFailed) &&
+		item.SendStatus != string(enums.ChannelMessageOutboxStatusIgnored) {
+		return errorsx.InvalidParam("only failed or ignored outbox records can be retried")
+	}
+	now := time.Now()
+	columns := map[string]interface{}{
+		"send_status":   string(enums.ChannelMessageOutboxStatusPending),
+		"next_retry_at": nil,
+		"updated_at":    now,
+	}
+	if operator != nil {
+		columns["update_user_id"] = operator.UserID
+		columns["update_user_name"] = operator.Username
+	}
+	return s.Updates(id, columns)
+}
+
+func (s *channelMessageOutboxService) IgnoreWxWorkFailure(id int64, operator *dto.AuthPrincipal) error {
+	item := s.Get(id)
+	if item == nil || item.ChannelType != enums.ChannelTypeWxWorkKF {
+		return errorsx.InvalidParam("outbox record does not exist")
+	}
+	if item.SendStatus != string(enums.ChannelMessageOutboxStatusFailed) {
+		return errorsx.InvalidParam("only failed outbox records can be ignored")
+	}
+	now := time.Now()
+	columns := map[string]interface{}{
+		"send_status":   string(enums.ChannelMessageOutboxStatusIgnored),
+		"next_retry_at": nil,
+		"updated_at":    now,
+	}
+	if operator != nil {
+		columns["update_user_id"] = operator.UserID
+		columns["update_user_name"] = operator.Username
+	}
+	return s.Updates(id, columns)
 }

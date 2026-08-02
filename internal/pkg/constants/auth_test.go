@@ -36,6 +36,7 @@ func TestBuiltinAuthSeedNamesDefaultToEnglish(t *testing.T) {
 		"ticket.create":     "Create tickets",
 		"conversation.send": "Send conversation messages",
 		"channel.view":      "View channels",
+		"wxworkOutbox.view": "View WeCom outbox records",
 		"agent.view":        "View agents",
 	}
 	for code, want := range permissionTests {

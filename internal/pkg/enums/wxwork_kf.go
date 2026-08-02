@@ -14,6 +14,7 @@ const (
 	ChannelMessageOutboxStatusSending ChannelMessageOutboxStatus = "sending"
 	ChannelMessageOutboxStatusSent    ChannelMessageOutboxStatus = "sent"
 	ChannelMessageOutboxStatusFailed  ChannelMessageOutboxStatus = "failed"
+	ChannelMessageOutboxStatusIgnored ChannelMessageOutboxStatus = "ignored"
 )
 
 const (

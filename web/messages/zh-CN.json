@@ -2341,6 +2341,7 @@
     "agents": "人工客服",
     "agentTeamSchedules": "客服组排班",
     "channels": "接入渠道",
+    "wxworkOutbox": "企微 Outbox",
     "aiCapabilities": "AI能力",
     "knowledge": "知识库",
     "aiConfigs": "AI模型",

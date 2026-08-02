@@ -38,6 +38,13 @@ describe("isDashboardNavItemActive", () => {
       isDashboardNavItemActive("/dashboard/tickets-extra", "/dashboard/tickets"),
       false
     )
+    assert.equal(
+      isDashboardNavItemActive(
+        "/dashboard/wxwork-outbox",
+        "/dashboard/channels"
+      ),
+      false
+    )
   })
 
   it("only marks the dashboard home item active on the exact dashboard path", async () => {

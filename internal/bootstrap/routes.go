@@ -182,6 +182,9 @@ func registerDashboardChannelRoutes(group *gin.RouterGroup) {
 	group.POST("/update", dashboard.ChannelPostUpdate)
 	group.POST("/update_status", dashboard.ChannelPostUpdate_status)
 	group.Any("/wxwork/kf/accounts", dashboard.ChannelAnyWxworkKfAccounts)
+	group.Any("/wxwork/outbox/failed/list", dashboard.ChannelAnyWxworkOutboxFailedList)
+	group.POST("/wxwork/outbox/retry", dashboard.ChannelPostWxworkOutboxRetry)
+	group.POST("/wxwork/outbox/ignore", dashboard.ChannelPostWxworkOutboxIgnore)
 }
 
 func registerDashboardAgentRoutes(group *gin.RouterGroup) {

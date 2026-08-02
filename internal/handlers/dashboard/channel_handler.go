@@ -6,8 +6,10 @@ import (
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/dto/response"
 	"agent-desk/internal/pkg/enums"
+	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/pkg/httpx"
 	"agent-desk/internal/services"
+	"strings"
 
 	"agent-desk/internal/pkg/httpx/params"
 
@@ -61,6 +63,74 @@ func ChannelAnyWxworkKfAccounts(ctx *gin.Context) {
 		return
 	}
 	httpx.WriteJSON(ctx, list)
+}
+
+func ChannelAnyWxworkOutboxFailedList(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionWxWorkOutboxView); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	cnd := params.NewPagedSqlCnd(ctx,
+		params.QueryFilter{ParamName: "conversationId"},
+		params.QueryFilter{ParamName: "messageId"},
+	).Eq("channel_type", enums.ChannelTypeWxWorkKF)
+	status := strings.TrimSpace(params.FormValue(ctx, "sendStatus"))
+	switch status {
+	case "":
+		cnd.Eq("send_status", string(enums.ChannelMessageOutboxStatusFailed))
+	case "all":
+		cnd.In("send_status", []string{
+			string(enums.ChannelMessageOutboxStatusFailed),
+			string(enums.ChannelMessageOutboxStatusIgnored),
+		})
+	case string(enums.ChannelMessageOutboxStatusFailed), string(enums.ChannelMessageOutboxStatusIgnored):
+		cnd.Eq("send_status", status)
+	default:
+		httpx.WriteJSON(ctx, errorsx.InvalidParam("invalid sendStatus"))
+		return
+	}
+	list, paging := services.ChannelMessageOutboxService.FindPageByCnd(cnd.Desc("id"))
+	results := make([]response.ChannelMessageOutboxResponse, 0, len(list))
+	for _, item := range list {
+		results = append(results, response.BuildChannelMessageOutboxResponse(&item))
+	}
+	httpx.WriteJSON(ctx, &web.PageResult{Results: results, Page: paging})
+}
+
+func ChannelPostWxworkOutboxRetry(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionWxWorkOutboxUpdate)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.ChannelMessageOutboxActionRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	if err := services.ChannelMessageOutboxService.RetryWxWorkFailure(req.ID, operator); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, nil)
+}
+
+func ChannelPostWxworkOutboxIgnore(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionWxWorkOutboxUpdate)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.ChannelMessageOutboxActionRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	if err := services.ChannelMessageOutboxService.IgnoreWxWorkFailure(req.ID, operator); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, nil)
 }
 
 func ChannelPostCreate(ctx *gin.Context) {

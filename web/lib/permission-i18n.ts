@@ -36,6 +36,7 @@ const PERMISSION_RESOURCE_LABELS: Record<string, { singular: string; plural: str
   tag: { singular: "tag", plural: "tags" },
   company: { singular: "company", plural: "companies" },
   channel: { singular: "channel", plural: "channels" },
+  wxworkOutbox: { singular: "WeCom outbox record", plural: "WeCom outbox records" },
   customer: { singular: "customer", plural: "customers" },
   agent: { singular: "agent", plural: "agents" },
   agentTeam: { singular: "agent team", plural: "agent teams" },
@@ -60,6 +61,7 @@ const PERMISSION_NAME_OVERRIDES: Record<string, string> = {
   "channel.resetUserTokenSecret": "Reset channel user token secret",
   "agent.config": "Configure agent service rules",
   "agentTeamSchedule.batchGenerate": "Batch generate agent team schedules",
+  "wxworkOutbox.update": "Handle WeCom outbox records",
   "mcp.view": "View MCP debug information",
   "mcp.call": "Call MCP tools",
 }

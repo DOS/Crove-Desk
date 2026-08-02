@@ -31,3 +31,7 @@ type DeleteChannelRequest struct {
 type ResetChannelUserTokenSecretRequest struct {
 	ID int64 `json:"id"`
 }
+
+type ChannelMessageOutboxActionRequest struct {
+	ID int64 `json:"id"`
+}
