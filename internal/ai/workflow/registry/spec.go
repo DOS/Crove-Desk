@@ -45,6 +45,8 @@ type NodeSpec struct {
 	Title                           string               `json:"title"`
 	Description                     string               `json:"description"`
 	Icon                            string               `json:"icon"`
+	Category                        string               `json:"category"`
+	Executable                      bool                 `json:"executable"`
 	RiskLevel                       NodeRiskLevel        `json:"riskLevel"`
 	Interruptible                   bool                 `json:"interruptible"`
 	RequiresConfirmationPredecessor bool                 `json:"requiresConfirmationPredecessor"`
@@ -68,10 +70,52 @@ func NewRegistry(specs ...NodeSpec) *Registry {
 		if spec.Type == "" {
 			continue
 		}
+		spec.Executable = IsExecutableNodeType(spec.Type)
+		if spec.Category == "" {
+			spec.Category = NodeCategory(spec.Type)
+		}
 		ret.specsByType[spec.Type] = spec
 		ret.specs = append(ret.specs, spec)
 	}
 	return ret
+}
+
+func IsExecutableNodeType(nodeType string) bool {
+	switch nodeType {
+	case NodeTypeStart,
+		NodeTypeConversationUnderstanding,
+		NodeTypeReplyPolicy,
+		NodeTypeKnowledgeRetrieve,
+		NodeTypeAnswerabilityGate,
+		NodeTypeCondition,
+		NodeTypeAnalyzeConversation,
+		NodeTypePrepareTicketDraft,
+		NodeTypeHumanConfirm,
+		NodeTypeCreateTicket,
+		NodeTypeLLMReply,
+		NodeTypeLLM,
+		NodeTypeSendReply,
+		NodeTypeHandoffToHuman,
+		NodeTypeEnd:
+		return true
+	default:
+		return false
+	}
+}
+
+func NodeCategory(nodeType string) string {
+	switch nodeType {
+	case NodeTypeStart, NodeTypeEnd:
+		return "trigger"
+	case NodeTypeCondition, NodeTypeMultiCondition, NodeTypeLoop, NodeTypeBlockStart, NodeTypeBlockEnd, NodeTypeContinue, NodeTypeBreak:
+		return "control"
+	case NodeTypeConversationUnderstanding, NodeTypeReplyPolicy, NodeTypeAnswerabilityGate, NodeTypeAnalyzeConversation, NodeTypeLLMReply, NodeTypeLLM, NodeTypeKnowledgeRetrieve:
+		return "ai"
+	case NodeTypePrepareTicketDraft, NodeTypeHumanConfirm, NodeTypeCreateTicket, NodeTypeHandoffToHuman, NodeTypeSendReply:
+		return "business"
+	default:
+		return "utility"
+	}
 }
 
 func (r *Registry) Get(nodeType string) (NodeSpec, bool) {

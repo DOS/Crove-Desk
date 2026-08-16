@@ -82,6 +82,10 @@ func (v *definitionValidator) validateNodes() {
 			v.addError(field+".type", "unknown node type: "+node.Type)
 			continue
 		}
+		if !registry.IsExecutableNodeType(node.Type) {
+			v.addError(field+".type", "node type is not supported by the server runtime: "+node.Type)
+			continue
+		}
 		switch node.Type {
 		case registry.NodeTypeStart:
 			v.startNodeIDs = append(v.startNodeIDs, node.ID)

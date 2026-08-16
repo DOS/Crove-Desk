@@ -15,7 +15,7 @@ import {
 
 import { canContainNode } from '../../utils';
 import { FlowNodeRegistry } from '../../typings';
-import { nodeRegistries } from '../../nodes';
+import { getActiveNodeRegistries } from '../../nodes';
 
 const NodeWrap = styled.div`
   width: 100%;
@@ -72,7 +72,7 @@ interface NodeListProps {
 }
 
 export const NodeList: FC<NodeListProps> = (props) => {
-  const { onSelect, containerNode, fromPort } = props;
+  const { onSelect, containerNode } = props;
   const context = useClientContext();
   const handleClick = (e: React.MouseEvent, registry: FlowNodeRegistry) => {
     const json = registry.onAdd?.(context);
@@ -82,10 +82,9 @@ export const NodeList: FC<NodeListProps> = (props) => {
       nodeJSON: json,
     });
   };
-  console.log('>>> fromNode', fromPort?.node);
   return (
     <NodesWrap style={{ width: 80 * 2 + 20 }}>
-      {nodeRegistries
+      {getActiveNodeRegistries()
         .filter((register) => register.meta.nodePanelVisible !== false)
         .filter((register) => {
           if (register.meta.onlyInContainer) {
@@ -107,7 +106,7 @@ export const NodeList: FC<NodeListProps> = (props) => {
             icon={
               <img style={{ width: 10, height: 10, borderRadius: 4 }} src={registry.info?.icon} />
             }
-            label={registry.type as string}
+            label={registry.info?.title || (registry.type as string)}
             onClick={(e) => handleClick(e, registry)}
           />
         ))}

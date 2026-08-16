@@ -25,6 +25,8 @@ import { BlockStartNodeRegistry } from './block-start';
 import { BlockEndNodeRegistry } from './block-end';
 import { MultiConditionNodeRegistry } from "./multi-condition";
 export { WorkflowNodeType } from './constants';
+export { createBusinessNodeRegistries, enrichDocumentWithNodeSpecs } from './business';
+export type { WorkflowNodeSpec } from './business';
 
 export const nodeRegistries: FlowNodeRegistry[] = [
   ConditionNodeRegistry,
@@ -43,3 +45,13 @@ export const nodeRegistries: FlowNodeRegistry[] = [
   GroupNodeRegistry,
   MultiConditionNodeRegistry,
 ];
+
+let activeNodeRegistries = nodeRegistries;
+
+export function setActiveNodeRegistries(registries: FlowNodeRegistry[]) {
+  activeNodeRegistries = registries;
+}
+
+export function getActiveNodeRegistries() {
+  return activeNodeRegistries;
+}

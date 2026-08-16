@@ -450,6 +450,8 @@ export type AIWorkflowNodeSpec = {
   title: string
   description: string
   icon: string
+  category: "trigger" | "control" | "ai" | "business" | "utility"
+  executable: boolean
   riskLevel: "low" | "medium" | "high"
   interruptible: boolean
   requiresConfirmationPredecessor: boolean

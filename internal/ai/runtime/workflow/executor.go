@@ -395,9 +395,13 @@ func (e *Executor) executeCreateTicket(state *runState, node dsl.Node) error {
 	draft := asMap(state.resolveInput(node, "ticketDraft"))
 	title := strings.TrimSpace(toString(draft["title"]))
 	description := strings.TrimSpace(toString(draft["description"]))
+	tagIDs := toInt64Slice(state.resolveInput(node, "tagIds"))
+	assigneeID := toInt64(state.resolveInput(node, "assigneeId"))
 	result, err := services.BusinessToolExecutor.Execute(context.Background(), services.BusinessToolInput{
 		Conversation: state.input.Conversation, AIAgent: state.input.AIAgent,
-		ToolCode: toolx.GraphCreateTicketConfirm.Code, Arguments: map[string]any{"title": title, "description": description},
+		ToolCode: toolx.GraphCreateTicketConfirm.Code, Arguments: map[string]any{
+			"title": title, "description": description, "tagIds": tagIDs, "assigneeId": assigneeID,
+		},
 		IdempotencyKey: workflowToolIdempotencyKey(state, node), Confirmed: true,
 	})
 	if err != nil {
@@ -1334,6 +1338,24 @@ func toFloat(value any) float64 {
 	default:
 		return 0
 	}
+}
+
+func toInt64(value any) int64 {
+	return int64(toFloat(value))
+}
+
+func toInt64Slice(value any) []int64 {
+	rv := reflect.ValueOf(value)
+	if !rv.IsValid() || (rv.Kind() != reflect.Array && rv.Kind() != reflect.Slice) {
+		return nil
+	}
+	ret := make([]int64, 0, rv.Len())
+	for index := 0; index < rv.Len(); index++ {
+		if id := toInt64(rv.Index(index).Interface()); id > 0 {
+			ret = append(ret, id)
+		}
+	}
+	return ret
 }
 
 func asMap(value any) map[string]any {

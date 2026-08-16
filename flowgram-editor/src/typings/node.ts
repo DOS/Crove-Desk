@@ -65,6 +65,7 @@ export interface FlowNodeRegistry extends FlowNodeRegistryDefault {
   info?: {
     icon: string;
     description: string;
+    title?: string;
   };
   canAdd?: (ctx: FreeLayoutPluginContext) => boolean;
   canDelete?: (ctx: FreeLayoutPluginContext, from: FlowNodeEntity) => boolean;

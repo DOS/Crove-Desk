@@ -60,6 +60,8 @@ type AIWorkflowNodeSpecResponse struct {
 	Title                           string                          `json:"title"`
 	Description                     string                          `json:"description"`
 	Icon                            string                          `json:"icon"`
+	Category                        string                          `json:"category"`
+	Executable                      bool                            `json:"executable"`
 	RiskLevel                       workflowregistry.NodeRiskLevel  `json:"riskLevel"`
 	Interruptible                   bool                            `json:"interruptible"`
 	RequiresConfirmationPredecessor bool                            `json:"requiresConfirmationPredecessor"`

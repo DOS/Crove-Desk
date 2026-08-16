@@ -2,6 +2,22 @@ package registry
 
 import "testing"
 
+func TestDefaultRegistryMarksOnlyRuntimeSupportedNodesExecutable(t *testing.T) {
+	registry := DefaultRegistry()
+	for _, nodeType := range []string{NodeTypeCreateTicket, NodeTypeHumanConfirm, NodeTypeSendReply, NodeTypeLLM} {
+		spec, ok := registry.Get(nodeType)
+		if !ok || !spec.Executable {
+			t.Fatalf("expected %s to be executable, got %#v", nodeType, spec)
+		}
+	}
+	for _, nodeType := range []string{NodeTypeHTTP, NodeTypeCode, NodeTypeLoop} {
+		spec, ok := registry.Get(nodeType)
+		if !ok || spec.Executable {
+			t.Fatalf("expected %s to be unavailable in server runtime, got %#v", nodeType, spec)
+		}
+	}
+}
+
 func TestDefaultRegistryVariablesHaveBusinessLabels(t *testing.T) {
 	for _, spec := range DefaultRegistry().List() {
 		for _, variable := range append(spec.InputSchema, spec.OutputSchema...) {

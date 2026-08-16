@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useCallback, useEffect, useRef } from "react"
 
-import type { AIWorkflowDefinition } from "@/lib/api/admin"
+import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
 
 const MESSAGE_SOURCE = "agent-desk"
+const EMPTY_NODE_SPECS: AIWorkflowNodeSpec[] = []
 
 type EditorMessage =
   | {
@@ -20,31 +21,36 @@ type EditorMessage =
 export function OfficialWorkflowEditor({
   documentKey,
   definition,
+  nodeSpecs = EMPTY_NODE_SPECS,
   onDefinitionChange,
   readonly = false,
 }: {
   documentKey: string
   definition: AIWorkflowDefinition
+  nodeSpecs?: AIWorkflowNodeSpec[]
   onDefinitionChange: (definition: AIWorkflowDefinition) => void
   readonly?: boolean
 }) {
   const frameRef = useRef<HTMLIFrameElement>(null)
   const definitionRef = useRef(definition)
 
-  definitionRef.current = definition
+  useEffect(() => {
+    definitionRef.current = definition
+  }, [definition])
 
-  function loadDocument() {
+  const loadDocument = useCallback(() => {
     frameRef.current?.contentWindow?.postMessage(
       {
         source: MESSAGE_SOURCE,
         type: "workflow:load",
         documentKey,
         document: definitionRef.current,
+        nodeSpecs,
         readonly,
       },
       window.location.origin
     )
-  }
+  }, [documentKey, nodeSpecs, readonly])
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent<EditorMessage>) => {
@@ -63,11 +69,11 @@ export function OfficialWorkflowEditor({
     }
     window.addEventListener("message", handleMessage)
     return () => window.removeEventListener("message", handleMessage)
-  }, [documentKey, onDefinitionChange, readonly])
+  }, [loadDocument, onDefinitionChange])
 
   useEffect(() => {
     loadDocument()
-  }, [documentKey, readonly])
+  }, [loadDocument])
 
   return (
     <iframe

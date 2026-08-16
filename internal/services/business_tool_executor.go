@@ -82,9 +82,11 @@ func (e *businessToolExecutor) execute(toolCode string, input BusinessToolInput)
 	switch toolCode {
 	case toolx.GraphCreateTicketConfirm.Code:
 		item, err := TicketService.CreateFromConversation(request.CreateTicketFromConversationRequest{
-			ConversationID: input.Conversation.ID,
-			Title:          businessToolString(input.Arguments["title"]),
-			Description:    businessToolString(input.Arguments["description"]),
+			ConversationID:    input.Conversation.ID,
+			Title:             businessToolString(input.Arguments["title"]),
+			Description:       businessToolString(input.Arguments["description"]),
+			TagIDs:            businessToolInt64Slice(input.Arguments["tagIds"]),
+			CurrentAssigneeID: businessToolInt64(input.Arguments["assigneeId"]),
 		}, businessToolPrincipal(input.AIAgent))
 		if err != nil {
 			return "", err
@@ -104,6 +106,36 @@ func (e *businessToolExecutor) execute(toolCode string, input BusinessToolInput)
 func businessToolString(value any) string {
 	text, _ := value.(string)
 	return strings.TrimSpace(text)
+}
+
+func businessToolInt64(value any) int64 {
+	switch typed := value.(type) {
+	case int64:
+		return typed
+	case int:
+		return int64(typed)
+	case float64:
+		return int64(typed)
+	default:
+		return 0
+	}
+}
+
+func businessToolInt64Slice(value any) []int64 {
+	switch typed := value.(type) {
+	case []int64:
+		return typed
+	case []any:
+		ret := make([]int64, 0, len(typed))
+		for _, item := range typed {
+			if id := businessToolInt64(item); id > 0 {
+				ret = append(ret, id)
+			}
+		}
+		return ret
+	default:
+		return nil
+	}
 }
 
 func businessToolPrincipal(agent models.AIAgent) *dto.AuthPrincipal {

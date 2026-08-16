@@ -8,14 +8,19 @@ import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { OptionCombobox } from "@/components/option-combobox"
 import {
   createAIWorkflow,
   fetchAIWorkflow,
   fetchAIWorkflowDefaultDefinition,
+  fetchAIWorkflowNodeSpecs,
+  fetchAIWorkflowTemplates,
   publishAIWorkflow,
   updateAIWorkflow,
   type AIWorkflow,
   type AIWorkflowDefinition,
+  type AIWorkflowNodeSpec,
+  type AIWorkflowTemplate,
 } from "@/lib/api/admin"
 
 import { OfficialWorkflowEditor } from "./official-workflow-editor"
@@ -59,6 +64,9 @@ export function WorkflowWorkbench({
   const [description, setDescription] = useState("")
   const [definition, setDefinition] =
     useState<AIWorkflowDefinition>(emptyDefinition)
+  const [nodeSpecs, setNodeSpecs] = useState<AIWorkflowNodeSpec[]>([])
+  const [templates, setTemplates] = useState<AIWorkflowTemplate[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState("")
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [loaded, setLoaded] = useState(false)
@@ -71,6 +79,12 @@ export function WorkflowWorkbench({
 
   const load = useCallback(async () => {
     setLoaded(false)
+    const [specs, availableTemplates] = await Promise.all([
+      fetchAIWorkflowNodeSpecs(),
+      fetchAIWorkflowTemplates(),
+    ])
+    setNodeSpecs(specs)
+    setTemplates(availableTemplates)
     if (!workflowID) {
       setDefinition(await fetchAIWorkflowDefaultDefinition())
       setLoaded(true)
@@ -356,6 +370,29 @@ export function WorkflowWorkbench({
             )}
           </div>
           <div className="flex shrink-0 gap-2">
+            {!active ? (
+              <OptionCombobox
+                value={selectedTemplate}
+                placeholder="选择流程模板"
+                searchPlaceholder="搜索流程模板"
+                emptyText="暂无流程模板"
+                triggerClassName="w-48"
+                options={templates.map((template) => ({
+                  value: template.code,
+                  label: template.name,
+                  description: template.description,
+                }))}
+                onChange={(code) => {
+                  const template = templates.find((item) => item.code === code)
+                  if (!template) return
+                  setSelectedTemplate(code)
+                  setDefinition(structuredClone(template.definition))
+                  if (!name.trim()) setName(template.name)
+                  if (!description.trim()) setDescription(template.description)
+                  setDirty(true)
+                }}
+              />
+            ) : null}
             <Button
               variant="outline"
               disabled={saving}
@@ -377,8 +414,13 @@ export function WorkflowWorkbench({
       <div className="min-h-0 flex-1 overflow-hidden">
         {loaded ? (
           <OfficialWorkflowEditor
-            documentKey={workflowID ? `workflow-${workflowID}` : "new"}
+            documentKey={
+              workflowID
+                ? `workflow-${workflowID}`
+                : `new-${selectedTemplate || "blank"}`
+            }
             definition={definition}
+            nodeSpecs={nodeSpecs}
             onDefinitionChange={handleDefinitionChange}
           />
         ) : (

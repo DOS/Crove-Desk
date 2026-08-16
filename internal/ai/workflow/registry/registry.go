@@ -251,6 +251,8 @@ func DefaultRegistry() *Registry {
 			InputSchema: []VariableSpec{
 				requiredInput("ticketDraft", "工单草稿", VariableTypeObject, "已经由客户确认的工单草稿内容。"),
 				requiredInput("confirmed", "已确认", VariableTypeBoolean, "客户是否已确认创建工单。"),
+				optionalInput("tagIds", "工单标签", VariableTypeIntegerArray, "创建工单时附加的标签 ID 列表。"),
+				optionalInput("assigneeId", "处理人", VariableTypeInteger, "创建工单后默认指派的客服用户 ID。"),
 			},
 			OutputSchema: []VariableSpec{
 				output("ticketId", "工单 ID", VariableTypeInteger, "创建成功后的工单内部编号。"),

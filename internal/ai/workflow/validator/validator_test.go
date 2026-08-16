@@ -18,6 +18,23 @@ func TestValidateDefinitionAcceptsMinimalFlowGramStyleFlow(t *testing.T) {
 	}
 }
 
+func TestValidateDefinitionRejectsNodeMissingFromServerRuntime(t *testing.T) {
+	def := dsl.Definition{
+		Nodes: []dsl.Node{
+			node("start_1", "start", nil, nil),
+			node("http_1", "http", nil, nil),
+			node("end_1", "end", nil, nil),
+		},
+		Edges: []dsl.Edge{edge("start_1", "http_1"), edge("http_1", "end_1")},
+	}
+
+	result := validator.ValidateDefinition(def, registry.DefaultRegistry())
+
+	if result.Valid || !hasValidationMessage(result, "not supported by the server runtime") {
+		t.Fatalf("expected unsupported-runtime error, got %#v", result.Errors)
+	}
+}
+
 func TestValidateDefinitionAcceptsOfficialFlowGramCondition(t *testing.T) {
 	def := dsl.Definition{
 		Nodes: []dsl.Node{

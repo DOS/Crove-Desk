@@ -10,10 +10,16 @@ import { EditorRenderer, FreeLayoutEditorProvider } from '@flowgram.ai/free-layo
 
 import '@flowgram.ai/free-layout-editor/index.css';
 import './styles/index.css';
-import { nodeRegistries } from './nodes';
+import type { FlowDocumentJSON } from './typings';
+import {
+  createBusinessNodeRegistries,
+  enrichDocumentWithNodeSpecs,
+  nodeRegistries,
+  setActiveNodeRegistries,
+  type WorkflowNodeSpec,
+} from './nodes';
 import { initialData } from './initial-data';
 import { useEditorProps } from './hooks';
-import type { FlowDocumentJSON } from './typings';
 
 const MESSAGE_SOURCE = 'agent-desk';
 
@@ -22,13 +28,16 @@ type LoadMessage = {
   type: 'workflow:load';
   documentKey: string;
   document: FlowDocumentJSON;
+  nodeSpecs?: WorkflowNodeSpec[];
   readonly?: boolean;
 };
 
 export const Editor = () => {
   const [documentKey, setDocumentKey] = useState('official-default');
+  const [documentRevision, setDocumentRevision] = useState(0);
   const [document, setDocument] = useState<FlowDocumentJSON>(initialData);
   const [readonly, setReadonly] = useState(false);
+  const [registries, setRegistries] = useState(nodeRegistries);
   const handleDocumentChange = useCallback((nextDocument: FlowDocumentJSON) => {
     window.parent.postMessage(
       {
@@ -39,7 +48,7 @@ export const Editor = () => {
       window.location.origin
     );
   }, []);
-  const editorProps = useEditorProps(document, nodeRegistries, handleDocumentChange, readonly);
+  const editorProps = useEditorProps(document, registries, handleDocumentChange, readonly);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent<LoadMessage>) => {
@@ -50,8 +59,21 @@ export const Editor = () => {
       ) {
         return;
       }
+      const nodeSpecs = event.data.nodeSpecs ?? [];
+      const executableTypes = new Set(
+        nodeSpecs.filter((spec) => spec.executable).map((spec) => spec.type)
+      );
+      const builtInRegistries =
+        executableTypes.size > 0
+          ? nodeRegistries.filter((registry) => executableTypes.has(registry.type as string))
+          : nodeRegistries;
+      const businessRegistries = createBusinessNodeRegistries(nodeSpecs);
+      const nextRegistries = [...builtInRegistries, ...businessRegistries];
       setDocumentKey(event.data.documentKey);
-      setDocument(event.data.document);
+      setDocumentRevision((revision) => revision + 1);
+      setActiveNodeRegistries(nextRegistries);
+      setRegistries(nextRegistries);
+      setDocument(enrichDocumentWithNodeSpecs(event.data.document, nodeSpecs));
       setReadonly(Boolean(event.data.readonly));
     };
     window.addEventListener('message', handleMessage);
@@ -64,7 +86,10 @@ export const Editor = () => {
 
   return (
     <div className="doc-free-feature-overview">
-      <FreeLayoutEditorProvider key={`${documentKey}-${readonly}`} {...editorProps}>
+      <FreeLayoutEditorProvider
+        key={`${documentKey}-${documentRevision}-${readonly}`}
+        {...editorProps}
+      >
         <div className="demo-container">
           <DockedPanelLayer>
             <EditorRenderer className="demo-editor" />
