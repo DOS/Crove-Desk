@@ -106,6 +106,31 @@ func TestValidateDefinitionRejectsMissingRequiredInputValue(t *testing.T) {
 	}
 }
 
+func TestValidateDefinitionRejectsConstantConfirmationForHighRiskNode(t *testing.T) {
+	def := dsl.Definition{
+		Nodes: []dsl.Node{
+			node("start_1", "start", nil, nil),
+			node("confirm_1", "human_confirm", inputs("prompt", dsl.ConstantValue("请确认")), nil),
+			node("create_1", "create_ticket", map[string]dsl.Value{
+				"ticketDraft": dsl.ConstantValue(map[string]any{"title": "测试", "description": "测试描述"}),
+				"confirmed":   dsl.ConstantValue(false),
+			}, nil),
+			node("end_1", "end", nil, nil),
+		},
+		Edges: []dsl.Edge{
+			edge("start_1", "confirm_1"),
+			edge("confirm_1", "create_1"),
+			edge("create_1", "end_1"),
+		},
+	}
+
+	result := validator.ValidateDefinition(def, registry.DefaultRegistry())
+
+	if result.Valid || !hasValidationMessage(result, "confirmed input must come from human_confirm.confirmed") {
+		t.Fatalf("expected confirmation-source error, got %#v", result.Errors)
+	}
+}
+
 func TestValidateDefinitionRejectsUnknownInputSourceNode(t *testing.T) {
 	def := minimalDefinition()
 	def.Nodes[1].Data.InputsValues["replyText"] = dsl.RefValue("missing_1", "replyText")

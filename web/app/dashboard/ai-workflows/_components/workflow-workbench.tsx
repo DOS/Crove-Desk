@@ -387,8 +387,8 @@ export function WorkflowWorkbench({
                   if (!template) return
                   setSelectedTemplate(code)
                   setDefinition(structuredClone(template.definition))
-                  if (!name.trim()) setName(template.name)
-                  if (!description.trim()) setDescription(template.description)
+                  setName(template.name)
+                  setDescription(template.description)
                   setDirty(true)
                 }}
               />

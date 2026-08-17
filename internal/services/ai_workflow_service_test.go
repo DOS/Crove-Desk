@@ -188,6 +188,33 @@ func TestAIWorkflowServicePublishRejectsInvalidDSL(t *testing.T) {
 	}
 }
 
+func TestAIWorkflowServiceListExcludesDeletedWorkflows(t *testing.T) {
+	setupAIWorkflowTestDB(t)
+	operator := aiWorkflowTestOperator()
+	active, err := AIWorkflowService.CreateWorkflow(request.CreateAIWorkflowRequest{
+		Name:       "active workflow",
+		Definition: validAIWorkflowDefinition(),
+	}, operator)
+	if err != nil {
+		t.Fatalf("CreateWorkflow(active) error = %v", err)
+	}
+	deleted, err := AIWorkflowService.CreateWorkflow(request.CreateAIWorkflowRequest{
+		Name:       "deleted workflow",
+		Definition: validAIWorkflowDefinition(),
+	}, operator)
+	if err != nil {
+		t.Fatalf("CreateWorkflow(deleted) error = %v", err)
+	}
+	if err := AIWorkflowService.DeleteWorkflow(deleted.ID, operator); err != nil {
+		t.Fatalf("DeleteWorkflow() error = %v", err)
+	}
+
+	list, paging := AIWorkflowService.FindPageByCnd(sqls.NewCnd().NotEq("status", enums.StatusDeleted).Desc("id").Page(1, 20))
+	if paging.Total != 1 || len(list) != 1 || list[0].ID != active.ID {
+		t.Fatalf("deleted workflow must be excluded: total=%d list=%#v", paging.Total, list)
+	}
+}
+
 func TestAIWorkflowServiceRunListAndDetail(t *testing.T) {
 	setupAIWorkflowTestDB(t)
 	now := time.Now()

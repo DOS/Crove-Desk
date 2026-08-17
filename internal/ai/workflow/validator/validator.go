@@ -169,7 +169,9 @@ func (v *definitionValidator) validateConfirmationGuards() {
 func (v *definitionValidator) validateConfirmedInput(nodeID string, node dsl.Node) {
 	value, ok := node.Data.InputsValues["confirmed"]
 	sourceNodeID, sourceField, refOK := value.Ref()
+	field := "nodes." + nodeID + ".data.inputsValues.confirmed"
 	if !ok || !refOK || strings.TrimSpace(sourceNodeID) == "" || strings.TrimSpace(sourceField) == "" {
+		v.addError(field, "confirmed input must come from human_confirm.confirmed")
 		return
 	}
 	sourceNode, ok := v.nodesByID[sourceNodeID]
@@ -177,7 +179,7 @@ func (v *definitionValidator) validateConfirmedInput(nodeID string, node dsl.Nod
 		return
 	}
 	if sourceNode.Type != registry.NodeTypeHumanConfirm || strings.TrimSpace(sourceField) != "confirmed" {
-		v.addError("nodes."+nodeID+".data.inputsValues.confirmed", "confirmed input must come from human_confirm.confirmed")
+		v.addError(field, "confirmed input must come from human_confirm.confirmed")
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"agent-desk/internal/pkg/constants"
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/dto/response"
+	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/httpx"
 	"agent-desk/internal/pkg/httpx/params"
 	"agent-desk/internal/services"
@@ -22,7 +23,7 @@ func AIWorkflowAnyList(ctx *gin.Context) {
 	cnd := params.NewPagedSqlCnd(ctx,
 		params.QueryFilter{ParamName: "status"},
 		params.QueryFilter{ParamName: "name", Op: params.Like},
-	).Desc("id")
+	).NotEq("status", enums.StatusDeleted).Desc("id")
 	list, paging := services.AIWorkflowService.FindPageByCnd(cnd)
 	httpx.WriteJSON(ctx, &web.PageResult{Results: builders.BuildAIWorkflowList(list), Page: paging})
 }

@@ -7,6 +7,13 @@ import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
 const MESSAGE_SOURCE = "agent-desk"
 const EMPTY_NODE_SPECS: AIWorkflowNodeSpec[] = []
 
+function definitionsEqual(
+  left: AIWorkflowDefinition,
+  right: AIWorkflowDefinition
+) {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
 type EditorMessage =
   | {
       source: typeof MESSAGE_SOURCE
@@ -64,6 +71,10 @@ export function OfficialWorkflowEditor({
       if (event.data.type === "workflow:ready") {
         loadDocument()
       } else if (event.data.type === "workflow:change") {
+        if (definitionsEqual(event.data.document, definitionRef.current)) {
+          return
+        }
+        definitionRef.current = event.data.document
         onDefinitionChange(event.data.document)
       }
     }
