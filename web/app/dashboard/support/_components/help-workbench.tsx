@@ -1,12 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ChevronRightIcon, ExternalLinkIcon, FilePlus2Icon, MoreHorizontalIcon, PanelRightIcon, SaveIcon, SearchIcon, Settings2Icon, Trash2Icon } from "lucide-react"
 import { MdEditor, MdPreview } from "md-editor-rt"
 import "md-editor-rt/lib/style.css"
 import { toast } from "sonner"
 
 import { OptionCombobox } from "@/components/option-combobox"
+import { useApiErrorHandler } from "@/components/api-error-provider"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -34,10 +35,6 @@ function slugify(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")
 }
 
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback
-}
-
 function descendantIds(pages: AdminSupportHelpPage[], id: number) {
   const result = new Set<number>()
   const visit = (parentId: number) => pages.filter((page) => page.parentId === parentId).forEach((page) => { result.add(page.id); visit(page.id) })
@@ -46,6 +43,7 @@ function descendantIds(pages: AdminSupportHelpPage[], id: number) {
 }
 
 export function SupportHelpWorkbench() {
+  const handleApiError = useApiErrorHandler()
   const [pages, setPages] = useState<AdminSupportHelpPage[]>([])
   const [selected, setSelected] = useState<AdminSupportHelpPage | null>(null)
   const [draft, setDraft] = useState<PageDraft | null>(null)
@@ -56,6 +54,7 @@ export function SupportHelpWorkbench() {
   const [createState, setCreateState] = useState<CreateState>(blankCreate)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const selectionRequest = useRef(0)
 
   const dirty = Boolean(selected && draft && JSON.stringify(toDraft(selected)) !== JSON.stringify(draft))
 
@@ -90,9 +89,15 @@ export function SupportHelpWorkbench() {
   async function selectPage(page: AdminSupportHelpPage) {
     if (page.id === selected?.id) return
     if (dirty && !window.confirm("当前页面有未保存的修改，确定离开吗？")) return
-    const detail = await fetchSupportHelpPageAdmin(page.id)
-    setSelected(detail)
-    setDraft(toDraft(detail))
+    const requestId = ++selectionRequest.current
+    try {
+      const detail = await fetchSupportHelpPageAdmin(page.id)
+      if (requestId !== selectionRequest.current) return
+      setSelected(detail)
+      setDraft(toDraft(detail))
+    } catch (error) {
+      if (requestId === selectionRequest.current) handleApiError(error)
+    }
   }
 
   async function save() {
@@ -105,7 +110,7 @@ export function SupportHelpWorkbench() {
       setPages((items) => items.map((item) => item.id === saved.id ? saved : item))
       toast.success("页面已保存")
     } catch (error) {
-      toast.error(errorMessage(error, "页面保存失败"))
+      handleApiError(error)
     } finally { setSaving(false) }
   }
 
@@ -146,7 +151,7 @@ export function SupportHelpWorkbench() {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1">
+      <main key={selected?.id ?? "empty"} className="min-w-0 flex-1">
         {draft && selected ? <>
           <div className="flex h-14 items-center justify-between gap-3 border-b px-4">
             <div className="min-w-0"><p className="truncate text-sm font-medium">{draft.title || "未命名页面"}</p><p className="text-xs text-muted-foreground">{dirty ? "有未保存修改" : "所有修改已保存"}</p></div>
@@ -188,6 +193,7 @@ function PageTreeNode({ page, pages, depth, selectedId, expanded, forceExpanded,
 }
 
 function CreatePageDialog({ state, pages, onOpenChange, onCreated }: { state: CreateState; pages: AdminSupportHelpPage[]; onOpenChange: (open: boolean) => void; onCreated: (id: number) => void }) {
+  const handleApiError = useApiErrorHandler()
   const [title, setTitle] = useState("")
   const [slug, setSlug] = useState("")
   const [parentId, setParentId] = useState(state.parentId)
@@ -200,7 +206,7 @@ function CreatePageDialog({ state, pages, onOpenChange, onCreated }: { state: Cr
       toast.success("页面已创建")
       onCreated(page.id)
     } catch (error) {
-      toast.error(errorMessage(error, "页面创建失败"))
+      handleApiError(error)
     } finally {
       setCreating(false)
     }

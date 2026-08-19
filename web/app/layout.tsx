@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 
 import { AuthProvider } from "@/components/auth-provider"
+import { ApiErrorProvider } from "@/components/api-error-provider"
 import { ConfirmProvider } from "@/components/confirm-provider"
 import { ImageLightboxProvider } from "@/components/image-lightbox"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -54,7 +55,7 @@ export default function RootLayout({
               <ConfirmProvider>
                 <ImageLightboxProvider>
                   <TooltipProvider>
-                    {children}
+                    <ApiErrorProvider>{children}</ApiErrorProvider>
                     <Toaster position="top-center" richColors />
                   </TooltipProvider>
                 </ImageLightboxProvider>
