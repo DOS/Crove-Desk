@@ -1,8 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ChevronRightIcon, ExternalLinkIcon, FilePlus2Icon, MoreHorizontalIcon, PanelRightIcon, SaveIcon, SearchIcon, Settings2Icon, Trash2Icon } from "lucide-react"
-import { MdEditor, MdPreview } from "md-editor-rt"
+import { ChevronRightIcon, ExternalLinkIcon, FilePlus2Icon, MoreHorizontalIcon, SaveIcon, SearchIcon, Settings2Icon, Trash2Icon } from "lucide-react"
+import { MdEditor } from "md-editor-rt"
 import "md-editor-rt/lib/style.css"
 import { toast } from "sonner"
 
@@ -13,7 +13,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { deleteSupportHelpPageAdmin, fetchSupportHelpPageAdmin, fetchSupportHelpPagesAdmin, saveSupportHelpPageAdmin, type AdminSupportHelpPage } from "@/lib/api/admin"
 
@@ -53,7 +52,6 @@ export function SupportHelpWorkbench() {
   const [saving, setSaving] = useState(false)
   const [createState, setCreateState] = useState<CreateState>(blankCreate)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [previewOpen, setPreviewOpen] = useState(false)
   const selectionRequest = useRef(0)
 
   const dirty = Boolean(selected && draft && JSON.stringify(toDraft(selected)) !== JSON.stringify(draft))
@@ -157,7 +155,6 @@ export function SupportHelpWorkbench() {
             <div className="min-w-0"><p className="truncate text-sm font-medium">{draft.title || "未命名页面"}</p><p className="text-xs text-muted-foreground">{dirty ? "有未保存修改" : "所有修改已保存"}</p></div>
             <div className="flex items-center gap-1">
               <Button size="icon" variant="ghost" title="页面设置" onClick={() => setSettingsOpen(true)}><Settings2Icon /></Button>
-              <Button size="icon" variant="ghost" title="预览" className="xl:hidden" onClick={() => setPreviewOpen(true)}><PanelRightIcon /></Button>
               {selected.status === "published" ? <Button size="icon" variant="ghost" nativeButton={false} title="打开前台页面" render={<a href={`/support/help/${selected.slug}`} target="_blank" rel="noreferrer" />}><ExternalLinkIcon /></Button> : null}
               <Button onClick={() => void save()} disabled={!dirty || saving}><SaveIcon />{saving ? "保存中" : "保存"}</Button>
             </div>
@@ -165,13 +162,11 @@ export function SupportHelpWorkbench() {
           <div className="h-[calc(100%-3.5rem)] overflow-y-auto p-5">
             <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-auto border-0 px-0 text-3xl font-semibold shadow-none focus-visible:ring-0" aria-label="页面标题" />
             <Textarea value={draft.summary} onChange={(event) => setDraft({ ...draft, summary: event.target.value })} className="my-3 min-h-9 resize-none border-0 px-0 text-muted-foreground shadow-none focus-visible:ring-0" placeholder="添加页面摘要" aria-label="页面摘要" />
-            <MdEditor modelValue={draft.content} onChange={(content) => setDraft({ ...draft, content })} language="zh-CN" preview={false} className="min-h-[calc(100vh-19rem)] !bg-transparent" />
+            <MdEditor modelValue={draft.content} onChange={(content) => setDraft({ ...draft, content })} language="zh-CN" preview className="min-h-[calc(100vh-19rem)] !bg-transparent" />
           </div>
         </> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">从左侧选择页面，或新建页面</div>}
       </main>
 
-      <aside className="hidden w-[38%] min-w-80 max-w-[680px] shrink-0 overflow-y-auto border-l bg-muted/10 p-7 xl:block"><PagePreview draft={draft} childPages={pages.filter((page) => page.parentId === selected?.id)} /></aside>
-      <Sheet open={previewOpen} onOpenChange={setPreviewOpen}><SheetContent className="w-full overflow-y-auto sm:max-w-2xl"><SheetHeader><SheetTitle>页面预览</SheetTitle></SheetHeader><div className="p-6"><PagePreview draft={draft} childPages={pages.filter((page) => page.parentId === selected?.id)} /></div></SheetContent></Sheet>
       <CreatePageDialog key={`${createState.open}-${createState.parentId}`} state={createState} pages={pages} onOpenChange={(open) => setCreateState((current) => ({ ...current, open }))} onCreated={async (id) => { setCreateState(blankCreate); await load(id) }} />
       <PageSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} pages={pages} selected={selected} draft={draft} onChange={setDraft} />
     </div>
@@ -219,9 +214,4 @@ function PageSettingsDialog({ open, onOpenChange, pages, selected, draft, onChan
   const excluded = descendantIds(pages, selected.id); excluded.add(selected.id)
   const options = [{ value: "0", label: "根目录" }, ...pages.filter((page) => !excluded.has(page.id)).map((page) => ({ value: String(page.id), label: page.title }))]
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent><DialogHeader><DialogTitle>页面设置</DialogTitle><DialogDescription>调整页面位置、访问路径和发布状态，保存后生效。</DialogDescription></DialogHeader><div className="grid gap-4 py-2"><div className="grid gap-2"><Label>父页面</Label><OptionCombobox value={String(draft.parentId)} onChange={(value) => onChange({ ...draft, parentId: Number(value) })} placeholder="选择父页面" options={options} /></div><div className="grid gap-2"><Label>Slug</Label><Input value={draft.slug} onChange={(event) => onChange({ ...draft, slug: slugify(event.target.value) })} /></div><div className="grid gap-2"><Label>状态</Label><OptionCombobox value={draft.status} onChange={(status) => onChange({ ...draft, status })} placeholder="选择状态" options={statusOptions} /></div><div className="grid gap-2"><Label>排序</Label><Input type="number" min={0} value={draft.sortNo} onChange={(event) => onChange({ ...draft, sortNo: Number(event.target.value) })} /></div></div><DialogFooter><Button onClick={() => onOpenChange(false)}>完成</Button></DialogFooter></DialogContent></Dialog>
-}
-
-function PagePreview({ draft, childPages }: { draft: PageDraft | null; childPages: AdminSupportHelpPage[] }) {
-  if (!draft) return <div className="text-sm text-muted-foreground">选择页面后查看预览</div>
-  return <article><h1 className="mb-2 text-3xl font-semibold">{draft.title || "未命名页面"}</h1>{draft.summary ? <p className="mb-6 text-muted-foreground">{draft.summary}</p> : null}{draft.content ? <MdPreview id="support-help-page-preview" modelValue={draft.content} language="zh-CN" /> : null}{childPages.length ? <div className="mt-8 border-t pt-5"><h2 className="mb-3 text-base font-semibold">本节页面</h2><div className="grid gap-2">{childPages.map((page) => <div key={page.id} className="rounded-md border p-3"><div className="font-medium">{page.title}</div>{page.summary ? <div className="mt-1 text-sm text-muted-foreground">{page.summary}</div> : null}</div>)}</div></div> : null}</article>
 }
