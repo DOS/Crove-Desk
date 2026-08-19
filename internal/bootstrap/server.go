@@ -163,6 +163,7 @@ func addRouter(app *gin.Engine) {
 	registerApiCustomerRoutes(apiGroup.Group("/customer"))
 	registerApiConversationRoutes(apiGroup.Group("/conversation", middleware.ExternalUserMiddleware))
 	registerApiMessageRoutes(apiGroup.Group("/message", middleware.ExternalUserMiddleware))
+	registerApiSupportRoutes(apiGroup.Group("/support"))
 
 	wsGroup := app.Group("/api/ws")
 	wsGroup.GET("/dashboard", middleware.AuthMiddleware, services.WsService.HandleDashboardWS)
@@ -198,6 +199,10 @@ func addRouter(app *gin.Engine) {
 	registerDashboardKnowledgeFAQRoutes(dashboardGroup.Group("/knowledge-faq"))
 	registerDashboardKnowledgeRetrieveRoutes(dashboardGroup.Group("/knowledge-retrieve"))
 	registerDashboardKnowledgeRetrieveLogRoutes(dashboardGroup.Group("/knowledge-retrieve-log"))
+	registerDashboardSupportArticleCategoryRoutes(dashboardGroup.Group("/support-article-category"))
+	registerDashboardSupportArticleRoutes(dashboardGroup.Group("/support-article"))
+	registerDashboardSupportQuestionCategoryRoutes(dashboardGroup.Group("/support-question-category"))
+	registerDashboardSupportQuestionRoutes(dashboardGroup.Group("/support-question"))
 	registerDashboardSkillDefinitionRoutes(dashboardGroup.Group("/skill-definition"))
 	registerDashboardMCPRoutes(dashboardGroup.Group("/mcp"))
 

@@ -167,6 +167,16 @@ var (
 	PermissionKnowledgeFAQUpdate      = Permission{Name: "更新知识FAQ", Code: "knowledgeFAQ.update", Type: "api", GroupName: "knowledgeFAQ", Method: "POST", APIPath: "/api/dashboard/knowledge-faq/update", SortNo: 1570}
 	PermissionKnowledgeFAQDelete      = Permission{Name: "删除知识FAQ", Code: "knowledgeFAQ.delete", Type: "api", GroupName: "knowledgeFAQ", Method: "POST", APIPath: "/api/dashboard/knowledge-faq/delete", SortNo: 1580}
 
+	// 支持中心相关权限
+	PermissionSupportArticleView    = Permission{Name: "查看支持中心文章", Code: "supportArticle.view", Type: "api", GroupName: "supportArticle", Method: "ANY", APIPath: "/api/dashboard/support-article/list", SortNo: 1590}
+	PermissionSupportArticleCreate  = Permission{Name: "创建支持中心文章", Code: "supportArticle.create", Type: "api", GroupName: "supportArticle", Method: "POST", APIPath: "/api/dashboard/support-article/create", SortNo: 1591}
+	PermissionSupportArticleUpdate  = Permission{Name: "更新支持中心文章", Code: "supportArticle.update", Type: "api", GroupName: "supportArticle", Method: "POST", APIPath: "/api/dashboard/support-article/update", SortNo: 1592}
+	PermissionSupportArticleDelete  = Permission{Name: "删除支持中心文章", Code: "supportArticle.delete", Type: "api", GroupName: "supportArticle", Method: "POST", APIPath: "/api/dashboard/support-article/delete", SortNo: 1593}
+	PermissionSupportQuestionView   = Permission{Name: "查看支持中心问答", Code: "supportQuestion.view", Type: "api", GroupName: "supportQuestion", Method: "ANY", APIPath: "/api/dashboard/support-question/list", SortNo: 1594}
+	PermissionSupportQuestionUpdate = Permission{Name: "管理支持中心问答", Code: "supportQuestion.update", Type: "api", GroupName: "supportQuestion", Method: "POST", APIPath: "/api/dashboard/support-question/moderate", SortNo: 1595}
+	PermissionSupportCategoryView   = Permission{Name: "查看支持中心分类", Code: "supportCategory.view", Type: "api", GroupName: "supportCategory", Method: "ANY", APIPath: "/api/dashboard/support-question-category/list", SortNo: 1596}
+	PermissionSupportCategoryUpdate = Permission{Name: "管理支持中心分类", Code: "supportCategory.update", Type: "api", GroupName: "supportCategory", Method: "POST", APIPath: "/api/dashboard/support-question-category/create", SortNo: 1597}
+
 	// Skill 定义相关权限
 	PermissionSkillDefinitionView   = Permission{Name: "查看技能定义", Code: "skillDefinition.view", Type: "api", GroupName: "skillDefinition", Method: "ANY", APIPath: "/api/dashboard/skill-definition/list", SortNo: 1610}
 	PermissionSkillDefinitionCreate = Permission{Name: "创建技能定义", Code: "skillDefinition.create", Type: "api", GroupName: "skillDefinition", Method: "POST", APIPath: "/api/dashboard/skill-definition/create", SortNo: 1620}
@@ -271,6 +281,14 @@ var Permissions = []Permission{
 	PermissionKnowledgeFAQCreate,
 	PermissionKnowledgeFAQUpdate,
 	PermissionKnowledgeFAQDelete,
+	PermissionSupportArticleView,
+	PermissionSupportArticleCreate,
+	PermissionSupportArticleUpdate,
+	PermissionSupportArticleDelete,
+	PermissionSupportQuestionView,
+	PermissionSupportQuestionUpdate,
+	PermissionSupportCategoryView,
+	PermissionSupportCategoryUpdate,
 	PermissionSkillDefinitionView,
 	PermissionSkillDefinitionCreate,
 	PermissionSkillDefinitionUpdate,

@@ -4,6 +4,7 @@ import {
   Building2Icon,
   CalendarClockIcon,
   FileTextIcon,
+  CircleHelpIcon,
   GlobeIcon,
   KeyRoundIcon,
   LayoutDashboardIcon,
@@ -187,6 +188,12 @@ export const dashboardNavSections: DashboardNavSectionConfig[] = [
         url: "/dashboard/knowledge",
         icon: <FileTextIcon />,
         requiredPermission: "knowledgeBase.view",
+      },
+      {
+        titleKey: "nav.support",
+        url: "/dashboard/support",
+        icon: <CircleHelpIcon />,
+        requiredPermission: "supportArticle.view",
       },
       {
         titleKey: "nav.aiConfigs",

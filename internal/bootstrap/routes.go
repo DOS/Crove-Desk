@@ -43,6 +43,25 @@ func registerApiMessageRoutes(group *gin.RouterGroup) {
 	group.POST("/upload_image", api.MessagePostUpload_image)
 }
 
+func registerApiSupportRoutes(group *gin.RouterGroup) {
+	group.POST("/auth/register", api.SupportPostRegister)
+	group.POST("/auth/login", api.SupportPostLogin)
+	group.GET("/me", api.SupportGetMe)
+	group.Any("/article-category/list", api.SupportArticleCategoryAnyList)
+	group.Any("/article/list", api.SupportArticleAnyList)
+	group.GET("/article/:idOrSlug", api.SupportArticleGetBy)
+	group.POST("/article/feedback", api.SupportArticlePostFeedback)
+	group.Any("/question-category/list", api.SupportQuestionCategoryAnyList)
+	group.Any("/question/list", api.SupportQuestionAnyList)
+	group.GET("/question/:id", api.SupportQuestionGetBy)
+	group.POST("/question/create", api.SupportQuestionPostCreate)
+	group.POST("/question/update", api.SupportQuestionPostUpdate)
+	group.POST("/question/accept_answer", api.SupportQuestionPostAcceptAnswer)
+	group.POST("/question/vote", api.SupportQuestionPostVote)
+	group.POST("/answer/create", api.SupportAnswerPostCreate)
+	group.POST("/answer/vote", api.SupportAnswerPostVote)
+}
+
 func registerDashboardDashboardRoutes(group *gin.RouterGroup) {
 	group.GET("/overview", dashboard.DashboardGetOverview)
 }
@@ -328,6 +347,38 @@ func registerDashboardKnowledgeRetrieveRoutes(group *gin.RouterGroup) {
 func registerDashboardKnowledgeRetrieveLogRoutes(group *gin.RouterGroup) {
 	group.GET("/:id", dashboard.KnowledgeRetrieveLogGetBy)
 	group.Any("/list", dashboard.KnowledgeRetrieveLogAnyList)
+}
+
+func registerDashboardSupportArticleCategoryRoutes(group *gin.RouterGroup) {
+	group.POST("/create", dashboard.SupportArticleCategoryPostCreate)
+	group.POST("/delete", dashboard.SupportArticleCategoryPostDelete)
+	group.Any("/list", dashboard.SupportArticleCategoryAnyList)
+	group.GET("/list_all", dashboard.SupportArticleCategoryGetList_all)
+	group.POST("/update", dashboard.SupportArticleCategoryPostUpdate)
+}
+
+func registerDashboardSupportArticleRoutes(group *gin.RouterGroup) {
+	group.GET("/:id", dashboard.SupportArticleGetBy)
+	group.POST("/create", dashboard.SupportArticlePostCreate)
+	group.POST("/delete", dashboard.SupportArticlePostDelete)
+	group.Any("/list", dashboard.SupportArticleAnyList)
+	group.POST("/update", dashboard.SupportArticlePostUpdate)
+}
+
+func registerDashboardSupportQuestionCategoryRoutes(group *gin.RouterGroup) {
+	group.POST("/create", dashboard.SupportQuestionCategoryPostCreate)
+	group.Any("/list", dashboard.SupportQuestionCategoryAnyList)
+	group.GET("/list_all", dashboard.SupportQuestionCategoryGetList_all)
+	group.POST("/update", dashboard.SupportQuestionCategoryPostUpdate)
+}
+
+func registerDashboardSupportQuestionRoutes(group *gin.RouterGroup) {
+	group.GET("/:id", dashboard.SupportQuestionGetBy)
+	group.POST("/accept_answer", dashboard.SupportQuestionPostAcceptAnswer)
+	group.POST("/answer/create", dashboard.SupportAnswerPostCreate)
+	group.POST("/answer/moderate", dashboard.SupportAnswerPostModerate)
+	group.Any("/list", dashboard.SupportQuestionAnyList)
+	group.POST("/moderate", dashboard.SupportQuestionPostModerate)
 }
 
 func registerDashboardSkillDefinitionRoutes(group *gin.RouterGroup) {

@@ -3,143 +3,478 @@
 import {
   ArrowRightIcon,
   BookOpenIcon,
-  BotIcon,
-  ChevronDownIcon,
+  CheckCircle2Icon,
   CircleHelpIcon,
-  FileTextIcon,
   HeadphonesIcon,
-  LightbulbIcon,
   MessageCircleMoreIcon,
   SearchIcon,
-  SparklesIcon,
-  TicketCheckIcon,
-  WrenchIcon,
-  type LucideIcon,
+  ThumbsUpIcon,
 } from "lucide-react"
-import { useMemo, useState } from "react"
+import Link from "next/link"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useState, type ReactNode } from "react"
+import { toast } from "sonner"
 
+import { OptionCombobox } from "@/components/option-combobox"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  acceptSupportAnswer,
+  createSupportAnswer,
+  createSupportQuestion,
+  fetchSupportArticle,
+  fetchSupportArticleCategories,
+  fetchSupportArticles,
+  fetchSupportMe,
+  fetchSupportQuestion,
+  fetchSupportQuestionCategories,
+  fetchSupportQuestions,
+  loginSupportCustomer,
+  readSupportToken,
+  registerSupportCustomer,
+  submitSupportArticleFeedback,
+  voteSupportAnswer,
+  voteSupportQuestion,
+  writeSupportToken,
+  type SupportAnswer,
+  type SupportArticle,
+  type SupportCategory,
+  type SupportQuestion,
+} from "@/lib/api/support"
 import { cn } from "@/lib/utils"
 
-type Category = {
-  id: string
-  title: string
-  description: string
-  icon: LucideIcon
-  accent: string
-  articles: number
-}
-
-type Article = {
-  title: string
-  description: string
-  category: string
-  readTime: string
-}
-
-type Question = {
-  question: string
-  answer: string
-  category: string
-}
-
-const categories: Category[] = [
-  { id: "getting-started", title: "快速开始", description: "部署、登录和首次配置", icon: SparklesIcon, accent: "bg-sky-500/10 text-sky-600 dark:text-sky-400", articles: 8 },
-  { id: "ai", title: "AI 与模型配置", description: "模型、AI Agent 与工作流", icon: BotIcon, accent: "bg-violet-500/10 text-violet-600 dark:text-violet-400", articles: 12 },
-  { id: "knowledge", title: "知识库与检索", description: "FAQ、文档与回答质量", icon: BookOpenIcon, accent: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", articles: 10 },
-  { id: "conversation", title: "会话与工单", description: "转人工、分配与问题闭环", icon: TicketCheckIcon, accent: "bg-amber-500/10 text-amber-600 dark:text-amber-400", articles: 9 },
-  { id: "integration", title: "渠道接入", description: "Web Widget 与第三方渠道", icon: MessageCircleMoreIcon, accent: "bg-rose-500/10 text-rose-600 dark:text-rose-400", articles: 11 },
-  { id: "troubleshooting", title: "故障排查", description: "定位常见配置与运行问题", icon: WrenchIcon, accent: "bg-slate-500/10 text-slate-600 dark:text-slate-400", articles: 14 },
-]
-
-const articles: Article[] = [
-  { title: "用 Docker Compose 在 10 分钟内启动 AgentDesk", description: "了解启动依赖、管理后台入口和首次检查项。", category: "getting-started", readTime: "5 分钟" },
-  { title: "如何配置第一个 AI Agent", description: "连接模型、知识库和转人工策略，完成一条可运行的服务流程。", category: "ai", readTime: "6 分钟" },
-  { title: "FAQ 知识库和文档知识库有什么区别？", description: "按内容形态选择更适合的知识沉淀方式。", category: "knowledge", readTime: "4 分钟" },
-  { title: "将 Web Widget 嵌入你的网站", description: "创建 Web 渠道、复制嵌入代码并完成上线前验证。", category: "integration", readTime: "7 分钟" },
-  { title: "用户请求人工客服后会发生什么？", description: "理解接入池、客服状态、分配规则和上下文交接。", category: "conversation", readTime: "4 分钟" },
-  { title: "Widget 能打开但不能发送消息怎么办？", description: "从渠道状态、域名配置和浏览器网络逐项排查。", category: "troubleshooting", readTime: "6 分钟" },
-]
-
-const questions: Question[] = [
-  { question: "AgentDesk 适合哪些业务场景？", answer: "它适合希望把 AI 首次响应、知识库检索、人工接管和工单跟进连接起来的客服与服务团队。", category: "getting-started" },
-  { question: "聊天模型可用，但知识库为什么没有命中？", answer: "通常需要检查 Embedding 模型、索引状态、检索阈值，以及 AI Agent 是否已绑定正确的知识库。", category: "knowledge" },
-  { question: "如何把会话转给人工客服？", answer: "AI 或客服可以发起转人工；系统会依据服务时间、客服状态、团队和分配规则处理接入。", category: "conversation" },
-  { question: "嵌入 Widget 时，channelId 是做什么的？", answer: "它标识一个具体 Web 渠道，并决定客户会话使用的渠道配置、品牌信息和身份校验策略。", category: "integration" },
-]
-
 export function SupportHelpCenter() {
+  const [articles, setArticles] = useState<SupportArticle[]>([])
+  const [questions, setQuestions] = useState<SupportQuestion[]>([])
   const [query, setQuery] = useState("")
-  const [activeCategory, setActiveCategory] = useState("all")
-  const [openQuestion, setOpenQuestion] = useState(0)
 
-  const normalizedQuery = query.trim().toLocaleLowerCase()
-  const matches = useMemo(() => {
-    const matchesCategory = (category: string) => activeCategory === "all" || category === activeCategory
-    return {
-      articles: articles.filter((article) => matchesCategory(article.category) && `${article.title} ${article.description}`.toLocaleLowerCase().includes(normalizedQuery)),
-      questions: questions.filter((question) => matchesCategory(question.category) && `${question.question} ${question.answer}`.toLocaleLowerCase().includes(normalizedQuery)),
-    }
-  }, [activeCategory, normalizedQuery])
-
-  const isFiltering = activeCategory !== "all" || normalizedQuery.length > 0
+  useEffect(() => {
+    void Promise.all([
+      fetchSupportArticles({ limit: 6 }),
+      fetchSupportQuestions({ limit: 6 }),
+    ]).then(([articlePage, questionPage]) => {
+      setArticles(articlePage.results)
+      setQuestions(questionPage.results)
+    }).catch(() => {
+      setArticles([])
+      setQuestions([])
+    })
+  }, [])
 
   return (
-    <main className="min-h-svh overflow-hidden bg-[#f7f9fc] text-foreground dark:bg-background">
-      <header className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
-        <a href="/support" className="flex items-center gap-2.5 font-semibold tracking-tight">
-          <span className="grid size-8 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm"><CircleHelpIcon className="size-[18px]" /></span>
-          <span>AgentDesk <span className="font-normal text-muted-foreground">帮助中心</span></span>
-        </a>
-        <div className="flex items-center gap-1 sm:gap-2">
-          <Button variant="ghost" className="hidden sm:inline-flex" onClick={() => document.getElementById("popular-questions")?.scrollIntoView({ behavior: "smooth" })}>常见问题</Button>
-          <Button variant="outline" onClick={() => document.getElementById("contact-support")?.scrollIntoView({ behavior: "smooth" })}><HeadphonesIcon /> 联系支持</Button>
-        </div>
-      </header>
-
-      <section className="relative border-y border-sky-100 bg-[radial-gradient(circle_at_50%_-30%,#ddecff,transparent_55%)] px-5 py-15 sm:px-8 sm:py-20 dark:border-border dark:bg-[radial-gradient(circle_at_50%_-30%,rgba(36,117,252,.26),transparent_55%)]">
-        <div className="relative mx-auto max-w-3xl text-center">
-          <Badge variant="secondary" className="mb-5 bg-white/70 px-3 py-1 text-primary shadow-sm dark:bg-card/80">产品使用与接入指南</Badge>
-          <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-5xl">今天想解决什么问题？</h1>
-          <p className="mx-auto mt-4 max-w-xl text-pretty text-sm leading-6 text-muted-foreground sm:text-base">从快速部署到 AI 配置、渠道接入和故障排查，帮你更快用好 AgentDesk。</p>
-          <div className="relative mx-auto mt-8 max-w-2xl">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" />
-            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索问题，例如：如何接入 Web Widget？" className="h-13 rounded-2xl border-white bg-white pl-12 pr-4 text-base shadow-[0_12px_30px_rgba(36,117,252,.12)] focus-visible:ring-primary/25 dark:border-border dark:bg-card" />
+    <main className="min-h-svh bg-[#f7f9fc] text-foreground dark:bg-background">
+      <SupportHeader />
+      <section className="border-y bg-card px-5 py-12 sm:px-8">
+        <div className="mx-auto max-w-5xl">
+          <Badge variant="secondary">AgentDesk 支持中心</Badge>
+          <h1 className="mt-4 max-w-3xl text-3xl font-semibold tracking-tight sm:text-5xl">
+            文档、社区问答和在线咨询集中在这里。
+          </h1>
+          <div className="mt-7 flex max-w-2xl gap-2">
+            <div className="relative flex-1">
+              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="搜索文章或问题" />
+            </div>
+            <Link className={buttonVariants()} href={`/support/questions${query ? `?title=${encodeURIComponent(query)}` : ""}`}>
+              搜索
+            </Link>
           </div>
-          <div className="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground"><span>热门搜索：</span><button className="hover:text-primary" onClick={() => setQuery("部署")}>部署</button><button className="hover:text-primary" onClick={() => setQuery("知识库")}>知识库</button><button className="hover:text-primary" onClick={() => setQuery("Widget")}>Web Widget</button></div>
+          <div className="mt-8 grid gap-3 md:grid-cols-3">
+            <SupportEntryCard href="/support/help" icon={<BookOpenIcon />} title="帮助中心" description="官方指南、部署文档和故障排查。" />
+            <SupportEntryCard href="/support/questions" icon={<CircleHelpIcon />} title="FAQ 社区" description="浏览问题、登录后提问和回答。" />
+            <SupportEntryCard href="/support/chat" icon={<HeadphonesIcon />} title="在线咨询" description="仍然无法解决时进入客服会话。" />
+          </div>
         </div>
       </section>
-
-      <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
-        <section aria-labelledby="category-title">
-          <div className="mb-5 flex items-end justify-between gap-4"><div><p className="text-sm font-medium text-primary">按任务浏览</p><h2 id="category-title" className="mt-1 text-2xl font-semibold tracking-tight">找到对应的使用指南</h2></div><span className="hidden text-sm text-muted-foreground sm:block">6 个主题 · 64 篇指南</span></div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {categories.map((category) => { const Icon = category.icon; const active = activeCategory === category.id; return <button key={category.id} type="button" onClick={() => setActiveCategory(active ? "all" : category.id)} className={cn("group rounded-2xl border bg-card p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50", active ? "border-primary ring-2 ring-primary/15" : "border-border")}><div className="flex items-start justify-between gap-4"><span className={cn("grid size-10 place-items-center rounded-xl", category.accent)}><Icon className="size-5" /></span><ArrowRightIcon className={cn("mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5", active && "text-primary")} /></div><h3 className="mt-5 font-medium">{category.title}</h3><p className="mt-1 text-sm text-muted-foreground">{category.description}</p><p className="mt-4 text-xs font-medium text-muted-foreground">{category.articles} 篇指南</p></button> })}
+      <div className="mx-auto grid max-w-5xl gap-8 px-5 py-10 sm:px-8 lg:grid-cols-2">
+        <section>
+          <SectionTitle title="推荐文章" href="/support/help" />
+          <div className="mt-4 grid gap-3">
+            {articles.length ? articles.map((item) => <ArticleRow key={item.id} item={item} />) : <EmptyState text="暂无已发布文章" />}
           </div>
         </section>
-
-        <section className="mt-14" aria-labelledby="article-title">
-          <div className="mb-5 flex items-end justify-between gap-4"><div><p className="text-sm font-medium text-primary">推荐阅读</p><h2 id="article-title" className="mt-1 text-2xl font-semibold tracking-tight">{isFiltering ? "搜索结果" : "从这里开始"}</h2></div>{isFiltering && <Button variant="ghost" size="sm" onClick={() => { setQuery(""); setActiveCategory("all") }}>清除筛选</Button>}</div>
-          {matches.articles.length ? <div className="grid gap-3 lg:grid-cols-2">{matches.articles.map((article) => <Card key={article.title} className="gap-0 border border-border py-0 shadow-none transition-shadow hover:shadow-md"><CardContent className="flex items-center gap-4 p-5"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground"><FileTextIcon className="size-5" /></span><div className="min-w-0 flex-1"><h3 className="font-medium">{article.title}</h3><p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{article.description}</p><p className="mt-2 text-xs text-muted-foreground">阅读约 {article.readTime}</p></div><Button variant="ghost" size="icon" aria-label={`查看 ${article.title}`}><ArrowRightIcon /></Button></CardContent></Card>)}</div> : <EmptyState />}
-        </section>
-
-        <section id="popular-questions" className="mt-14 grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start" aria-labelledby="faq-title">
-          <div className="rounded-3xl bg-slate-900 p-7 text-slate-50 dark:bg-primary"><LightbulbIcon className="size-6 text-sky-300" /><p className="mt-8 text-sm font-medium text-sky-200">常见问题</p><h2 id="faq-title" className="mt-2 text-2xl font-semibold tracking-tight">把高频问题，变成一次自助解决。</h2><p className="mt-3 text-sm leading-6 text-slate-300">我们整理了首次使用、知识库、转人工和渠道接入中的典型问题。</p></div>
-          <div className="divide-y divide-border rounded-2xl border bg-card px-5">{matches.questions.length ? matches.questions.map((item, index) => { const expanded = openQuestion === index; return <div key={item.question}><button type="button" className="flex w-full items-center justify-between gap-5 py-5 text-left font-medium" onClick={() => setOpenQuestion(expanded ? -1 : index)} aria-expanded={expanded}>{item.question}<ChevronDownIcon className={cn("size-4 shrink-0 text-muted-foreground transition-transform", expanded && "rotate-180")} /></button>{expanded && <p className="pb-5 pr-8 text-sm leading-6 text-muted-foreground">{item.answer}</p>}</div> }) : <EmptyState compact />}</div>
-        </section>
-
-        <section id="contact-support" className="mt-14 rounded-3xl border border-primary/15 bg-primary/[0.055] p-6 sm:flex sm:items-center sm:justify-between sm:p-8">
-          <div><p className="text-sm font-medium text-primary">仍然没有找到答案？</p><h2 className="mt-1 text-2xl font-semibold tracking-tight">让我们一起定位问题</h2><p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">此处为前端演示入口。接入后将根据默认支持渠道，带你进入在线咨询。</p></div>
-          <Button size="lg" className="mt-5 sm:mt-0" onClick={() => window.alert("演示模式：后续将跳转到配置的在线支持渠道。")}>在线咨询 <ArrowRightIcon /></Button>
+        <section>
+          <SectionTitle title="热门问题" href="/support/questions" />
+          <div className="mt-4 grid gap-3">
+            {questions.length ? questions.map((item) => <QuestionRow key={item.id} item={item} />) : <EmptyState text="暂无社区问题" />}
+          </div>
         </section>
       </div>
     </main>
   )
 }
 
-function EmptyState({ compact = false }: { compact?: boolean }) {
-  return <div className={cn("rounded-2xl border border-dashed bg-card p-8 text-center text-sm text-muted-foreground", compact && "border-0 p-5")}>没有找到相关内容。试试更换关键词，或清除当前筛选条件。</div>
+export function SupportHelpList() {
+  const [categories, setCategories] = useState<SupportCategory[]>([])
+  const [articles, setArticles] = useState<SupportArticle[]>([])
+  const [categoryId, setCategoryId] = useState<number | "all">("all")
+  const [title, setTitle] = useState("")
+
+  useEffect(() => {
+    void fetchSupportArticleCategories().then(setCategories)
+  }, [])
+
+  useEffect(() => {
+    void fetchSupportArticles({ categoryId: categoryId === "all" ? undefined : categoryId, title, limit: 20 }).then((page) => setArticles(page.results))
+  }, [categoryId, title])
+
+  return (
+    <SupportShell title="帮助中心" description="查看官方使用指南、部署说明和排障文档。">
+      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+        <CategoryRail categories={categories} active={categoryId} onChange={setCategoryId} />
+        <div>
+          <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="搜索文章标题" />
+          <div className="mt-4 grid gap-3">
+            {articles.length ? articles.map((item) => <ArticleRow key={item.id} item={item} />) : <EmptyState text="没有找到文章" />}
+          </div>
+        </div>
+      </div>
+    </SupportShell>
+  )
+}
+
+export function SupportArticleDetail() {
+  const params = useParams<{ slug: string }>()
+  const [article, setArticle] = useState<SupportArticle | null>(null)
+
+  useEffect(() => {
+    if (params.slug) {
+      void fetchSupportArticle(params.slug).then(setArticle)
+    }
+  }, [params.slug])
+
+  if (!article) {
+    return <SupportShell title="帮助中心" description="正在加载文章..." />
+  }
+
+  return (
+    <SupportShell title={article.title} description={article.summary || article.categoryName}>
+      <article className="rounded-md border bg-card p-6">
+        <div className="mb-5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          {article.categoryName && <Badge variant="outline">{article.categoryName}</Badge>}
+          <span>{article.publishedAt || article.updatedAt}</span>
+        </div>
+        <div className="whitespace-pre-wrap text-sm leading-7">{article.content}</div>
+        <div className="mt-8 flex gap-2 border-t pt-5">
+          <Button variant="outline" onClick={() => void submitSupportArticleFeedback(article.id, true).then(() => toast.success("感谢反馈"))}>
+            <ThumbsUpIcon /> 有帮助
+          </Button>
+          <Link className={buttonVariants({ variant: "outline" })} href="/support/questions/ask">
+            我要提问
+          </Link>
+        </div>
+      </article>
+    </SupportShell>
+  )
+}
+
+export function SupportQuestionList() {
+  const searchParams = useSearchParams()
+  const [categories, setCategories] = useState<SupportCategory[]>([])
+  const [questions, setQuestions] = useState<SupportQuestion[]>([])
+  const [categoryId, setCategoryId] = useState<number | "all">("all")
+  const [title, setTitle] = useState(searchParams.get("title") || "")
+  const [status, setStatus] = useState("all")
+
+  useEffect(() => {
+    void fetchSupportQuestionCategories().then(setCategories)
+  }, [])
+
+  useEffect(() => {
+    void fetchSupportQuestions({
+      categoryId: categoryId === "all" ? undefined : categoryId,
+      status: status === "all" ? undefined : status,
+      title,
+      limit: 20,
+    }).then((page) => setQuestions(page.results))
+  }, [categoryId, status, title])
+
+  return (
+    <SupportShell title="FAQ 社区" description="登录用户可以提问、回答、点赞并采纳最佳答案。">
+      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+        <CategoryRail categories={categories} active={categoryId} onChange={setCategoryId} />
+        <div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="搜索问题标题" />
+            <div className="flex gap-2">
+              <Button variant={status === "all" ? "default" : "outline"} onClick={() => setStatus("all")}>全部</Button>
+              <Button variant={status === "normal" ? "default" : "outline"} onClick={() => setStatus("normal")}>未解决</Button>
+              <Button variant={status === "resolved" ? "default" : "outline"} onClick={() => setStatus("resolved")}>已解决</Button>
+              <Link className={buttonVariants()} href="/support/questions/ask">提问</Link>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3">
+            {questions.length ? questions.map((item) => <QuestionRow key={item.id} item={item} />) : <EmptyState text="没有找到问题" />}
+          </div>
+        </div>
+      </div>
+    </SupportShell>
+  )
+}
+
+export function SupportQuestionDetail() {
+  const params = useParams<{ id: string }>()
+  const [question, setQuestion] = useState<SupportQuestion | null>(null)
+  const [answers, setAnswers] = useState<SupportAnswer[]>([])
+  const [content, setContent] = useState("")
+
+  const reload = () => {
+    const id = Number(params.id)
+    if (id > 0) {
+      void fetchSupportQuestion(id).then((detail) => {
+        setQuestion(detail.question)
+        setAnswers(detail.answers)
+      })
+    }
+  }
+
+  useEffect(reload, [params.id])
+
+  const submitAnswer = async () => {
+    if (!question) {
+      return
+    }
+    await ensureSupportLogin()
+    await createSupportAnswer({ questionId: question.id, content })
+    setContent("")
+    toast.success("回答已发布")
+    reload()
+  }
+
+  if (!question) {
+    return <SupportShell title="问题详情" description="正在加载问题..." />
+  }
+
+  return (
+    <SupportShell title={question.title} description={`${question.categoryName || "未分类"} · ${question.customerName || "用户"}`}>
+      <div className="grid gap-4">
+        <Card>
+          <CardContent className="p-5">
+            <div className="whitespace-pre-wrap text-sm leading-7">{question.content}</div>
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              {question.status === "resolved" && <Badge><CheckCircle2Icon className="size-3" /> 已解决</Badge>}
+              <Button variant="outline" size="sm" onClick={() => void ensureSupportLogin().then(() => voteSupportQuestion(question.id)).then(reload)}>
+                <ThumbsUpIcon /> {question.voteCount}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        <div className="grid gap-3">
+          {answers.map((answer) => (
+            <Card key={answer.id} className={cn(answer.isBestAnswer && "border-emerald-500")}>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center justify-between text-sm">
+                  <span>{answer.authorName || "用户"} · {answer.createdAt}</span>
+                  {answer.isBestAnswer && <Badge>最佳答案</Badge>}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="whitespace-pre-wrap text-sm leading-7">{answer.content}</div>
+                <div className="mt-4 flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => void ensureSupportLogin().then(() => voteSupportAnswer(answer.id)).then(reload)}>
+                    <ThumbsUpIcon /> {answer.voteCount}
+                  </Button>
+                  {!answer.isBestAnswer && (
+                    <Button variant="outline" size="sm" onClick={() => void ensureSupportLogin().then(() => acceptSupportAnswer(question.id, answer.id)).then(reload)}>
+                      采纳
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardHeader><CardTitle className="text-base">提交回答</CardTitle></CardHeader>
+          <CardContent>
+            <Textarea value={content} onChange={(event) => setContent(event.target.value)} rows={6} placeholder="写下你的回答" />
+            <Button className="mt-3" onClick={() => void submitAnswer()}>发布回答</Button>
+          </CardContent>
+        </Card>
+      </div>
+    </SupportShell>
+  )
+}
+
+export function SupportAskQuestion() {
+  const router = useRouter()
+  const [categories, setCategories] = useState<SupportCategory[]>([])
+  const [categoryId, setCategoryId] = useState(0)
+  const [title, setTitle] = useState("")
+  const [content, setContent] = useState("")
+  const [tags, setTags] = useState("")
+
+  useEffect(() => {
+    void fetchSupportQuestionCategories().then((items) => {
+      setCategories(items)
+      setCategoryId(items[0]?.id ?? 0)
+    })
+  }, [])
+
+  const submit = async () => {
+    await ensureSupportLogin()
+    const question = await createSupportQuestion({
+      categoryId,
+      title,
+      content,
+      tags: tags.split(",").map((item) => item.trim()).filter(Boolean),
+    })
+    toast.success("问题已发布")
+    router.push(`/support/questions/${question.id}`)
+  }
+
+  return (
+    <SupportShell title="提出问题" description="登录后提交问题，社区成员和客服可参与回答。">
+      <Card>
+        <CardContent className="grid gap-4 p-5">
+          <OptionCombobox
+            value={String(categoryId || "")}
+            onChange={(value) => setCategoryId(Number(value))}
+            options={categories.map((item) => ({ value: String(item.id), label: item.name }))}
+            placeholder="选择分类"
+            searchPlaceholder="搜索分类"
+            emptyText="暂无分类"
+          />
+          <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="问题标题" />
+          <Textarea value={content} onChange={(event) => setContent(event.target.value)} rows={9} placeholder="详细描述你的问题、环境和已尝试的排查步骤" />
+          <Input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="标签，用英文逗号分隔" />
+          <Button onClick={() => void submit()}>发布问题</Button>
+        </CardContent>
+      </Card>
+    </SupportShell>
+  )
+}
+
+export function SupportLoginPage() {
+  const router = useRouter()
+  const [mode, setMode] = useState<"login" | "register">("login")
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+
+  const submit = async () => {
+    const result = mode === "login"
+      ? await loginSupportCustomer({ email, password })
+      : await registerSupportCustomer({ name, email, password })
+    writeSupportToken(result.accessToken)
+    toast.success("已登录")
+    router.push("/support/questions")
+  }
+
+  return (
+    <SupportShell title="登录支持中心" description="登录后可以提问、回答、点赞和采纳最佳答案。">
+      <Card className="mx-auto max-w-md">
+        <CardContent className="grid gap-4 p-5">
+          {mode === "register" && <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="姓名" />}
+          <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="邮箱" />
+          <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="密码，至少 8 位" />
+          <Button onClick={() => void submit()}>{mode === "login" ? "登录" : "注册并登录"}</Button>
+          <Button variant="ghost" onClick={() => setMode(mode === "login" ? "register" : "login")}>
+            {mode === "login" ? "没有账号，去注册" : "已有账号，去登录"}
+          </Button>
+        </CardContent>
+      </Card>
+    </SupportShell>
+  )
+}
+
+function SupportHeader() {
+  return (
+    <header className="mx-auto flex h-16 max-w-5xl items-center justify-between px-5 sm:px-8">
+      <Link href="/support" className="flex items-center gap-2 font-semibold">
+        <span className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground"><CircleHelpIcon className="size-4" /></span>
+        AgentDesk 支持中心
+      </Link>
+      <nav className="flex items-center gap-1">
+        <Link className={buttonVariants({ variant: "ghost" })} href="/support/help">帮助</Link>
+        <Link className={buttonVariants({ variant: "ghost" })} href="/support/questions">FAQ</Link>
+        <Link className={buttonVariants({ variant: "outline" })} href="/support/login">登录</Link>
+      </nav>
+    </header>
+  )
+}
+
+function SupportShell({ title, description, children }: { title: string; description: string; children?: ReactNode }) {
+  return (
+    <main className="min-h-svh bg-[#f7f9fc] text-foreground dark:bg-background">
+      <SupportHeader />
+      <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
+        <div className="mb-7">
+          <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+        </div>
+        {children}
+      </div>
+    </main>
+  )
+}
+
+function SupportEntryCard({ href, icon, title, description }: { href: string; icon: ReactNode; title: string; description: string }) {
+  return (
+    <Link href={href} className="rounded-md border bg-background p-5 transition-colors hover:bg-muted/60">
+      <div className="grid size-10 place-items-center rounded-md bg-primary/10 text-primary">{icon}</div>
+      <div className="mt-4 font-medium">{title}</div>
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+    </Link>
+  )
+}
+
+function SectionTitle({ title, href }: { title: string; href: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <h2 className="text-xl font-semibold">{title}</h2>
+      <Link className={buttonVariants({ variant: "ghost" })} href={href}>查看全部 <ArrowRightIcon /></Link>
+    </div>
+  )
+}
+
+function ArticleRow({ item }: { item: SupportArticle }) {
+  return (
+    <Link href={`/support/help/${item.slug || item.id}`} className="rounded-md border bg-card p-4 transition-colors hover:bg-muted/60">
+      <div className="font-medium">{item.title}</div>
+      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.summary || item.categoryName}</p>
+    </Link>
+  )
+}
+
+function QuestionRow({ item }: { item: SupportQuestion }) {
+  return (
+    <Link href={`/support/questions/${item.id}`} className="rounded-md border bg-card p-4 transition-colors hover:bg-muted/60">
+      <div className="flex items-start justify-between gap-3">
+        <div className="font-medium">{item.title}</div>
+        {item.status === "resolved" && <Badge variant="secondary">已解决</Badge>}
+      </div>
+      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.content}</p>
+      <div className="mt-3 flex gap-3 text-xs text-muted-foreground">
+        <span><MessageCircleMoreIcon className="mr-1 inline size-3" />{item.answerCount}</span>
+        <span><ThumbsUpIcon className="mr-1 inline size-3" />{item.voteCount}</span>
+      </div>
+    </Link>
+  )
+}
+
+function CategoryRail({ categories, active, onChange }: { categories: SupportCategory[]; active: number | "all"; onChange: (value: number | "all") => void }) {
+  return (
+    <aside className="grid content-start gap-2">
+      <Button variant={active === "all" ? "default" : "outline"} onClick={() => onChange("all")}>全部分类</Button>
+      {categories.map((item) => (
+        <Button key={item.id} variant={active === item.id ? "default" : "outline"} onClick={() => onChange(item.id)}>{item.name}</Button>
+      ))}
+    </aside>
+  )
+}
+
+function EmptyState({ text }: { text: string }) {
+  return <div className="rounded-md border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">{text}</div>
+}
+
+async function ensureSupportLogin() {
+  if (!readSupportToken()) {
+    window.location.href = "/support/login"
+    throw new Error("login required")
+  }
+  await fetchSupportMe()
 }

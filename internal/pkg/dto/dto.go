@@ -12,6 +12,13 @@ type AuthPrincipal struct {
 	Permissions []string
 }
 
+type SupportCustomerPrincipal struct {
+	CustomerID int64
+	Name       string
+	Email      string
+	Status     enums.Status
+}
+
 type WxWorkKFChannelConfig struct {
 	OpenKfID string `json:"openKfId"`
 }
