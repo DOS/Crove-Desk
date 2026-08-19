@@ -34,6 +34,10 @@ function slugify(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")
 }
 
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback
+}
+
 function descendantIds(pages: AdminSupportHelpPage[], id: number) {
   const result = new Set<number>()
   const visit = (parentId: number) => pages.filter((page) => page.parentId === parentId).forEach((page) => { result.add(page.id); visit(page.id) })
@@ -100,6 +104,8 @@ export function SupportHelpWorkbench() {
       setDraft(toDraft(saved))
       setPages((items) => items.map((item) => item.id === saved.id ? saved : item))
       toast.success("页面已保存")
+    } catch (error) {
+      toast.error(errorMessage(error, "页面保存失败"))
     } finally { setSaving(false) }
   }
 
@@ -185,13 +191,21 @@ function CreatePageDialog({ state, pages, onOpenChange, onCreated }: { state: Cr
   const [title, setTitle] = useState("")
   const [slug, setSlug] = useState("")
   const [parentId, setParentId] = useState(state.parentId)
+  const [creating, setCreating] = useState(false)
   async function create() {
-    if (!title.trim() || !slug.trim()) return
-    const page = await saveSupportHelpPageAdmin({ parentId, title: title.trim(), slug: slug.trim(), summary: "", contentType: "markdown", content: `# ${title.trim()}\n`, tags: [], status: "draft", sortNo: pages.filter((item) => item.parentId === parentId).length })
-    toast.success("页面已创建")
-    onCreated(page.id)
+    if (!title.trim() || !slug.trim() || creating) return
+    setCreating(true)
+    try {
+      const page = await saveSupportHelpPageAdmin({ parentId, title: title.trim(), slug: slug.trim(), summary: "", contentType: "markdown", content: `# ${title.trim()}\n`, tags: [], status: "draft", sortNo: pages.filter((item) => item.parentId === parentId).length })
+      toast.success("页面已创建")
+      onCreated(page.id)
+    } catch (error) {
+      toast.error(errorMessage(error, "页面创建失败"))
+    } finally {
+      setCreating(false)
+    }
   }
-  return <Dialog open={state.open} onOpenChange={onOpenChange}><DialogContent><DialogHeader><DialogTitle>新建页面</DialogTitle><DialogDescription>页面既会出现在目录中，也可以直接承载正文。</DialogDescription></DialogHeader><div className="grid gap-4 py-2"><div className="grid gap-2"><Label>页面标题</Label><Input autoFocus value={title} onChange={(event) => { setTitle(event.target.value); if (!slug) setSlug(slugify(event.target.value)) }} /></div><div className="grid gap-2"><Label>Slug</Label><Input value={slug} onChange={(event) => setSlug(slugify(event.target.value))} placeholder="getting-started" /></div><div className="grid gap-2"><Label>父页面</Label><OptionCombobox value={String(parentId)} onChange={(value) => setParentId(Number(value))} placeholder="选择父页面" options={[{ value: "0", label: "根目录" }, ...pages.map((page) => ({ value: String(page.id), label: page.title }))]} /></div></div><DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button><Button disabled={!title.trim() || !slug.trim()} onClick={() => void create()}>创建并编辑</Button></DialogFooter></DialogContent></Dialog>
+  return <Dialog open={state.open} onOpenChange={onOpenChange}><DialogContent><DialogHeader><DialogTitle>新建页面</DialogTitle><DialogDescription>页面既会出现在目录中，也可以直接承载正文。</DialogDescription></DialogHeader><div className="grid gap-4 py-2"><div className="grid gap-2"><Label>页面标题</Label><Input autoFocus value={title} onChange={(event) => { setTitle(event.target.value); if (!slug) setSlug(slugify(event.target.value)) }} /></div><div className="grid gap-2"><Label>Slug</Label><Input value={slug} onChange={(event) => setSlug(slugify(event.target.value))} placeholder="getting-started" /></div><div className="grid gap-2"><Label>父页面</Label><OptionCombobox value={String(parentId)} onChange={(value) => setParentId(Number(value))} placeholder="选择父页面" options={[{ value: "0", label: "根目录" }, ...pages.map((page) => ({ value: String(page.id), label: page.title }))]} /></div></div><DialogFooter><Button variant="outline" disabled={creating} onClick={() => onOpenChange(false)}>取消</Button><Button disabled={!title.trim() || !slug.trim() || creating} onClick={() => void create()}>{creating ? "创建中..." : "创建并编辑"}</Button></DialogFooter></DialogContent></Dialog>
 }
 
 function PageSettingsDialog({ open, onOpenChange, pages, selected, draft, onChange }: { open: boolean; onOpenChange: (open: boolean) => void; pages: AdminSupportHelpPage[]; selected: AdminSupportHelpPage | null; draft: PageDraft | null; onChange: (draft: PageDraft) => void }) {
