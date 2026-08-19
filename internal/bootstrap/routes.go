@@ -47,10 +47,9 @@ func registerApiSupportRoutes(group *gin.RouterGroup) {
 	group.POST("/auth/register", api.SupportPostRegister)
 	group.POST("/auth/login", api.SupportPostLogin)
 	group.GET("/me", api.SupportGetMe)
-	group.Any("/article-category/list", api.SupportArticleCategoryAnyList)
-	group.Any("/article/list", api.SupportArticleAnyList)
-	group.GET("/article/:idOrSlug", api.SupportArticleGetBy)
-	group.POST("/article/feedback", api.SupportArticlePostFeedback)
+	group.Any("/help-page/list", api.SupportHelpPageAnyList)
+	group.GET("/help-page/:idOrSlug", api.SupportHelpPageGetBy)
+	group.POST("/help-page/feedback", api.SupportHelpPagePostFeedback)
 	group.Any("/question-category/list", api.SupportQuestionCategoryAnyList)
 	group.Any("/question/list", api.SupportQuestionAnyList)
 	group.GET("/question/:id", api.SupportQuestionGetBy)
@@ -349,20 +348,12 @@ func registerDashboardKnowledgeRetrieveLogRoutes(group *gin.RouterGroup) {
 	group.Any("/list", dashboard.KnowledgeRetrieveLogAnyList)
 }
 
-func registerDashboardSupportArticleCategoryRoutes(group *gin.RouterGroup) {
-	group.POST("/create", dashboard.SupportArticleCategoryPostCreate)
-	group.POST("/delete", dashboard.SupportArticleCategoryPostDelete)
-	group.Any("/list", dashboard.SupportArticleCategoryAnyList)
-	group.GET("/list_all", dashboard.SupportArticleCategoryGetList_all)
-	group.POST("/update", dashboard.SupportArticleCategoryPostUpdate)
-}
-
-func registerDashboardSupportArticleRoutes(group *gin.RouterGroup) {
-	group.GET("/:id", dashboard.SupportArticleGetBy)
-	group.POST("/create", dashboard.SupportArticlePostCreate)
-	group.POST("/delete", dashboard.SupportArticlePostDelete)
-	group.Any("/list", dashboard.SupportArticleAnyList)
-	group.POST("/update", dashboard.SupportArticlePostUpdate)
+func registerDashboardSupportHelpPageRoutes(group *gin.RouterGroup) {
+	group.GET("/:id", dashboard.SupportHelpPageGetBy)
+	group.POST("/create", dashboard.SupportHelpPagePostCreate)
+	group.POST("/delete", dashboard.SupportHelpPagePostDelete)
+	group.Any("/list", dashboard.SupportHelpPageAnyList)
+	group.POST("/update", dashboard.SupportHelpPagePostUpdate)
 }
 
 func registerDashboardSupportQuestionCategoryRoutes(group *gin.RouterGroup) {

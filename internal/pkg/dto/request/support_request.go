@@ -13,30 +13,19 @@ type SupportCustomerLoginRequest struct {
 	Password string `json:"password"`
 }
 
-type SaveSupportArticleCategoryRequest struct {
-	ID          int64        `json:"id"`
-	Name        string       `json:"name"`
-	Slug        string       `json:"slug"`
-	Description string       `json:"description"`
-	ParentID    int64        `json:"parentId"`
-	SortNo      int          `json:"sortNo"`
-	Status      enums.Status `json:"status"`
-	Remark      string       `json:"remark"`
-}
-
-type SaveSupportArticleRequest struct {
-	ID          int64                      `json:"id"`
-	CategoryID  int64                      `json:"categoryId"`
-	Title       string                     `json:"title"`
-	Slug        string                     `json:"slug"`
-	Summary     string                     `json:"summary"`
-	ContentType string                     `json:"contentType"`
-	Content     string                     `json:"content"`
-	CoverURL    string                     `json:"coverUrl"`
-	Tags        []string                   `json:"tags"`
-	Status      enums.SupportArticleStatus `json:"status"`
-	SortNo      int                        `json:"sortNo"`
-	Remark      string                     `json:"remark"`
+type SaveSupportHelpPageRequest struct {
+	ID          int64                       `json:"id"`
+	ParentID    int64                       `json:"parentId"`
+	Title       string                      `json:"title"`
+	Slug        string                      `json:"slug"`
+	Summary     string                      `json:"summary"`
+	ContentType string                      `json:"contentType"`
+	Content     string                      `json:"content"`
+	CoverURL    string                      `json:"coverUrl"`
+	Tags        []string                    `json:"tags"`
+	Status      enums.SupportHelpPageStatus `json:"status"`
+	SortNo      int                         `json:"sortNo"`
+	Remark      string                      `json:"remark"`
 }
 
 type SaveSupportQuestionCategoryRequest struct {
@@ -93,7 +82,7 @@ type SupportAcceptAnswerRequest struct {
 	AnswerID   int64 `json:"answerId"`
 }
 
-type SupportArticleFeedbackRequest struct {
+type SupportHelpPageFeedbackRequest struct {
 	ID      int64 `json:"id"`
 	Helpful bool  `json:"helpful"`
 }

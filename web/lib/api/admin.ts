@@ -2319,10 +2319,9 @@ export type AdminSupportCategory = {
   remark: string
 }
 
-export type AdminSupportArticle = {
+export type AdminSupportHelpPage = {
   id: number
-  categoryId: number
-  categoryName: string
+  parentId: number
   title: string
   slug: string
   summary: string
@@ -2375,45 +2374,23 @@ export type AdminSupportQuestionDetail = {
   answers: AdminSupportAnswer[]
 }
 
-export function fetchSupportArticleCategoriesAdmin(query?: Record<string, string | number | undefined>) {
-  return request<PageResult<AdminSupportCategory>>(`/api/dashboard/support-article-category/list${toQueryString(query)}`)
+export function fetchSupportHelpPagesAdmin(query?: Record<string, string | number | undefined>) {
+  return request<PageResult<AdminSupportHelpPage>>(`/api/dashboard/support-help-page/list${toQueryString(query)}`)
 }
 
-export function fetchSupportArticleCategoriesAllAdmin() {
-  return request<AdminSupportCategory[]>("/api/dashboard/support-article-category/list_all")
+export function fetchSupportHelpPageAdmin(id: number) {
+  return request<AdminSupportHelpPage>(`/api/dashboard/support-help-page/${id}`)
 }
 
-export function saveSupportArticleCategoryAdmin(payload: Partial<AdminSupportCategory>) {
-  return request<AdminSupportCategory>(payload.id ? "/api/dashboard/support-article-category/update" : "/api/dashboard/support-article-category/create", {
+export function saveSupportHelpPageAdmin(payload: Partial<AdminSupportHelpPage>) {
+  return request<AdminSupportHelpPage>(payload.id ? "/api/dashboard/support-help-page/update" : "/api/dashboard/support-help-page/create", {
     method: "POST",
     body: JSON.stringify(payload),
   })
 }
 
-export function deleteSupportArticleCategoryAdmin(id: number) {
-  return request<void>("/api/dashboard/support-article-category/delete", {
-    method: "POST",
-    body: JSON.stringify({ id }),
-  })
-}
-
-export function fetchSupportArticlesAdmin(query?: Record<string, string | number | undefined>) {
-  return request<PageResult<AdminSupportArticle>>(`/api/dashboard/support-article/list${toQueryString(query)}`)
-}
-
-export function fetchSupportArticleAdmin(id: number) {
-  return request<AdminSupportArticle>(`/api/dashboard/support-article/${id}`)
-}
-
-export function saveSupportArticleAdmin(payload: Partial<AdminSupportArticle>) {
-  return request<AdminSupportArticle>(payload.id ? "/api/dashboard/support-article/update" : "/api/dashboard/support-article/create", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  })
-}
-
-export function deleteSupportArticleAdmin(id: number) {
-  return request<void>("/api/dashboard/support-article/delete", {
+export function deleteSupportHelpPageAdmin(id: number) {
+  return request<void>("/api/dashboard/support-help-page/delete", {
     method: "POST",
     body: JSON.stringify({ id }),
   })

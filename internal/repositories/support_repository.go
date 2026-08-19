@@ -8,8 +8,7 @@ import (
 )
 
 var (
-	SupportArticleCategoryRepository  = &supportArticleCategoryRepository{}
-	SupportArticleRepository          = &supportArticleRepository{}
+	SupportHelpPageRepository         = &supportHelpPageRepository{}
 	SupportQuestionCategoryRepository = &supportQuestionCategoryRepository{}
 	SupportQuestionRepository         = &supportQuestionRepository{}
 	SupportAnswerRepository           = &supportAnswerRepository{}
@@ -17,82 +16,49 @@ var (
 	SupportAnswerVoteRepository       = &supportAnswerVoteRepository{}
 )
 
-type supportArticleCategoryRepository struct{}
+type supportHelpPageRepository struct{}
 
-func (r *supportArticleCategoryRepository) Get(db *gorm.DB, id int64) *models.SupportArticleCategory {
-	ret := &models.SupportArticleCategory{}
+func (r *supportHelpPageRepository) Get(db *gorm.DB, id int64) *models.SupportHelpPage {
+	ret := &models.SupportHelpPage{}
 	if err := db.First(ret, "id = ?", id).Error; err != nil {
 		return nil
 	}
 	return ret
 }
 
-func (r *supportArticleCategoryRepository) Find(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportArticleCategory) {
-	cnd.Find(db, &list)
-	return
-}
-
-func (r *supportArticleCategoryRepository) FindPageByCnd(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportArticleCategory, paging *sqls.Paging) {
-	cnd.Find(db, &list)
-	paging = &sqls.Paging{Page: cnd.Paging.Page, Limit: cnd.Paging.Limit, Total: cnd.Count(db, &models.SupportArticleCategory{})}
-	return
-}
-
-func (r *supportArticleCategoryRepository) Create(db *gorm.DB, item *models.SupportArticleCategory) error {
-	return db.Create(item).Error
-}
-
-func (r *supportArticleCategoryRepository) Updates(db *gorm.DB, id int64, columns map[string]any) error {
-	return db.Model(&models.SupportArticleCategory{}).Where("id = ?", id).Updates(columns).Error
-}
-
-func (r *supportArticleCategoryRepository) Delete(db *gorm.DB, id int64) error {
-	return db.Delete(&models.SupportArticleCategory{}, "id = ?", id).Error
-}
-
-type supportArticleRepository struct{}
-
-func (r *supportArticleRepository) Get(db *gorm.DB, id int64) *models.SupportArticle {
-	ret := &models.SupportArticle{}
-	if err := db.First(ret, "id = ?", id).Error; err != nil {
-		return nil
-	}
-	return ret
-}
-
-func (r *supportArticleRepository) GetBySlug(db *gorm.DB, slug string) *models.SupportArticle {
-	ret := &models.SupportArticle{}
+func (r *supportHelpPageRepository) GetBySlug(db *gorm.DB, slug string) *models.SupportHelpPage {
+	ret := &models.SupportHelpPage{}
 	if err := db.First(ret, "slug = ?", slug).Error; err != nil {
 		return nil
 	}
 	return ret
 }
 
-func (r *supportArticleRepository) Find(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportArticle) {
+func (r *supportHelpPageRepository) Find(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportHelpPage) {
 	cnd.Find(db, &list)
 	return
 }
 
-func (r *supportArticleRepository) FindPageByCnd(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportArticle, paging *sqls.Paging) {
+func (r *supportHelpPageRepository) FindPageByCnd(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportHelpPage, paging *sqls.Paging) {
 	cnd.Find(db, &list)
-	paging = &sqls.Paging{Page: cnd.Paging.Page, Limit: cnd.Paging.Limit, Total: cnd.Count(db, &models.SupportArticle{})}
+	paging = &sqls.Paging{Page: cnd.Paging.Page, Limit: cnd.Paging.Limit, Total: cnd.Count(db, &models.SupportHelpPage{})}
 	return
 }
 
-func (r *supportArticleRepository) Create(db *gorm.DB, item *models.SupportArticle) error {
+func (r *supportHelpPageRepository) Create(db *gorm.DB, item *models.SupportHelpPage) error {
 	return db.Create(item).Error
 }
 
-func (r *supportArticleRepository) Updates(db *gorm.DB, id int64, columns map[string]any) error {
-	return db.Model(&models.SupportArticle{}).Where("id = ?", id).Updates(columns).Error
+func (r *supportHelpPageRepository) Updates(db *gorm.DB, id int64, columns map[string]any) error {
+	return db.Model(&models.SupportHelpPage{}).Where("id = ?", id).Updates(columns).Error
 }
 
-func (r *supportArticleRepository) UpdateColumn(db *gorm.DB, id int64, column string, value any) error {
-	return db.Model(&models.SupportArticle{}).Where("id = ?", id).UpdateColumn(column, value).Error
+func (r *supportHelpPageRepository) UpdateColumn(db *gorm.DB, id int64, column string, value any) error {
+	return db.Model(&models.SupportHelpPage{}).Where("id = ?", id).UpdateColumn(column, value).Error
 }
 
-func (r *supportArticleRepository) Delete(db *gorm.DB, id int64) error {
-	return db.Delete(&models.SupportArticle{}, "id = ?", id).Error
+func (r *supportHelpPageRepository) Delete(db *gorm.DB, id int64) error {
+	return db.Delete(&models.SupportHelpPage{}, "id = ?", id).Error
 }
 
 type supportQuestionCategoryRepository struct{}

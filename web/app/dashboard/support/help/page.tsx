@@ -1,5 +1,5 @@
-import { DashboardSupportHelpAdmin } from "../_components/support-admin"
+import { SupportHelpWorkbench } from "../_components/help-workbench"
 
 export default function DashboardSupportHelpPage() {
-  return <DashboardSupportHelpAdmin />
+  return <SupportHelpWorkbench />
 }

@@ -146,7 +146,7 @@ export const dashboardNavSections: DashboardNavSectionConfig[] = [
         titleKey: "nav.supportHelp",
         url: "/dashboard/support/help",
         icon: <BookOpenIcon />,
-        requiredPermission: "supportArticle.view",
+        requiredPermission: "supportHelpPage.view",
       },
       {
         titleKey: "nav.supportFaq",

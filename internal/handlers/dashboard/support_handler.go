@@ -16,93 +16,21 @@ import (
 	"github.com/mlogclub/simple/web"
 )
 
-func SupportArticleCategoryAnyList(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportArticleView); err != nil {
+func SupportHelpPageAnyList(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageView); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	list, paging := repositories.SupportArticleCategoryRepository.FindPageByCnd(sqls.DB(), params.NewPagedSqlCnd(ctx,
-		params.QueryFilter{ParamName: "status"},
-		params.QueryFilter{ParamName: "name", Op: params.Like},
-	).Asc("sort_no").Desc("id"))
-	httpx.WriteJSON(ctx, &web.PageResult{Results: builders.BuildSupportArticleCategories(list), Page: paging})
-}
-
-func SupportArticleCategoryGetList_all(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportArticleView); err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	list := repositories.SupportArticleCategoryRepository.Find(sqls.DB(), sqls.NewCnd().Asc("sort_no").Desc("id"))
-	httpx.WriteJSON(ctx, builders.BuildSupportArticleCategories(list))
-}
-
-func SupportArticleCategoryPostCreate(ctx *gin.Context) {
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportArticleCreate)
-	if err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	req := request.SaveSupportArticleCategoryRequest{}
-	if err := params.ReadJSON(ctx, &req); err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	item, err := services.SupportService.SaveArticleCategory(req, operator)
-	if err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	httpx.WriteJSON(ctx, builders.BuildSupportArticleCategory(item))
-}
-
-func SupportArticleCategoryPostUpdate(ctx *gin.Context) {
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportArticleUpdate)
-	if err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	req := request.SaveSupportArticleCategoryRequest{}
-	if err := params.ReadJSON(ctx, &req); err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	item, err := services.SupportService.SaveArticleCategory(req, operator)
-	if err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	httpx.WriteJSON(ctx, builders.BuildSupportArticleCategory(item))
-}
-
-func SupportArticleCategoryPostDelete(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportArticleDelete); err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	req := request.DeleteByIDRequest{}
-	if err := params.ReadJSON(ctx, &req); err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	httpx.WriteJSON(ctx, services.SupportService.DeleteArticleCategory(req.ID))
-}
-
-func SupportArticleAnyList(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportArticleView); err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	list, paging := repositories.SupportArticleRepository.FindPageByCnd(sqls.DB(), params.NewPagedSqlCnd(ctx,
-		params.QueryFilter{ParamName: "categoryId"},
+	list, paging := repositories.SupportHelpPageRepository.FindPageByCnd(sqls.DB(), params.NewPagedSqlCnd(ctx,
+		params.QueryFilter{ParamName: "parentId"},
 		params.QueryFilter{ParamName: "status"},
 		params.QueryFilter{ParamName: "title", Op: params.Like},
 	).Asc("sort_no").Desc("id"))
-	httpx.WriteJSON(ctx, &web.PageResult{Results: buildDashboardSupportArticles(list, false), Page: paging})
+	httpx.WriteJSON(ctx, &web.PageResult{Results: buildDashboardSupportHelpPages(list, false), Page: paging})
 }
 
-func SupportArticleGetBy(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportArticleView); err != nil {
+func SupportHelpPageGetBy(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageView); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
@@ -110,54 +38,54 @@ func SupportArticleGetBy(ctx *gin.Context) {
 	if !ok {
 		return
 	}
-	item := repositories.SupportArticleRepository.Get(sqls.DB(), id)
+	item := repositories.SupportHelpPageRepository.Get(sqls.DB(), id)
 	if item == nil {
 		httpx.WriteJSON(ctx, httpx.JsonErrorMsg(ctx, "error.notFound"))
 		return
 	}
-	httpx.WriteJSON(ctx, builders.BuildSupportArticle(item, dashboardSupportArticleCategoryName(item.CategoryID), true))
+	httpx.WriteJSON(ctx, builders.BuildSupportHelpPage(item, true))
 }
 
-func SupportArticlePostCreate(ctx *gin.Context) {
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportArticleCreate)
+func SupportHelpPagePostCreate(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageCreate)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.SaveSupportArticleRequest{}
+	req := request.SaveSupportHelpPageRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	item, err := services.SupportService.SaveArticle(req, operator)
+	item, err := services.SupportService.SaveHelpPage(req, operator)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, builders.BuildSupportArticle(item, dashboardSupportArticleCategoryName(item.CategoryID), true))
+	httpx.WriteJSON(ctx, builders.BuildSupportHelpPage(item, true))
 }
 
-func SupportArticlePostUpdate(ctx *gin.Context) {
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportArticleUpdate)
+func SupportHelpPagePostUpdate(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageUpdate)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.SaveSupportArticleRequest{}
+	req := request.SaveSupportHelpPageRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	item, err := services.SupportService.SaveArticle(req, operator)
+	item, err := services.SupportService.SaveHelpPage(req, operator)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, builders.BuildSupportArticle(item, dashboardSupportArticleCategoryName(item.CategoryID), true))
+	httpx.WriteJSON(ctx, builders.BuildSupportHelpPage(item, true))
 }
 
-func SupportArticlePostDelete(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportArticleDelete); err != nil {
+func SupportHelpPagePostDelete(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageDelete); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
@@ -166,7 +94,7 @@ func SupportArticlePostDelete(ctx *gin.Context) {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, repositories.SupportArticleRepository.Delete(sqls.DB(), req.ID))
+	httpx.WriteJSON(ctx, services.SupportService.DeleteHelpPage(req.ID))
 }
 
 func SupportQuestionCategoryAnyList(ctx *gin.Context) {
@@ -316,10 +244,10 @@ func SupportAnswerPostModerate(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, services.SupportService.ModerateAnswer(req))
 }
 
-func buildDashboardSupportArticles(list []models.SupportArticle, includeContent bool) []response.SupportArticleResponse {
-	results := make([]response.SupportArticleResponse, 0, len(list))
+func buildDashboardSupportHelpPages(list []models.SupportHelpPage, includeContent bool) []response.SupportHelpPageResponse {
+	results := make([]response.SupportHelpPageResponse, 0, len(list))
 	for _, item := range list {
-		if resp := builders.BuildSupportArticle(&item, dashboardSupportArticleCategoryName(item.CategoryID), includeContent); resp != nil {
+		if resp := builders.BuildSupportHelpPage(&item, includeContent); resp != nil {
 			results = append(results, *resp)
 		}
 	}
@@ -344,14 +272,6 @@ func buildDashboardSupportAnswers(list []models.SupportAnswer) []response.Suppor
 		}
 	}
 	return results
-}
-
-func dashboardSupportArticleCategoryName(id int64) string {
-	item := repositories.SupportArticleCategoryRepository.Get(sqls.DB(), id)
-	if item == nil {
-		return ""
-	}
-	return item.Name
 }
 
 func dashboardSupportQuestionCategoryName(id int64) string {

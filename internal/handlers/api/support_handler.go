@@ -64,44 +64,39 @@ func SupportGetMe(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, response.SupportUserResponse{ID: principal.UserID, Name: supportPrincipalDisplayName(principal.UserID), Email: email, UserType: principal.UserType})
 }
 
-func SupportArticleCategoryAnyList(ctx *gin.Context) {
-	list := repositories.SupportArticleCategoryRepository.Find(sqls.DB(), sqls.NewCnd().Eq("status", enums.StatusOk).Asc("sort_no").Desc("id"))
-	httpx.WriteJSON(ctx, builders.BuildSupportArticleCategories(list))
-}
-
-func SupportArticleAnyList(ctx *gin.Context) {
+func SupportHelpPageAnyList(ctx *gin.Context) {
 	cnd := params.NewPagedSqlCnd(ctx,
-		params.QueryFilter{ParamName: "categoryId"},
+		params.QueryFilter{ParamName: "parentId"},
 		params.QueryFilter{ParamName: "title", Op: params.Like},
-	).Eq("status", enums.SupportArticleStatusPublished).Asc("sort_no").Desc("id")
-	list, paging := repositories.SupportArticleRepository.FindPageByCnd(sqls.DB(), cnd)
-	results := buildSupportArticleList(list, false)
+	).Eq("status", enums.SupportHelpPageStatusPublished).Asc("sort_no").Desc("id")
+	list, paging := repositories.SupportHelpPageRepository.FindPageByCnd(sqls.DB(), cnd)
+	results := buildSupportHelpPageList(list, false)
 	httpx.WriteJSON(ctx, &web.PageResult{Results: results, Page: paging})
 }
 
-func SupportArticleGetBy(ctx *gin.Context) {
+func SupportHelpPageGetBy(ctx *gin.Context) {
 	key := ctx.Param("idOrSlug")
-	item := repositories.SupportArticleRepository.GetBySlug(sqls.DB(), key)
+	item := repositories.SupportHelpPageRepository.GetBySlug(sqls.DB(), key)
 	if item == nil {
 		if id, err := strconv.ParseInt(key, 10, 64); err == nil {
-			item = repositories.SupportArticleRepository.Get(sqls.DB(), id)
+			item = repositories.SupportHelpPageRepository.Get(sqls.DB(), id)
 		}
 	}
-	if item == nil || item.Status != enums.SupportArticleStatusPublished {
+	if item == nil || item.Status != enums.SupportHelpPageStatusPublished {
 		httpx.WriteJSON(ctx, httpx.JsonErrorMsg(ctx, "error.notFound"))
 		return
 	}
-	_ = repositories.SupportArticleRepository.UpdateColumn(sqls.DB(), item.ID, "view_count", gorm.Expr("view_count + ?", 1))
-	httpx.WriteJSON(ctx, builders.BuildSupportArticle(item, supportArticleCategoryName(item.CategoryID), true))
+	_ = repositories.SupportHelpPageRepository.UpdateColumn(sqls.DB(), item.ID, "view_count", gorm.Expr("view_count + ?", 1))
+	httpx.WriteJSON(ctx, builders.BuildSupportHelpPage(item, true))
 }
 
-func SupportArticlePostFeedback(ctx *gin.Context) {
-	req := request.SupportArticleFeedbackRequest{}
+func SupportHelpPagePostFeedback(ctx *gin.Context) {
+	req := request.SupportHelpPageFeedbackRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, services.SupportService.FeedbackArticle(req))
+	httpx.WriteJSON(ctx, services.SupportService.FeedbackHelpPage(req))
 }
 
 func SupportQuestionCategoryAnyList(ctx *gin.Context) {
@@ -229,10 +224,10 @@ func SupportAnswerPostVote(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, services.SupportService.ToggleAnswerVote(req.ID, principal))
 }
 
-func buildSupportArticleList(list []models.SupportArticle, includeContent bool) []response.SupportArticleResponse {
-	results := make([]response.SupportArticleResponse, 0, len(list))
+func buildSupportHelpPageList(list []models.SupportHelpPage, includeContent bool) []response.SupportHelpPageResponse {
+	results := make([]response.SupportHelpPageResponse, 0, len(list))
 	for _, item := range list {
-		if resp := builders.BuildSupportArticle(&item, supportArticleCategoryName(item.CategoryID), includeContent); resp != nil {
+		if resp := builders.BuildSupportHelpPage(&item, includeContent); resp != nil {
 			results = append(results, *resp)
 		}
 	}
@@ -257,14 +252,6 @@ func buildSupportAnswerList(list []models.SupportAnswer) []response.SupportAnswe
 		}
 	}
 	return results
-}
-
-func supportArticleCategoryName(id int64) string {
-	item := repositories.SupportArticleCategoryRepository.Get(sqls.DB(), id)
-	if item == nil {
-		return ""
-	}
-	return item.Name
 }
 
 func supportQuestionCategoryName(id int64) string {

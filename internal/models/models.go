@@ -55,8 +55,7 @@ var Models = []any{
 	&KnowledgeRetrieveLog{},
 	&KnowledgeRetrieveHit{},
 	&KnowledgeFeedback{},
-	&SupportArticleCategory{},
-	&SupportArticle{},
+	&SupportHelpPage{},
 	&SupportQuestionCategory{},
 	&SupportQuestion{},
 	&SupportAnswer{},
@@ -937,38 +936,25 @@ type KnowledgeChunk struct {
 	UpdatedAt       time.Time    `gorm:"type:datetime;not null;index"`
 }
 
-// SupportArticleCategory is the public help-center category tree.
-type SupportArticleCategory struct {
-	ID          int64        `gorm:"primaryKey;autoIncrement"`
-	Name        string       `gorm:"type:varchar(100);not null;default:'';index"`
-	Slug        string       `gorm:"type:varchar(120);not null;default:'';uniqueIndex"`
-	Description string       `gorm:"type:text"`
-	ParentID    int64        `gorm:"type:bigint;not null;default:0;index"`
-	SortNo      int          `gorm:"type:int;not null;default:0;index"`
-	Status      enums.Status `gorm:"type:int;not null;default:0;index"`
-	Remark      string       `gorm:"type:text"`
-	AuditFields
-}
-
-// SupportArticle is an official help-center article.
-type SupportArticle struct {
-	ID                        int64                      `gorm:"primaryKey;autoIncrement"`
-	CategoryID                int64                      `gorm:"type:bigint;not null;default:0;index"`
-	Title                     string                     `gorm:"type:varchar(255);not null;default:'';index"`
-	Slug                      string                     `gorm:"type:varchar(160);not null;default:'';uniqueIndex"`
-	Summary                   string                     `gorm:"type:text"`
-	ContentType               string                     `gorm:"type:varchar(20);not null;default:'markdown'"`
-	Content                   string                     `gorm:"type:text"`
-	CoverURL                  string                     `gorm:"type:varchar(255);not null;default:''"`
-	TagsJSON                  string                     `gorm:"type:text"`
-	Status                    enums.SupportArticleStatus `gorm:"type:varchar(20);not null;default:'draft';index"`
-	SortNo                    int                        `gorm:"type:int;not null;default:0;index"`
-	ViewCount                 int64                      `gorm:"type:bigint;not null;default:0"`
-	HelpfulCount              int64                      `gorm:"type:bigint;not null;default:0"`
-	UnhelpfulCount            int64                      `gorm:"type:bigint;not null;default:0"`
-	PublishedAt               *time.Time                 `gorm:"type:datetime;index"`
-	SyncedKnowledgeDocumentID int64                      `gorm:"type:bigint;not null;default:0;index"`
-	Remark                    string                     `gorm:"type:text"`
+// SupportHelpPage is both a help-center navigation node and a content page.
+type SupportHelpPage struct {
+	ID                        int64                       `gorm:"primaryKey;autoIncrement"`
+	ParentID                  int64                       `gorm:"type:bigint;not null;default:0;index"`
+	Title                     string                      `gorm:"type:varchar(255);not null;default:'';index"`
+	Slug                      string                      `gorm:"type:varchar(160);not null;default:'';uniqueIndex"`
+	Summary                   string                      `gorm:"type:text"`
+	ContentType               string                      `gorm:"type:varchar(20);not null;default:'markdown'"`
+	Content                   string                      `gorm:"type:text"`
+	CoverURL                  string                      `gorm:"type:varchar(255);not null;default:''"`
+	TagsJSON                  string                      `gorm:"type:text"`
+	Status                    enums.SupportHelpPageStatus `gorm:"type:varchar(20);not null;default:'draft';index"`
+	SortNo                    int                         `gorm:"type:int;not null;default:0;index"`
+	ViewCount                 int64                       `gorm:"type:bigint;not null;default:0"`
+	HelpfulCount              int64                       `gorm:"type:bigint;not null;default:0"`
+	UnhelpfulCount            int64                       `gorm:"type:bigint;not null;default:0"`
+	PublishedAt               *time.Time                  `gorm:"type:datetime;index"`
+	SyncedKnowledgeDocumentID int64                       `gorm:"type:bigint;not null;default:0;index"`
+	Remark                    string                      `gorm:"type:text"`
 	AuditFields
 }
 

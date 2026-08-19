@@ -12,10 +12,9 @@ export type SupportCategory = {
   status: number
 }
 
-export type SupportArticle = {
+export type SupportHelpPage = {
   id: number
-  categoryId: number
-  categoryName: string
+  parentId: number
   title: string
   slug: string
   summary: string
@@ -102,22 +101,18 @@ export function fetchSupportMe() {
   return request<SupportUser>("/api/support/me")
 }
 
-export function fetchSupportArticleCategories() {
-  return request<SupportCategory[]>("/api/support/article-category/list", { skipAuth: true })
-}
-
-export function fetchSupportArticles(query?: Record<string, string | number | undefined>) {
-  return request<PageResult<SupportArticle>>(`/api/support/article/list${toQueryString(query)}`, {
+export function fetchSupportHelpPages(query?: Record<string, string | number | undefined>) {
+  return request<PageResult<SupportHelpPage>>(`/api/support/help-page/list${toQueryString(query)}`, {
     skipAuth: true,
   })
 }
 
-export function fetchSupportArticle(idOrSlug: string | number) {
-  return request<SupportArticle>(`/api/support/article/${idOrSlug}`, { skipAuth: true })
+export function fetchSupportHelpPage(idOrSlug: string | number) {
+  return request<SupportHelpPage>(`/api/support/help-page/${idOrSlug}`, { skipAuth: true })
 }
 
-export function submitSupportArticleFeedback(id: number, helpful: boolean) {
-  return request<void>("/api/support/article/feedback", {
+export function submitSupportHelpPageFeedback(id: number, helpful: boolean) {
+  return request<void>("/api/support/help-page/feedback", {
     method: "POST",
     skipAuth: true,
     body: JSON.stringify({ id, helpful }),

@@ -1,5 +1,5 @@
-import { SupportArticleDetail } from "@/components/support-center/help-center"
+import { SupportHelpPageDetail } from "@/components/support-center/help-center"
 
-export default function SupportArticlePage() {
-  return <SupportArticleDetail />
+export default function SupportHelpPagePage() {
+  return <SupportHelpPageDetail />
 }

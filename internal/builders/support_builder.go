@@ -8,35 +8,7 @@ import (
 	"time"
 )
 
-func BuildSupportArticleCategory(item *models.SupportArticleCategory) *response.SupportArticleCategoryResponse {
-	if item == nil {
-		return nil
-	}
-	return &response.SupportArticleCategoryResponse{
-		ID:          item.ID,
-		Name:        item.Name,
-		Slug:        item.Slug,
-		Description: item.Description,
-		ParentID:    item.ParentID,
-		SortNo:      item.SortNo,
-		Status:      item.Status,
-		Remark:      item.Remark,
-		CreatedAt:   formatSupportTime(&item.CreatedAt),
-		UpdatedAt:   formatSupportTime(&item.UpdatedAt),
-	}
-}
-
-func BuildSupportArticleCategories(list []models.SupportArticleCategory) []response.SupportArticleCategoryResponse {
-	ret := make([]response.SupportArticleCategoryResponse, 0, len(list))
-	for _, item := range list {
-		if resp := BuildSupportArticleCategory(&item); resp != nil {
-			ret = append(ret, *resp)
-		}
-	}
-	return ret
-}
-
-func BuildSupportArticle(item *models.SupportArticle, categoryName string, includeContent bool) *response.SupportArticleResponse {
+func BuildSupportHelpPage(item *models.SupportHelpPage, includeContent bool) *response.SupportHelpPageResponse {
 	if item == nil {
 		return nil
 	}
@@ -44,10 +16,9 @@ func BuildSupportArticle(item *models.SupportArticle, categoryName string, inclu
 	if !includeContent {
 		content = ""
 	}
-	return &response.SupportArticleResponse{
+	return &response.SupportHelpPageResponse{
 		ID:                        item.ID,
-		CategoryID:                item.CategoryID,
-		CategoryName:              categoryName,
+		ParentID:                  item.ParentID,
 		Title:                     item.Title,
 		Slug:                      item.Slug,
 		Summary:                   item.Summary,

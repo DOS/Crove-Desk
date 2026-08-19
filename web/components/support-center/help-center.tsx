@@ -4,14 +4,19 @@ import {
   ArrowRightIcon,
   BookOpenIcon,
   CheckCircle2Icon,
+  ChevronDownIcon,
+  ChevronRightIcon,
   CircleHelpIcon,
+  FileTextIcon,
   HeadphonesIcon,
   MessageCircleMoreIcon,
   SearchIcon,
   ThumbsUpIcon,
 } from "lucide-react"
 import Link from "next/link"
+import { MdPreview } from "md-editor-rt"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { useTheme } from "next-themes"
 import { useEffect, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 
@@ -25,20 +30,19 @@ import {
   acceptSupportAnswer,
   createSupportAnswer,
   createSupportQuestion,
-  fetchSupportArticle,
-  fetchSupportArticleCategories,
-  fetchSupportArticles,
+  fetchSupportHelpPage,
+  fetchSupportHelpPages,
   fetchSupportMe,
   fetchSupportQuestion,
   fetchSupportQuestionCategories,
   fetchSupportQuestions,
   loginSupportCustomer,
   registerSupportCustomer,
-  submitSupportArticleFeedback,
+  submitSupportHelpPageFeedback,
   voteSupportAnswer,
   voteSupportQuestion,
   type SupportAnswer,
-  type SupportArticle,
+  type SupportHelpPage,
   type SupportCategory,
   type SupportQuestion,
 } from "@/lib/api/support"
@@ -46,13 +50,13 @@ import { readSession } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 
 export function SupportHelpCenter() {
-  const [articles, setArticles] = useState<SupportArticle[]>([])
+  const [articles, setArticles] = useState<SupportHelpPage[]>([])
   const [questions, setQuestions] = useState<SupportQuestion[]>([])
   const [query, setQuery] = useState("")
 
   useEffect(() => {
     void Promise.all([
-      fetchSupportArticles({ limit: 6 }),
+      fetchSupportHelpPages({ limit: 6 }),
       fetchSupportQuestions({ limit: 6 }),
     ]).then(([articlePage, questionPage]) => {
       setArticles(articlePage.results)
@@ -75,7 +79,7 @@ export function SupportHelpCenter() {
           <div className="mt-7 flex max-w-2xl gap-2">
             <div className="relative flex-1">
               <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="搜索文章或问题" />
+              <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="搜索帮助页面或问题" />
             </div>
             <Link className={buttonVariants()} href={`/support/questions${query ? `?title=${encodeURIComponent(query)}` : ""}`}>
               搜索
@@ -90,9 +94,9 @@ export function SupportHelpCenter() {
       </section>
       <div className="mx-auto grid max-w-5xl gap-8 px-5 py-10 sm:px-8 lg:grid-cols-2">
         <section>
-          <SectionTitle title="推荐文章" href="/support/help" />
+          <SectionTitle title="推荐页面" href="/support/help" />
           <div className="mt-4 grid gap-3">
-            {articles.length ? articles.map((item) => <ArticleRow key={item.id} item={item} />) : <EmptyState text="暂无已发布文章" />}
+            {articles.length ? articles.map((item) => <HelpPageRow key={item.id} item={item} />) : <EmptyState text="暂无已发布页面" />}
           </div>
         </section>
         <section>
@@ -107,117 +111,127 @@ export function SupportHelpCenter() {
 }
 
 export function SupportHelpList() {
-  const [categories, setCategories] = useState<SupportCategory[]>([])
-  const [articles, setArticles] = useState<SupportArticle[]>([])
-  const [categoryId, setCategoryId] = useState<number | "all">("all")
-  const [selectedArticle, setSelectedArticle] = useState<SupportArticle | null>(null)
+  const { resolvedTheme } = useTheme()
+  const [pages, setPages] = useState<SupportHelpPage[]>([])
+  const [selectedPage, setSelectedPage] = useState<SupportHelpPage | null>(null)
   const [title, setTitle] = useState("")
+  const [expanded, setExpanded] = useState<Set<number>>(new Set())
 
   useEffect(() => {
-    void fetchSupportArticleCategories().then((items) => {
-      setCategories(items)
-      if (items[0]?.id) {
-        setCategoryId(items[0].id)
-      }
-    })
-  }, [])
-
-  useEffect(() => {
-    void fetchSupportArticles({ categoryId: categoryId === "all" ? undefined : categoryId, title, limit: 50 }).then((page) => {
-      setArticles(page.results)
+    void fetchSupportHelpPages({ title, limit: 500 }).then((page) => {
+      setPages(page.results)
+      setExpanded(new Set(page.results.map((item) => item.id)))
       const first = page.results[0]
       if (first) {
-        void fetchSupportArticle(first.slug || first.id).then(setSelectedArticle)
+        void fetchSupportHelpPage(first.slug || first.id).then(setSelectedPage)
       } else {
-        setSelectedArticle(null)
+        setSelectedPage(null)
       }
     })
-  }, [categoryId, title])
+  }, [title])
 
-  const selectArticle = async (article: SupportArticle) => {
-    setSelectedArticle(await fetchSupportArticle(article.slug || article.id))
+  const selectPage = async (page: SupportHelpPage) => {
+    setSelectedPage(await fetchSupportHelpPage(page.slug || page.id))
   }
 
   return (
     <SupportShell title="帮助中心" description="查看官方使用指南、部署说明和排障文档。">
-      <div className="grid gap-4 lg:grid-cols-[220px_320px_1fr]">
-        <aside className="grid content-start gap-2">
-          <Button variant={categoryId === "all" ? "default" : "outline"} onClick={() => setCategoryId("all")}>全部文章</Button>
-          {categories.map((item) => (
-            <Button key={item.id} variant={categoryId === item.id ? "default" : "outline"} onClick={() => setCategoryId(item.id)}>{item.name}</Button>
-          ))}
-        </aside>
-        <section className="grid content-start gap-3">
-          <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="搜索文章标题" />
-          <div className="grid max-h-[720px] gap-2 overflow-auto">
-            {articles.length ? articles.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={cn(
-                  "rounded-md border bg-card p-4 text-left transition-colors hover:bg-muted/60",
-                  selectedArticle?.id === item.id && "border-primary bg-primary/10",
-                )}
-                onClick={() => void selectArticle(item)}
-              >
-                <div className="font-medium">{item.title}</div>
-                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.summary || item.categoryName}</p>
-              </button>
-            )) : <EmptyState text="没有找到文章" />}
+      <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_190px]">
+        <aside className="content-start lg:sticky lg:top-6 lg:max-h-[calc(100svh-3rem)] lg:overflow-y-auto">
+          <div className="relative mb-4"><SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={title} onChange={(event) => setTitle(event.target.value)} className="pl-9" placeholder="搜索帮助文档" /></div>
+          <div className="grid gap-1">
+            {pages.filter((item) => !item.parentId).map((page) => (
+              <PublicHelpPageNode key={page.id} page={page} depth={0} pages={pages} expanded={expanded} selectedPageId={selectedPage?.id ?? 0} onToggle={(id) => setExpanded((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next })} onSelect={(item) => void selectPage(item)} />
+            ))}
+            {!pages.length ? <EmptyState text="没有找到页面" /> : null}
           </div>
-        </section>
-        <article className="min-h-[520px] rounded-md border bg-card p-6">
-          {selectedArticle ? (
+        </aside>
+        <article className="min-h-[620px] min-w-0 border-l pl-6 lg:pl-8">
+          {selectedPage ? (
             <>
               <div className="mb-5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                {selectedArticle.categoryName && <Badge variant="outline">{selectedArticle.categoryName}</Badge>}
-                <span>{selectedArticle.publishedAt || selectedArticle.updatedAt}</span>
+                <span>{selectedPage.publishedAt || selectedPage.updatedAt}</span>
               </div>
-              <h2 className="text-2xl font-semibold tracking-tight">{selectedArticle.title}</h2>
-              {selectedArticle.summary && <p className="mt-2 text-sm text-muted-foreground">{selectedArticle.summary}</p>}
-              <div className="mt-6 whitespace-pre-wrap text-sm leading-7">{selectedArticle.content}</div>
+              <h2 className="text-2xl font-semibold tracking-tight">{selectedPage.title}</h2>
+              {selectedPage.summary && <p className="mt-2 text-sm text-muted-foreground">{selectedPage.summary}</p>}
+              {selectedPage.content ? <div className="mt-8"><MdPreview id="support-public-help-preview" modelValue={selectedPage.content} theme={resolvedTheme === "dark" ? "dark" : "light"} noMermaid noKatex noHighlight /></div> : null}
+              <ChildPageLinks pages={pages.filter((page) => page.parentId === selectedPage.id)} />
               <div className="mt-8 flex gap-2 border-t pt-5">
-                <Button variant="outline" onClick={() => void submitSupportArticleFeedback(selectedArticle.id, true).then(() => toast.success("感谢反馈"))}>
+                <Button variant="outline" onClick={() => void submitSupportHelpPageFeedback(selectedPage.id, true).then(() => toast.success("感谢反馈"))}>
                   <ThumbsUpIcon /> 有帮助
                 </Button>
-                <Link className={buttonVariants({ variant: "outline" })} href={`/support/help/${selectedArticle.slug || selectedArticle.id}`}>
+                <Link className={buttonVariants({ variant: "outline" })} href={`/support/help/${selectedPage.slug || selectedPage.id}`}>
                   独立打开
                 </Link>
               </div>
             </>
           ) : (
-            <EmptyState text="选择左侧文章查看内容" />
+            <EmptyState text="选择左侧页面查看内容" />
           )}
         </article>
+        <PublicArticleToc content={selectedPage?.content ?? ""} />
       </div>
     </SupportShell>
   )
 }
 
-export function SupportArticleDetail() {
+function PublicHelpPageNode({ page, depth, pages, expanded, selectedPageId, onToggle, onSelect }: { page: SupportHelpPage; depth: number; pages: SupportHelpPage[]; expanded: Set<number>; selectedPageId: number; onToggle: (id: number) => void; onSelect: (item: SupportHelpPage) => void }) {
+  const open = expanded.has(page.id)
+  const children = pages.filter((item) => item.parentId === page.id)
+  return (
+    <div>
+      <div className={cn("flex h-9 w-full items-center rounded-md pr-2 text-sm hover:bg-muted", selectedPageId === page.id && "bg-primary/10 font-medium text-primary")} style={{ paddingLeft: `${depth * 12 + 4}px` }}>
+        <button type="button" className="flex size-7 shrink-0 items-center justify-center" onClick={() => children.length && onToggle(page.id)} aria-label={open ? "折叠子页面" : "展开子页面"}>{children.length ? (open ? <ChevronDownIcon className="size-4" /> : <ChevronRightIcon className="size-4" />) : <span className="size-4" />}</button>
+        <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => onSelect(page)}><FileTextIcon className="size-3.5 shrink-0" /><span className="truncate">{page.title}</span></button>
+      </div>
+      {open ? children.map((child) => <PublicHelpPageNode key={child.id} page={child} depth={depth + 1} pages={pages} expanded={expanded} selectedPageId={selectedPageId} onToggle={onToggle} onSelect={onSelect} />) : null}
+    </div>
+  )
+}
+
+function ChildPageLinks({ pages }: { pages: SupportHelpPage[] }) {
+  if (!pages.length) return null
+  return <div className="mt-8 border-t pt-5"><h3 className="mb-3 font-semibold">本节页面</h3><div className="grid gap-2 sm:grid-cols-2">{pages.map((page) => <Link key={page.id} href={`/support/help/${page.slug || page.id}`} className="rounded-md border p-3 transition-colors hover:bg-muted"><span className="font-medium">{page.title}</span>{page.summary ? <span className="mt-1 block text-sm text-muted-foreground">{page.summary}</span> : null}</Link>)}</div></div>
+}
+
+function PublicArticleToc({ content }: { content: string }) {
+  const headings = Array.from(content.matchAll(/^(#{2,3})\s+(.+)$/gm)).map((match) => ({ level: match[1].length, title: match[2].replace(/[*_`]/g, "") }))
+  return (
+    <aside className="hidden xl:block">
+      <div className="sticky top-6 border-l pl-5"><div className="mb-3 text-xs font-medium text-muted-foreground">本页目录</div>{headings.length ? headings.map((item, index) => <div key={`${item.title}-${index}`} className={cn("py-1.5 text-sm text-muted-foreground", item.level === 3 && "pl-3")}>{item.title}</div>) : <div className="text-sm text-muted-foreground">暂无章节</div>}</div>
+    </aside>
+  )
+}
+
+export function SupportHelpPageDetail() {
+  const { resolvedTheme } = useTheme()
   const params = useParams<{ slug: string }>()
-  const [article, setArticle] = useState<SupportArticle | null>(null)
+  const [article, setArticle] = useState<SupportHelpPage | null>(null)
+  const [pages, setPages] = useState<SupportHelpPage[]>([])
 
   useEffect(() => {
     if (params.slug) {
-      void fetchSupportArticle(params.slug).then(setArticle)
+      void Promise.all([fetchSupportHelpPage(params.slug), fetchSupportHelpPages({ limit: 500 })]).then(([page, list]) => {
+        setArticle(page)
+        setPages(list.results)
+      })
     }
   }, [params.slug])
 
   if (!article) {
-    return <SupportShell title="帮助中心" description="正在加载文章..." />
+    return <SupportShell title="帮助中心" description="正在加载页面..." />
   }
 
   return (
-    <SupportShell title={article.title} description={article.summary || article.categoryName}>
+    <SupportShell title={article.title} description={article.summary}>
       <article className="rounded-md border bg-card p-6">
         <div className="mb-5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          {article.categoryName && <Badge variant="outline">{article.categoryName}</Badge>}
           <span>{article.publishedAt || article.updatedAt}</span>
         </div>
-        <div className="whitespace-pre-wrap text-sm leading-7">{article.content}</div>
+        <MdPreview id="support-help-page-detail-preview" modelValue={article.content} theme={resolvedTheme === "dark" ? "dark" : "light"} noMermaid noKatex noHighlight />
+        <ChildPageLinks pages={pages.filter((page) => page.parentId === article.id)} />
         <div className="mt-8 flex gap-2 border-t pt-5">
-          <Button variant="outline" onClick={() => void submitSupportArticleFeedback(article.id, true).then(() => toast.success("感谢反馈"))}>
+          <Button variant="outline" onClick={() => void submitSupportHelpPageFeedback(article.id, true).then(() => toast.success("感谢反馈"))}>
             <ThumbsUpIcon /> 有帮助
           </Button>
           <Link className={buttonVariants({ variant: "outline" })} href="/support/questions/ask">
@@ -488,11 +502,11 @@ function SectionTitle({ title, href }: { title: string; href: string }) {
   )
 }
 
-function ArticleRow({ item }: { item: SupportArticle }) {
+function HelpPageRow({ item }: { item: SupportHelpPage }) {
   return (
     <Link href={`/support/help/${item.slug || item.id}`} className="rounded-md border bg-card p-4 transition-colors hover:bg-muted/60">
       <div className="font-medium">{item.title}</div>
-      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.summary || item.categoryName}</p>
+      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.summary || "查看帮助页面"}</p>
     </Link>
   )
 }
