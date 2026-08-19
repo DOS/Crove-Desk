@@ -124,7 +124,7 @@ export function SupportHelpWorkbench() {
   }, [pages, query])
 
   return (
-    <div className="flex min-h-[calc(100vh-8.5rem)] overflow-hidden border-y bg-background xl:border-x">
+    <div className="flex min-h-0 flex-1 overflow-hidden bg-background">
       <aside className="flex w-72 shrink-0 flex-col border-r bg-muted/20">
         <div className="flex h-14 items-center justify-between border-b px-3">
           <span className="font-semibold">帮助中心</span>
