@@ -74,3 +74,16 @@ func PermissionGetBy(ctx *gin.Context) {
 		SortNo:    item.SortNo,
 	})
 }
+
+func PermissionPostSync(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionPermissionSync); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	result, err := services.PermissionService.SyncBuiltinPermissions()
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, result)
+}

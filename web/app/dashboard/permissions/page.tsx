@@ -1,10 +1,14 @@
 "use client"
 
-import { KeyRoundIcon, RouteIcon, SearchIcon } from "lucide-react"
+import { useState } from "react"
+import { KeyRoundIcon, RouteIcon, SearchIcon, ShieldCheckIcon } from "lucide-react"
+import { toast } from "sonner"
 
+import { useConfirm } from "@/components/confirm-provider"
 import { DashboardListPage } from "@/components/dashboard/list"
 import { Badge } from "@/components/ui/badge"
-import { fetchPermissions, type AdminPermission } from "@/lib/api/admin"
+import { Button } from "@/components/ui/button"
+import { fetchPermissions, syncPermissions, type AdminPermission } from "@/lib/api/admin"
 import { Status } from "@/lib/generated/enums"
 import { useAppLocale, useI18n } from "@/i18n/provider"
 import { getPermissionDisplayName, getPermissionGroupName } from "@/lib/permission-i18n"
@@ -12,12 +16,38 @@ import { getPermissionDisplayName, getPermissionGroupName } from "@/lib/permissi
 export default function DashboardPermissionsPage() {
   const t = useI18n()
   const { locale } = useAppLocale()
+  const confirm = useConfirm()
+  const [syncing, setSyncing] = useState(false)
   const listStatusOptions = [
     { value: "all", label: t("status.all") },
     { value: String(Status.Ok), label: t("status.ok") },
     { value: String(Status.Disabled), label: t("status.disabled") },
     { value: String(Status.Deleted), label: t("status.deleted") },
   ]
+
+  async function handleSync(reload: () => Promise<void>) {
+    const confirmed = await confirm({
+      title: t("permission.syncTitle"),
+      description: t("permission.syncDescription"),
+      confirmText: t("permission.sync"),
+    })
+    if (!confirmed || syncing) return
+
+    setSyncing(true)
+    try {
+      const result = await syncPermissions()
+      toast.success(t("permission.syncSuccess", {
+        created: result.created,
+        updated: result.updated,
+        rolePermissionsAdded: result.rolePermissionsAdded,
+      }))
+      await reload()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("permission.syncFailed"))
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   return (
     <DashboardListPage<AdminPermission>
@@ -51,6 +81,12 @@ export default function DashboardPermissionsPage() {
         },
       ]}
       fetchList={fetchPermissions}
+      renderToolbarActions={({ reload }) => (
+        <Button onClick={() => void handleSync(reload)} disabled={syncing}>
+          <ShieldCheckIcon className={syncing ? "animate-pulse" : undefined} />
+          {syncing ? t("permission.syncing") : t("permission.sync")}
+        </Button>
+      )}
       getItemId={(item) => item.id}
       columns={[
         {

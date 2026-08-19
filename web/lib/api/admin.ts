@@ -91,6 +91,12 @@ export type AdminPermission = {
   sortNo: number
 }
 
+export type PermissionSyncResult = {
+  created: number
+  updated: number
+  rolePermissionsAdded: number
+}
+
 export type ConversationTag = {
   id: number
   name: string
@@ -1238,6 +1244,12 @@ export function fetchPermissions(
   return request<PageResult<AdminPermission>>(
     `/api/dashboard/permission/list${toQueryString(query)}`
   )
+}
+
+export function syncPermissions() {
+  return request<PermissionSyncResult>("/api/dashboard/permission/sync", {
+    method: "POST",
+  })
 }
 
 export function fetchConversations(

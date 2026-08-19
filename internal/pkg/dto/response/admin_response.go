@@ -14,6 +14,12 @@ type PermissionResponse struct {
 	SortNo    int          `json:"sortNo"`
 }
 
+type PermissionSyncResponse struct {
+	Created              int `json:"created"`
+	Updated              int `json:"updated"`
+	RolePermissionsAdded int `json:"rolePermissionsAdded"`
+}
+
 type RoleResponse struct {
 	ID          int64        `json:"id"`
 	Name        string       `json:"name"`

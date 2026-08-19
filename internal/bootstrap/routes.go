@@ -101,6 +101,7 @@ func registerDashboardRoleRoutes(group *gin.RouterGroup) {
 func registerDashboardPermissionRoutes(group *gin.RouterGroup) {
 	group.GET("/:id", dashboard.PermissionGetBy)
 	group.Any("/list", dashboard.PermissionAnyList)
+	group.POST("/sync", dashboard.PermissionPostSync)
 }
 
 func registerDashboardSessionRoutes(group *gin.RouterGroup) {

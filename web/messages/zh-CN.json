@@ -2196,6 +2196,12 @@
   "permission": {
     "loadFailed": "加载权限失败",
     "refresh": "刷新",
+    "sync": "同步权限",
+    "syncing": "同步中...",
+    "syncTitle": "同步内置权限",
+    "syncDescription": "将代码中的内置权限同步到数据库，并补齐内置角色缺失的权限。已有角色权限不会被删除。",
+    "syncSuccess": "权限同步完成：新增 {created}，更新 {updated}，补齐角色权限 {rolePermissionsAdded}",
+    "syncFailed": "权限同步失败",
     "filterKeyword": "按权限名称/编码筛选",
     "filterGroup": "按分组筛选",
     "query": "查询",

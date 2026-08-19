@@ -2196,6 +2196,12 @@
   "permission": {
     "loadFailed": "Could not load permissions.",
     "refresh": "Refresh",
+    "sync": "Sync Permissions",
+    "syncing": "Syncing...",
+    "syncTitle": "Sync Built-in Permissions",
+    "syncDescription": "Sync built-in permissions from code and add missing permissions to built-in roles. Existing role permissions will not be removed.",
+    "syncSuccess": "Permissions synced: {created} created, {updated} updated, {rolePermissionsAdded} role permissions added",
+    "syncFailed": "Could not sync permissions.",
     "filterKeyword": "Filter by permission name or code",
     "filterGroup": "Filter by group",
     "query": "Search",
