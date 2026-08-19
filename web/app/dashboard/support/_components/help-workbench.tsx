@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ChevronRightIcon, ExternalLinkIcon, FilePlus2Icon, MoreHorizontalIcon, SaveIcon, SearchIcon, Settings2Icon, Trash2Icon } from "lucide-react"
-import { MdEditor } from "md-editor-rt"
-import "md-editor-rt/lib/style.css"
 import { toast } from "sonner"
 
-import { OptionCombobox } from "@/components/option-combobox"
 import { useApiErrorHandler } from "@/components/api-error-provider"
+import { ContentEditor } from "@/components/content-editor"
+import { OptionCombobox } from "@/components/option-combobox"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -162,7 +161,18 @@ export function SupportHelpWorkbench() {
           <div className="h-[calc(100%-3.5rem)] overflow-y-auto p-5">
             <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-auto border-0 px-0 text-3xl font-semibold shadow-none focus-visible:ring-0" aria-label="页面标题" />
             <Textarea value={draft.summary} onChange={(event) => setDraft({ ...draft, summary: event.target.value })} className="my-3 min-h-9 resize-none border-0 px-0 text-muted-foreground shadow-none focus-visible:ring-0" placeholder="添加页面摘要" aria-label="页面摘要" />
-            <MdEditor modelValue={draft.content} onChange={(content) => setDraft({ ...draft, content })} language="zh-CN" preview className="min-h-[calc(100vh-19rem)] !bg-transparent" />
+            <ContentEditor
+              value={{
+                mode: draft.contentType === "html" ? "html" : "markdown",
+                raw: draft.content,
+              }}
+              onChange={(content) => setDraft({
+                ...draft,
+                content: content.raw,
+                contentType: content.mode,
+              })}
+              height="calc(100vh - 19rem)"
+            />
           </div>
         </> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">从左侧选择页面，或新建页面</div>}
       </main>
