@@ -7,16 +7,10 @@ type AuthPrincipal struct {
 	Username    string
 	Nickname    string
 	Avatar      string
+	UserType    enums.UserType
 	Status      enums.Status
 	Roles       []string
 	Permissions []string
-}
-
-type SupportCustomerPrincipal struct {
-	CustomerID int64
-	Name       string
-	Email      string
-	Status     enums.Status
 }
 
 type WxWorkKFChannelConfig struct {

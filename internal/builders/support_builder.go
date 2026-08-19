@@ -3,6 +3,7 @@ package builders
 import (
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/dto/response"
+	"agent-desk/internal/pkg/enums"
 	"encoding/json"
 	"time"
 )
@@ -94,16 +95,26 @@ func BuildSupportQuestionCategories(list []models.SupportQuestionCategory) []res
 	return ret
 }
 
-func BuildSupportQuestion(item *models.SupportQuestion, categoryName, customerName string) *response.SupportQuestionResponse {
+func BuildSupportQuestion(item *models.SupportQuestion, categoryName string, user *models.User) *response.SupportQuestionResponse {
 	if item == nil {
 		return nil
+	}
+	userName := ""
+	userType := enums.UserTypeUser
+	if user != nil {
+		userName = user.Nickname
+		if userName == "" {
+			userName = user.Username
+		}
+		userType = user.UserType
 	}
 	return &response.SupportQuestionResponse{
 		ID:                 item.ID,
 		CategoryID:         item.CategoryID,
 		CategoryName:       categoryName,
-		CustomerID:         item.CustomerID,
-		CustomerName:       customerName,
+		UserID:             item.UserID,
+		UserName:           userName,
+		UserType:           userType,
 		Title:              item.Title,
 		Content:            item.Content,
 		Tags:               parseSupportTags(item.TagsJSON),

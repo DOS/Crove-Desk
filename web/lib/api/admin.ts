@@ -27,6 +27,7 @@ export type AdminUser = {
   avatar: string
   mobile?: string
   email?: string
+  userType: string
   status: number
   isSystem: boolean
   lastLoginAt?: string
@@ -2342,7 +2343,9 @@ export type AdminSupportQuestion = {
   id: number
   categoryId: number
   categoryName: string
-  customerName: string
+  userId: number
+  userName: string
+  userType: string
   title: string
   content: string
   tags: string[]

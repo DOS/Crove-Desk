@@ -1,7 +1,6 @@
 import { type PageResult } from "@/lib/api/admin"
 import { request } from "@/lib/api/client"
-
-const SUPPORT_TOKEN_KEY = "agent_desk_support_token"
+import { type AuthSession, writeSession } from "@/lib/auth"
 
 export type SupportCategory = {
   id: number
@@ -38,8 +37,9 @@ export type SupportQuestion = {
   id: number
   categoryId: number
   categoryName: string
-  customerId: number
-  customerName: string
+  userId: number
+  userName: string
+  userType: string
   title: string
   content: string
   tags: string[]
@@ -71,59 +71,35 @@ export type SupportQuestionDetail = {
   answers: SupportAnswer[]
 }
 
-export type SupportCustomer = {
+export type SupportUser = {
   id: number
   name: string
   email: string
+  userType: string
 }
 
-export type SupportLoginResponse = {
-  accessToken: string
-  expiresAt: string
-  customer: SupportCustomer
-}
-
-export function readSupportToken() {
-  if (typeof window === "undefined") {
-    return ""
-  }
-  return localStorage.getItem(SUPPORT_TOKEN_KEY) || ""
-}
-
-export function writeSupportToken(token: string) {
-  localStorage.setItem(SUPPORT_TOKEN_KEY, token)
-}
-
-export function clearSupportToken() {
-  localStorage.removeItem(SUPPORT_TOKEN_KEY)
-}
-
-function supportAuthHeaders() {
-  const token = readSupportToken()
-  return token ? { Authorization: `Bearer ${token}` } : undefined
-}
-
-export function loginSupportCustomer(payload: { email: string; password: string }) {
-  return request<SupportLoginResponse>("/api/support/auth/login", {
+export async function loginSupportCustomer(payload: { email: string; password: string }) {
+  const session = await request<AuthSession>("/api/support/auth/login", {
     method: "POST",
     skipAuth: true,
     body: JSON.stringify(payload),
   })
+  writeSession(session)
+  return session
 }
 
-export function registerSupportCustomer(payload: { name: string; email: string; password: string }) {
-  return request<SupportLoginResponse>("/api/support/auth/register", {
+export async function registerSupportCustomer(payload: { name: string; email: string; password: string }) {
+  const session = await request<AuthSession>("/api/support/auth/register", {
     method: "POST",
     skipAuth: true,
     body: JSON.stringify(payload),
   })
+  writeSession(session)
+  return session
 }
 
 export function fetchSupportMe() {
-  return request<SupportCustomer>("/api/support/me", {
-    skipAuth: true,
-    headers: supportAuthHeaders(),
-  })
+  return request<SupportUser>("/api/support/me")
 }
 
 export function fetchSupportArticleCategories() {
@@ -170,8 +146,6 @@ export function createSupportQuestion(payload: {
 }) {
   return request<SupportQuestion>("/api/support/question/create", {
     method: "POST",
-    skipAuth: true,
-    headers: supportAuthHeaders(),
     body: JSON.stringify(payload),
   })
 }
@@ -179,8 +153,6 @@ export function createSupportQuestion(payload: {
 export function createSupportAnswer(payload: { questionId: number; content: string }) {
   return request<SupportAnswer>("/api/support/answer/create", {
     method: "POST",
-    skipAuth: true,
-    headers: supportAuthHeaders(),
     body: JSON.stringify(payload),
   })
 }
@@ -188,8 +160,6 @@ export function createSupportAnswer(payload: { questionId: number; content: stri
 export function acceptSupportAnswer(questionId: number, answerId: number) {
   return request<void>("/api/support/question/accept_answer", {
     method: "POST",
-    skipAuth: true,
-    headers: supportAuthHeaders(),
     body: JSON.stringify({ questionId, answerId }),
   })
 }
@@ -197,8 +167,6 @@ export function acceptSupportAnswer(questionId: number, answerId: number) {
 export function voteSupportQuestion(id: number) {
   return request<void>("/api/support/question/vote", {
     method: "POST",
-    skipAuth: true,
-    headers: supportAuthHeaders(),
     body: JSON.stringify({ id }),
   })
 }
@@ -206,8 +174,6 @@ export function voteSupportQuestion(id: number) {
 export function voteSupportAnswer(id: number) {
   return request<void>("/api/support/answer/vote", {
     method: "POST",
-    skipAuth: true,
-    headers: supportAuthHeaders(),
     body: JSON.stringify({ id }),
   })
 }

@@ -226,7 +226,7 @@ func SupportQuestionGetBy(ctx *gin.Context) {
 		return
 	}
 	answers := repositories.SupportAnswerRepository.Find(sqls.DB(), sqls.NewCnd().Eq("question_id", id).Desc("is_best_answer").Asc("id"))
-	httpx.WriteJSON(ctx, response.SupportQuestionDetailResponse{Question: *builders.BuildSupportQuestion(question, dashboardSupportQuestionCategoryName(question.CategoryID), dashboardSupportCustomerName(question.CustomerID)), Answers: buildDashboardSupportAnswers(answers)})
+	httpx.WriteJSON(ctx, response.SupportQuestionDetailResponse{Question: *builders.BuildSupportQuestion(question, dashboardSupportQuestionCategoryName(question.CategoryID), dashboardSupportUser(question.UserID)), Answers: buildDashboardSupportAnswers(answers)})
 }
 
 func SupportQuestionPostModerate(ctx *gin.Context) {
@@ -301,7 +301,7 @@ func buildDashboardSupportArticles(list []models.SupportArticle, includeContent 
 func buildDashboardSupportQuestions(list []models.SupportQuestion) []response.SupportQuestionResponse {
 	results := make([]response.SupportQuestionResponse, 0, len(list))
 	for _, item := range list {
-		if resp := builders.BuildSupportQuestion(&item, dashboardSupportQuestionCategoryName(item.CategoryID), dashboardSupportCustomerName(item.CustomerID)); resp != nil {
+		if resp := builders.BuildSupportQuestion(&item, dashboardSupportQuestionCategoryName(item.CategoryID), dashboardSupportUser(item.UserID)); resp != nil {
 			results = append(results, *resp)
 		}
 	}
@@ -334,24 +334,17 @@ func dashboardSupportQuestionCategoryName(id int64) string {
 	return item.Name
 }
 
-func dashboardSupportCustomerName(id int64) string {
-	item := repositories.CustomerRepository.Get(sqls.DB(), id)
-	if item == nil {
-		return ""
-	}
-	return item.Name
+func dashboardSupportUser(id int64) *models.User {
+	return repositories.UserRepository.Get(sqls.DB(), id)
 }
 
 func dashboardSupportAnswerAuthorName(item models.SupportAnswer) string {
-	if item.AuthorType == "user" {
-		user := repositories.UserRepository.Get(sqls.DB(), item.AuthorID)
-		if user == nil {
-			return ""
-		}
-		if user.Nickname != "" {
-			return user.Nickname
-		}
-		return user.Username
+	user := repositories.UserRepository.Get(sqls.DB(), item.AuthorID)
+	if user == nil {
+		return ""
 	}
-	return dashboardSupportCustomerName(item.AuthorID)
+	if user.Nickname != "" {
+		return user.Nickname
+	}
+	return user.Username
 }

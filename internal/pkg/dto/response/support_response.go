@@ -2,16 +2,11 @@ package response
 
 import "agent-desk/internal/pkg/enums"
 
-type SupportCustomerResponse struct {
-	ID    int64  `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
-}
-
-type SupportCustomerLoginResponse struct {
-	AccessToken string                  `json:"accessToken"`
-	ExpiresAt   string                  `json:"expiresAt"`
-	Customer    SupportCustomerResponse `json:"customer"`
+type SupportUserResponse struct {
+	ID       int64          `json:"id"`
+	Name     string         `json:"name"`
+	Email    string         `json:"email"`
+	UserType enums.UserType `json:"userType"`
 }
 
 type SupportArticleCategoryResponse struct {
@@ -66,8 +61,9 @@ type SupportQuestionResponse struct {
 	ID                 int64                         `json:"id"`
 	CategoryID         int64                         `json:"categoryId"`
 	CategoryName       string                        `json:"categoryName"`
-	CustomerID         int64                         `json:"customerId"`
-	CustomerName       string                        `json:"customerName"`
+	UserID             int64                         `json:"userId"`
+	UserName           string                        `json:"userName"`
+	UserType           enums.UserType                `json:"userType"`
 	Title              string                        `json:"title"`
 	Content            string                        `json:"content"`
 	Tags               []string                      `json:"tags"`

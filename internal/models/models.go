@@ -14,7 +14,6 @@ var Models = []any{
 	&Customer{},
 	&CustomerIdentity{},
 	&CustomerContact{},
-	&CustomerSupportAccount{},
 	&Role{},
 	&Permission{},
 	&UserRole{},
@@ -166,19 +165,20 @@ type AuditFields struct {
 
 // User 后台用户账号。
 type User struct {
-	ID           int64        `gorm:"primaryKey;autoIncrement"`
-	Username     string       `gorm:"type:varchar(100);not null;uniqueIndex"`
-	Nickname     string       `gorm:"type:varchar(100);not null;default:'';index"`
-	Avatar       string       `gorm:"type:varchar(255);not null;default:''"`
-	Mobile       *string      `gorm:"type:varchar(32);uniqueIndex"`
-	Email        *string      `gorm:"type:varchar(100);uniqueIndex"`
-	Password     string       `gorm:"type:varchar(255);not null;default:''"`
-	PasswordSalt string       `gorm:"type:varchar(64);not null;default:''"`
-	Status       enums.Status `gorm:"type:int;not null;default:0;index"`
-	LastLoginAt  *time.Time   `gorm:"type:datetime"`
-	LastLoginIP  string       `gorm:"type:varchar(64);not null;default:''"`
-	Remark       string       `gorm:"type:text"`
-	DeletedAt    *time.Time   `gorm:"type:datetime;index"`
+	ID           int64          `gorm:"primaryKey;autoIncrement"`
+	Username     string         `gorm:"type:varchar(100);not null;uniqueIndex"`
+	Nickname     string         `gorm:"type:varchar(100);not null;default:'';index"`
+	Avatar       string         `gorm:"type:varchar(255);not null;default:''"`
+	Mobile       *string        `gorm:"type:varchar(32);uniqueIndex"`
+	Email        *string        `gorm:"type:varchar(100);uniqueIndex"`
+	Password     string         `gorm:"type:varchar(255);not null;default:''"`
+	PasswordSalt string         `gorm:"type:varchar(64);not null;default:''"`
+	UserType     enums.UserType `gorm:"column:user_type;type:varchar(20);not null;default:'user';index"`
+	Status       enums.Status   `gorm:"type:int;not null;default:0;index"`
+	LastLoginAt  *time.Time     `gorm:"type:datetime"`
+	LastLoginIP  string         `gorm:"type:varchar(64);not null;default:''"`
+	Remark       string         `gorm:"type:text"`
+	DeletedAt    *time.Time     `gorm:"type:datetime;index"`
 	AuditFields
 }
 
@@ -214,6 +214,7 @@ type Company struct {
 //	用于存储客户稳定画像信息，不包含平台身份映射和多联系方式明细。
 type Customer struct {
 	ID            int64        `gorm:"primaryKey;autoIncrement"`                    // ID 为客户主键。
+	UserID        int64        `gorm:"type:bigint;not null;default:0;index"`        // UserID 为关联的统一登录账号ID，0表示未绑定。
 	Name          string       `gorm:"type:varchar(100);not null;default:'';index"` // Name 为客户姓名或展示名称。
 	Gender        enums.Gender `gorm:"type:int;not null;default:0;"`                // Gender 为性别：0未知 1男 2女。
 	CompanyID     int64        `gorm:"type:bigint;not null;default:0;index"`        // CompanyID 为所属公司ID；0表示无所属公司（个人客户）。
@@ -250,18 +251,6 @@ type CustomerContact struct {
 	Source       string            `gorm:"type:varchar(30);not null;default:'';index"`                                  // Source 为来源：manual/import/system。
 	Status       enums.Status      `gorm:"type:int;not null;default:0;index"`                                           // Status 为联系方式状态。
 	Remark       string            `gorm:"type:varchar(255);not null;default:''"`                                       // Remark 为备注。
-	AuditFields
-}
-
-// CustomerSupportAccount stores the login credential used by the public support center.
-type CustomerSupportAccount struct {
-	ID           int64        `gorm:"primaryKey;autoIncrement"`
-	CustomerID   int64        `gorm:"type:bigint;not null;uniqueIndex"`
-	Email        string       `gorm:"type:varchar(100);not null;uniqueIndex"`
-	PasswordHash string       `gorm:"type:varchar(255);not null;default:''"`
-	Status       enums.Status `gorm:"type:int;not null;default:0;index"`
-	LastLoginAt  *time.Time   `gorm:"type:datetime"`
-	LastLoginIP  string       `gorm:"type:varchar(64);not null;default:''"`
 	AuditFields
 }
 
@@ -999,7 +988,7 @@ type SupportQuestionCategory struct {
 type SupportQuestion struct {
 	ID                 int64                         `gorm:"primaryKey;autoIncrement"`
 	CategoryID         int64                         `gorm:"type:bigint;not null;default:0;index"`
-	CustomerID         int64                         `gorm:"type:bigint;not null;index"`
+	UserID             int64                         `gorm:"type:bigint;not null;index"`
 	Title              string                        `gorm:"type:varchar(255);not null;default:'';index"`
 	Content            string                        `gorm:"type:text"`
 	TagsJSON           string                        `gorm:"type:text"`
@@ -1030,19 +1019,19 @@ type SupportAnswer struct {
 type SupportQuestionVote struct {
 	ID         int64     `gorm:"primaryKey;autoIncrement"`
 	QuestionID int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_question_vote"`
-	CustomerID int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_question_vote"`
+	UserID     int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_question_vote"`
 	VoteValue  int       `gorm:"type:int;not null;default:1"`
 	CreatedAt  time.Time `gorm:"type:datetime;not null;index"`
 	UpdatedAt  time.Time `gorm:"type:datetime;not null;index"`
 }
 
 type SupportAnswerVote struct {
-	ID         int64     `gorm:"primaryKey;autoIncrement"`
-	AnswerID   int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_answer_vote"`
-	CustomerID int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_answer_vote"`
-	VoteValue  int       `gorm:"type:int;not null;default:1"`
-	CreatedAt  time.Time `gorm:"type:datetime;not null;index"`
-	UpdatedAt  time.Time `gorm:"type:datetime;not null;index"`
+	ID        int64     `gorm:"primaryKey;autoIncrement"`
+	AnswerID  int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_answer_vote"`
+	UserID    int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_answer_vote"`
+	VoteValue int       `gorm:"type:int;not null;default:1"`
+	CreatedAt time.Time `gorm:"type:datetime;not null;index"`
+	UpdatedAt time.Time `gorm:"type:datetime;not null;index"`
 }
 
 // KnowledgeRetrieveLog 检索日志表。

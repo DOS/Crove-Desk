@@ -31,6 +31,13 @@ const (
 type SupportAnswerAuthorType string
 
 const (
-	SupportAnswerAuthorTypeCustomer SupportAnswerAuthorType = "customer"
 	SupportAnswerAuthorTypeUser     SupportAnswerAuthorType = "user"
+	SupportAnswerAuthorTypeEmployee SupportAnswerAuthorType = "employee"
+)
+
+type UserType string
+
+const (
+	UserTypeUser     UserType = "user"
+	UserTypeEmployee UserType = "employee"
 )

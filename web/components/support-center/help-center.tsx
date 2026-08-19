@@ -33,17 +33,16 @@ import {
   fetchSupportQuestionCategories,
   fetchSupportQuestions,
   loginSupportCustomer,
-  readSupportToken,
   registerSupportCustomer,
   submitSupportArticleFeedback,
   voteSupportAnswer,
   voteSupportQuestion,
-  writeSupportToken,
   type SupportAnswer,
   type SupportArticle,
   type SupportCategory,
   type SupportQuestion,
 } from "@/lib/api/support"
+import { readSession } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 
 export function SupportHelpCenter() {
@@ -249,7 +248,7 @@ export function SupportQuestionDetail() {
   }
 
   return (
-    <SupportShell title={question.title} description={`${question.categoryName || "未分类"} · ${question.customerName || "用户"}`}>
+    <SupportShell title={question.title} description={`${question.categoryName || "未分类"} · ${question.userName || "用户"}`}>
       <div className="grid gap-4">
         <Card>
           <CardContent className="p-5">
@@ -356,10 +355,9 @@ export function SupportLoginPage() {
   const [password, setPassword] = useState("")
 
   const submit = async () => {
-    const result = mode === "login"
+    await (mode === "login"
       ? await loginSupportCustomer({ email, password })
-      : await registerSupportCustomer({ name, email, password })
-    writeSupportToken(result.accessToken)
+      : await registerSupportCustomer({ name, email, password }))
     toast.success("已登录")
     router.push("/support/questions")
   }
@@ -472,7 +470,7 @@ function EmptyState({ text }: { text: string }) {
 }
 
 async function ensureSupportLogin() {
-  if (!readSupportToken()) {
+  if (!readSession()?.accessToken) {
     window.location.href = "/support/login"
     throw new Error("login required")
   }

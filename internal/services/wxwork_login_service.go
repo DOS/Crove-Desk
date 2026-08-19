@@ -151,6 +151,7 @@ func (s *wxWorkLoginService) createWxWorkUser(ctx *sqls.TxContext, profile *wxwo
 		Avatar:       s.resolveWxWorkAvatar("", profile),
 		Password:     "",
 		PasswordSalt: "",
+		UserType:     enums.UserTypeEmployee,
 		Status:       enums.StatusOk,
 		AuditFields: models.AuditFields{
 			CreatedAt:      now,

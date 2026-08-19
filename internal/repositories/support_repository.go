@@ -8,7 +8,6 @@ import (
 )
 
 var (
-	CustomerSupportAccountRepository  = &customerSupportAccountRepository{}
 	SupportArticleCategoryRepository  = &supportArticleCategoryRepository{}
 	SupportArticleRepository          = &supportArticleRepository{}
 	SupportQuestionCategoryRepository = &supportQuestionCategoryRepository{}
@@ -17,40 +16,6 @@ var (
 	SupportQuestionVoteRepository     = &supportQuestionVoteRepository{}
 	SupportAnswerVoteRepository       = &supportAnswerVoteRepository{}
 )
-
-type customerSupportAccountRepository struct{}
-
-func (r *customerSupportAccountRepository) Get(db *gorm.DB, id int64) *models.CustomerSupportAccount {
-	ret := &models.CustomerSupportAccount{}
-	if err := db.First(ret, "id = ?", id).Error; err != nil {
-		return nil
-	}
-	return ret
-}
-
-func (r *customerSupportAccountRepository) GetByCustomerID(db *gorm.DB, customerID int64) *models.CustomerSupportAccount {
-	ret := &models.CustomerSupportAccount{}
-	if err := db.First(ret, "customer_id = ?", customerID).Error; err != nil {
-		return nil
-	}
-	return ret
-}
-
-func (r *customerSupportAccountRepository) GetByEmail(db *gorm.DB, email string) *models.CustomerSupportAccount {
-	ret := &models.CustomerSupportAccount{}
-	if err := db.First(ret, "email = ?", email).Error; err != nil {
-		return nil
-	}
-	return ret
-}
-
-func (r *customerSupportAccountRepository) Create(db *gorm.DB, item *models.CustomerSupportAccount) error {
-	return db.Create(item).Error
-}
-
-func (r *customerSupportAccountRepository) Updates(db *gorm.DB, id int64, columns map[string]any) error {
-	return db.Model(&models.CustomerSupportAccount{}).Where("id = ?", id).Updates(columns).Error
-}
 
 type supportArticleCategoryRepository struct{}
 
@@ -222,9 +187,9 @@ func (r *supportAnswerRepository) Updates(db *gorm.DB, id int64, columns map[str
 
 type supportQuestionVoteRepository struct{}
 
-func (r *supportQuestionVoteRepository) Get(db *gorm.DB, questionID, customerID int64) *models.SupportQuestionVote {
+func (r *supportQuestionVoteRepository) Get(db *gorm.DB, questionID, userID int64) *models.SupportQuestionVote {
 	ret := &models.SupportQuestionVote{}
-	if err := db.First(ret, "question_id = ? AND customer_id = ?", questionID, customerID).Error; err != nil {
+	if err := db.First(ret, "question_id = ? AND user_id = ?", questionID, userID).Error; err != nil {
 		return nil
 	}
 	return ret
@@ -234,15 +199,15 @@ func (r *supportQuestionVoteRepository) Create(db *gorm.DB, item *models.Support
 	return db.Create(item).Error
 }
 
-func (r *supportQuestionVoteRepository) Delete(db *gorm.DB, questionID, customerID int64) error {
-	return db.Delete(&models.SupportQuestionVote{}, "question_id = ? AND customer_id = ?", questionID, customerID).Error
+func (r *supportQuestionVoteRepository) Delete(db *gorm.DB, questionID, userID int64) error {
+	return db.Delete(&models.SupportQuestionVote{}, "question_id = ? AND user_id = ?", questionID, userID).Error
 }
 
 type supportAnswerVoteRepository struct{}
 
-func (r *supportAnswerVoteRepository) Get(db *gorm.DB, answerID, customerID int64) *models.SupportAnswerVote {
+func (r *supportAnswerVoteRepository) Get(db *gorm.DB, answerID, userID int64) *models.SupportAnswerVote {
 	ret := &models.SupportAnswerVote{}
-	if err := db.First(ret, "answer_id = ? AND customer_id = ?", answerID, customerID).Error; err != nil {
+	if err := db.First(ret, "answer_id = ? AND user_id = ?", answerID, userID).Error; err != nil {
 		return nil
 	}
 	return ret
@@ -252,6 +217,6 @@ func (r *supportAnswerVoteRepository) Create(db *gorm.DB, item *models.SupportAn
 	return db.Create(item).Error
 }
 
-func (r *supportAnswerVoteRepository) Delete(db *gorm.DB, answerID, customerID int64) error {
-	return db.Delete(&models.SupportAnswerVote{}, "answer_id = ? AND customer_id = ?", answerID, customerID).Error
+func (r *supportAnswerVoteRepository) Delete(db *gorm.DB, answerID, userID int64) error {
+	return db.Delete(&models.SupportAnswerVote{}, "answer_id = ? AND user_id = ?", answerID, userID).Error
 }

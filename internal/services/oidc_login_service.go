@@ -135,6 +135,7 @@ func (s *oidcLoginService) createOIDCUser(ctx *sqls.TxContext, profile *oidcLogi
 		Email:        email,
 		Password:     "",
 		PasswordSalt: "",
+		UserType:     enums.UserTypeEmployee,
 		Status:       enums.StatusOk,
 		AuditFields: models.AuditFields{
 			CreatedAt:      now,

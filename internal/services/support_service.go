@@ -10,41 +10,31 @@ import (
 	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/repositories"
 	"encoding/json"
-	"errors"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/mlogclub/simple/sqls"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 const (
-	supportCustomerContextKey = "supportCustomer"
-	supportCustomerTokenType  = "support_customer"
+	supportUserContextKey = "supportUser"
 )
 
 var SupportService = &supportService{}
 
 type supportService struct{}
 
-type supportCustomerClaims struct {
-	TokenType  string `json:"typ"`
-	CustomerID int64  `json:"customerId"`
-	Email      string `json:"email"`
-	jwt.RegisteredClaims
-}
-
-func (s *supportService) RegisterCustomer(req request.SupportCustomerRegisterRequest, clientIP string) (*response.SupportCustomerLoginResponse, error) {
+func (s *supportService) RegisterUser(req request.SupportCustomerRegisterRequest, authCfg config.AuthConfig, clientIP, userAgent string) (*response.LoginResponse, error) {
 	name := strings.TrimSpace(req.Name)
 	email := normalizeSupportEmail(req.Email)
 	password := strings.TrimSpace(req.Password)
 	if name == "" || email == "" || len(password) < 8 {
 		return nil, errorsx.InvalidParam("name, email and at least 8 characters password are required")
 	}
-	if repositories.CustomerSupportAccountRepository.GetByEmail(sqls.DB(), email) != nil {
+	if repositories.UserRepository.GetByUsername(sqls.DB(), email) != nil || repositories.UserRepository.GetByEmail(sqls.DB(), email) != nil {
 		return nil, errorsx.InvalidParam("email is already registered")
 	}
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -52,141 +42,54 @@ func (s *supportService) RegisterCustomer(req request.SupportCustomerRegisterReq
 		return nil, err
 	}
 	now := time.Now()
-	var customer *models.Customer
-	var account *models.CustomerSupportAccount
+	user := &models.User{
+		Username:     email,
+		Nickname:     name,
+		Email:        &email,
+		Password:     string(passwordHash),
+		PasswordSalt: "",
+		UserType:     enums.UserTypeUser,
+		Status:       enums.StatusOk,
+		AuditFields:  supportAuditFields(0, name, now),
+	}
 	if err := sqls.WithTransaction(func(ctx *sqls.TxContext) error {
-		customer = &models.Customer{
+		if err := repositories.UserRepository.Create(ctx.Tx, user); err != nil {
+			return err
+		}
+		return repositories.CustomerRepository.Create(ctx.Tx, &models.Customer{
+			UserID:       user.ID,
 			Name:         name,
 			PrimaryEmail: email,
 			Status:       enums.StatusOk,
-			AuditFields:  supportAuditFields(0, name, now),
-		}
-		if err := repositories.CustomerRepository.Create(ctx.Tx, customer); err != nil {
-			return err
-		}
-		account = &models.CustomerSupportAccount{
-			CustomerID:   customer.ID,
-			Email:        email,
-			PasswordHash: string(passwordHash),
-			Status:       enums.StatusOk,
-			LastLoginAt:  &now,
-			LastLoginIP:  clientIP,
-			AuditFields:  supportAuditFields(customer.ID, name, now),
-		}
-		return repositories.CustomerSupportAccountRepository.Create(ctx.Tx, account)
+			AuditFields:  supportAuditFields(user.ID, name, now),
+		})
 	}); err != nil {
 		return nil, err
 	}
-	return s.issueCustomerToken(customer, account)
+	return AuthService.Login(request.LoginRequest{Username: email, Password: password}, authCfg, clientIP, userAgent)
 }
 
-func (s *supportService) LoginCustomer(req request.SupportCustomerLoginRequest, clientIP string) (*response.SupportCustomerLoginResponse, error) {
-	email := normalizeSupportEmail(req.Email)
-	password := strings.TrimSpace(req.Password)
-	if email == "" || password == "" {
-		return nil, errorsx.InvalidParam("email and password are required")
-	}
-	account := repositories.CustomerSupportAccountRepository.GetByEmail(sqls.DB(), email)
-	if account == nil || account.Status != enums.StatusOk || bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(password)) != nil {
-		return nil, errorsx.InvalidAccount("invalid email or password")
-	}
-	customer := repositories.CustomerRepository.Get(sqls.DB(), account.CustomerID)
-	if customer == nil || customer.Status == enums.StatusDeleted {
-		return nil, errorsx.InvalidAccount("customer account is unavailable")
-	}
-	now := time.Now()
-	_ = repositories.CustomerSupportAccountRepository.Updates(sqls.DB(), account.ID, map[string]any{
-		"last_login_at": now,
-		"last_login_ip": clientIP,
-		"updated_at":    now,
-	})
-	return s.issueCustomerToken(customer, account)
-}
-
-func (s *supportService) RequireCustomer(ctx *gin.Context) (*dto.SupportCustomerPrincipal, error) {
-	if principal := s.GetCustomer(ctx); principal != nil {
+func (s *supportService) RequireSupportUser(ctx *gin.Context) (*dto.AuthPrincipal, error) {
+	if principal := s.GetSupportUser(ctx); principal != nil {
 		return principal, nil
 	}
-	token := extractSupportBearer(ctx.GetHeader("Authorization"))
-	if token == "" {
-		return nil, errorsx.Unauthorized("login is required")
-	}
-	claims, err := s.verifyCustomerToken(token)
+	principal, err := AuthService.Authenticate(ctx)
 	if err != nil {
 		return nil, err
 	}
-	account := repositories.CustomerSupportAccountRepository.GetByCustomerID(sqls.DB(), claims.CustomerID)
-	if account == nil || account.Status != enums.StatusOk || account.Email != claims.Email {
-		return nil, errorsx.Unauthorized("invalid support token")
-	}
-	customer := repositories.CustomerRepository.Get(sqls.DB(), claims.CustomerID)
-	if customer == nil || customer.Status == enums.StatusDeleted {
-		return nil, errorsx.Unauthorized("invalid support token")
-	}
-	principal := &dto.SupportCustomerPrincipal{
-		CustomerID: customer.ID,
-		Name:       strings.TrimSpace(customer.Name),
-		Email:      account.Email,
-		Status:     customer.Status,
-	}
-	ctx.Set(supportCustomerContextKey, principal)
+	ctx.Set(supportUserContextKey, principal)
 	return principal, nil
 }
 
-func (s *supportService) GetCustomer(ctx *gin.Context) *dto.SupportCustomerPrincipal {
+func (s *supportService) GetSupportUser(ctx *gin.Context) *dto.AuthPrincipal {
 	if ctx == nil {
 		return nil
 	}
-	value, _ := ctx.Get(supportCustomerContextKey)
-	if principal, ok := value.(*dto.SupportCustomerPrincipal); ok {
+	value, _ := ctx.Get(supportUserContextKey)
+	if principal, ok := value.(*dto.AuthPrincipal); ok {
 		return principal
 	}
 	return nil
-}
-
-func (s *supportService) issueCustomerToken(customer *models.Customer, account *models.CustomerSupportAccount) (*response.SupportCustomerLoginResponse, error) {
-	secret := supportTokenSecret()
-	if secret == "" {
-		return nil, errorsx.BusinessError(1, "customer session secret is missing")
-	}
-	now := time.Now()
-	expiresAt := now.Add(30 * 24 * time.Hour)
-	claims := supportCustomerClaims{
-		TokenType:  supportCustomerTokenType,
-		CustomerID: customer.ID,
-		Email:      account.Email,
-		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(expiresAt),
-		},
-	}
-	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
-	if err != nil {
-		return nil, err
-	}
-	return &response.SupportCustomerLoginResponse{
-		AccessToken: token,
-		ExpiresAt:   expiresAt.Format(time.DateTime),
-		Customer: response.SupportCustomerResponse{
-			ID:    customer.ID,
-			Name:  strings.TrimSpace(customer.Name),
-			Email: account.Email,
-		},
-	}, nil
-}
-
-func (s *supportService) verifyCustomerToken(rawToken string) (*supportCustomerClaims, error) {
-	claims := &supportCustomerClaims{}
-	token, err := jwt.ParseWithClaims(rawToken, claims, func(token *jwt.Token) (any, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("unsupported signing method")
-		}
-		return []byte(supportTokenSecret()), nil
-	}, jwt.WithExpirationRequired(), jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
-	if err != nil || token == nil || !token.Valid || claims.TokenType != supportCustomerTokenType || claims.CustomerID <= 0 || claims.Email == "" {
-		return nil, errorsx.Unauthorized("invalid support token")
-	}
-	return claims, nil
 }
 
 func (s *supportService) SaveArticleCategory(req request.SaveSupportArticleCategoryRequest, operator *dto.AuthPrincipal) (*models.SupportArticleCategory, error) {
@@ -275,9 +178,9 @@ func (s *supportService) SaveQuestionCategory(req request.SaveSupportQuestionCat
 	return item, nil
 }
 
-func (s *supportService) CreateQuestion(req request.CreateSupportQuestionRequest, principal *dto.SupportCustomerPrincipal) (*models.SupportQuestion, error) {
+func (s *supportService) CreateQuestion(req request.CreateSupportQuestionRequest, principal *dto.AuthPrincipal) (*models.SupportQuestion, error) {
 	title, content := strings.TrimSpace(req.Title), strings.TrimSpace(req.Content)
-	if principal == nil || principal.CustomerID <= 0 {
+	if principal == nil || principal.UserID <= 0 {
 		return nil, errorsx.Unauthorized("login is required")
 	}
 	if title == "" || content == "" {
@@ -285,40 +188,40 @@ func (s *supportService) CreateQuestion(req request.CreateSupportQuestionRequest
 	}
 	tags, _ := json.Marshal(normalizeTags(req.Tags))
 	now := time.Now()
-	item := &models.SupportQuestion{CategoryID: req.CategoryID, CustomerID: principal.CustomerID, Title: title, Content: content, TagsJSON: string(tags), Status: enums.SupportQuestionStatusNormal, AuditFields: supportAuditFields(principal.CustomerID, principal.Name, now)}
+	item := &models.SupportQuestion{CategoryID: req.CategoryID, UserID: principal.UserID, Title: title, Content: content, TagsJSON: string(tags), Status: enums.SupportQuestionStatusNormal, AuditFields: supportAuditFields(principal.UserID, supportPrincipalName(principal), now)}
 	if err := repositories.SupportQuestionRepository.Create(sqls.DB(), item); err != nil {
 		return nil, err
 	}
 	return item, nil
 }
 
-func (s *supportService) UpdateQuestion(req request.UpdateSupportQuestionRequest, principal *dto.SupportCustomerPrincipal) error {
+func (s *supportService) UpdateQuestion(req request.UpdateSupportQuestionRequest, principal *dto.AuthPrincipal) error {
 	item := repositories.SupportQuestionRepository.Get(sqls.DB(), req.ID)
 	if item == nil {
 		return errorsx.InvalidParam("question not found")
 	}
-	if principal == nil || item.CustomerID != principal.CustomerID {
+	if principal == nil || item.UserID != principal.UserID {
 		return errorsx.Forbidden("only the question owner can update it")
 	}
 	if item.Status == enums.SupportQuestionStatusResolved || item.Status == enums.SupportQuestionStatusClosed {
 		return errorsx.BusinessError(1, "resolved or closed question cannot be edited")
 	}
 	tags, _ := json.Marshal(normalizeTags(req.Tags))
-	return repositories.SupportQuestionRepository.Updates(sqls.DB(), req.ID, map[string]any{"category_id": req.CategoryID, "title": strings.TrimSpace(req.Title), "content": strings.TrimSpace(req.Content), "tags_json": string(tags), "update_user_id": principal.CustomerID, "update_user_name": principal.Name, "updated_at": time.Now()})
+	return repositories.SupportQuestionRepository.Updates(sqls.DB(), req.ID, map[string]any{"category_id": req.CategoryID, "title": strings.TrimSpace(req.Title), "content": strings.TrimSpace(req.Content), "tags_json": string(tags), "update_user_id": principal.UserID, "update_user_name": supportPrincipalName(principal), "updated_at": time.Now()})
 }
 
-func (s *supportService) CreateCustomerAnswer(req request.CreateSupportAnswerRequest, principal *dto.SupportCustomerPrincipal) (*models.SupportAnswer, error) {
+func (s *supportService) CreateSupportUserAnswer(req request.CreateSupportAnswerRequest, principal *dto.AuthPrincipal) (*models.SupportAnswer, error) {
 	if principal == nil {
 		return nil, errorsx.Unauthorized("login is required")
 	}
-	return s.createAnswer(req.QuestionID, strings.TrimSpace(req.Content), enums.SupportAnswerAuthorTypeCustomer, principal.CustomerID, principal.Name)
+	return s.createAnswer(req.QuestionID, strings.TrimSpace(req.Content), supportAuthorType(principal), principal.UserID, supportPrincipalName(principal))
 }
 
 func (s *supportService) CreateUserAnswer(req request.CreateSupportAnswerRequest, operator *dto.AuthPrincipal) (*models.SupportAnswer, error) {
 	if operator == nil {
 		return nil, errorsx.Unauthorized("login is required")
 	}
-	return s.createAnswer(req.QuestionID, strings.TrimSpace(req.Content), enums.SupportAnswerAuthorTypeUser, operator.UserID, operator.Username)
+	return s.createAnswer(req.QuestionID, strings.TrimSpace(req.Content), supportAuthorType(operator), operator.UserID, supportPrincipalName(operator))
 }
 
 func (s *supportService) createAnswer(questionID int64, content string, authorType enums.SupportAnswerAuthorType, authorID int64, authorName string) (*models.SupportAnswer, error) {
@@ -342,14 +245,14 @@ func (s *supportService) createAnswer(questionID int64, content string, authorTy
 	return answer, nil
 }
 
-func (s *supportService) AcceptAnswer(req request.SupportAcceptAnswerRequest, principal *dto.SupportCustomerPrincipal, operator *dto.AuthPrincipal) error {
+func (s *supportService) AcceptAnswer(req request.SupportAcceptAnswerRequest, principal *dto.AuthPrincipal, operator *dto.AuthPrincipal) error {
 	question := repositories.SupportQuestionRepository.Get(sqls.DB(), req.QuestionID)
 	answer := repositories.SupportAnswerRepository.Get(sqls.DB(), req.AnswerID)
 	if question == nil || answer == nil || answer.QuestionID != question.ID {
 		return errorsx.InvalidParam("question or answer not found")
 	}
 	if operator == nil {
-		if principal == nil || question.CustomerID != principal.CustomerID {
+		if principal == nil || question.UserID != principal.UserID {
 			return errorsx.Forbidden("only owner or admin can accept the best answer")
 		}
 	}
@@ -365,7 +268,7 @@ func (s *supportService) AcceptAnswer(req request.SupportAcceptAnswerRequest, pr
 	})
 }
 
-func (s *supportService) ToggleQuestionVote(questionID int64, principal *dto.SupportCustomerPrincipal) error {
+func (s *supportService) ToggleQuestionVote(questionID int64, principal *dto.AuthPrincipal) error {
 	if principal == nil {
 		return errorsx.Unauthorized("login is required")
 	}
@@ -374,16 +277,16 @@ func (s *supportService) ToggleQuestionVote(questionID int64, principal *dto.Sup
 		return errorsx.InvalidParam("question not found")
 	}
 	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
-		existing := repositories.SupportQuestionVoteRepository.Get(ctx.Tx, questionID, principal.CustomerID)
+		existing := repositories.SupportQuestionVoteRepository.Get(ctx.Tx, questionID, principal.UserID)
 		delta := 1
 		if existing != nil {
 			delta = -1
-			if err := repositories.SupportQuestionVoteRepository.Delete(ctx.Tx, questionID, principal.CustomerID); err != nil {
+			if err := repositories.SupportQuestionVoteRepository.Delete(ctx.Tx, questionID, principal.UserID); err != nil {
 				return err
 			}
 		} else {
 			now := time.Now()
-			if err := repositories.SupportQuestionVoteRepository.Create(ctx.Tx, &models.SupportQuestionVote{QuestionID: questionID, CustomerID: principal.CustomerID, VoteValue: 1, CreatedAt: now, UpdatedAt: now}); err != nil {
+			if err := repositories.SupportQuestionVoteRepository.Create(ctx.Tx, &models.SupportQuestionVote{QuestionID: questionID, UserID: principal.UserID, VoteValue: 1, CreatedAt: now, UpdatedAt: now}); err != nil {
 				return err
 			}
 		}
@@ -391,7 +294,7 @@ func (s *supportService) ToggleQuestionVote(questionID int64, principal *dto.Sup
 	})
 }
 
-func (s *supportService) ToggleAnswerVote(answerID int64, principal *dto.SupportCustomerPrincipal) error {
+func (s *supportService) ToggleAnswerVote(answerID int64, principal *dto.AuthPrincipal) error {
 	if principal == nil {
 		return errorsx.Unauthorized("login is required")
 	}
@@ -400,16 +303,16 @@ func (s *supportService) ToggleAnswerVote(answerID int64, principal *dto.Support
 		return errorsx.InvalidParam("answer not found")
 	}
 	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
-		existing := repositories.SupportAnswerVoteRepository.Get(ctx.Tx, answerID, principal.CustomerID)
+		existing := repositories.SupportAnswerVoteRepository.Get(ctx.Tx, answerID, principal.UserID)
 		delta := 1
 		if existing != nil {
 			delta = -1
-			if err := repositories.SupportAnswerVoteRepository.Delete(ctx.Tx, answerID, principal.CustomerID); err != nil {
+			if err := repositories.SupportAnswerVoteRepository.Delete(ctx.Tx, answerID, principal.UserID); err != nil {
 				return err
 			}
 		} else {
 			now := time.Now()
-			if err := repositories.SupportAnswerVoteRepository.Create(ctx.Tx, &models.SupportAnswerVote{AnswerID: answerID, CustomerID: principal.CustomerID, VoteValue: 1, CreatedAt: now, UpdatedAt: now}); err != nil {
+			if err := repositories.SupportAnswerVoteRepository.Create(ctx.Tx, &models.SupportAnswerVote{AnswerID: answerID, UserID: principal.UserID, VoteValue: 1, CreatedAt: now, UpdatedAt: now}); err != nil {
 				return err
 			}
 		}
@@ -437,18 +340,6 @@ func (s *supportService) FeedbackArticle(req request.SupportArticleFeedbackReque
 		column = "helpful_count"
 	}
 	return repositories.SupportArticleRepository.UpdateColumn(sqls.DB(), req.ID, column, gorm.Expr(column+" + ?", 1))
-}
-
-func supportTokenSecret() string {
-	return strings.TrimSpace(config.Current().CustomerSession.Secret)
-}
-
-func extractSupportBearer(auth string) string {
-	auth = strings.TrimSpace(auth)
-	if len(auth) > 7 && strings.EqualFold(auth[:7], "Bearer ") {
-		return strings.TrimSpace(auth[7:])
-	}
-	return ""
 }
 
 func normalizeSupportEmail(email string) string {
@@ -500,4 +391,21 @@ func auditFieldsFromOperator(operator *dto.AuthPrincipal, now time.Time) models.
 
 func supportAuditFields(userID int64, username string, now time.Time) models.AuditFields {
 	return models.AuditFields{CreatedAt: now, CreateUserID: userID, CreateUserName: username, UpdatedAt: now, UpdateUserID: userID, UpdateUserName: username}
+}
+
+func supportPrincipalName(principal *dto.AuthPrincipal) string {
+	if principal == nil {
+		return ""
+	}
+	if strings.TrimSpace(principal.Nickname) != "" {
+		return strings.TrimSpace(principal.Nickname)
+	}
+	return strings.TrimSpace(principal.Username)
+}
+
+func supportAuthorType(principal *dto.AuthPrincipal) enums.SupportAnswerAuthorType {
+	if principal != nil && principal.UserType == enums.UserTypeEmployee {
+		return enums.SupportAnswerAuthorTypeEmployee
+	}
+	return enums.SupportAnswerAuthorTypeUser
 }

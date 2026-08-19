@@ -3,12 +3,13 @@ package response
 import "agent-desk/internal/pkg/enums"
 
 type AuthUserResponse struct {
-	ID       int64        `json:"id"`
-	Username string       `json:"username"`
-	Nickname string       `json:"nickname"`
-	Avatar   string       `json:"avatar"`
-	Status   enums.Status `json:"status"`
-	Roles    []string     `json:"roles"`
+	ID       int64          `json:"id"`
+	Username string         `json:"username"`
+	Nickname string         `json:"nickname"`
+	Avatar   string         `json:"avatar"`
+	UserType enums.UserType `json:"userType"`
+	Status   enums.Status   `json:"status"`
+	Roles    []string       `json:"roles"`
 }
 
 type LoginResponse struct {

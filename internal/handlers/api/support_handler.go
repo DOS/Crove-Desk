@@ -3,6 +3,7 @@ package api
 import (
 	"agent-desk/internal/builders"
 	"agent-desk/internal/models"
+	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/dto/response"
 	"agent-desk/internal/pkg/enums"
@@ -24,7 +25,7 @@ func SupportPostRegister(ctx *gin.Context) {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	ret, err := services.SupportService.RegisterCustomer(req, ctx.ClientIP())
+	ret, err := services.SupportService.RegisterUser(req, config.Current().Auth, ctx.ClientIP(), ctx.GetHeader("User-Agent"))
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
@@ -38,7 +39,10 @@ func SupportPostLogin(ctx *gin.Context) {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	ret, err := services.SupportService.LoginCustomer(req, ctx.ClientIP())
+	ret, err := services.AuthService.Login(request.LoginRequest{
+		Username: req.Email,
+		Password: req.Password,
+	}, config.Current().Auth, ctx.ClientIP(), ctx.GetHeader("User-Agent"))
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
@@ -47,12 +51,17 @@ func SupportPostLogin(ctx *gin.Context) {
 }
 
 func SupportGetMe(ctx *gin.Context) {
-	principal, err := services.SupportService.RequireCustomer(ctx)
+	principal, err := services.SupportService.RequireSupportUser(ctx)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, response.SupportCustomerResponse{ID: principal.CustomerID, Name: principal.Name, Email: principal.Email})
+	user := supportUser(principal.UserID)
+	email := ""
+	if user != nil && user.Email != nil {
+		email = *user.Email
+	}
+	httpx.WriteJSON(ctx, response.SupportUserResponse{ID: principal.UserID, Name: supportPrincipalDisplayName(principal.UserID), Email: email, UserType: principal.UserType})
 }
 
 func SupportArticleCategoryAnyList(ctx *gin.Context) {
@@ -123,11 +132,11 @@ func SupportQuestionGetBy(ctx *gin.Context) {
 	}
 	_ = repositories.SupportQuestionRepository.UpdateColumn(sqls.DB(), question.ID, "view_count", gorm.Expr("view_count + ?", 1))
 	answers := repositories.SupportAnswerRepository.Find(sqls.DB(), sqls.NewCnd().Eq("question_id", id).Eq("status", enums.SupportAnswerStatusNormal).Desc("is_best_answer").Asc("id"))
-	httpx.WriteJSON(ctx, response.SupportQuestionDetailResponse{Question: *builders.BuildSupportQuestion(question, supportQuestionCategoryName(question.CategoryID), supportCustomerName(question.CustomerID)), Answers: buildSupportAnswerList(answers)})
+	httpx.WriteJSON(ctx, response.SupportQuestionDetailResponse{Question: *builders.BuildSupportQuestion(question, supportQuestionCategoryName(question.CategoryID), supportUser(question.UserID)), Answers: buildSupportAnswerList(answers)})
 }
 
 func SupportQuestionPostCreate(ctx *gin.Context) {
-	principal, err := services.SupportService.RequireCustomer(ctx)
+	principal, err := services.SupportService.RequireSupportUser(ctx)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
@@ -142,11 +151,11 @@ func SupportQuestionPostCreate(ctx *gin.Context) {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, builders.BuildSupportQuestion(item, supportQuestionCategoryName(item.CategoryID), principal.Name))
+	httpx.WriteJSON(ctx, builders.BuildSupportQuestion(item, supportQuestionCategoryName(item.CategoryID), supportUser(principal.UserID)))
 }
 
 func SupportQuestionPostUpdate(ctx *gin.Context) {
-	principal, err := services.SupportService.RequireCustomer(ctx)
+	principal, err := services.SupportService.RequireSupportUser(ctx)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
@@ -160,7 +169,7 @@ func SupportQuestionPostUpdate(ctx *gin.Context) {
 }
 
 func SupportQuestionPostAcceptAnswer(ctx *gin.Context) {
-	principal, err := services.SupportService.RequireCustomer(ctx)
+	principal, err := services.SupportService.RequireSupportUser(ctx)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
@@ -174,7 +183,7 @@ func SupportQuestionPostAcceptAnswer(ctx *gin.Context) {
 }
 
 func SupportQuestionPostVote(ctx *gin.Context) {
-	principal, err := services.SupportService.RequireCustomer(ctx)
+	principal, err := services.SupportService.RequireSupportUser(ctx)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
@@ -188,7 +197,7 @@ func SupportQuestionPostVote(ctx *gin.Context) {
 }
 
 func SupportAnswerPostCreate(ctx *gin.Context) {
-	principal, err := services.SupportService.RequireCustomer(ctx)
+	principal, err := services.SupportService.RequireSupportUser(ctx)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
@@ -198,16 +207,16 @@ func SupportAnswerPostCreate(ctx *gin.Context) {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	item, err := services.SupportService.CreateCustomerAnswer(req, principal)
+	item, err := services.SupportService.CreateSupportUserAnswer(req, principal)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, builders.BuildSupportAnswer(item, principal.Name))
+	httpx.WriteJSON(ctx, builders.BuildSupportAnswer(item, supportPrincipalDisplayName(principal.UserID)))
 }
 
 func SupportAnswerPostVote(ctx *gin.Context) {
-	principal, err := services.SupportService.RequireCustomer(ctx)
+	principal, err := services.SupportService.RequireSupportUser(ctx)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
@@ -233,7 +242,7 @@ func buildSupportArticleList(list []models.SupportArticle, includeContent bool) 
 func buildSupportQuestionList(list []models.SupportQuestion) []response.SupportQuestionResponse {
 	results := make([]response.SupportQuestionResponse, 0, len(list))
 	for _, item := range list {
-		if resp := builders.BuildSupportQuestion(&item, supportQuestionCategoryName(item.CategoryID), supportCustomerName(item.CustomerID)); resp != nil {
+		if resp := builders.BuildSupportQuestion(&item, supportQuestionCategoryName(item.CategoryID), supportUser(item.UserID)); resp != nil {
 			results = append(results, *resp)
 		}
 	}
@@ -266,21 +275,28 @@ func supportQuestionCategoryName(id int64) string {
 	return item.Name
 }
 
-func supportCustomerName(id int64) string {
-	item := repositories.CustomerRepository.Get(sqls.DB(), id)
-	if item == nil {
+func supportUser(id int64) *models.User {
+	return repositories.UserRepository.Get(sqls.DB(), id)
+}
+
+func supportPrincipalDisplayName(id int64) string {
+	user := supportUser(id)
+	if user == nil {
 		return ""
 	}
-	return item.Name
+	if user.Nickname != "" {
+		return user.Nickname
+	}
+	return user.Username
 }
 
 func supportAnswerAuthorName(item models.SupportAnswer) string {
-	if item.AuthorType == enums.SupportAnswerAuthorTypeUser {
-		user := repositories.UserRepository.Get(sqls.DB(), item.AuthorID)
-		if user == nil {
-			return ""
-		}
+	user := repositories.UserRepository.Get(sqls.DB(), item.AuthorID)
+	if user == nil {
+		return ""
+	}
+	if user.Nickname != "" {
 		return user.Nickname
 	}
-	return supportCustomerName(item.AuthorID)
+	return user.Username
 }

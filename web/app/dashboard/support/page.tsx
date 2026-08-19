@@ -163,7 +163,7 @@ function QuestionManager({ questions, onChanged }: { questions: AdminSupportQues
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="font-medium">{item.title}</div>
-                  <div className="mt-1 text-sm text-muted-foreground">{item.customerName || "用户"} · {item.answerCount} 个回答</div>
+                  <div className="mt-1 text-sm text-muted-foreground">{item.userName || "用户"} · {item.answerCount} 个回答</div>
                 </div>
                 <Badge variant={item.status === "resolved" ? "default" : "outline"}>{item.status}</Badge>
               </div>
