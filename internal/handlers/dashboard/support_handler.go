@@ -17,7 +17,7 @@ import (
 )
 
 func SupportArticleCategoryAnyList(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportCategoryView); err != nil {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportArticleView); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
@@ -29,7 +29,7 @@ func SupportArticleCategoryAnyList(ctx *gin.Context) {
 }
 
 func SupportArticleCategoryGetList_all(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportCategoryView); err != nil {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportArticleView); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
@@ -38,7 +38,7 @@ func SupportArticleCategoryGetList_all(ctx *gin.Context) {
 }
 
 func SupportArticleCategoryPostCreate(ctx *gin.Context) {
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportCategoryUpdate)
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportArticleCreate)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
@@ -57,11 +57,26 @@ func SupportArticleCategoryPostCreate(ctx *gin.Context) {
 }
 
 func SupportArticleCategoryPostUpdate(ctx *gin.Context) {
-	SupportArticleCategoryPostCreate(ctx)
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportArticleUpdate)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.SaveSupportArticleCategoryRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	item, err := services.SupportService.SaveArticleCategory(req, operator)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, builders.BuildSupportArticleCategory(item))
 }
 
 func SupportArticleCategoryPostDelete(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportCategoryUpdate); err != nil {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportArticleDelete); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
@@ -70,7 +85,7 @@ func SupportArticleCategoryPostDelete(ctx *gin.Context) {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, repositories.SupportArticleCategoryRepository.Delete(sqls.DB(), req.ID))
+	httpx.WriteJSON(ctx, services.SupportService.DeleteArticleCategory(req.ID))
 }
 
 func SupportArticleAnyList(ctx *gin.Context) {
@@ -155,7 +170,7 @@ func SupportArticlePostDelete(ctx *gin.Context) {
 }
 
 func SupportQuestionCategoryAnyList(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportCategoryView); err != nil {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionView); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
@@ -167,7 +182,7 @@ func SupportQuestionCategoryAnyList(ctx *gin.Context) {
 }
 
 func SupportQuestionCategoryGetList_all(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportCategoryView); err != nil {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionView); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
@@ -176,7 +191,7 @@ func SupportQuestionCategoryGetList_all(ctx *gin.Context) {
 }
 
 func SupportQuestionCategoryPostCreate(ctx *gin.Context) {
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportCategoryUpdate)
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionUpdate)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
@@ -196,6 +211,19 @@ func SupportQuestionCategoryPostCreate(ctx *gin.Context) {
 
 func SupportQuestionCategoryPostUpdate(ctx *gin.Context) {
 	SupportQuestionCategoryPostCreate(ctx)
+}
+
+func SupportQuestionCategoryPostDelete(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionUpdate); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.DeleteByIDRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, services.SupportService.DeleteQuestionCategory(req.ID))
 }
 
 func SupportQuestionAnyList(ctx *gin.Context) {

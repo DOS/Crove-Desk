@@ -2390,6 +2390,13 @@ export function saveSupportArticleCategoryAdmin(payload: Partial<AdminSupportCat
   })
 }
 
+export function deleteSupportArticleCategoryAdmin(id: number) {
+  return request<void>("/api/dashboard/support-article-category/delete", {
+    method: "POST",
+    body: JSON.stringify({ id }),
+  })
+}
+
 export function fetchSupportArticlesAdmin(query?: Record<string, string | number | undefined>) {
   return request<PageResult<AdminSupportArticle>>(`/api/dashboard/support-article/list${toQueryString(query)}`)
 }
@@ -2405,6 +2412,13 @@ export function saveSupportArticleAdmin(payload: Partial<AdminSupportArticle>) {
   })
 }
 
+export function deleteSupportArticleAdmin(id: number) {
+  return request<void>("/api/dashboard/support-article/delete", {
+    method: "POST",
+    body: JSON.stringify({ id }),
+  })
+}
+
 export function fetchSupportQuestionCategoriesAdmin(query?: Record<string, string | number | undefined>) {
   return request<PageResult<AdminSupportCategory>>(`/api/dashboard/support-question-category/list${toQueryString(query)}`)
 }
@@ -2417,6 +2431,13 @@ export function saveSupportQuestionCategoryAdmin(payload: Partial<AdminSupportCa
   return request<AdminSupportCategory>(payload.id ? "/api/dashboard/support-question-category/update" : "/api/dashboard/support-question-category/create", {
     method: "POST",
     body: JSON.stringify(payload),
+  })
+}
+
+export function deleteSupportQuestionCategoryAdmin(id: number) {
+  return request<void>("/api/dashboard/support-question-category/delete", {
+    method: "POST",
+    body: JSON.stringify({ id }),
   })
 }
 

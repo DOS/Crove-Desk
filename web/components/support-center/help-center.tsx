@@ -110,26 +110,85 @@ export function SupportHelpList() {
   const [categories, setCategories] = useState<SupportCategory[]>([])
   const [articles, setArticles] = useState<SupportArticle[]>([])
   const [categoryId, setCategoryId] = useState<number | "all">("all")
+  const [selectedArticle, setSelectedArticle] = useState<SupportArticle | null>(null)
   const [title, setTitle] = useState("")
 
   useEffect(() => {
-    void fetchSupportArticleCategories().then(setCategories)
+    void fetchSupportArticleCategories().then((items) => {
+      setCategories(items)
+      if (items[0]?.id) {
+        setCategoryId(items[0].id)
+      }
+    })
   }, [])
 
   useEffect(() => {
-    void fetchSupportArticles({ categoryId: categoryId === "all" ? undefined : categoryId, title, limit: 20 }).then((page) => setArticles(page.results))
+    void fetchSupportArticles({ categoryId: categoryId === "all" ? undefined : categoryId, title, limit: 50 }).then((page) => {
+      setArticles(page.results)
+      const first = page.results[0]
+      if (first) {
+        void fetchSupportArticle(first.slug || first.id).then(setSelectedArticle)
+      } else {
+        setSelectedArticle(null)
+      }
+    })
   }, [categoryId, title])
+
+  const selectArticle = async (article: SupportArticle) => {
+    setSelectedArticle(await fetchSupportArticle(article.slug || article.id))
+  }
 
   return (
     <SupportShell title="帮助中心" description="查看官方使用指南、部署说明和排障文档。">
-      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-        <CategoryRail categories={categories} active={categoryId} onChange={setCategoryId} />
-        <div>
+      <div className="grid gap-4 lg:grid-cols-[220px_320px_1fr]">
+        <aside className="grid content-start gap-2">
+          <Button variant={categoryId === "all" ? "default" : "outline"} onClick={() => setCategoryId("all")}>全部文章</Button>
+          {categories.map((item) => (
+            <Button key={item.id} variant={categoryId === item.id ? "default" : "outline"} onClick={() => setCategoryId(item.id)}>{item.name}</Button>
+          ))}
+        </aside>
+        <section className="grid content-start gap-3">
           <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="搜索文章标题" />
-          <div className="mt-4 grid gap-3">
-            {articles.length ? articles.map((item) => <ArticleRow key={item.id} item={item} />) : <EmptyState text="没有找到文章" />}
+          <div className="grid max-h-[720px] gap-2 overflow-auto">
+            {articles.length ? articles.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={cn(
+                  "rounded-md border bg-card p-4 text-left transition-colors hover:bg-muted/60",
+                  selectedArticle?.id === item.id && "border-primary bg-primary/10",
+                )}
+                onClick={() => void selectArticle(item)}
+              >
+                <div className="font-medium">{item.title}</div>
+                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.summary || item.categoryName}</p>
+              </button>
+            )) : <EmptyState text="没有找到文章" />}
           </div>
-        </div>
+        </section>
+        <article className="min-h-[520px] rounded-md border bg-card p-6">
+          {selectedArticle ? (
+            <>
+              <div className="mb-5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                {selectedArticle.categoryName && <Badge variant="outline">{selectedArticle.categoryName}</Badge>}
+                <span>{selectedArticle.publishedAt || selectedArticle.updatedAt}</span>
+              </div>
+              <h2 className="text-2xl font-semibold tracking-tight">{selectedArticle.title}</h2>
+              {selectedArticle.summary && <p className="mt-2 text-sm text-muted-foreground">{selectedArticle.summary}</p>}
+              <div className="mt-6 whitespace-pre-wrap text-sm leading-7">{selectedArticle.content}</div>
+              <div className="mt-8 flex gap-2 border-t pt-5">
+                <Button variant="outline" onClick={() => void submitSupportArticleFeedback(selectedArticle.id, true).then(() => toast.success("感谢反馈"))}>
+                  <ThumbsUpIcon /> 有帮助
+                </Button>
+                <Link className={buttonVariants({ variant: "outline" })} href={`/support/help/${selectedArticle.slug || selectedArticle.id}`}>
+                  独立打开
+                </Link>
+              </div>
+            </>
+          ) : (
+            <EmptyState text="选择左侧文章查看内容" />
+          )}
+        </article>
       </div>
     </SupportShell>
   )

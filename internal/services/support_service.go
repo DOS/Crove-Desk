@@ -122,6 +122,20 @@ func (s *supportService) SaveArticleCategory(req request.SaveSupportArticleCateg
 	return item, nil
 }
 
+func (s *supportService) DeleteArticleCategory(id int64) error {
+	if repositories.SupportArticleCategoryRepository.Get(sqls.DB(), id) == nil {
+		return errorsx.InvalidParam("category not found")
+	}
+	_, paging := repositories.SupportArticleRepository.FindPageByCnd(
+		sqls.DB(),
+		sqls.NewCnd().Eq("category_id", id).Page(1, 1),
+	)
+	if paging.Total > 0 {
+		return errorsx.InvalidParam("category is still used by articles")
+	}
+	return repositories.SupportArticleCategoryRepository.Delete(sqls.DB(), id)
+}
+
 func (s *supportService) SaveArticle(req request.SaveSupportArticleRequest, operator *dto.AuthPrincipal) (*models.SupportArticle, error) {
 	title, slug := strings.TrimSpace(req.Title), normalizeSupportSlug(req.Slug)
 	if title == "" || slug == "" {
@@ -176,6 +190,20 @@ func (s *supportService) SaveQuestionCategory(req request.SaveSupportQuestionCat
 		return nil, err
 	}
 	return item, nil
+}
+
+func (s *supportService) DeleteQuestionCategory(id int64) error {
+	if repositories.SupportQuestionCategoryRepository.Get(sqls.DB(), id) == nil {
+		return errorsx.InvalidParam("category not found")
+	}
+	_, paging := repositories.SupportQuestionRepository.FindPageByCnd(
+		sqls.DB(),
+		sqls.NewCnd().Eq("category_id", id).Page(1, 1),
+	)
+	if paging.Total > 0 {
+		return errorsx.InvalidParam("category is still used by questions")
+	}
+	return repositories.SupportQuestionCategoryRepository.Delete(sqls.DB(), id)
 }
 
 func (s *supportService) CreateQuestion(req request.CreateSupportQuestionRequest, principal *dto.AuthPrincipal) (*models.SupportQuestion, error) {

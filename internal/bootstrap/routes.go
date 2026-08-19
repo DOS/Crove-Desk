@@ -367,6 +367,7 @@ func registerDashboardSupportArticleRoutes(group *gin.RouterGroup) {
 
 func registerDashboardSupportQuestionCategoryRoutes(group *gin.RouterGroup) {
 	group.POST("/create", dashboard.SupportQuestionCategoryPostCreate)
+	group.POST("/delete", dashboard.SupportQuestionCategoryPostDelete)
 	group.Any("/list", dashboard.SupportQuestionCategoryAnyList)
 	group.GET("/list_all", dashboard.SupportQuestionCategoryGetList_all)
 	group.POST("/update", dashboard.SupportQuestionCategoryPostUpdate)

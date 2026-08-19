@@ -174,8 +174,6 @@ var (
 	PermissionSupportArticleDelete  = Permission{Name: "删除支持中心文章", Code: "supportArticle.delete", Type: "api", GroupName: "supportArticle", Method: "POST", APIPath: "/api/dashboard/support-article/delete", SortNo: 1593}
 	PermissionSupportQuestionView   = Permission{Name: "查看支持中心问答", Code: "supportQuestion.view", Type: "api", GroupName: "supportQuestion", Method: "ANY", APIPath: "/api/dashboard/support-question/list", SortNo: 1594}
 	PermissionSupportQuestionUpdate = Permission{Name: "管理支持中心问答", Code: "supportQuestion.update", Type: "api", GroupName: "supportQuestion", Method: "POST", APIPath: "/api/dashboard/support-question/moderate", SortNo: 1595}
-	PermissionSupportCategoryView   = Permission{Name: "查看支持中心分类", Code: "supportCategory.view", Type: "api", GroupName: "supportCategory", Method: "ANY", APIPath: "/api/dashboard/support-question-category/list", SortNo: 1596}
-	PermissionSupportCategoryUpdate = Permission{Name: "管理支持中心分类", Code: "supportCategory.update", Type: "api", GroupName: "supportCategory", Method: "POST", APIPath: "/api/dashboard/support-question-category/create", SortNo: 1597}
 
 	// Skill 定义相关权限
 	PermissionSkillDefinitionView   = Permission{Name: "查看技能定义", Code: "skillDefinition.view", Type: "api", GroupName: "skillDefinition", Method: "ANY", APIPath: "/api/dashboard/skill-definition/list", SortNo: 1610}
@@ -287,8 +285,6 @@ var Permissions = []Permission{
 	PermissionSupportArticleDelete,
 	PermissionSupportQuestionView,
 	PermissionSupportQuestionUpdate,
-	PermissionSupportCategoryView,
-	PermissionSupportCategoryUpdate,
 	PermissionSkillDefinitionView,
 	PermissionSkillDefinitionCreate,
 	PermissionSkillDefinitionUpdate,
