@@ -55,6 +55,7 @@ import {
   type SupportQuestion,
 } from "@/lib/api/support"
 import { readSession } from "@/lib/auth"
+import { articleHeadingId, markdownHeadingText } from "@/lib/support-article"
 import { cn, formatDateTime } from "@/lib/utils"
 
 const pageBackground =
@@ -652,6 +653,7 @@ function HelpArticle({ page, pages, previewId, onNavigate }: { page: SupportHelp
     }
   }
   useEffect(() => {
+    if (page.contentType !== "html") return
     const container = document.getElementById(previewId)
     if (!container) return
     const cleanup: Array<() => void> = []
@@ -691,7 +693,7 @@ function HelpArticle({ page, pages, previewId, onNavigate }: { page: SupportHelp
       })
     })
     return () => cleanup.forEach((dispose) => dispose())
-  }, [lightbox, page.content, previewId, t])
+  }, [lightbox, page.content, page.contentType, previewId, t])
   return (
     <article className="mx-auto max-w-[var(--support-article-width)]">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -901,7 +903,7 @@ function PublicArticleToc({ content, contentType = "markdown" }: { content: stri
         return { level: Number(match[1]), title, id: articleHeadingId(title, index) }
       })
     : Array.from(content.matchAll(/^(#{2,3})\s+(.+)$/gm)).map((match, index) => {
-        const title = match[2].replace(/[*_`]/g, "")
+        const title = markdownHeadingText(match[2])
         return { level: match[1].length, title, id: articleHeadingId(title, index) }
       }), [content, contentType])
   const [activeId, setActiveId] = useState("")
@@ -979,11 +981,6 @@ function PublicArticleToc({ content, contentType = "markdown" }: { content: stri
       </div>
     </aside>
   )
-}
-
-function articleHeadingId(title: string, index: number) {
-  const normalized = title.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "")
-  return `section-${index + 1}-${normalized || "heading"}`
 }
 
 function CategoryRail({ categories, active, onChange }: { categories: SupportCategory[]; active: number | "all"; onChange: (value: number | "all") => void }) {
