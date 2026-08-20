@@ -2378,6 +2378,10 @@ export function fetchSupportHelpPagesAdmin(query?: Record<string, string | numbe
   return request<PageResult<AdminSupportHelpPage>>(`/api/dashboard/support-help-page/list${toQueryString(query)}`)
 }
 
+export function fetchSupportHelpPagesAllAdmin() {
+  return request<AdminSupportHelpPage[]>("/api/dashboard/support-help-page/list_all")
+}
+
 export function fetchSupportHelpPageAdmin(id: number) {
   return request<AdminSupportHelpPage>(`/api/dashboard/support-help-page/${id}`)
 }
@@ -2393,6 +2397,13 @@ export function deleteSupportHelpPageAdmin(id: number) {
   return request<void>("/api/dashboard/support-help-page/delete", {
     method: "POST",
     body: JSON.stringify({ id }),
+  })
+}
+
+export function updateSupportHelpPageSortAdmin(payload: { parentId: number; ids: number[] }) {
+  return request<void>("/api/dashboard/support-help-page/update_sort", {
+    method: "POST",
+    body: JSON.stringify(payload),
   })
 }
 

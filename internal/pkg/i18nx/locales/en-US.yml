@@ -479,6 +479,8 @@ graph.handoffConfirmPrompt: |-
   Please reply with "Confirm" or "Cancel".
 conversation.interrupt.defaultPrompt: "Please provide more information and try again."
 ticket.defaultConversationTitle: "Conversation ticket"
+error.supportHelpPage.sortScopeMismatch: "Pages being sorted must be the complete set under the same parent"
+error.supportHelpPage.sortDuplicate: "The page sort order contains duplicate entries"
 tool.graph.createTicketConfirm.info: "Graph Tool. Handles ticket parameter preparation, user confirmation, actual ticket creation, and result return. Use only when the user explicitly asks to create a ticket and the title and description are clear."
 tool.graph.createTicketConfirm.param.title: "Ticket title. Concisely summarizes the issue."
 tool.graph.createTicketConfirm.param.description: "Ticket description. Clearly captures the user's issue, symptoms, and request."

@@ -21,12 +21,21 @@ func SupportHelpPageAnyList(ctx *gin.Context) {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	list, paging := repositories.SupportHelpPageRepository.FindPageByCnd(sqls.DB(), params.NewPagedSqlCnd(ctx,
+	list, paging := services.SupportService.FindHelpPagePage(params.NewPagedSqlCnd(ctx,
 		params.QueryFilter{ParamName: "parentId"},
 		params.QueryFilter{ParamName: "status"},
 		params.QueryFilter{ParamName: "title", Op: params.Like},
 	).Asc("sort_no").Desc("id"))
 	httpx.WriteJSON(ctx, &web.PageResult{Results: buildDashboardSupportHelpPages(list, false), Page: paging})
+}
+
+func SupportHelpPageGetList_all(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageView); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	list := services.SupportService.FindHelpPages(sqls.NewCnd().Asc("sort_no").Asc("id"))
+	httpx.WriteJSON(ctx, buildDashboardSupportHelpPages(list, false))
 }
 
 func SupportHelpPageGetBy(ctx *gin.Context) {
@@ -38,7 +47,7 @@ func SupportHelpPageGetBy(ctx *gin.Context) {
 	if !ok {
 		return
 	}
-	item := repositories.SupportHelpPageRepository.Get(sqls.DB(), id)
+	item := services.SupportService.FindHelpPageByID(id)
 	if item == nil {
 		httpx.WriteJSON(ctx, httpx.JsonErrorMsg(ctx, "error.notFound"))
 		return
@@ -95,6 +104,19 @@ func SupportHelpPagePostDelete(ctx *gin.Context) {
 		return
 	}
 	httpx.WriteJSON(ctx, services.SupportService.DeleteHelpPage(req.ID))
+}
+
+func SupportHelpPagePostUpdate_sort(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageUpdate); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.SortSupportHelpPagesRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, services.SupportService.SortHelpPages(req))
 }
 
 func SupportQuestionCategoryAnyList(ctx *gin.Context) {

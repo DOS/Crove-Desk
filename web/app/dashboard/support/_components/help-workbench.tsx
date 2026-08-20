@@ -1,32 +1,73 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ChevronRightIcon, ExternalLinkIcon, FilePlus2Icon, MoreHorizontalIcon, SaveIcon, SearchIcon, Settings2Icon, Trash2Icon } from "lucide-react"
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  type DragEndEvent,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import {
+  ChevronRightIcon,
+  ExternalLinkIcon,
+  FilePlus2Icon,
+  GripVerticalIcon,
+  MoreHorizontalIcon,
+  SaveIcon,
+  SearchIcon,
+  Settings2Icon,
+  Trash2Icon,
+} from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { toast } from "sonner"
 
 import { useApiErrorHandler } from "@/components/api-error-provider"
 import { ContentEditor } from "@/components/content-editor"
 import { OptionCombobox } from "@/components/option-combobox"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { deleteSupportHelpPageAdmin, fetchSupportHelpPageAdmin, fetchSupportHelpPagesAdmin, saveSupportHelpPageAdmin, type AdminSupportHelpPage } from "@/lib/api/admin"
+import { useI18n } from "@/i18n/provider"
+import {
+  deleteSupportHelpPageAdmin,
+  fetchSupportHelpPageAdmin,
+  fetchSupportHelpPagesAllAdmin,
+  saveSupportHelpPageAdmin,
+  updateSupportHelpPageSortAdmin,
+  type AdminSupportHelpPage,
+} from "@/lib/api/admin"
+import { cn } from "@/lib/utils"
 
-type PageDraft = Pick<AdminSupportHelpPage, "parentId" | "title" | "slug" | "summary" | "content" | "contentType" | "status" | "sortNo" | "tags">
+type PageDraft = Pick<AdminSupportHelpPage, "parentId" | "title" | "slug" | "summary" | "content" | "contentType" | "status" | "tags">
 type CreateState = { open: boolean; parentId: number }
 
 const blankCreate: CreateState = { open: false, parentId: 0 }
-const statusOptions = [
-  { value: "draft", label: "草稿" },
-  { value: "published", label: "已发布" },
-  { value: "hidden", label: "已隐藏" },
-]
 
 function toDraft(page: AdminSupportHelpPage): PageDraft {
-  return { parentId: page.parentId ?? 0, title: page.title, slug: page.slug, summary: page.summary ?? "", content: page.content ?? "", contentType: page.contentType || "markdown", status: page.status || "draft", sortNo: page.sortNo ?? 0, tags: page.tags ?? [] }
+  return {
+    parentId: page.parentId ?? 0,
+    title: page.title,
+    slug: page.slug,
+    summary: page.summary ?? "",
+    content: page.content ?? "",
+    contentType: page.contentType || "markdown",
+    status: page.status || "draft",
+    tags: page.tags ?? [],
+  }
 }
 
 function slugify(value: string) {
@@ -35,12 +76,48 @@ function slugify(value: string) {
 
 function descendantIds(pages: AdminSupportHelpPage[], id: number) {
   const result = new Set<number>()
-  const visit = (parentId: number) => pages.filter((page) => page.parentId === parentId).forEach((page) => { result.add(page.id); visit(page.id) })
+  const visit = (parentId: number) => pages.filter((page) => page.parentId === parentId).forEach((page) => {
+    result.add(page.id)
+    visit(page.id)
+  })
   visit(id)
   return result
 }
 
+function childPages(pages: AdminSupportHelpPage[], parentId: number) {
+  return pages
+    .filter((page) => page.parentId === parentId)
+    .sort((left, right) => left.sortNo - right.sortNo || left.id - right.id)
+}
+
+function reorderSiblings(pages: AdminSupportHelpPage[], parentId: number, activeId: number, overId: number) {
+  const siblings = childPages(pages, parentId)
+  const oldIndex = siblings.findIndex((page) => page.id === activeId)
+  const newIndex = siblings.findIndex((page) => page.id === overId)
+  if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return null
+  const ordered = arrayMove(siblings, oldIndex, newIndex)
+  const sortByID = new Map(ordered.map((page, index) => [page.id, index]))
+  return {
+    ids: ordered.map((page) => page.id),
+    pages: pages.map((page) => page.parentId === parentId ? { ...page, sortNo: sortByID.get(page.id) ?? page.sortNo } : page),
+  }
+}
+
+function pagePath(pages: AdminSupportHelpPage[], page: AdminSupportHelpPage | null) {
+  if (!page) return []
+  const path: Array<Pick<AdminSupportHelpPage, "id" | "title">> = []
+  let parentId = page.parentId
+  while (parentId) {
+    const parent = pages.find((item) => item.id === parentId)
+    if (!parent) break
+    path.unshift({ id: parent.id, title: parent.title })
+    parentId = parent.parentId
+  }
+  return path
+}
+
 export function SupportHelpWorkbench() {
+  const t = useI18n()
   const handleApiError = useApiErrorHandler()
   const [pages, setPages] = useState<AdminSupportHelpPage[]>([])
   const [selected, setSelected] = useState<AdminSupportHelpPage | null>(null)
@@ -49,43 +126,67 @@ export function SupportHelpWorkbench() {
   const [query, setQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [sorting, setSorting] = useState(false)
   const [createState, setCreateState] = useState<CreateState>(blankCreate)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const selectionRequest = useRef(0)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
 
   const dirty = Boolean(selected && draft && JSON.stringify(toDraft(selected)) !== JSON.stringify(draft))
+  const sortingDisabled = Boolean(query.trim()) || loading || sorting
+
+  const statusOptions = useMemo(() => [
+    { value: "draft", label: t("supportHelpWorkbench.statusDraft") },
+    { value: "published", label: t("supportHelpWorkbench.statusPublished") },
+    { value: "hidden", label: t("supportHelpWorkbench.statusHidden") },
+  ], [t])
 
   const load = useCallback(async (preferredId?: number) => {
     setLoading(true)
     try {
-      const result = await fetchSupportHelpPagesAdmin({ limit: 500 })
-      setPages(result.results)
-      const id = preferredId ?? selected?.id ?? result.results[0]?.id
-      if (id) {
-        const detail = await fetchSupportHelpPageAdmin(id)
-        setSelected(detail)
-        setDraft(toDraft(detail))
-        const ancestors = new Set<number>()
-        let parentId = detail.parentId
-        while (parentId) { ancestors.add(parentId); parentId = result.results.find((page) => page.id === parentId)?.parentId ?? 0 }
-        setExpanded((current) => new Set([...current, ...ancestors]))
-      } else {
+      const result = await fetchSupportHelpPagesAllAdmin()
+      setPages(result)
+      const id = preferredId ?? selected?.id ?? result[0]?.id
+      if (!id) {
         setSelected(null)
         setDraft(null)
+        return
       }
-    } finally { setLoading(false) }
-  }, [selected?.id])
+      const detail = await fetchSupportHelpPageAdmin(id)
+      setSelected(detail)
+      setDraft(toDraft(detail))
+      const ancestors = new Set<number>()
+      let parentId = detail.parentId
+      while (parentId) {
+        ancestors.add(parentId)
+        parentId = result.find((page) => page.id === parentId)?.parentId ?? 0
+      }
+      setExpanded((current) => new Set([...current, ...ancestors]))
+    } catch (error) {
+      handleApiError(error)
+    } finally {
+      setLoading(false)
+    }
+  }, [handleApiError, selected?.id])
 
   useEffect(() => { void load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const handler = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key === "s") { event.preventDefault(); void save() } }
+    const handler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "s") {
+        event.preventDefault()
+        void save()
+      }
+    }
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
   })
 
   async function selectPage(page: AdminSupportHelpPage) {
     if (page.id === selected?.id) return
-    if (dirty && !window.confirm("当前页面有未保存的修改，确定离开吗？")) return
+    if (dirty && !window.confirm(t("supportHelpWorkbench.unsavedLeaveConfirm"))) return
     const requestId = ++selectionRequest.current
     try {
       const detail = await fetchSupportHelpPageAdmin(page.id)
@@ -101,21 +202,62 @@ export function SupportHelpWorkbench() {
     if (!selected || !draft || !draft.title.trim() || !draft.slug.trim()) return
     setSaving(true)
     try {
-      const saved = await saveSupportHelpPageAdmin({ id: selected.id, ...draft, title: draft.title.trim(), slug: draft.slug.trim(), summary: draft.summary.trim() })
+      const saved = await saveSupportHelpPageAdmin({
+        id: selected.id,
+        ...draft,
+        sortNo: draft.parentId === selected.parentId
+          ? pages.find((page) => page.id === selected.id)?.sortNo ?? selected.sortNo
+          : childPages(pages, draft.parentId).length,
+        title: draft.title.trim(),
+        slug: draft.slug.trim(),
+        summary: draft.summary.trim(),
+      })
       setSelected(saved)
       setDraft(toDraft(saved))
       setPages((items) => items.map((item) => item.id === saved.id ? saved : item))
-      toast.success("页面已保存")
+      toast.success(t("supportHelpWorkbench.saved"))
     } catch (error) {
       handleApiError(error)
-    } finally { setSaving(false) }
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function remove(page: AdminSupportHelpPage) {
-    if (!window.confirm(`确定删除“${page.title}”吗？有子页面时不能删除。`)) return
-    await deleteSupportHelpPageAdmin(page.id)
-    toast.success("页面已删除")
-    await load(selected?.id === page.id ? undefined : selected?.id)
+    if (!window.confirm(t("supportHelpWorkbench.deleteConfirm", { title: page.title }))) return
+    try {
+      await deleteSupportHelpPageAdmin(page.id)
+      toast.success(t("supportHelpWorkbench.deleted"))
+      await load(selected?.id === page.id ? undefined : selected?.id)
+    } catch (error) {
+      handleApiError(error)
+    }
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id || sortingDisabled) return
+    const activePage = pages.find((page) => page.id === Number(active.id))
+    const overPage = pages.find((page) => page.id === Number(over.id))
+    if (!activePage || !overPage) return
+    if (activePage.parentId !== overPage.parentId) {
+      toast.info(t("supportHelpWorkbench.sameLevelOnly"))
+      return
+    }
+    const reordered = reorderSiblings(pages, activePage.parentId, activePage.id, overPage.id)
+    if (!reordered) return
+    const previous = pages
+    setPages(reordered.pages)
+    setSorting(true)
+    try {
+      await updateSupportHelpPageSortAdmin({ parentId: activePage.parentId, ids: reordered.ids })
+      toast.success(t("supportHelpWorkbench.sortSaved"))
+    } catch (error) {
+      setPages(previous)
+      handleApiError(error)
+    } finally {
+      setSorting(false)
+    }
   }
 
   const visibleIds = useMemo(() => {
@@ -126,89 +268,173 @@ export function SupportHelpWorkbench() {
       if (!`${page.title} ${page.slug} ${page.summary}`.toLowerCase().includes(keyword)) continue
       ids.add(page.id)
       let parentId = page.parentId
-      while (parentId) { ids.add(parentId); parentId = pages.find((item) => item.id === parentId)?.parentId ?? 0 }
+      while (parentId) {
+        ids.add(parentId)
+        parentId = pages.find((item) => item.id === parentId)?.parentId ?? 0
+      }
     }
     return ids
   }, [pages, query])
+
+  const roots = childPages(pages, 0).filter((page) => !visibleIds || visibleIds.has(page.id))
+  const path = pagePath(pages, selected)
+  const statusLabel = statusOptions.find((item) => item.value === draft?.status)?.label ?? draft?.status
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden bg-background">
       <aside className="flex w-72 shrink-0 flex-col border-r bg-muted/20">
         <div className="flex h-14 items-center justify-between border-b px-3">
-          <span className="font-semibold">帮助中心</span>
-          <Button size="icon" variant="ghost" title="新建页面" onClick={() => setCreateState({ open: true, parentId: 0 })}><FilePlus2Icon /></Button>
+          <span className="font-semibold">{t("supportHelpWorkbench.title")}</span>
+          <Button size="icon" variant="ghost" title={t("supportHelpWorkbench.createPage")} aria-label={t("supportHelpWorkbench.createPage")} onClick={() => setCreateState({ open: true, parentId: 0 })}>
+            <FilePlus2Icon />
+          </Button>
         </div>
-        <div className="p-3"><div className="relative"><SearchIcon className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" /><Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="搜索页面" /></div></div>
+        <div className="p-3">
+          <div className="relative">
+            <SearchIcon className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+            <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder={t("supportHelpWorkbench.searchPlaceholder")} />
+          </div>
+          {query.trim() ? <p className="mt-2 text-xs text-muted-foreground">{t("supportHelpWorkbench.sortDisabledDuringSearch")}</p> : null}
+        </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
-          {pages.filter((page) => page.parentId === 0 && (!visibleIds || visibleIds.has(page.id))).map((page) => (
-            <PageTreeNode key={page.id} page={page} pages={pages} depth={0} selectedId={selected?.id} expanded={expanded} forceExpanded={Boolean(query)} visibleIds={visibleIds} onToggle={(id) => setExpanded((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next })} onSelect={selectPage} onCreate={(parentId) => setCreateState({ open: true, parentId })} onDelete={remove} />
-          ))}
-          {!loading && pages.length === 0 ? <div className="px-3 py-10 text-center text-sm text-muted-foreground">新建第一个帮助页面</div> : null}
-          {loading ? <div className="px-3 py-10 text-center text-sm text-muted-foreground">正在加载...</div> : null}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => void handleDragEnd(event)}>
+            <SortableContext items={roots.map((page) => page.id)} strategy={verticalListSortingStrategy}>
+              {roots.map((page) => (
+                <PageTreeNode
+                  key={page.id}
+                  page={page}
+                  pages={pages}
+                  depth={0}
+                  selectedId={selected?.id}
+                  expanded={expanded}
+                  forceExpanded={Boolean(query)}
+                  visibleIds={visibleIds}
+                  sortingDisabled={sortingDisabled}
+                  onToggle={(id) => setExpanded((current) => {
+                    const next = new Set(current)
+                    if (next.has(id)) next.delete(id)
+                    else next.add(id)
+                    return next
+                  })}
+                  onSelect={selectPage}
+                  onCreate={(parentId) => setCreateState({ open: true, parentId })}
+                  onDelete={remove}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+          {!loading && pages.length === 0 ? <div className="px-3 py-10 text-center text-sm text-muted-foreground">{t("supportHelpWorkbench.empty")}</div> : null}
+          {loading ? <div className="px-3 py-10 text-center text-sm text-muted-foreground">{t("supportHelpWorkbench.loading")}</div> : null}
         </div>
       </aside>
 
-      <main key={selected?.id ?? "empty"} className="min-w-0 flex-1">
+      <main key={selected?.id ?? "empty"} className="flex min-w-0 flex-1 flex-col">
         {draft && selected ? <>
-          <div className="flex h-14 items-center justify-between gap-3 border-b px-4">
-            <div className="min-w-0"><p className="truncate text-sm font-medium">{draft.title || "未命名页面"}</p><p className="text-xs text-muted-foreground">{dirty ? "有未保存修改" : "所有修改已保存"}</p></div>
-            <div className="flex items-center gap-1">
-              <Button size="icon" variant="ghost" title="页面设置" onClick={() => setSettingsOpen(true)}><Settings2Icon /></Button>
-              {selected.status === "published" ? <Button size="icon" variant="ghost" nativeButton={false} title="打开前台页面" render={<a href={`/support/help/${selected.slug}`} target="_blank" rel="noreferrer" />}><ExternalLinkIcon /></Button> : null}
-              <Button onClick={() => void save()} disabled={!dirty || saving}><SaveIcon />{saving ? "保存中" : "保存"}</Button>
+          <div className="flex h-14 shrink-0 items-center justify-between gap-4 border-b px-4">
+            <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+              <span className="shrink-0">{t("supportHelpWorkbench.title")}</span>
+              {path.map((item) => <span key={item.id} className="flex min-w-0 items-center gap-2"><ChevronRightIcon className="size-3.5 shrink-0" /><span className="truncate">{item.title}</span></span>)}
+              <Badge variant="outline" className="ml-1 shrink-0">{statusLabel}</Badge>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <span className={cn("hidden text-xs sm:inline", dirty ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>{dirty ? t("supportHelpWorkbench.unsaved") : t("supportHelpWorkbench.savedState")}</span>
+              <Button size="icon" variant="ghost" title={t("supportHelpWorkbench.pageSettings")} aria-label={t("supportHelpWorkbench.pageSettings")} onClick={() => setSettingsOpen(true)}><Settings2Icon /></Button>
+              {selected.status === "published" ? <Button size="icon" variant="ghost" nativeButton={false} title={t("supportHelpWorkbench.openPublicPage")} aria-label={t("supportHelpWorkbench.openPublicPage")} render={<a href={`/support/help/${selected.slug}`} target="_blank" rel="noreferrer" />}><ExternalLinkIcon /></Button> : null}
+              <Button onClick={() => void save()} disabled={!dirty || saving}><SaveIcon />{saving ? t("supportHelpWorkbench.saving") : t("supportHelpWorkbench.save")}</Button>
             </div>
           </div>
-          <div className="h-[calc(100%-3.5rem)] overflow-y-auto p-5">
-            <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-auto border-0 px-0 text-3xl font-semibold shadow-none focus-visible:ring-0" aria-label="页面标题" />
-            <Textarea value={draft.summary} onChange={(event) => setDraft({ ...draft, summary: event.target.value })} className="my-3 min-h-9 resize-none border-0 px-0 text-muted-foreground shadow-none focus-visible:ring-0" placeholder="添加页面摘要" aria-label="页面摘要" />
-            <ContentEditor
-              value={{
-                mode: draft.contentType === "html" ? "html" : "markdown",
-                raw: draft.content,
-              }}
-              onChange={(content) => setDraft({
-                ...draft,
-                content: content.raw,
-                contentType: content.mode,
-              })}
-              height="calc(100vh - 19rem)"
-            />
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
+            <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-auto shrink-0 border-0 px-0 text-3xl font-semibold shadow-none focus-visible:ring-0" aria-label={t("supportHelpWorkbench.pageTitle")} />
+            <div className="min-h-[400px] flex-1">
+              <ContentEditor
+                value={{ mode: draft.contentType === "html" ? "html" : "markdown", raw: draft.content }}
+                onChange={(content) => setDraft({ ...draft, content: content.raw, contentType: content.mode })}
+                placeholder={t("supportHelpWorkbench.contentPlaceholder")}
+                height="100%"
+              />
+            </div>
           </div>
-        </> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">从左侧选择页面，或新建页面</div>}
+        </> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">{t("supportHelpWorkbench.selectPrompt")}</div>}
       </main>
 
       <CreatePageDialog key={`${createState.open}-${createState.parentId}`} state={createState} pages={pages} onOpenChange={(open) => setCreateState((current) => ({ ...current, open }))} onCreated={async (id) => { setCreateState(blankCreate); await load(id) }} />
-      <PageSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} pages={pages} selected={selected} draft={draft} onChange={setDraft} />
+      <PageSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} pages={pages} selected={selected} draft={draft} statusOptions={statusOptions} onChange={setDraft} />
     </div>
   )
 }
 
-function PageTreeNode({ page, pages, depth, selectedId, expanded, forceExpanded, visibleIds, onToggle, onSelect, onCreate, onDelete }: { page: AdminSupportHelpPage; pages: AdminSupportHelpPage[]; depth: number; selectedId?: number; expanded: Set<number>; forceExpanded: boolean; visibleIds: Set<number> | null; onToggle: (id: number) => void; onSelect: (page: AdminSupportHelpPage) => void; onCreate: (parentId: number) => void; onDelete: (page: AdminSupportHelpPage) => void }) {
-  const children = pages.filter((item) => item.parentId === page.id && (!visibleIds || visibleIds.has(item.id)))
+type PageTreeNodeProps = {
+  page: AdminSupportHelpPage
+  pages: AdminSupportHelpPage[]
+  depth: number
+  selectedId?: number
+  expanded: Set<number>
+  forceExpanded: boolean
+  visibleIds: Set<number> | null
+  sortingDisabled: boolean
+  onToggle: (id: number) => void
+  onSelect: (page: AdminSupportHelpPage) => void
+  onCreate: (parentId: number) => void
+  onDelete: (page: AdminSupportHelpPage) => void
+}
+
+function PageTreeNode(props: PageTreeNodeProps) {
+  const { page, pages, depth, selectedId, expanded, forceExpanded, visibleIds, sortingDisabled, onToggle, onSelect, onCreate, onDelete } = props
+  const t = useI18n()
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: page.id, disabled: sortingDisabled })
+  const children = childPages(pages, page.id).filter((item) => !visibleIds || visibleIds.has(item.id))
   const open = forceExpanded || expanded.has(page.id)
-  return <div>
-    <div className={`group flex h-9 items-center rounded-md pr-1 text-sm ${selectedId === page.id ? "bg-accent text-accent-foreground" : "hover:bg-accent/60"}`} style={{ paddingLeft: 4 + depth * 16 }}>
-      <button type="button" className="flex size-7 shrink-0 items-center justify-center" onClick={() => children.length && onToggle(page.id)} aria-label={open ? "折叠子页面" : "展开子页面"}><ChevronRightIcon className={`size-4 transition-transform ${children.length ? "" : "opacity-0"} ${open ? "rotate-90" : ""}`} /></button>
+  const style: CSSProperties = { transform: CSS.Transform.toString(transform), transition }
+
+  return <div ref={setNodeRef} style={style} className={cn(isDragging && "relative z-10 opacity-70")}>
+    <div className={cn("group flex h-9 items-center rounded-md pr-1 text-sm", selectedId === page.id ? "bg-accent text-accent-foreground" : "hover:bg-accent/60", isDragging && "shadow-sm")} style={{ paddingLeft: 4 + depth * 16 }}>
+      <button type="button" className="flex size-7 shrink-0 items-center justify-center" onClick={() => children.length && onToggle(page.id)} aria-label={open ? t("supportHelpWorkbench.collapse") : t("supportHelpWorkbench.expand")}>
+        <ChevronRightIcon className={cn("size-4 transition-transform", !children.length && "opacity-0", open && "rotate-90")} />
+      </button>
       <button type="button" className="min-w-0 flex-1 truncate text-left" onClick={() => void onSelect(page)}>{page.title}</button>
-      <span className={`mr-1 size-1.5 rounded-full ${page.status === "published" ? "bg-emerald-500" : page.status === "hidden" ? "bg-amber-500" : "bg-muted-foreground/40"}`} />
-      <DropdownMenu><DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" className="opacity-0 group-hover:opacity-100" aria-label={`页面操作：${page.title}`} />}><MoreHorizontalIcon /></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem onClick={() => onCreate(page.id)}><FilePlus2Icon />新建子页面</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem variant="destructive" onClick={() => void onDelete(page)}><Trash2Icon />删除页面</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+      <span className={cn("mr-1 size-1.5 rounded-full", page.status === "published" ? "bg-emerald-500" : page.status === "hidden" ? "bg-amber-500" : "bg-muted-foreground/40")} />
+      <button type="button" className="flex size-7 shrink-0 cursor-grab items-center justify-center text-muted-foreground touch-none active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-35" disabled={sortingDisabled} aria-label={t("supportHelpWorkbench.dragPage", { title: page.title })} title={sortingDisabled ? t("supportHelpWorkbench.dragDisabled") : t("supportHelpWorkbench.dragPage", { title: page.title })} {...attributes} {...listeners}>
+        <GripVerticalIcon className="size-3.5" />
+      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" className="opacity-0 group-hover:opacity-100 focus:opacity-100" aria-label={t("supportHelpWorkbench.pageActions", { title: page.title })} />}><MoreHorizontalIcon /></DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuItem onClick={() => onCreate(page.id)}><FilePlus2Icon />{t("supportHelpWorkbench.createChildPage")}</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onClick={() => void onDelete(page)}><Trash2Icon />{t("supportHelpWorkbench.deletePage")}</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
-    {open ? children.map((child) => <PageTreeNode key={child.id} page={child} pages={pages} depth={depth + 1} selectedId={selectedId} expanded={expanded} forceExpanded={forceExpanded} visibleIds={visibleIds} onToggle={onToggle} onSelect={onSelect} onCreate={onCreate} onDelete={onDelete} />) : null}
+    {open ? <SortableContext items={children.map((child) => child.id)} strategy={verticalListSortingStrategy}>
+      {children.map((child) => <PageTreeNode key={child.id} {...props} page={child} depth={depth + 1} />)}
+    </SortableContext> : null}
   </div>
 }
 
 function CreatePageDialog({ state, pages, onOpenChange, onCreated }: { state: CreateState; pages: AdminSupportHelpPage[]; onOpenChange: (open: boolean) => void; onCreated: (id: number) => void }) {
+  const t = useI18n()
   const handleApiError = useApiErrorHandler()
   const [title, setTitle] = useState("")
   const [slug, setSlug] = useState("")
   const [parentId, setParentId] = useState(state.parentId)
   const [creating, setCreating] = useState(false)
+
   async function create() {
     if (!title.trim() || !slug.trim() || creating) return
     setCreating(true)
     try {
-      const page = await saveSupportHelpPageAdmin({ parentId, title: title.trim(), slug: slug.trim(), summary: "", contentType: "markdown", content: `# ${title.trim()}\n`, tags: [], status: "draft", sortNo: pages.filter((item) => item.parentId === parentId).length })
-      toast.success("页面已创建")
+      const page = await saveSupportHelpPageAdmin({
+        parentId,
+        title: title.trim(),
+        slug: slug.trim(),
+        summary: "",
+        contentType: "markdown",
+        content: "",
+        tags: [],
+        status: "draft",
+        sortNo: childPages(pages, parentId).length,
+      })
+      toast.success(t("supportHelpWorkbench.created"))
       onCreated(page.id)
     } catch (error) {
       handleApiError(error)
@@ -216,12 +442,37 @@ function CreatePageDialog({ state, pages, onOpenChange, onCreated }: { state: Cr
       setCreating(false)
     }
   }
-  return <Dialog open={state.open} onOpenChange={onOpenChange}><DialogContent><DialogHeader><DialogTitle>新建页面</DialogTitle><DialogDescription>页面既会出现在目录中，也可以直接承载正文。</DialogDescription></DialogHeader><div className="grid gap-4 py-2"><div className="grid gap-2"><Label>页面标题</Label><Input autoFocus value={title} onChange={(event) => { setTitle(event.target.value); if (!slug) setSlug(slugify(event.target.value)) }} /></div><div className="grid gap-2"><Label>Slug</Label><Input value={slug} onChange={(event) => setSlug(slugify(event.target.value))} placeholder="getting-started" /></div><div className="grid gap-2"><Label>父页面</Label><OptionCombobox value={String(parentId)} onChange={(value) => setParentId(Number(value))} placeholder="选择父页面" options={[{ value: "0", label: "根目录" }, ...pages.map((page) => ({ value: String(page.id), label: page.title }))]} /></div></div><DialogFooter><Button variant="outline" disabled={creating} onClick={() => onOpenChange(false)}>取消</Button><Button disabled={!title.trim() || !slug.trim() || creating} onClick={() => void create()}>{creating ? "创建中..." : "创建并编辑"}</Button></DialogFooter></DialogContent></Dialog>
+
+  return <Dialog open={state.open} onOpenChange={onOpenChange}>
+    <DialogContent>
+      <DialogHeader><DialogTitle>{t("supportHelpWorkbench.createPage")}</DialogTitle><DialogDescription>{t("supportHelpWorkbench.createDescription")}</DialogDescription></DialogHeader>
+      <div className="grid gap-4 py-2">
+        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.pageTitle")}</Label><Input autoFocus value={title} onChange={(event) => { setTitle(event.target.value); if (!slug) setSlug(slugify(event.target.value)) }} /></div>
+        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.slug")}</Label><Input value={slug} onChange={(event) => setSlug(slugify(event.target.value))} placeholder="getting-started" /></div>
+        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.parentPage")}</Label><OptionCombobox value={String(parentId)} onChange={(value) => setParentId(Number(value))} placeholder={t("supportHelpWorkbench.selectParentPage")} options={[{ value: "0", label: t("supportHelpWorkbench.rootDirectory") }, ...pages.map((page) => ({ value: String(page.id), label: page.title }))]} /></div>
+      </div>
+      <DialogFooter><Button variant="outline" disabled={creating} onClick={() => onOpenChange(false)}>{t("supportHelpWorkbench.cancel")}</Button><Button disabled={!title.trim() || !slug.trim() || creating} onClick={() => void create()}>{creating ? t("supportHelpWorkbench.creating") : t("supportHelpWorkbench.createAndEdit")}</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>
 }
 
-function PageSettingsDialog({ open, onOpenChange, pages, selected, draft, onChange }: { open: boolean; onOpenChange: (open: boolean) => void; pages: AdminSupportHelpPage[]; selected: AdminSupportHelpPage | null; draft: PageDraft | null; onChange: (draft: PageDraft) => void }) {
+function PageSettingsDialog({ open, onOpenChange, pages, selected, draft, statusOptions, onChange }: { open: boolean; onOpenChange: (open: boolean) => void; pages: AdminSupportHelpPage[]; selected: AdminSupportHelpPage | null; draft: PageDraft | null; statusOptions: Array<{ value: string; label: string }>; onChange: (draft: PageDraft) => void }) {
+  const t = useI18n()
   if (!draft || !selected) return null
-  const excluded = descendantIds(pages, selected.id); excluded.add(selected.id)
-  const options = [{ value: "0", label: "根目录" }, ...pages.filter((page) => !excluded.has(page.id)).map((page) => ({ value: String(page.id), label: page.title }))]
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent><DialogHeader><DialogTitle>页面设置</DialogTitle><DialogDescription>调整页面位置、访问路径和发布状态，保存后生效。</DialogDescription></DialogHeader><div className="grid gap-4 py-2"><div className="grid gap-2"><Label>父页面</Label><OptionCombobox value={String(draft.parentId)} onChange={(value) => onChange({ ...draft, parentId: Number(value) })} placeholder="选择父页面" options={options} /></div><div className="grid gap-2"><Label>Slug</Label><Input value={draft.slug} onChange={(event) => onChange({ ...draft, slug: slugify(event.target.value) })} /></div><div className="grid gap-2"><Label>状态</Label><OptionCombobox value={draft.status} onChange={(status) => onChange({ ...draft, status })} placeholder="选择状态" options={statusOptions} /></div><div className="grid gap-2"><Label>排序</Label><Input type="number" min={0} value={draft.sortNo} onChange={(event) => onChange({ ...draft, sortNo: Number(event.target.value) })} /></div></div><DialogFooter><Button onClick={() => onOpenChange(false)}>完成</Button></DialogFooter></DialogContent></Dialog>
+  const excluded = descendantIds(pages, selected.id)
+  excluded.add(selected.id)
+  const options = [{ value: "0", label: t("supportHelpWorkbench.rootDirectory") }, ...pages.filter((page) => !excluded.has(page.id)).map((page) => ({ value: String(page.id), label: page.title }))]
+
+  return <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent>
+      <DialogHeader><DialogTitle>{t("supportHelpWorkbench.pageSettings")}</DialogTitle><DialogDescription>{t("supportHelpWorkbench.settingsDescription")}</DialogDescription></DialogHeader>
+      <div className="grid gap-4 py-2">
+        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.parentPage")}</Label><OptionCombobox value={String(draft.parentId)} onChange={(value) => onChange({ ...draft, parentId: Number(value) })} placeholder={t("supportHelpWorkbench.selectParentPage")} options={options} /></div>
+        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.slug")}</Label><Input value={draft.slug} onChange={(event) => onChange({ ...draft, slug: slugify(event.target.value) })} /></div>
+        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.status")}</Label><OptionCombobox value={draft.status} onChange={(status) => onChange({ ...draft, status })} placeholder={t("supportHelpWorkbench.selectStatus")} options={statusOptions} /></div>
+        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.summary")}</Label><Textarea value={draft.summary} onChange={(event) => onChange({ ...draft, summary: event.target.value })} rows={4} placeholder={t("supportHelpWorkbench.summaryPlaceholder")} /></div>
+      </div>
+      <DialogFooter><Button onClick={() => onOpenChange(false)}>{t("supportHelpWorkbench.done")}</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>
 }

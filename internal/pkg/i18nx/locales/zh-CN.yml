@@ -479,6 +479,8 @@ graph.handoffConfirmPrompt: |-
   请回复“确认”或“取消”。
 conversation.interrupt.defaultPrompt: "请补充更多信息后再试。"
 ticket.defaultConversationTitle: "会话工单"
+error.supportHelpPage.sortScopeMismatch: "排序页面必须完整属于同一父页面"
+error.supportHelpPage.sortDuplicate: "排序页面中存在重复项"
 tool.graph.createTicketConfirm.info: "Graph Tool。处理工单参数准备、用户确认、实际创建工单和结果返回。仅当用户明确要求创建工单且标题、描述清晰时使用。"
 tool.graph.createTicketConfirm.param.title: "工单标题。简洁概括问题。"
 tool.graph.createTicketConfirm.param.description: "工单描述。清晰记录用户的问题、现象和诉求。"

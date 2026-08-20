@@ -92,6 +92,50 @@ func (s *supportService) GetSupportUser(ctx *gin.Context) *dto.AuthPrincipal {
 	return nil
 }
 
+func (s *supportService) FindHelpPages(cnd *sqls.Cnd) []models.SupportHelpPage {
+	return repositories.SupportHelpPageRepository.Find(sqls.DB(), cnd)
+}
+
+func (s *supportService) FindHelpPageByID(id int64) *models.SupportHelpPage {
+	return repositories.SupportHelpPageRepository.Get(sqls.DB(), id)
+}
+
+func (s *supportService) FindHelpPagePage(cnd *sqls.Cnd) ([]models.SupportHelpPage, *sqls.Paging) {
+	return repositories.SupportHelpPageRepository.FindPageByCnd(sqls.DB(), cnd)
+}
+
+func (s *supportService) SortHelpPages(req request.SortSupportHelpPagesRequest) error {
+	pages := repositories.SupportHelpPageRepository.Find(
+		sqls.DB(),
+		sqls.NewCnd().Eq("parent_id", req.ParentID).Asc("sort_no").Asc("id"),
+	)
+	if len(req.IDs) != len(pages) {
+		return errorsx.InvalidParamI18n("error.supportHelpPage.sortScopeMismatch")
+	}
+	existing := make(map[int64]struct{}, len(pages))
+	for _, page := range pages {
+		existing[page.ID] = struct{}{}
+	}
+	seen := make(map[int64]struct{}, len(req.IDs))
+	for _, id := range req.IDs {
+		if _, ok := existing[id]; !ok {
+			return errorsx.InvalidParamI18n("error.supportHelpPage.sortScopeMismatch")
+		}
+		if _, ok := seen[id]; ok {
+			return errorsx.InvalidParamI18n("error.supportHelpPage.sortDuplicate")
+		}
+		seen[id] = struct{}{}
+	}
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		for sortNo, id := range req.IDs {
+			if err := repositories.SupportHelpPageRepository.UpdateSort(ctx.Tx, id, sortNo); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 func (s *supportService) validateHelpPageParent(id, parentID int64) error {
 	if parentID == 0 {
 		return nil

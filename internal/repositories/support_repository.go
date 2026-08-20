@@ -57,6 +57,10 @@ func (r *supportHelpPageRepository) UpdateColumn(db *gorm.DB, id int64, column s
 	return db.Model(&models.SupportHelpPage{}).Where("id = ?", id).UpdateColumn(column, value).Error
 }
 
+func (r *supportHelpPageRepository) UpdateSort(db *gorm.DB, id int64, sortNo int) error {
+	return db.Model(&models.SupportHelpPage{}).Where("id = ?", id).UpdateColumn("sort_no", sortNo).Error
+}
+
 func (r *supportHelpPageRepository) Delete(db *gorm.DB, id int64) error {
 	return db.Delete(&models.SupportHelpPage{}, "id = ?", id).Error
 }
