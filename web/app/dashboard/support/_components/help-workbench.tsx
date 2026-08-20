@@ -350,7 +350,7 @@ export function SupportHelpWorkbench() {
               <Button onClick={() => void save()} disabled={!dirty || saving}><SaveIcon />{saving ? t("supportHelpWorkbench.saving") : t("supportHelpWorkbench.save")}</Button>
             </div>
           </div>
-          <div className="flex min-h-[calc(100%_-_3.5rem)] flex-col bg-muted/20">
+          <div className="flex min-h-[calc(100%-3.5rem)] flex-col bg-card">
             <div className="flex flex-1 flex-col">
               <ContentEditor
                 value={{ mode: draft.contentType === "html" ? "html" : "markdown", raw: draft.content }}
