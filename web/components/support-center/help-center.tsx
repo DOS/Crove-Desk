@@ -11,10 +11,8 @@ import {
   FolderIcon,
   FolderOpenIcon,
   HeadphonesIcon,
-  HomeIcon,
   MenuIcon,
   MessageCircleMoreIcon,
-  SearchIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
   XIcon,
@@ -31,6 +29,9 @@ import { SupportHelpLink, type HelpPageNavigationHandler, useSupportHelpRoute } 
 import { useSupportHelpReader } from "@/components/support-center/use-support-help-reader"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { SupportPageContent, SupportPageShell } from "@/components/support-center/support-page-shell"
+import { SupportHeader } from "@/components/support-center/support-header"
+import { SupportEmptyState as EmptyState, SupportFormField as LabeledField, SupportInfoCard as InfoCard, SupportQuestionStatusBadge as QuestionStatusBadge, SupportSearchInput } from "@/components/support-center/support-ui"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -58,9 +59,6 @@ import { readSession } from "@/lib/auth"
 import { articleHeadingId, markdownHeadingText } from "@/lib/support-article"
 import { cn, formatDateTime } from "@/lib/utils"
 
-const pageBackground =
-  "bg-[#f7f9fc] dark:bg-background"
-
 export function SupportHelpCenter() {
   const t = useI18n()
   const [pages, setPages] = useState<SupportHelpPage[]>([])
@@ -83,7 +81,7 @@ export function SupportHelpCenter() {
   }, [])
 
   return (
-    <SupportFrame>
+    <SupportPageShell>
       <section className="relative border-y border-sky-100 bg-[radial-gradient(circle_at_50%_-30%,#ddecff,transparent_55%)] px-5 py-12 sm:px-8 sm:py-18 dark:border-border dark:bg-[radial-gradient(circle_at_50%_-30%,rgba(36,117,252,.26),transparent_55%)]">
         <div className="relative mx-auto max-w-3xl text-center">
           <Badge variant="secondary" className="mb-5 bg-white/70 px-3 py-1 text-primary shadow-sm dark:bg-card/80">
@@ -112,7 +110,7 @@ export function SupportHelpCenter() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-[var(--support-shell-max-width)] px-5 py-10 sm:px-6 sm:py-14 md:px-8 lg:px-10">
+      <SupportPageContent className="py-10 sm:py-14">
         <section className="grid gap-3 sm:grid-cols-3" aria-label={t("supportPublic.home.quickPanelTitle")}>
           <SupportEntryCard
             href="/support/help"
@@ -158,8 +156,8 @@ export function SupportHelpCenter() {
             </PublicSection>
           </div>
         </section>
-      </div>
-    </SupportFrame>
+      </SupportPageContent>
+    </SupportPageShell>
   )
 }
 
@@ -256,7 +254,7 @@ export function SupportQuestionList() {
   }, [categoryId, status, title])
 
   return (
-    <SupportShell title={t("supportPublic.questions.title")} description={t("supportPublic.questions.description")}>
+    <SupportShell section="questions" title={t("supportPublic.questions.title")} description={t("supportPublic.questions.description")}>
       <div className="grid gap-6 lg:grid-cols-[256px_minmax(0,1fr)]">
         <CategoryRail categories={categories} active={categoryId} onChange={setCategoryId} />
         <section className="min-w-0">
@@ -315,11 +313,11 @@ export function SupportQuestionDetail() {
   }
 
   if (!question) {
-    return <SupportShell title={t("supportPublic.questions.detailTitle")} description={t("supportPublic.loading.question")} />
+    return <SupportShell section="questions" title={t("supportPublic.questions.detailTitle")} description={t("supportPublic.loading.question")} />
   }
 
   return (
-    <SupportShell title={question.title} description={`${question.categoryName || t("supportPublic.common.uncategorized")} · ${question.userName || t("supportPublic.common.user")}`}>
+    <SupportShell section="questions" title={question.title} description={`${question.categoryName || t("supportPublic.common.uncategorized")} · ${question.userName || t("supportPublic.common.user")}`}>
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
         <section className="min-w-0 space-y-4">
           <Card className="rounded-2xl border-border bg-card shadow-sm">
@@ -397,7 +395,7 @@ export function SupportAskQuestion() {
   }
 
   return (
-    <SupportShell title={t("supportPublic.ask.title")} description={t("supportPublic.ask.description")}>
+    <SupportShell section="ask" title={t("supportPublic.ask.title")} description={t("supportPublic.ask.description")}>
       <div className="mx-auto max-w-3xl rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
         <div className="grid gap-4">
           <LabeledField label={t("supportPublic.ask.category")}>
@@ -454,7 +452,7 @@ export function SupportLoginPage() {
   }
 
   return (
-    <SupportShell title={t("supportPublic.login.title")} description={t("supportPublic.login.description")}>
+    <SupportShell section="login" title={t("supportPublic.login.title")} description={t("supportPublic.login.description")}>
       <div className="mx-auto max-w-md rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
         <div className="grid gap-4">
           {mode === "register" && (
@@ -480,50 +478,18 @@ export function SupportLoginPage() {
   )
 }
 
-function SupportFrame({ children }: { children: ReactNode }) {
+function SupportShell({ section, title, description, children }: { section: "questions" | "ask" | "login"; title: string; description: string; children?: ReactNode }) {
   return (
-    <main className={cn("min-h-svh overflow-hidden text-foreground", pageBackground)}>
-      <SupportHeader />
-      {children}
-    </main>
-  )
-}
-
-function SupportShell({ title, description, children }: { title: string; description: string; children?: ReactNode }) {
-  return (
-    <SupportFrame>
-      <div className="mx-auto max-w-[var(--support-shell-max-width)] px-5 py-10 sm:px-6 sm:py-12 md:px-8 lg:px-10">
+    <SupportPageShell section={section}>
+      <SupportPageContent className="py-10 sm:py-12">
         <div className="mb-7">
           <p className="text-sm font-medium text-primary">{title}</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
           {description ? <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">{description}</p> : null}
         </div>
         {children}
-      </div>
-    </SupportFrame>
-  )
-}
-
-function SupportHeader() {
-  const t = useI18n()
-  return (
-    <header className="mx-auto flex h-16 max-w-[var(--support-shell-max-width)] items-center justify-between px-5 sm:px-6 md:px-8 lg:px-10">
-      <Link href="/support" className="flex items-center gap-2.5 font-semibold tracking-tight">
-        {/* <span>
-          AGENT DESK <span className="font-normal text-muted-foreground">{t("supportPublic.home.badge")}</span>
-        </span> */}
-        <span>AGENT DESK</span>
-        <span className="hidden border-l pl-2 font-normal text-muted-foreground sm:inline">{t("supportPublic.home.badge")}</span>
-      </Link>
-      <nav className="flex items-center gap-1 sm:gap-2">
-        <Link className={cn(buttonVariants({ variant: "ghost" }), "hidden sm:inline-flex")} href="/support/help">{t("supportPublic.nav.help")}</Link>
-        <Link className={cn(buttonVariants({ variant: "ghost" }), "hidden sm:inline-flex")} href="/support/questions">{t("supportPublic.nav.questions")}</Link>
-        <Link className={buttonVariants({ variant: "outline" })} href="/support/login">
-          <HeadphonesIcon />
-          <span>{t("supportPublic.nav.login")}</span>
-        </Link>
-      </nav>
-    </header>
+      </SupportPageContent>
+    </SupportPageShell>
   )
 }
 
@@ -543,24 +509,10 @@ function SupportDocsFrame({
   const t = useI18n()
   return (
     <main className="min-h-svh bg-background text-foreground">
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="mx-auto flex h-14 max-w-[var(--support-docs-max-width)] items-center gap-3 px-4 sm:px-6 md:px-8 xl:px-6">
-          {navigation ? (
-            <Button variant="ghost" size="icon" className="xl:hidden" onClick={() => onNavigationOpenChange(true)} aria-label={t("supportPublic.a11y.openNavigation")}>
-              <MenuIcon />
-            </Button>
-          ) : null}
-          <Link href="/support" className="flex shrink-0 items-center gap-2 font-semibold tracking-tight">
-            <span>AGENT DESK</span>
-            <span className="hidden border-l pl-2 font-normal text-muted-foreground sm:inline">{t("supportPublic.help.title")}</span>
-          </Link>
-          <nav className="ml-auto flex items-center gap-1">
-            <Link className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden sm:inline-flex")} href="/support"><HomeIcon />{t("supportPublic.nav.home")}</Link>
-            <Link className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden sm:inline-flex")} href="/support/questions">{t("supportPublic.nav.questions")}</Link>
-            <Link className={buttonVariants({ variant: "outline", size: "sm" })} href="/support/questions/ask">{t("supportPublic.actions.askQuestion")}</Link>
-          </nav>
-        </div>
-      </header>
+      <SupportHeader
+        section="help"
+        leading={navigation ? <Button variant="ghost" size="icon" className="xl:hidden" onClick={() => onNavigationOpenChange(true)} aria-label={t("supportPublic.a11y.openNavigation")}><MenuIcon /></Button> : null}
+      />
 
       <div className="support-docs-grid mx-auto max-w-[var(--support-docs-max-width)]">
         {navigation ? <aside className="hidden border-r xl:sticky xl:top-14 xl:block xl:h-[calc(100svh-3.5rem)] xl:overflow-y-auto">{navigation}</aside> : null}
@@ -1040,74 +992,6 @@ function AnswerCard({ answer, questionId, onChanged }: { answer: SupportAnswer; 
         </div>
       </CardContent>
     </Card>
-  )
-}
-
-function InfoCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border bg-card p-4 shadow-sm">
-      <div className="text-2xl font-semibold">{value}</div>
-      <div className="mt-1 text-sm text-muted-foreground">{label}</div>
-    </div>
-  )
-}
-
-function QuestionStatusBadge({ status }: { status: string }) {
-  const t = useI18n()
-  if (status === "resolved") {
-    return <Badge className="bg-emerald-600 text-white"><CheckCircle2Icon /> {t("supportPublic.status.resolved")}</Badge>
-  }
-  if (status === "closed") {
-    return <Badge variant="outline">{t("supportPublic.status.closed")}</Badge>
-  }
-  return <Badge variant="secondary">{t("supportPublic.status.normal")}</Badge>
-}
-
-function SupportSearchInput({
-  value,
-  onChange,
-  placeholder,
-  compact = false,
-  hero = false,
-}: {
-  value: string
-  onChange: (value: string) => void
-  placeholder: string
-  compact?: boolean
-  hero?: boolean
-}) {
-  return (
-    <div className="relative flex-1">
-      <SearchIcon className={cn("pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground", hero ? "left-4 size-5" : "left-3 size-4")} />
-      <Input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={cn(
-          "bg-card",
-          hero && "h-13 rounded-2xl border-white bg-white pl-12 pr-4 text-base shadow-[0_12px_30px_rgba(36,117,252,.12)] focus-visible:ring-primary/25 dark:border-border dark:bg-card",
-          compact && "h-9 pl-9",
-          !hero && !compact && "h-11 pl-9"
-        )}
-        placeholder={placeholder}
-      />
-    </div>
-  )
-}
-
-function LabeledField({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="grid gap-2">
-      <span className="text-sm font-medium">{label}</span>
-      {children}
-    </label>
-  )
-}
-
-function EmptyState({ text, compact = false }: { text: string; compact?: boolean }) {
-  return (
-    <div className={cn("rounded-2xl border border-dashed bg-card p-8 text-center text-sm text-muted-foreground", compact && "border-0 p-5")}>
-      {text}
-    </div>
   )
 }
 
