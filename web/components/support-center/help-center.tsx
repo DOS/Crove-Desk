@@ -23,7 +23,7 @@ import { MdPreview } from "md-editor-rt"
 import Link from "next/link"
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useTheme } from "next-themes"
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 
 import { OptionCombobox } from "@/components/option-combobox"
@@ -938,7 +938,8 @@ function ChildPageLinks({ pages }: { pages: SupportHelpPage[] }) {
 
 function PublicArticleToc({ content, contentType = "markdown" }: { content: string; contentType?: string }) {
   const t = useI18n()
-  const headings = contentType === "html"
+  const tocRef = useRef<HTMLElement>(null)
+  const headings = useMemo(() => contentType === "html"
     ? Array.from(content.matchAll(/<h([23])[^>]*>([\s\S]*?)<\/h\1>/gi)).map((match, index) => {
         const title = match[2].replace(/<[^>]+>/g, "").trim()
         return { level: Number(match[1]), title, id: articleHeadingId(title, index) }
@@ -946,13 +947,76 @@ function PublicArticleToc({ content, contentType = "markdown" }: { content: stri
     : Array.from(content.matchAll(/^(#{2,3})\s+(.+)$/gm)).map((match, index) => {
         const title = match[2].replace(/[*_`]/g, "")
         return { level: match[1].length, title, id: articleHeadingId(title, index) }
-      })
+      }), [content, contentType])
+  const [activeId, setActiveId] = useState("")
+
+  useEffect(() => {
+    if (!headings.length) return
+    let frame = 0
+    const syncActiveHeading = () => {
+      frame = 0
+      const anchorOffset = 88
+      let nextId = headings[0].id
+      for (const heading of headings) {
+        const element = document.getElementById(heading.id)
+        if (!element || element.getBoundingClientRect().top > anchorOffset) break
+        nextId = heading.id
+      }
+      setActiveId((current) => current === nextId ? current : nextId)
+    }
+    const scheduleSync = () => {
+      if (frame) return
+      frame = window.requestAnimationFrame(syncActiveHeading)
+    }
+    const initialFrame = window.requestAnimationFrame(() => {
+      const hashId = decodeURIComponent(window.location.hash.slice(1))
+      if (headings.some((heading) => heading.id === hashId)) {
+        document.getElementById(hashId)?.scrollIntoView()
+      }
+      syncActiveHeading()
+    })
+    window.addEventListener("scroll", scheduleSync, { passive: true })
+    window.addEventListener("resize", scheduleSync)
+    return () => {
+      window.cancelAnimationFrame(initialFrame)
+      if (frame) window.cancelAnimationFrame(frame)
+      window.removeEventListener("scroll", scheduleSync)
+      window.removeEventListener("resize", scheduleSync)
+    }
+  }, [headings])
+
+  useEffect(() => {
+    const container = tocRef.current
+    if (!container || !activeId) return
+    const activeLink = Array.from(container.querySelectorAll<HTMLAnchorElement>("[data-toc-id]"))
+      .find((link) => link.dataset.tocId === activeId)
+    if (!activeLink) return
+    const containerRect = container.getBoundingClientRect()
+    const linkRect = activeLink.getBoundingClientRect()
+    if (linkRect.top >= containerRect.top && linkRect.bottom <= containerRect.bottom) return
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    container.scrollTo({
+      top: activeLink.offsetTop - container.clientHeight / 2 + activeLink.clientHeight / 2,
+      behavior: reducedMotion ? "auto" : "smooth",
+    })
+  }, [activeId])
+
   return (
-    <aside className="sticky top-14 max-h-[calc(100svh-3.5rem)] overflow-y-auto px-5 py-12">
+    <aside ref={tocRef} className="sticky top-14 max-h-[calc(100svh-3.5rem)] overflow-y-auto px-5 py-12">
       <div>
         <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("supportPublic.help.toc")}</div>
         {headings.length ? headings.map((item, index) => (
-          <a key={`${item.title}-${index}`} href={`#${item.id}`} className={cn("block border-l py-1.5 pl-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground", item.level === 3 && "pl-6")}>
+          <a
+            key={`${item.title}-${index}`}
+            href={`#${item.id}`}
+            data-toc-id={item.id}
+            aria-current={activeId === item.id ? "location" : undefined}
+            className={cn(
+              "block border-l py-1.5 pl-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground",
+              item.level === 3 && "pl-6",
+              activeId === item.id && "border-primary bg-muted/50 font-medium text-foreground"
+            )}
+          >
             <span className="line-clamp-3">{item.title}</span>
           </a>
         )) : <div className="text-sm text-muted-foreground">{t("supportPublic.help.noToc")}</div>}
