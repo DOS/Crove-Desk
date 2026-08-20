@@ -2,9 +2,11 @@
 
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   closestCenter,
+  type CollisionDetection,
   type DragEndEvent,
   useSensor,
   useSensors,
@@ -130,6 +132,7 @@ export function SupportHelpWorkbench() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [sorting, setSorting] = useState(false)
+  const [activeDragId, setActiveDragId] = useState<number | null>(null)
   const [createState, setCreateState] = useState<CreateState>(blankCreate)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const selectionRequest = useRef(0)
@@ -140,6 +143,17 @@ export function SupportHelpWorkbench() {
 
   const dirty = Boolean(selected && draft && JSON.stringify(toDraft(selected)) !== JSON.stringify(draft))
   const sortingDisabled = Boolean(query.trim()) || loading || sorting
+  const activeDragPage = activeDragId ? pages.find((page) => page.id === activeDragId) : undefined
+
+  const siblingCollisionDetection = useCallback<CollisionDetection>((args) => {
+    const activePage = pages.find((page) => page.id === Number(args.active.id))
+    if (!activePage) return []
+    const siblingIDs = new Set(childPages(pages, activePage.parentId).map((page) => page.id))
+    return closestCenter({
+      ...args,
+      droppableContainers: args.droppableContainers.filter((container) => siblingIDs.has(Number(container.id))),
+    })
+  }, [pages])
 
   const statusOptions = useMemo(() => [
     { value: "draft", label: t("supportHelpWorkbench.statusDraft") },
@@ -287,6 +301,7 @@ export function SupportHelpWorkbench() {
   }
 
   async function handleDragEnd(event: DragEndEvent) {
+    setActiveDragId(null)
     const { active, over } = event
     if (!over || active.id === over.id || sortingDisabled) return
     const activePage = pages.find((page) => page.id === Number(active.id))
@@ -349,7 +364,13 @@ export function SupportHelpWorkbench() {
           {query.trim() ? <p className="mt-2 text-xs text-muted-foreground">{t("supportHelpWorkbench.sortDisabledDuringSearch")}</p> : null}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => void handleDragEnd(event)}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={siblingCollisionDetection}
+            onDragStart={(event) => setActiveDragId(Number(event.active.id))}
+            onDragCancel={() => setActiveDragId(null)}
+            onDragEnd={(event) => void handleDragEnd(event)}
+          >
             <SortableContext items={roots.map((page) => page.id)} strategy={verticalListSortingStrategy}>
               {roots.map((page) => (
                 <PageTreeNode
@@ -374,6 +395,9 @@ export function SupportHelpWorkbench() {
                 />
               ))}
             </SortableContext>
+            <DragOverlay dropAnimation={null}>
+              {activeDragPage ? <PageDragOverlay page={activeDragPage} /> : null}
+            </DragOverlay>
           </DndContext>
           {!loading && pages.length === 0 ? <div className="px-3 py-10 text-center text-sm text-muted-foreground">{t("supportHelpWorkbench.empty")}</div> : null}
           {loading ? <div className="px-3 py-10 text-center text-sm text-muted-foreground">{t("supportHelpWorkbench.loading")}</div> : null}
@@ -450,9 +474,9 @@ function PageTreeNode(props: PageTreeNodeProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: page.id, disabled: sortingDisabled })
   const children = childPages(pages, page.id).filter((item) => !visibleIds || visibleIds.has(item.id))
   const open = forceExpanded || expanded.has(page.id)
-  const style: CSSProperties = { transform: CSS.Transform.toString(transform), transition }
+  const style: CSSProperties = { transform: CSS.Transform.toString(transform), transition: isDragging ? undefined : transition }
 
-  return <div ref={setNodeRef} style={style} className={cn(isDragging && "relative z-10 opacity-70")}>
+  return <div ref={setNodeRef} style={style} className={cn(isDragging && "relative z-10 opacity-30")}>
     <ContextMenu>
       <ContextMenuTrigger className="block">
         <div className={cn("group flex h-9 items-center rounded-md pr-1 text-sm", selectedId === page.id ? "bg-accent text-accent-foreground" : "hover:bg-accent/60", isDragging && "shadow-sm")} style={{ paddingLeft: 4 + depth * 16 }}>
@@ -483,6 +507,13 @@ function PageTreeNode(props: PageTreeNodeProps) {
     {open ? <SortableContext items={children.map((child) => child.id)} strategy={verticalListSortingStrategy}>
       {children.map((child) => <PageTreeNode key={child.id} {...props} page={child} depth={depth + 1} />)}
     </SortableContext> : null}
+  </div>
+}
+
+function PageDragOverlay({ page }: { page: AdminSupportHelpPage }) {
+  return <div className="flex h-9 w-64 items-center rounded-md border bg-background px-3 text-sm shadow-lg">
+    <GripVerticalIcon className="mr-2 size-3.5 shrink-0 text-muted-foreground" />
+    <span className="truncate font-medium">{page.title}</span>
   </div>
 }
 
