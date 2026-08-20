@@ -188,7 +188,7 @@ function LightboxImageBody({
                   backgroundColor,
                   transform: `rotate(${rotationDeg}deg)`,
                 }}
-                className="max-h-[min(85vh,calc(100dvh-3rem))] max-w-full origin-center rounded-xl p-5 transition-transform duration-200 ease-out select-none [&_svg]:block [&_svg]:h-auto [&_svg]:max-h-[min(85vh,calc(100dvh-5.5rem))] [&_svg]:max-w-full"
+                className="h-[min(78vh,900px)] w-[min(88vw,1600px)] max-h-[calc(100dvh-5rem)] max-w-[calc(100vw-2rem)] origin-center rounded-xl p-4 transition-transform duration-200 ease-out select-none sm:p-6 [&_svg]:!block [&_svg]:!h-full [&_svg]:!max-h-none [&_svg]:!max-w-none [&_svg]:!w-full"
                 dangerouslySetInnerHTML={{ __html: svg }}
               />
             ) : (
