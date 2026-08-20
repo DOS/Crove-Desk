@@ -20,9 +20,11 @@ import { CSS } from "@dnd-kit/utilities"
 import {
   ChevronRightIcon,
   ExternalLinkIcon,
+  EyeOffIcon,
   FilePlus2Icon,
   GripVerticalIcon,
   MoreHorizontalIcon,
+  RocketIcon,
   SaveIcon,
   SearchIcon,
   Settings2Icon,
@@ -32,6 +34,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { toast } from "sonner"
 
 import { useApiErrorHandler } from "@/components/api-error-provider"
+import { useConfirm } from "@/components/confirm-provider"
 import { ContentEditor } from "@/components/content-editor"
 import { OptionCombobox } from "@/components/option-combobox"
 import { Badge } from "@/components/ui/badge"
@@ -43,16 +46,18 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useI18n } from "@/i18n/provider"
 import {
+  changeSupportHelpPageStatusAdmin,
   deleteSupportHelpPageAdmin,
   fetchSupportHelpPageAdmin,
   fetchSupportHelpPagesAllAdmin,
   saveSupportHelpPageAdmin,
   updateSupportHelpPageSortAdmin,
+  uploadAsset,
   type AdminSupportHelpPage,
 } from "@/lib/api/admin"
 import { cn } from "@/lib/utils"
 
-type PageDraft = Pick<AdminSupportHelpPage, "parentId" | "title" | "slug" | "summary" | "content" | "contentType" | "status" | "tags">
+type PageDraft = Pick<AdminSupportHelpPage, "parentId" | "title" | "slug" | "summary" | "content" | "contentType" | "tags">
 type CreateState = { open: boolean; parentId: number }
 
 const blankCreate: CreateState = { open: false, parentId: 0 }
@@ -65,7 +70,6 @@ function toDraft(page: AdminSupportHelpPage): PageDraft {
     summary: page.summary ?? "",
     content: page.content ?? "",
     contentType: page.contentType || "markdown",
-    status: page.status || "draft",
     tags: page.tags ?? [],
   }
 }
@@ -119,11 +123,13 @@ function pagePath(pages: AdminSupportHelpPage[], page: AdminSupportHelpPage | nu
 export function SupportHelpWorkbench() {
   const t = useI18n()
   const handleApiError = useApiErrorHandler()
+  const confirm = useConfirm()
   const [pages, setPages] = useState<AdminSupportHelpPage[]>([])
   const [selected, setSelected] = useState<AdminSupportHelpPage | null>(null)
   const [draft, setDraft] = useState<PageDraft | null>(null)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const [query, setQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published" | "hidden">("all")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [sorting, setSorting] = useState(false)
@@ -136,7 +142,7 @@ export function SupportHelpWorkbench() {
   )
 
   const dirty = Boolean(selected && draft && JSON.stringify(toDraft(selected)) !== JSON.stringify(draft))
-  const sortingDisabled = Boolean(query.trim()) || loading || sorting
+  const sortingDisabled = Boolean(query.trim()) || statusFilter !== "all" || loading || sorting
 
   const statusOptions = useMemo(() => [
     { value: "draft", label: t("supportHelpWorkbench.statusDraft") },
@@ -186,7 +192,16 @@ export function SupportHelpWorkbench() {
 
   async function selectPage(page: AdminSupportHelpPage) {
     if (page.id === selected?.id) return
-    if (dirty && !window.confirm(t("supportHelpWorkbench.unsavedLeaveConfirm"))) return
+    if (dirty) {
+      const leave = await confirm({
+        title: t("supportHelpWorkbench.unsavedLeaveTitle"),
+        description: t("supportHelpWorkbench.unsavedLeaveConfirm"),
+        confirmText: t("supportHelpWorkbench.discardChanges"),
+        cancelText: t("supportHelpWorkbench.continueEditing"),
+        variant: "destructive",
+      })
+      if (!leave) return
+    }
     const requestId = ++selectionRequest.current
     try {
       const detail = await fetchSupportHelpPageAdmin(page.id)
@@ -205,6 +220,7 @@ export function SupportHelpWorkbench() {
       const saved = await saveSupportHelpPageAdmin({
         id: selected.id,
         ...draft,
+        status: selected.status,
         sortNo: draft.parentId === selected.parentId
           ? pages.find((page) => page.id === selected.id)?.sortNo ?? selected.sortNo
           : childPages(pages, draft.parentId).length,
@@ -223,8 +239,43 @@ export function SupportHelpWorkbench() {
     }
   }
 
+  async function changeStatus(status: "draft" | "published" | "hidden") {
+    if (!selected || saving) return
+    if (dirty) {
+      toast.info(t("supportHelpWorkbench.saveBeforeStatusChange"))
+      return
+    }
+    const confirmed = await confirm({
+      title: t(`supportHelpWorkbench.${status}ConfirmTitle`, { title: selected.title }),
+      description: t(`supportHelpWorkbench.${status}ConfirmDescription`),
+      confirmText: t(`supportHelpWorkbench.${status}Action`),
+      cancelText: t("supportHelpWorkbench.cancel"),
+      variant: status === "hidden" ? "destructive" : "default",
+    })
+    if (!confirmed) return
+    setSaving(true)
+    try {
+      const changed = await changeSupportHelpPageStatusAdmin(selected.id, status)
+      setSelected(changed)
+      setDraft(toDraft(changed))
+      setPages((items) => items.map((item) => item.id === changed.id ? changed : item))
+      toast.success(t(`supportHelpWorkbench.${status}Success`))
+    } catch (error) {
+      handleApiError(error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function remove(page: AdminSupportHelpPage) {
-    if (!window.confirm(t("supportHelpWorkbench.deleteConfirm", { title: page.title }))) return
+    const confirmed = await confirm({
+      title: t("supportHelpWorkbench.deleteConfirmTitle", { title: page.title }),
+      description: t("supportHelpWorkbench.deleteConfirm", { title: page.title }),
+      confirmText: t("supportHelpWorkbench.deletePage"),
+      cancelText: t("supportHelpWorkbench.cancel"),
+      variant: "destructive",
+    })
+    if (!confirmed) return
     try {
       await deleteSupportHelpPageAdmin(page.id)
       toast.success(t("supportHelpWorkbench.deleted"))
@@ -262,10 +313,11 @@ export function SupportHelpWorkbench() {
 
   const visibleIds = useMemo(() => {
     const keyword = query.trim().toLowerCase()
-    if (!keyword) return null
+    if (!keyword && statusFilter === "all") return null
     const ids = new Set<number>()
     for (const page of pages) {
-      if (!`${page.title} ${page.slug} ${page.summary}`.toLowerCase().includes(keyword)) continue
+      if (statusFilter !== "all" && page.status !== statusFilter) continue
+      if (keyword && !`${page.title} ${page.slug} ${page.summary}`.toLowerCase().includes(keyword)) continue
       ids.add(page.id)
       let parentId = page.parentId
       while (parentId) {
@@ -274,11 +326,11 @@ export function SupportHelpWorkbench() {
       }
     }
     return ids
-  }, [pages, query])
+  }, [pages, query, statusFilter])
 
   const roots = childPages(pages, 0).filter((page) => !visibleIds || visibleIds.has(page.id))
   const path = pagePath(pages, selected)
-  const statusLabel = statusOptions.find((item) => item.value === draft?.status)?.label ?? draft?.status
+  const statusLabel = statusOptions.find((item) => item.value === selected?.status)?.label ?? selected?.status
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden bg-background">
@@ -295,6 +347,9 @@ export function SupportHelpWorkbench() {
             <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder={t("supportHelpWorkbench.searchPlaceholder")} />
           </div>
           {query.trim() ? <p className="mt-2 text-xs text-muted-foreground">{t("supportHelpWorkbench.sortDisabledDuringSearch")}</p> : null}
+          <div className="mt-3 grid grid-cols-2 gap-1">
+            {(["all", "draft", "published", "hidden"] as const).map((status) => <Button key={status} size="sm" variant={statusFilter === status ? "secondary" : "ghost"} className="justify-between px-2 text-xs" onClick={() => setStatusFilter(status)}><span>{t(`supportHelpWorkbench.filter${status[0].toUpperCase()}${status.slice(1)}`)}</span><span className="text-muted-foreground">{status === "all" ? pages.length : pages.filter((page) => page.status === status).length}</span></Button>)}
+          </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => void handleDragEnd(event)}>
@@ -307,7 +362,7 @@ export function SupportHelpWorkbench() {
                   depth={0}
                   selectedId={selected?.id}
                   expanded={expanded}
-                  forceExpanded={Boolean(query)}
+                  forceExpanded={Boolean(query) || statusFilter !== "all"}
                   visibleIds={visibleIds}
                   sortingDisabled={sortingDisabled}
                   onToggle={(id) => setExpanded((current) => {
@@ -342,12 +397,15 @@ export function SupportHelpWorkbench() {
                 aria-label={t("supportHelpWorkbench.pageTitle")}
               />
               <Badge variant="outline" className="ml-1 shrink-0">{statusLabel}</Badge>
+              {selected.status === "published" && dirty ? <span className="hidden text-xs text-amber-600 xl:inline dark:text-amber-400">{t("supportHelpWorkbench.publishedSaveWarning")}</span> : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <span className={cn("hidden text-xs sm:inline", dirty ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>{dirty ? t("supportHelpWorkbench.unsaved") : t("supportHelpWorkbench.savedState")}</span>
               <Button size="icon" variant="ghost" title={t("supportHelpWorkbench.pageSettings")} aria-label={t("supportHelpWorkbench.pageSettings")} onClick={() => setSettingsOpen(true)}><Settings2Icon /></Button>
               {selected.status === "published" ? <Button size="icon" variant="ghost" nativeButton={false} title={t("supportHelpWorkbench.openPublicPage")} aria-label={t("supportHelpWorkbench.openPublicPage")} render={<a href={`/support/help/${selected.slug}`} target="_blank" rel="noreferrer" />}><ExternalLinkIcon /></Button> : null}
-              <Button onClick={() => void save()} disabled={!dirty || saving}><SaveIcon />{saving ? t("supportHelpWorkbench.saving") : t("supportHelpWorkbench.save")}</Button>
+              <Button variant={selected.status === "published" ? "default" : "outline"} onClick={() => void save()} disabled={!dirty || saving} title={t("supportHelpWorkbench.save")}><SaveIcon /><span className="hidden xl:inline">{saving ? t("supportHelpWorkbench.saving") : t("supportHelpWorkbench.save")}</span></Button>
+              {selected.status === "published" ? <Button variant="outline" onClick={() => void changeStatus("draft")} disabled={saving} title={t("supportHelpWorkbench.withdrawAction")}><EyeOffIcon /><span className="hidden xl:inline">{t("supportHelpWorkbench.withdrawAction")}</span></Button> : selected.status !== "hidden" ? <Button variant="outline" onClick={() => void changeStatus("hidden")} disabled={saving} title={t("supportHelpWorkbench.hiddenAction")}><EyeOffIcon /><span className="hidden xl:inline">{t("supportHelpWorkbench.hiddenAction")}</span></Button> : null}
+              {selected.status !== "published" ? <Button onClick={() => void changeStatus("published")} disabled={saving || dirty} title={t("supportHelpWorkbench.publishedAction")}><RocketIcon /><span className="hidden xl:inline">{t("supportHelpWorkbench.publishedAction")}</span></Button> : null}
             </div>
           </div>
           <div className="flex min-h-[calc(100%-3.5rem)] flex-col bg-card">
@@ -355,6 +413,10 @@ export function SupportHelpWorkbench() {
               <ContentEditor
                 value={{ mode: draft.contentType === "html" ? "html" : "markdown", raw: draft.content }}
                 onChange={(content) => setDraft({ ...draft, content: content.raw, contentType: content.mode })}
+                onUploadImage={async (file) => {
+                  const asset = await uploadAsset(file, "support/help")
+                  return { url: asset.url, alt: asset.filename, title: asset.filename }
+                }}
                 placeholder={t("supportHelpWorkbench.contentPlaceholder")}
                 scrollMode="document"
                 className="flex min-h-full flex-1 flex-col [--content-editor-toolbar-offset:3.5rem] [&>div]:flex-1 [&>div]:rounded-none [&>div]:border-0 [&>div]:bg-transparent"
@@ -365,7 +427,7 @@ export function SupportHelpWorkbench() {
       </main>
 
       <CreatePageDialog key={`${createState.open}-${createState.parentId}`} state={createState} pages={pages} onOpenChange={(open) => setCreateState((current) => ({ ...current, open }))} onCreated={async (id) => { setCreateState(blankCreate); await load(id) }} />
-      <PageSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} pages={pages} selected={selected} draft={draft} statusOptions={statusOptions} onChange={setDraft} />
+      <PageSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} pages={pages} selected={selected} draft={draft} onChange={setDraft} />
     </div>
   )
 }
@@ -463,7 +525,7 @@ function CreatePageDialog({ state, pages, onOpenChange, onCreated }: { state: Cr
   </Dialog>
 }
 
-function PageSettingsDialog({ open, onOpenChange, pages, selected, draft, statusOptions, onChange }: { open: boolean; onOpenChange: (open: boolean) => void; pages: AdminSupportHelpPage[]; selected: AdminSupportHelpPage | null; draft: PageDraft | null; statusOptions: Array<{ value: string; label: string }>; onChange: (draft: PageDraft) => void }) {
+function PageSettingsDialog({ open, onOpenChange, pages, selected, draft, onChange }: { open: boolean; onOpenChange: (open: boolean) => void; pages: AdminSupportHelpPage[]; selected: AdminSupportHelpPage | null; draft: PageDraft | null; onChange: (draft: PageDraft) => void }) {
   const t = useI18n()
   if (!draft || !selected) return null
   const excluded = descendantIds(pages, selected.id)
@@ -475,8 +537,7 @@ function PageSettingsDialog({ open, onOpenChange, pages, selected, draft, status
       <DialogHeader><DialogTitle>{t("supportHelpWorkbench.pageSettings")}</DialogTitle><DialogDescription>{t("supportHelpWorkbench.settingsDescription")}</DialogDescription></DialogHeader>
       <div className="grid gap-4 py-2">
         <div className="grid gap-2"><Label>{t("supportHelpWorkbench.parentPage")}</Label><OptionCombobox value={String(draft.parentId)} onChange={(value) => onChange({ ...draft, parentId: Number(value) })} placeholder={t("supportHelpWorkbench.selectParentPage")} options={options} /></div>
-        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.slug")}</Label><Input value={draft.slug} onChange={(event) => onChange({ ...draft, slug: slugify(event.target.value) })} /></div>
-        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.status")}</Label><OptionCombobox value={draft.status} onChange={(status) => onChange({ ...draft, status })} placeholder={t("supportHelpWorkbench.selectStatus")} options={statusOptions} /></div>
+        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.slug")}</Label><Input value={draft.slug} onChange={(event) => onChange({ ...draft, slug: slugify(event.target.value) })} /><p className="text-xs leading-5 text-muted-foreground">{t("supportHelpWorkbench.slugChangeWarning")}</p></div>
         <div className="grid gap-2"><Label>{t("supportHelpWorkbench.summary")}</Label><Textarea value={draft.summary} onChange={(event) => onChange({ ...draft, summary: event.target.value })} rows={4} placeholder={t("supportHelpWorkbench.summaryPlaceholder")} /></div>
       </div>
       <DialogFooter><Button onClick={() => onOpenChange(false)}>{t("supportHelpWorkbench.done")}</Button></DialogFooter>

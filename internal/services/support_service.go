@@ -178,6 +178,16 @@ func (s *supportService) SaveHelpPage(req request.SaveSupportHelpPageRequest, op
 		return nil, errorsx.InvalidParam("page slug already exists")
 	}
 	status := normalizeHelpPageStatus(req.Status)
+	var current *models.SupportHelpPage
+	if req.ID > 0 {
+		current = repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ID)
+		if current == nil {
+			return nil, errorsx.InvalidParam("page not found")
+		}
+		// Publication status is changed only by ChangeHelpPageStatus so saving
+		// content cannot accidentally publish or withdraw a public document.
+		status = current.Status
+	}
 	if status == enums.SupportHelpPageStatusPublished && req.ParentID > 0 {
 		parent := repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ParentID)
 		if parent == nil || parent.Status != enums.SupportHelpPageStatusPublished {
@@ -193,7 +203,7 @@ func (s *supportService) SaveHelpPage(req request.SaveSupportHelpPageRequest, op
 	tags, _ := json.Marshal(normalizeTags(req.Tags))
 	now := time.Now()
 	publishedAt := (*time.Time)(nil)
-	if req.Status == enums.SupportHelpPageStatusPublished {
+	if status == enums.SupportHelpPageStatusPublished && req.ID == 0 {
 		publishedAt = &now
 	}
 	columns := map[string]any{"parent_id": req.ParentID, "title": title, "slug": slug, "summary": strings.TrimSpace(req.Summary), "content_type": normalizeContentType(req.ContentType), "content": req.Content, "cover_url": strings.TrimSpace(req.CoverURL), "tags_json": string(tags), "status": status, "sort_no": req.SortNo, "remark": strings.TrimSpace(req.Remark), "updated_at": now, "update_user_id": operator.UserID, "update_user_name": operator.Username}
@@ -201,9 +211,6 @@ func (s *supportService) SaveHelpPage(req request.SaveSupportHelpPageRequest, op
 		columns["published_at"] = publishedAt
 	}
 	if req.ID > 0 {
-		if repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ID) == nil {
-			return nil, errorsx.InvalidParam("page not found")
-		}
 		if err := repositories.SupportHelpPageRepository.Updates(sqls.DB(), req.ID, columns); err != nil {
 			return nil, err
 		}
@@ -214,6 +221,46 @@ func (s *supportService) SaveHelpPage(req request.SaveSupportHelpPageRequest, op
 		return nil, err
 	}
 	return item, nil
+}
+
+func (s *supportService) ChangeHelpPageStatus(req request.ChangeSupportHelpPageStatusRequest, operator *dto.AuthPrincipal) (*models.SupportHelpPage, error) {
+	item := repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ID)
+	if item == nil {
+		return nil, errorsx.InvalidParamI18n("error.supportHelpPage.notFound")
+	}
+	status := req.Status
+	if status != enums.SupportHelpPageStatusDraft && status != enums.SupportHelpPageStatusPublished && status != enums.SupportHelpPageStatusHidden {
+		return nil, errorsx.InvalidParamI18n("error.supportHelpPage.invalidStatus")
+	}
+	if status == item.Status {
+		return item, nil
+	}
+	if status == enums.SupportHelpPageStatusPublished && item.ParentID > 0 {
+		parent := repositories.SupportHelpPageRepository.Get(sqls.DB(), item.ParentID)
+		if parent == nil || parent.Status != enums.SupportHelpPageStatusPublished {
+			return nil, errorsx.InvalidParamI18n("error.supportHelpPage.publishParentFirst")
+		}
+	}
+	if status != enums.SupportHelpPageStatusPublished {
+		publishedChildren := repositories.SupportHelpPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", item.ID).Eq("status", enums.SupportHelpPageStatusPublished).Page(1, 1))
+		if len(publishedChildren) > 0 {
+			return nil, errorsx.InvalidParamI18n("error.supportHelpPage.unpublishChildrenFirst")
+		}
+	}
+	now := time.Now()
+	columns := map[string]any{
+		"status":           status,
+		"updated_at":       now,
+		"update_user_id":   operator.UserID,
+		"update_user_name": operator.Username,
+	}
+	if status == enums.SupportHelpPageStatusPublished {
+		columns["published_at"] = now
+	}
+	if err := repositories.SupportHelpPageRepository.Updates(sqls.DB(), item.ID, columns); err != nil {
+		return nil, err
+	}
+	return repositories.SupportHelpPageRepository.Get(sqls.DB(), item.ID), nil
 }
 
 func (s *supportService) DeleteHelpPage(id int64) error {

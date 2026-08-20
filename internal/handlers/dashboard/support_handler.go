@@ -119,6 +119,25 @@ func SupportHelpPagePostUpdate_sort(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, services.SupportService.SortHelpPages(req))
 }
 
+func SupportHelpPagePostChange_status(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageUpdate)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.ChangeSupportHelpPageStatusRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	item, err := services.SupportService.ChangeHelpPageStatus(req, operator)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, builders.BuildSupportHelpPage(item, true))
+}
+
 func SupportQuestionCategoryAnyList(ctx *gin.Context) {
 	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionView); err != nil {
 		httpx.WriteJSON(ctx, err)

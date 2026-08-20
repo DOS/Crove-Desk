@@ -414,4 +414,37 @@
     border-left-color: var(--primary);
     color: var(--muted-foreground);
   }
+
+  .support-markdown .md-editor-preview table,
+  .support-rich-html table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .support-rich-html h1:first-child {
+    display: none;
+  }
+
+  .support-rich-html h2 {
+    margin-top: 2.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.65rem;
+    font-size: 1.5rem;
+    font-weight: 650;
+    line-height: 1.35;
+  }
+
+  .support-rich-html h3 {
+    margin-top: 2rem;
+    font-size: 1.2rem;
+    font-weight: 650;
+  }
+
+  .support-rich-html img {
+    max-height: min(70vh, 720px);
+    cursor: zoom-in;
+    object-fit: contain;
+  }
 }

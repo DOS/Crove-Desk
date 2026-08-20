@@ -2407,6 +2407,13 @@ export function updateSupportHelpPageSortAdmin(payload: { parentId: number; ids:
   })
 }
 
+export function changeSupportHelpPageStatusAdmin(id: number, status: "draft" | "published" | "hidden") {
+  return request<AdminSupportHelpPage>("/api/dashboard/support-help-page/change_status", {
+    method: "POST",
+    body: JSON.stringify({ id, status }),
+  })
+}
+
 export function fetchSupportQuestionCategoriesAdmin(query?: Record<string, string | number | undefined>) {
   return request<PageResult<AdminSupportCategory>>(`/api/dashboard/support-question-category/list${toQueryString(query)}`)
 }

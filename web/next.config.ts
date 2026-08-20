@@ -26,6 +26,10 @@ export default function nextConfig(phase: string): NextConfig {
     async rewrites() {
       return [
         {
+          source: "/support/help/:slug+",
+          destination: "/support/help",
+        },
+        {
           source: "/api/:path*",
           destination: `${backendBaseUrl}/api/:path*`,
         },

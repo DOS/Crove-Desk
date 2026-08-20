@@ -58,11 +58,23 @@ func TestSupportHelpPageHierarchy(t *testing.T) {
 	}); err == nil {
 		t.Fatal("expected incomplete sibling sort to fail")
 	}
-	_, err = SupportService.SaveHelpPage(request.SaveSupportHelpPageRequest{
-		ID: root.ID, Title: root.Title, Slug: root.Slug, ContentType: root.ContentType, Content: root.Content, Status: enums.SupportHelpPageStatusDraft,
-	}, operator)
-	if err == nil {
-		t.Fatal("expected unpublishing a parent with published children to fail")
+	if _, err := SupportService.ChangeHelpPageStatus(request.ChangeSupportHelpPageStatusRequest{ID: root.ID, Status: enums.SupportHelpPageStatusDraft}, operator); err == nil {
+		t.Fatal("expected withdrawing a parent with published children to fail")
+	}
+	if _, err := SupportService.ChangeHelpPageStatus(request.ChangeSupportHelpPageStatusRequest{ID: child.ID, Status: enums.SupportHelpPageStatusDraft}, operator); err != nil {
+		t.Fatalf("withdraw child page: %v", err)
+	}
+	if _, err := SupportService.ChangeHelpPageStatus(request.ChangeSupportHelpPageStatusRequest{ID: root.ID, Status: enums.SupportHelpPageStatusDraft}, operator); err != nil {
+		t.Fatalf("withdraw root page: %v", err)
+	}
+	if _, err := SupportService.ChangeHelpPageStatus(request.ChangeSupportHelpPageStatusRequest{ID: child.ID, Status: enums.SupportHelpPageStatusPublished}, operator); err == nil {
+		t.Fatal("expected publishing a child under a draft parent to fail")
+	}
+	if _, err := SupportService.ChangeHelpPageStatus(request.ChangeSupportHelpPageStatusRequest{ID: root.ID, Status: enums.SupportHelpPageStatusPublished}, operator); err != nil {
+		t.Fatalf("publish root page: %v", err)
+	}
+	if _, err := SupportService.ChangeHelpPageStatus(request.ChangeSupportHelpPageStatusRequest{ID: child.ID, Status: enums.SupportHelpPageStatusPublished}, operator); err != nil {
+		t.Fatalf("publish child page: %v", err)
 	}
 
 	root.ParentID = child.ID

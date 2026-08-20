@@ -33,6 +33,11 @@ type SortSupportHelpPagesRequest struct {
 	IDs      []int64 `json:"ids"`
 }
 
+type ChangeSupportHelpPageStatusRequest struct {
+	ID     int64                       `json:"id"`
+	Status enums.SupportHelpPageStatus `json:"status"`
+}
+
 type SaveSupportQuestionCategoryRequest struct {
 	ID          int64        `json:"id"`
 	Name        string       `json:"name"`

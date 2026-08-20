@@ -12,6 +12,7 @@ import (
 	"agent-desk/internal/repositories"
 	"agent-desk/internal/services"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mlogclub/simple/sqls"
@@ -69,6 +70,10 @@ func SupportHelpPageAnyList(ctx *gin.Context) {
 		params.QueryFilter{ParamName: "parentId"},
 		params.QueryFilter{ParamName: "title", Op: params.Like},
 	).Eq("status", enums.SupportHelpPageStatusPublished).Asc("sort_no").Desc("id")
+	if keyword := strings.TrimSpace(ctx.Query("keyword")); keyword != "" {
+		pattern := "%" + keyword + "%"
+		cnd.Where("(title LIKE ? OR summary LIKE ? OR content LIKE ? OR tags_json LIKE ? OR slug LIKE ?)", pattern, pattern, pattern, pattern, pattern)
+	}
 	list, paging := repositories.SupportHelpPageRepository.FindPageByCnd(sqls.DB(), cnd)
 	results := buildSupportHelpPageList(list, false)
 	httpx.WriteJSON(ctx, &web.PageResult{Results: results, Page: paging})

@@ -46,7 +46,7 @@ func NewServer() (*gin.Engine, error) {
 		notFoundPrefixes = append(notFoundPrefixes, baseURL+"/")
 	}
 	app.StaticFS(cfg.Storage.Local.BaseURL, ginx.StaticFiles(cfg.Storage.Local.Root))
-	ginx.HandleSPA(app, ginx.SPAOptions{
+	spaHandler := ginx.HandleSPA(app, ginx.SPAOptions{
 		Root:         "./web/out",
 		EmbeddedFS:   webspa.SPA,
 		EmbeddedRoot: "out",
@@ -60,6 +60,15 @@ func NewServer() (*gin.Engine, error) {
 			httpx.WriteHttpStatusJSON(ctx, http.StatusNotFound, web.JsonErrorCode(http.StatusNotFound, i18nx.T(ctx, "error.notFound")))
 		},
 	})
+	// Runtime-authored help pages cannot be enumerated by the statically exported
+	// Next.js build. Serve the exported help reader shell for every document slug;
+	// the client resolves the slug from the pathname and loads the published page.
+	helpPageHandler := func(ctx *gin.Context) {
+		ctx.Request.URL.Path = "/support/help/"
+		spaHandler(ctx)
+	}
+	app.GET("/support/help/*slug", helpPageHandler)
+	app.HEAD("/support/help/*slug", helpPageHandler)
 
 	return app, nil
 }

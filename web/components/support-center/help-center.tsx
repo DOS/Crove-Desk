@@ -13,17 +13,20 @@ import {
   MenuIcon,
   MessageCircleMoreIcon,
   SearchIcon,
+  ThumbsDownIcon,
   ThumbsUpIcon,
   XIcon,
 } from "lucide-react"
 import { MdPreview } from "md-editor-rt"
 import Link from "next/link"
-import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 
 import { OptionCombobox } from "@/components/option-combobox"
+import { useImageLightboxOptional } from "@/components/image-lightbox"
+import { SafeRichHTML } from "@/components/safe-rich-html"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -159,101 +162,98 @@ export function SupportHelpCenter() {
 }
 
 export function SupportHelpList() {
-  const t = useI18n()
-  const { resolvedTheme } = useTheme()
-  const [pages, setPages] = useState<SupportHelpPage[]>([])
-  const [selectedPage, setSelectedPage] = useState<SupportHelpPage | null>(null)
-  const [title, setTitle] = useState("")
-  const [expanded, setExpanded] = useState<Set<number>>(new Set())
-  const [loading, setLoading] = useState(true)
-  const [failed, setFailed] = useState(false)
-  const [navigationOpen, setNavigationOpen] = useState(false)
-
-  useEffect(() => {
-    void fetchSupportHelpPages({ title, limit: 500 })
-      .then(async (page) => {
-        setPages(page.results)
-        setExpanded(new Set(page.results.map((item) => item.id)))
-        const first = page.results[0]
-        setSelectedPage(first ? await fetchSupportHelpPage(first.slug || first.id) : null)
-      })
-      .catch(() => {
-        setPages([])
-        setSelectedPage(null)
-        setFailed(true)
-      })
-      .finally(() => setLoading(false))
-  }, [title])
-
-  const rootPages = useMemo(() => pages.filter((item) => !item.parentId), [pages])
-
-  const selectPage = async (page: SupportHelpPage) => {
-    setSelectedPage(await fetchSupportHelpPage(page.slug || page.id))
-    setNavigationOpen(false)
-  }
-
-  return (
-    <SupportDocsFrame
-      navigationOpen={navigationOpen}
-      onNavigationOpenChange={setNavigationOpen}
-      navigation={
-        <HelpNavigation
-          pages={pages}
-          rootPages={rootPages}
-          title={title}
-          expanded={expanded}
-          selectedPageId={selectedPage?.id ?? 0}
-          loading={loading}
-          failed={failed}
-          onTitleChange={(value) => {
-            setLoading(true)
-            setFailed(false)
-            setTitle(value)
-          }}
-          onExpandedChange={setExpanded}
-          onSelect={(item) => void selectPage(item)}
-        />
-      }
-      toc={<PublicArticleToc content={selectedPage?.content ?? ""} />}
-    >
-      {selectedPage ? (
-        <HelpArticle page={selectedPage} pages={pages} previewId="support-public-help-preview" theme={resolvedTheme} />
-      ) : (
-        <div className="grid min-h-[50svh] place-items-center"><EmptyState text={loading ? t("supportPublic.loading.page") : failed ? t("supportPublic.empty.pagesFailed") : pages.length ? t("supportPublic.empty.selectPage") : t("supportPublic.empty.noPages")} /></div>
-      )}
-    </SupportDocsFrame>
-  )
+  return <SupportHelpReader />
 }
 
 export function SupportHelpPageDetail() {
+  return <SupportHelpReader />
+}
+
+function SupportHelpReader() {
   const t = useI18n()
   const { resolvedTheme } = useTheme()
-  const params = useParams<{ slug: string }>()
+  const pathname = usePathname()
   const [page, setPage] = useState<SupportHelpPage | null>(null)
   const [pages, setPages] = useState<SupportHelpPage[]>([])
+  const [query, setQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<SupportHelpPage[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
   const [navigationOpen, setNavigationOpen] = useState(false)
+  const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const slug = useMemo(() => {
+    const parts = pathname.split("/").filter(Boolean)
+    const helpIndex = parts.findIndex((part, index) => part === "help" && parts[index - 1] === "support")
+    return helpIndex >= 0 ? decodeURIComponent(parts[helpIndex + 1] || "") : ""
+  }, [pathname])
 
   useEffect(() => {
-    if (params.slug) {
-      void Promise.all([fetchSupportHelpPage(params.slug), fetchSupportHelpPages({ limit: 500 })]).then(([detail, list]) => {
-        setPage(detail)
+    void fetchSupportHelpPages({ limit: 500 })
+      .then(async (list) => {
+        setFailed(false)
         setPages(list.results)
+        setExpanded(new Set(list.results.map((item) => item.id)))
+        const target = slug || list.results[0]?.slug || String(list.results[0]?.id || "")
+        if (!target) {
+          setPage(null)
+          return
+        }
+        const detail = await fetchSupportHelpPage(target)
+        setPage(detail)
+        if (!slug && detail.slug) {
+          window.history.replaceState(null, "", `/support/help/${detail.slug}/`)
+        }
       })
-    }
-  }, [params.slug])
+      .catch(() => {
+        setPage(null)
+        setFailed(true)
+      })
+      .finally(() => setLoading(false))
+  }, [slug])
 
-  if (!page) {
-    return <SupportDocsFrame navigationOpen={false} onNavigationOpenChange={() => undefined} navigation={null} toc={null}><div className="grid min-h-[60svh] place-items-center text-sm text-muted-foreground">{t("supportPublic.loading.page")}</div></SupportDocsFrame>
-  }
+  useEffect(() => {
+    if (!page) return
+    document.title = `${page.title} · ${t("supportPublic.help.title")}`
+  }, [page, t])
+
+  useEffect(() => {
+    const keyword = query.trim()
+    if (!keyword) return
+    const timer = window.setTimeout(() => {
+      void fetchSupportHelpPages({ keyword, limit: 50 })
+        .then((result) => setSearchResults(result.results))
+        .catch(() => setSearchResults([]))
+        .finally(() => setSearchLoading(false))
+    }, 250)
+    return () => window.clearTimeout(timer)
+  }, [query])
+
+  const visiblePages = useMemo(() => {
+    const keyword = query.trim().toLowerCase()
+    if (!keyword) return pages
+    const matched = new Set<number>()
+    pages.forEach((item) => {
+      if (`${item.title} ${item.summary} ${item.slug} ${(item.tags || []).join(" ")}`.toLowerCase().includes(keyword)) {
+        matched.add(item.id)
+        let parentId = item.parentId
+        while (parentId) {
+          matched.add(parentId)
+          parentId = pages.find((candidate) => candidate.id === parentId)?.parentId ?? 0
+        }
+      }
+    })
+    return pages.filter((item) => matched.has(item.id))
+  }, [pages, query])
 
   return (
     <SupportDocsFrame
       navigationOpen={navigationOpen}
       onNavigationOpenChange={setNavigationOpen}
-      navigation={<HelpNavigation pages={pages} rootPages={pages.filter((item) => !item.parentId)} title="" expanded={new Set(pages.map((item) => item.id))} selectedPageId={page.id} loading={false} failed={false} onTitleChange={() => undefined} onExpandedChange={() => undefined} onSelect={() => undefined} linkMode />}
-      toc={<PublicArticleToc content={page.content} />}
+      navigation={<HelpNavigation pages={visiblePages} rootPages={visiblePages.filter((item) => !item.parentId)} searchResults={searchResults} title={query} expanded={expanded} selectedPageId={page?.id ?? 0} loading={loading || searchLoading} failed={failed} onTitleChange={(value) => { setQuery(value); setSearchResults([]); setSearchLoading(Boolean(value.trim())) }} onExpandedChange={setExpanded} onSelect={() => setNavigationOpen(false)} linkMode />}
+      toc={<PublicArticleToc content={page?.content ?? ""} contentType={page?.contentType} />}
     >
-      <HelpArticle page={page} pages={pages} previewId="support-help-page-detail-preview" theme={resolvedTheme} />
+      {page ? <HelpArticle page={page} pages={pages} previewId="support-help-page-detail-preview" theme={resolvedTheme} /> : <div className="grid min-h-[60svh] place-items-center"><EmptyState text={loading ? t("supportPublic.loading.page") : failed ? t("supportPublic.empty.pageNotFound") : t("supportPublic.empty.noPages")} /></div>}
     </SupportDocsFrame>
   )
 }
@@ -614,6 +614,7 @@ function SupportDocsFrame({
 function HelpNavigation({
   pages,
   rootPages,
+  searchResults = [],
   title,
   expanded,
   selectedPageId,
@@ -626,6 +627,7 @@ function HelpNavigation({
 }: {
   pages: SupportHelpPage[]
   rootPages: SupportHelpPage[]
+  searchResults?: SupportHelpPage[]
   title: string
   expanded: Set<number>
   selectedPageId: number
@@ -639,10 +641,15 @@ function HelpNavigation({
   const t = useI18n()
   return (
     <div className="p-4">
-      {!linkMode ? <SupportSearchInput value={title} onChange={onTitleChange} placeholder={t("supportPublic.help.searchPlaceholder")} compact /> : null}
-      <div className={cn("mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground", !linkMode && "mt-6")}>{t("supportPublic.help.navigation")}</div>
+      <SupportSearchInput value={title} onChange={onTitleChange} placeholder={t("supportPublic.help.searchPlaceholder")} compact />
+      <div className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("supportPublic.help.navigation")}</div>
       <div className="grid gap-0.5">
-        {rootPages.map((page) => (
+        {title.trim() ? searchResults.map((page) => (
+          <a key={page.id} href={`/support/help/${page.slug || page.id}/`} onClick={() => onSelect(page)} className={cn("rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-muted", selectedPageId === page.id && "bg-primary/10 text-primary")}>
+            <span className="block truncate font-medium">{page.title}</span>
+            {page.summary ? <span className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">{page.summary}</span> : null}
+          </a>
+        )) : rootPages.map((page) => (
           <PublicHelpPageNode key={page.id} page={page} depth={0} pages={pages} expanded={expanded} selectedPageId={selectedPageId} onToggle={(id) => {
             const next = new Set(expanded)
             if (next.has(id)) next.delete(id)
@@ -651,7 +658,7 @@ function HelpNavigation({
           }} onSelect={onSelect} linkMode={linkMode} />
         ))}
         {loading ? <div className="px-2 py-8 text-center text-sm text-muted-foreground">{t("supportPublic.loading.navigation")}</div> : null}
-        {!loading && !pages.length ? <EmptyState text={failed ? t("supportPublic.empty.pagesFailed") : t("supportPublic.empty.noPagesMatched")} compact /> : null}
+        {!loading && (title.trim() ? !searchResults.length : !pages.length) ? <EmptyState text={failed ? t("supportPublic.empty.pagesFailed") : t("supportPublic.empty.noPagesMatched")} compact /> : null}
       </div>
     </div>
   )
@@ -659,20 +666,50 @@ function HelpNavigation({
 
 function HelpArticle({ page, pages, previewId, theme }: { page: SupportHelpPage; pages: SupportHelpPage[]; previewId: string; theme?: string }) {
   const t = useI18n()
+  const lightbox = useImageLightboxOptional()
   const [feedbackPending, setFeedbackPending] = useState(false)
   const currentIndex = pages.findIndex((item) => item.id === page.id)
   const previousPage = currentIndex > 0 ? pages[currentIndex - 1] : null
   const nextPage = currentIndex >= 0 ? pages[currentIndex + 1] : null
-  const submitFeedback = async () => {
+  const submitFeedback = async (helpful: boolean) => {
     if (feedbackPending) return
     setFeedbackPending(true)
     try {
-      await submitSupportHelpPageFeedback(page.id, true)
+      await submitSupportHelpPageFeedback(page.id, helpful)
       toast.success(t("supportPublic.toast.feedbackSaved"))
     } finally {
       setFeedbackPending(false)
     }
   }
+  useEffect(() => {
+    const container = document.getElementById(previewId)
+    if (!container) return
+    const cleanup: Array<() => void> = []
+    container.querySelectorAll<HTMLElement>("h2, h3").forEach((heading, index) => {
+      heading.id = articleHeadingId(heading.textContent || "", index)
+      heading.classList.add("scroll-mt-20")
+    })
+    container.querySelectorAll<HTMLPreElement>("pre").forEach((block) => {
+      block.classList.add("group", "relative")
+      const button = document.createElement("button")
+      button.type = "button"
+      button.className = "absolute right-2 top-2 rounded-md border border-border bg-background/90 px-2 py-1 text-xs text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus:opacity-100"
+      button.textContent = t("supportPublic.help.copyCode")
+      button.setAttribute("aria-label", t("supportPublic.help.copyCode"))
+      const copy = () => void navigator.clipboard.writeText(block.querySelector("code")?.textContent || block.textContent || "").then(() => toast.success(t("supportPublic.toast.codeCopied")))
+      button.addEventListener("click", copy)
+      block.appendChild(button)
+      cleanup.push(() => { button.removeEventListener("click", copy); button.remove() })
+    })
+    container.querySelectorAll<HTMLImageElement>("img").forEach((image) => {
+      if (!lightbox) return
+      image.classList.add("cursor-zoom-in")
+      const open = () => lightbox.open(image.currentSrc || image.src, image.alt)
+      image.addEventListener("click", open)
+      cleanup.push(() => image.removeEventListener("click", open))
+    })
+    return () => cleanup.forEach((dispose) => dispose())
+  }, [lightbox, page.content, previewId, t])
   return (
     <article className="mx-auto max-w-[820px]">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -683,14 +720,19 @@ function HelpArticle({ page, pages, previewId, theme }: { page: SupportHelpPage;
       <h1 className="mt-6 text-balance text-3xl font-bold tracking-tight sm:text-4xl">{page.title}</h1>
       {page.summary ? <p className="mt-4 text-lg leading-8 text-muted-foreground">{page.summary}</p> : null}
       <div className="mt-5 text-xs text-muted-foreground">{t("supportPublic.help.updatedAt", { date: formatDateTime(page.publishedAt || page.updatedAt) })}</div>
-      <div className="support-markdown mt-10"><MdPreview id={previewId} modelValue={page.content} theme={theme === "dark" ? "dark" : "light"} noMermaid noKatex noHighlight /></div>
+      <div className="support-markdown mt-10">
+        {page.contentType === "html" ? <div id={previewId}><SafeRichHTML html={page.content} className="support-rich-html text-base leading-8" /></div> : <MdPreview id={previewId} modelValue={page.content} theme={theme === "dark" ? "dark" : "light"} noMermaid noKatex noHighlight />}
+      </div>
       <ChildPageLinks pages={pages.filter((item) => item.parentId === page.id)} />
       <div className="mt-12 flex flex-col gap-4 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-sm font-medium">{t("supportPublic.help.feedbackTitle")}</div>
           <div className="mt-1 text-sm text-muted-foreground">{t("supportPublic.help.feedbackDescription")}</div>
         </div>
-        <Button variant="outline" disabled={feedbackPending} onClick={() => void submitFeedback()}><ThumbsUpIcon />{feedbackPending ? t("supportPublic.actions.processing") : t("supportPublic.actions.helpful")}</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" disabled={feedbackPending} onClick={() => void submitFeedback(true)}><ThumbsUpIcon />{t("supportPublic.actions.helpful")}</Button>
+          <Button variant="outline" disabled={feedbackPending} onClick={() => void submitFeedback(false)}><ThumbsDownIcon />{t("supportPublic.actions.notHelpful")}</Button>
+        </div>
       </div>
       {(previousPage || nextPage) ? <nav className="mt-8 grid gap-3 sm:grid-cols-2">
         {previousPage ? <ArticlePager page={previousPage} direction="previous" /> : <span />}
@@ -702,10 +744,10 @@ function HelpArticle({ page, pages, previewId, theme }: { page: SupportHelpPage;
 
 function ArticlePager({ page, direction }: { page: SupportHelpPage; direction: "previous" | "next" }) {
   const t = useI18n()
-  return <Link href={`/support/help/${page.slug || page.id}`} className={cn("group rounded-xl border px-4 py-3 transition-colors hover:border-primary/40 hover:bg-muted/50", direction === "next" && "text-right")}>
+  return <a href={`/support/help/${page.slug || page.id}/`} className={cn("group rounded-xl border px-4 py-3 transition-colors hover:border-primary/40 hover:bg-muted/50", direction === "next" && "text-right")}>
     <span className="text-xs text-muted-foreground">{t(`supportPublic.help.${direction}`)}</span>
     <span className="mt-1 flex items-center justify-between gap-3 text-sm font-medium text-primary">{direction === "previous" ? <ChevronRightIcon className="size-4 rotate-180" /> : null}<span className={cn("truncate", direction === "next" && "ml-auto")}>{page.title}</span>{direction === "next" ? <ChevronRightIcon className="size-4" /> : null}</span>
-  </Link>
+  </a>
 }
 
 function SupportEntryCard({
@@ -769,10 +811,10 @@ function PublicSection({ title, href, children }: { title: string; href: string;
 function HelpPageRow({ item }: { item: SupportHelpPage }) {
   const t = useI18n()
   return (
-    <Link href={`/support/help/${item.slug || item.id}`} className="block border-t px-1 py-3 first:border-t-0 hover:bg-muted/60">
+    <a href={`/support/help/${item.slug || item.id}/`} className="block border-t px-1 py-3 first:border-t-0 hover:bg-muted/60">
       <div className="line-clamp-1 font-medium text-primary">{item.title}</div>
       <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{item.summary || t("supportPublic.help.openPage")}</p>
-    </Link>
+    </a>
   )
 }
 
@@ -829,9 +871,9 @@ function PublicHelpPageNode({
           </button>
         )}
         {linkMode ? (
-          <Link href={`/support/help/${page.slug || page.id}`} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+          <a href={`/support/help/${page.slug || page.id}/`} className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => onSelect(page)}>
             <FileTextIcon className="size-3.5 shrink-0" /><span className="truncate">{page.title}</span>
-          </Link>
+          </a>
         ) : (
           <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => onSelect(page)}>
             <FileTextIcon className="size-3.5 shrink-0" /><span className="truncate">{page.title}</span>
@@ -853,32 +895,42 @@ function ChildPageLinks({ pages }: { pages: SupportHelpPage[] }) {
       <h3 className="mb-3 font-semibold">{t("supportPublic.help.childPages")}</h3>
       <div className="grid gap-2 sm:grid-cols-2">
         {pages.map((page) => (
-          <Link key={page.id} href={`/support/help/${page.slug || page.id}`} className="rounded-xl border p-3 transition hover:bg-muted/60">
+          <a key={page.id} href={`/support/help/${page.slug || page.id}/`} className="rounded-xl border p-3 transition hover:bg-muted/60">
             <span className="font-medium">{page.title}</span>
             {page.summary ? <span className="mt-1 block text-sm text-muted-foreground">{page.summary}</span> : null}
-          </Link>
+          </a>
         ))}
       </div>
     </div>
   )
 }
 
-function PublicArticleToc({ content }: { content: string }) {
+function PublicArticleToc({ content, contentType = "markdown" }: { content: string; contentType?: string }) {
   const t = useI18n()
-  const headings = Array.from(content.matchAll(/^(#{2,3})\s+(.+)$/gm)).map((match) => ({
-    level: match[1].length,
-    title: match[2].replace(/[*_`]/g, ""),
-  }))
+  const headings = contentType === "html"
+    ? Array.from(content.matchAll(/<h([23])[^>]*>([\s\S]*?)<\/h\1>/gi)).map((match, index) => {
+        const title = match[2].replace(/<[^>]+>/g, "").trim()
+        return { level: Number(match[1]), title, id: articleHeadingId(title, index) }
+      })
+    : Array.from(content.matchAll(/^(#{2,3})\s+(.+)$/gm)).map((match, index) => {
+        const title = match[2].replace(/[*_`]/g, "")
+        return { level: match[1].length, title, id: articleHeadingId(title, index) }
+      })
   return (
     <aside className="sticky top-14 max-h-[calc(100svh-3.5rem)] overflow-y-auto px-5 py-12">
       <div>
         <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("supportPublic.help.toc")}</div>
         {headings.length ? headings.map((item, index) => (
-          <div key={`${item.title}-${index}`} className={cn("border-l py-1.5 pl-3 text-sm text-muted-foreground", item.level === 3 && "pl-6")}>{item.title}</div>
+          <a key={`${item.title}-${index}`} href={`#${item.id}`} className={cn("block border-l py-1.5 pl-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground", item.level === 3 && "pl-6")}>{item.title}</a>
         )) : <div className="text-sm text-muted-foreground">{t("supportPublic.help.noToc")}</div>}
       </div>
     </aside>
   )
+}
+
+function articleHeadingId(title: string, index: number) {
+  const normalized = title.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "")
+  return `section-${index + 1}-${normalized || "heading"}`
 }
 
 function CategoryRail({ categories, active, onChange }: { categories: SupportCategory[]; active: number | "all"; onChange: (value: number | "all") => void }) {
