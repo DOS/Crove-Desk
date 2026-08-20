@@ -131,10 +131,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
     }))
     return (
       <div
-        className="w-full rounded-lg border bg-background"
+        className={cn("w-full rounded-lg border bg-background", scrollMode === "document" && "flex min-h-full flex-col")}
         style={scrollMode === "document" ? undefined : { height }}
       >
-        <div className={cn("content-editor-markdown", scrollMode === "editor" && "h-full", scrollMode === "document" && "content-editor-markdown-document")}>
+        <div className={cn("content-editor-markdown", scrollMode === "editor" && "h-full", scrollMode === "document" && "content-editor-markdown-document flex min-h-full flex-1 flex-col")}>
           <MdEditor
             ref={editorRef}
             id={editorId}

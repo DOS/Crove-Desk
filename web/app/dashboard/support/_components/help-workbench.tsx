@@ -345,13 +345,13 @@ export function SupportHelpWorkbench() {
           </div>
           <div className="flex min-h-[calc(100%_-_3.5rem)] flex-col px-5 pb-5 pt-4">
             <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-auto shrink-0 border-0 px-2 pb-3 pt-1 text-3xl font-semibold shadow-none focus-visible:ring-0" aria-label={t("supportHelpWorkbench.pageTitle")} />
-            <div className="flex-1">
+            <div className="flex flex-1 flex-col">
               <ContentEditor
                 value={{ mode: draft.contentType === "html" ? "html" : "markdown", raw: draft.content }}
                 onChange={(content) => setDraft({ ...draft, content: content.raw, contentType: content.mode })}
                 placeholder={t("supportHelpWorkbench.contentPlaceholder")}
                 scrollMode="document"
-                className="[--content-editor-toolbar-offset:3.5rem] [&>div]:rounded-none [&>div]:border-0"
+                className="flex min-h-full flex-1 flex-col [--content-editor-toolbar-offset:3.5rem] [&>div]:flex-1 [&>div]:rounded-none [&>div]:border-0"
               />
             </div>
           </div>
