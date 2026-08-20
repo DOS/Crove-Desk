@@ -328,7 +328,7 @@ export function SupportHelpWorkbench() {
         </div>
       </aside>
 
-      <main key={selected?.id ?? "empty"} className="flex min-w-0 flex-1 flex-col">
+      <main key={selected?.id ?? "empty"} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {draft && selected ? <>
           <div className="flex h-14 shrink-0 items-center justify-between gap-4 border-b px-4">
             <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
@@ -343,9 +343,9 @@ export function SupportHelpWorkbench() {
               <Button onClick={() => void save()} disabled={!dirty || saving}><SaveIcon />{saving ? t("supportHelpWorkbench.saving") : t("supportHelpWorkbench.save")}</Button>
             </div>
           </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-5">
             <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-auto shrink-0 border-0 px-0 text-3xl font-semibold shadow-none focus-visible:ring-0" aria-label={t("supportHelpWorkbench.pageTitle")} />
-            <div className="min-h-[400px] flex-1">
+            <div className="min-h-0 flex-1 overflow-hidden [&>div]:h-full">
               <ContentEditor
                 value={{ mode: draft.contentType === "html" ? "html" : "markdown", raw: draft.content }}
                 onChange={(content) => setDraft({ ...draft, content: content.raw, contentType: content.mode })}
