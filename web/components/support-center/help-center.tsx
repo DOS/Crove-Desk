@@ -112,7 +112,7 @@ export function SupportHelpCenter() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+      <div className="mx-auto max-w-[var(--support-shell-max-width)] px-5 py-10 sm:px-6 sm:py-14 md:px-8 lg:px-10">
         <section className="grid gap-3 sm:grid-cols-3" aria-label={t("supportPublic.home.quickPanelTitle")}>
           <SupportEntryCard
             href="/support/help"
@@ -285,7 +285,7 @@ export function SupportQuestionList() {
 
   return (
     <SupportShell title={t("supportPublic.questions.title")} description={t("supportPublic.questions.description")}>
-      <div className="grid gap-6 lg:grid-cols-[230px_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[256px_minmax(0,1fr)]">
         <CategoryRail categories={categories} active={categoryId} onChange={setCategoryId} />
         <section className="min-w-0">
           <div className="rounded-2xl border bg-card p-4 shadow-sm">
@@ -348,7 +348,7 @@ export function SupportQuestionDetail() {
 
   return (
     <SupportShell title={question.title} description={`${question.categoryName || t("supportPublic.common.uncategorized")} · ${question.userName || t("supportPublic.common.user")}`}>
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
         <section className="min-w-0 space-y-4">
           <Card className="rounded-2xl border-border bg-card shadow-sm">
             <CardContent className="p-5">
@@ -520,7 +520,7 @@ function SupportFrame({ children }: { children: ReactNode }) {
 function SupportShell({ title, description, children }: { title: string; description: string; children?: ReactNode }) {
   return (
     <SupportFrame>
-      <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-12">
+      <div className="mx-auto max-w-[var(--support-shell-max-width)] px-5 py-10 sm:px-6 sm:py-12 md:px-8 lg:px-10">
         <div className="mb-7">
           <p className="text-sm font-medium text-primary">{title}</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
@@ -535,7 +535,7 @@ function SupportShell({ title, description, children }: { title: string; descrip
 function SupportHeader() {
   const t = useI18n()
   return (
-    <header className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
+    <header className="mx-auto flex h-16 max-w-[var(--support-shell-max-width)] items-center justify-between px-5 sm:px-6 md:px-8 lg:px-10">
       <Link href="/support" className="flex items-center gap-2.5 font-semibold tracking-tight">
         <span className="grid size-8 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
           <CircleHelpIcon className="size-[18px]" />
@@ -573,9 +573,9 @@ function SupportDocsFrame({
   return (
     <main className="min-h-svh bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-3 px-4 sm:px-6">
+        <div className="mx-auto flex h-14 max-w-[var(--support-docs-max-width)] items-center gap-3 px-4 sm:px-6 md:px-8 xl:px-6">
           {navigation ? (
-            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => onNavigationOpenChange(true)} aria-label={t("supportPublic.a11y.openNavigation")}>
+            <Button variant="ghost" size="icon" className="xl:hidden" onClick={() => onNavigationOpenChange(true)} aria-label={t("supportPublic.a11y.openNavigation")}>
               <MenuIcon />
             </Button>
           ) : null}
@@ -592,16 +592,16 @@ function SupportDocsFrame({
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1440px] lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_220px]">
-        {navigation ? <aside className="hidden border-r lg:sticky lg:top-14 lg:block lg:h-[calc(100svh-3.5rem)] lg:overflow-y-auto">{navigation}</aside> : null}
-        <div className="min-w-0 px-5 py-9 sm:px-10 sm:py-12 xl:px-14">{children}</div>
-        {toc ? <div className="hidden border-l xl:block">{toc}</div> : null}
+      <div className="support-docs-grid mx-auto max-w-[var(--support-docs-max-width)]">
+        {navigation ? <aside className="hidden border-r xl:sticky xl:top-14 xl:block xl:h-[calc(100svh-3.5rem)] xl:overflow-y-auto">{navigation}</aside> : null}
+        <div className="min-w-0 px-5 py-9 sm:px-6 sm:py-12 md:px-8 lg:px-10 2xl:px-12">{children}</div>
+        {toc ? <div className="hidden border-l 2xl:block">{toc}</div> : null}
       </div>
 
       {navigationOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-50 xl:hidden">
           <button className="absolute inset-0 bg-black/45" aria-label={t("supportPublic.a11y.closeNavigation")} onClick={() => onNavigationOpenChange(false)} />
-          <aside className="relative h-full w-[min(86vw,320px)] overflow-y-auto border-r bg-background shadow-xl">
+          <aside className="relative h-full w-[min(88vw,360px)] overflow-y-auto border-r bg-background shadow-xl">
             <div className="flex h-14 items-center justify-between border-b px-4">
               <span className="font-semibold">{t("supportPublic.help.navigation")}</span>
               <Button variant="ghost" size="icon" onClick={() => onNavigationOpenChange(false)} aria-label={t("supportPublic.a11y.closeNavigation")}><XIcon /></Button>
@@ -713,7 +713,7 @@ function HelpArticle({ page, pages, previewId, theme }: { page: SupportHelpPage;
     return () => cleanup.forEach((dispose) => dispose())
   }, [lightbox, page.content, previewId, t])
   return (
-    <article className="mx-auto max-w-[820px]">
+    <article className="mx-auto max-w-[var(--support-article-width)]">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Link href="/support/help" className="hover:text-foreground">{t("supportPublic.help.title")}</Link>
         <ChevronRightIcon className="size-3.5" />

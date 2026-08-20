@@ -33,6 +33,12 @@
 
 :root {
   --radius: 0.625rem;
+  --support-shell-max-width: 80rem;
+  --support-docs-max-width: 100rem;
+  --support-doc-nav-width: 18rem;
+  --support-doc-nav-wide-width: 19rem;
+  --support-doc-toc-width: 15rem;
+  --support-article-width: 51.25rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -89,6 +95,22 @@
 }
 
 @layer components {
+  .support-docs-grid {
+    display: grid;
+  }
+
+  @media (width >= 80rem) {
+    .support-docs-grid {
+      grid-template-columns: var(--support-doc-nav-width) minmax(0, 1fr);
+    }
+  }
+
+  @media (width >= 96rem) {
+    .support-docs-grid {
+      grid-template-columns: var(--support-doc-nav-wide-width) minmax(0, 1fr) var(--support-doc-toc-width);
+    }
+  }
+
   .support-markdown .md-editor,
   .support-markdown .md-editor-preview-wrapper,
   .support-markdown .md-editor-preview {
