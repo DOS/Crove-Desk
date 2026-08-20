@@ -484,6 +484,8 @@ error.supportHelpPage.sortDuplicate: "The page sort order contains duplicate ent
 error.supportHelpPage.notFound: "The help page does not exist"
 error.supportHelpPage.invalidStatus: "The help page status is invalid"
 error.supportHelpPage.invalidSlug: "The slug may contain only letters, numbers, and hyphens (-)"
+error.supportHelpPage.slugRequired: "Enter a slug"
+error.supportHelpPage.slugDuplicate: "The slug must be unique under the same parent page"
 error.supportHelpPage.publishParentFirst: "Publish the parent page first"
 error.supportHelpPage.unpublishChildrenFirst: "Unpublish the published child pages first"
 tool.graph.createTicketConfirm.info: "Graph Tool. Handles ticket parameter preparation, user confirmation, actual ticket creation, and result return. Use only when the user explicitly asks to create a ticket and the title and description are clear."

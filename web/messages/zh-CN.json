@@ -94,7 +94,6 @@
     "empty": "暂无帮助页面",
     "selectPrompt": "从左侧选择页面，或新建页面",
     "pageSettings": "页面设置",
-    "settingsDescription": "调整页面位置、访问路径、摘要和发布状态，保存页面后生效。",
     "parentPage": "父页面",
     "selectParentPage": "选择父页面",
     "rootDirectory": "根目录",
@@ -112,6 +111,7 @@
     "save": "保存",
     "saving": "保存中...",
     "saved": "页面已保存",
+    "settingsSaved": "页面设置已保存",
     "savedState": "所有修改已保存",
     "unsaved": "有未保存修改",
     "unsavedLeaveConfirm": "当前页面有未保存的修改，确定离开吗？",
@@ -145,8 +145,7 @@
     "deleteConfirm": "确定删除“{title}”吗？存在子页面时不能删除。",
     "deleteConfirmTitle": "删除“{title}”？",
     "deleted": "页面已删除",
-    "cancel": "取消",
-    "done": "完成"
+    "cancel": "取消"
   },
   "editor": {
     "placeholder": "请输入内容...",

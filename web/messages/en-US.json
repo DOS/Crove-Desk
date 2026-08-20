@@ -94,7 +94,6 @@
     "empty": "No help pages",
     "selectPrompt": "Select a page on the left or create a new page",
     "pageSettings": "Page settings",
-    "settingsDescription": "Change the page location, URL, summary, and publication status. Changes take effect after saving the page.",
     "parentPage": "Parent page",
     "selectParentPage": "Select a parent page",
     "rootDirectory": "Root",
@@ -112,6 +111,7 @@
     "save": "Save",
     "saving": "Saving...",
     "saved": "Page saved",
+    "settingsSaved": "Page settings saved",
     "savedState": "All changes saved",
     "unsaved": "Unsaved changes",
     "unsavedLeaveConfirm": "This page has unsaved changes. Leave anyway?",
@@ -145,8 +145,7 @@
     "deleteConfirm": "Delete “{title}”? Pages with children cannot be deleted.",
     "deleteConfirmTitle": "Delete “{title}”?",
     "deleted": "Page deleted",
-    "cancel": "Cancel",
-    "done": "Done"
+    "cancel": "Cancel"
   },
   "editor": {
     "placeholder": "Enter content...",

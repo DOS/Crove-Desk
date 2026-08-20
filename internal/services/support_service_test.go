@@ -171,6 +171,42 @@ func TestSupportSlugAllowsLettersNumbersAndHyphens(t *testing.T) {
 	}
 }
 
+func TestUpdateHelpPageSettingsOnlyUpdatesSettingsFields(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&models.SupportHelpPage{}); err != nil {
+		t.Fatalf("migrate help page: %v", err)
+	}
+	sqls.SetDB(db)
+	operator := &dto.AuthPrincipal{UserID: 1, Username: "admin"}
+	parent, err := SupportService.SaveHelpPage(request.SaveSupportHelpPageRequest{
+		Title: "Parent", Slug: "parent", ContentType: "markdown", Content: "parent content", Status: enums.SupportHelpPageStatusDraft,
+	}, operator)
+	if err != nil {
+		t.Fatalf("create parent: %v", err)
+	}
+	page, err := SupportService.SaveHelpPage(request.SaveSupportHelpPageRequest{
+		Title: "Original title", Slug: "original", Summary: "original summary", ContentType: "markdown", Content: "original content", Tags: []string{"original"}, Status: enums.SupportHelpPageStatusDraft,
+	}, operator)
+	if err != nil {
+		t.Fatalf("create page: %v", err)
+	}
+	saved, err := SupportService.UpdateHelpPageSettings(request.UpdateSupportHelpPageSettingsRequest{
+		ID: page.ID, ParentID: parent.ID, Slug: "updated", Summary: "updated summary",
+	}, operator)
+	if err != nil {
+		t.Fatalf("update page settings: %v", err)
+	}
+	if saved.ParentID != parent.ID || saved.Slug != "updated" || saved.Summary != "updated summary" {
+		t.Fatalf("settings were not updated: %#v", saved)
+	}
+	if saved.Title != page.Title || saved.Content != page.Content || saved.ContentType != page.ContentType || saved.TagsJSON != page.TagsJSON || saved.Status != page.Status {
+		t.Fatalf("document fields changed while saving settings: %#v", saved)
+	}
+}
+
 func TestSupportQuestionCategorySort(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {

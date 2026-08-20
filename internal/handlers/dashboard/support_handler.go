@@ -93,6 +93,25 @@ func SupportHelpPagePostUpdate(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, builders.BuildSupportHelpPage(item, true))
 }
 
+func SupportHelpPagePostUpdate_settings(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageUpdate)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.UpdateSupportHelpPageSettingsRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	item, err := services.SupportService.UpdateHelpPageSettings(req, operator)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, builders.BuildSupportHelpPage(item, true))
+}
+
 func SupportHelpPagePostDelete(ctx *gin.Context) {
 	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageDelete); err != nil {
 		httpx.WriteJSON(ctx, err)

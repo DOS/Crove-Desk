@@ -28,6 +28,13 @@ type SaveSupportHelpPageRequest struct {
 	Remark      string                      `json:"remark"`
 }
 
+type UpdateSupportHelpPageSettingsRequest struct {
+	ID       int64  `json:"id"`
+	ParentID int64  `json:"parentId"`
+	Slug     string `json:"slug"`
+	Summary  string `json:"summary"`
+}
+
 type SortSupportHelpPagesRequest struct {
 	ParentID int64   `json:"parentId"`
 	IDs      []int64 `json:"ids"`

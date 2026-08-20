@@ -233,6 +233,50 @@ func (s *supportService) SaveHelpPage(req request.SaveSupportHelpPageRequest, op
 	return item, nil
 }
 
+func (s *supportService) UpdateHelpPageSettings(req request.UpdateSupportHelpPageSettingsRequest, operator *dto.AuthPrincipal) (*models.SupportHelpPage, error) {
+	item := repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ID)
+	if item == nil {
+		return nil, errorsx.InvalidParamI18n("error.supportHelpPage.notFound")
+	}
+	slug := normalizeSupportSlug(req.Slug)
+	if slug == "" {
+		return nil, errorsx.InvalidParamI18n("error.supportHelpPage.slugRequired")
+	}
+	if err := validateSupportSlug(slug); err != nil {
+		return nil, err
+	}
+	if err := s.validateHelpPageParent(item.ID, req.ParentID); err != nil {
+		return nil, err
+	}
+	if existing := repositories.SupportHelpPageRepository.GetByParentIDAndSlug(sqls.DB(), req.ParentID, slug); existing != nil && existing.ID != item.ID {
+		return nil, errorsx.InvalidParamI18n("error.supportHelpPage.slugDuplicate")
+	}
+	if item.Status == enums.SupportHelpPageStatusPublished && req.ParentID > 0 {
+		parent := repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ParentID)
+		if parent == nil || parent.Status != enums.SupportHelpPageStatusPublished {
+			return nil, errorsx.InvalidParamI18n("error.supportHelpPage.publishParentFirst")
+		}
+	}
+	sortNo := item.SortNo
+	if req.ParentID != item.ParentID {
+		sortNo = len(repositories.SupportHelpPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", req.ParentID)))
+	}
+	now := time.Now()
+	columns := map[string]any{
+		"parent_id":        req.ParentID,
+		"slug":             slug,
+		"summary":          strings.TrimSpace(req.Summary),
+		"sort_no":          sortNo,
+		"updated_at":       now,
+		"update_user_id":   operator.UserID,
+		"update_user_name": operator.Username,
+	}
+	if err := repositories.SupportHelpPageRepository.Updates(sqls.DB(), item.ID, columns); err != nil {
+		return nil, err
+	}
+	return repositories.SupportHelpPageRepository.Get(sqls.DB(), item.ID), nil
+}
+
 func (s *supportService) ChangeHelpPageStatus(req request.ChangeSupportHelpPageStatusRequest, operator *dto.AuthPrincipal) (*models.SupportHelpPage, error) {
 	item := repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ID)
 	if item == nil {

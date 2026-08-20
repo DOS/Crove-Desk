@@ -2393,6 +2393,13 @@ export function saveSupportHelpPageAdmin(payload: Partial<AdminSupportHelpPage>)
   })
 }
 
+export function updateSupportHelpPageSettingsAdmin(payload: Pick<AdminSupportHelpPage, "id" | "parentId" | "slug" | "summary">) {
+  return request<AdminSupportHelpPage>("/api/dashboard/support-help-page/update_settings", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}
+
 export function deleteSupportHelpPageAdmin(id: number) {
   return request<void>("/api/dashboard/support-help-page/delete", {
     method: "POST",

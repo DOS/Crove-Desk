@@ -55,6 +55,7 @@ import {
   fetchSupportHelpPageAdmin,
   fetchSupportHelpPagesAllAdmin,
   saveSupportHelpPageAdmin,
+  updateSupportHelpPageSettingsAdmin,
   updateSupportHelpPageSortAdmin,
   uploadAsset,
   type AdminSupportHelpPage,
@@ -62,6 +63,7 @@ import {
 import { cn } from "@/lib/utils"
 
 type PageDraft = Pick<AdminSupportHelpPage, "parentId" | "title" | "slug" | "summary" | "content" | "contentType" | "tags">
+type PageSettingsDraft = Pick<PageDraft, "parentId" | "slug" | "summary">
 type CreateState = { open: boolean; parentId: number }
 
 const blankCreate: CreateState = { open: false, parentId: 0 }
@@ -246,6 +248,28 @@ export function SupportHelpWorkbench() {
       setDraft(toDraft(saved))
       setPages((items) => items.map((item) => item.id === saved.id ? saved : item))
       toast.success(t("supportHelpWorkbench.saved"))
+    } catch (error) {
+      handleApiError(error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function saveSettings(settings: PageSettingsDraft) {
+    if (!selected || !draft || !settings.slug.trim() || saving) return
+    setSaving(true)
+    try {
+      const saved = await updateSupportHelpPageSettingsAdmin({
+        id: selected.id,
+        parentId: settings.parentId,
+        slug: settings.slug.trim(),
+        summary: settings.summary.trim(),
+      })
+      setSelected(saved)
+      setDraft({ ...draft, parentId: saved.parentId, slug: saved.slug, summary: saved.summary })
+      setPages((items) => items.map((item) => item.id === saved.id ? saved : item))
+      setSettingsOpen(false)
+      toast.success(t("supportHelpWorkbench.settingsSaved"))
     } catch (error) {
       handleApiError(error)
     } finally {
@@ -448,7 +472,7 @@ export function SupportHelpWorkbench() {
       </main>
 
       <CreatePageDialog key={`${createState.open}-${createState.parentId}`} state={createState} pages={pages} onOpenChange={(open) => setCreateState((current) => ({ ...current, open }))} onCreated={async (id) => { setCreateState(blankCreate); await load(id) }} />
-      <PageSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} pages={pages} selected={selected} draft={draft} onChange={setDraft} />
+      <PageSettingsDialog key={`${selected?.id ?? 0}-${settingsOpen}`} open={settingsOpen} onOpenChange={setSettingsOpen} pages={pages} selected={selected} draft={draft} saving={saving} onSave={saveSettings} />
     </div>
   )
 }
@@ -562,8 +586,9 @@ function CreatePageDialog({ state, pages, onOpenChange, onCreated }: { state: Cr
   </Dialog>
 }
 
-function PageSettingsDialog({ open, onOpenChange, pages, selected, draft, onChange }: { open: boolean; onOpenChange: (open: boolean) => void; pages: AdminSupportHelpPage[]; selected: AdminSupportHelpPage | null; draft: PageDraft | null; onChange: (draft: PageDraft) => void }) {
+function PageSettingsDialog({ open, onOpenChange, pages, selected, draft, saving, onSave }: { open: boolean; onOpenChange: (open: boolean) => void; pages: AdminSupportHelpPage[]; selected: AdminSupportHelpPage | null; draft: PageDraft | null; saving: boolean; onSave: (settings: PageSettingsDraft) => void }) {
   const t = useI18n()
+  const [settings, setSettings] = useState<PageSettingsDraft>(() => ({ parentId: draft?.parentId ?? 0, slug: draft?.slug ?? "", summary: draft?.summary ?? "" }))
   if (!draft || !selected) return null
   const excluded = descendantIds(pages, selected.id)
   excluded.add(selected.id)
@@ -571,13 +596,13 @@ function PageSettingsDialog({ open, onOpenChange, pages, selected, draft, onChan
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent>
-      <DialogHeader><DialogTitle>{t("supportHelpWorkbench.pageSettings")}</DialogTitle><DialogDescription>{t("supportHelpWorkbench.settingsDescription")}</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>{t("supportHelpWorkbench.pageSettings")}</DialogTitle></DialogHeader>
       <div className="grid gap-4 py-2">
-        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.parentPage")}</Label><OptionCombobox value={String(draft.parentId)} onChange={(value) => onChange({ ...draft, parentId: Number(value) })} placeholder={t("supportHelpWorkbench.selectParentPage")} options={options} /></div>
-        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.slug")}</Label><Input value={draft.slug} onChange={(event) => onChange({ ...draft, slug: normalizeSupportSlug(event.target.value) })} /><p className="text-xs leading-5 text-muted-foreground">{t("supportHelpWorkbench.slugFormatHint")}</p><p className="text-xs leading-5 text-muted-foreground">{t("supportHelpWorkbench.slugChangeWarning")}</p></div>
-        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.summary")}</Label><Textarea value={draft.summary} onChange={(event) => onChange({ ...draft, summary: event.target.value })} rows={4} placeholder={t("supportHelpWorkbench.summaryPlaceholder")} /></div>
+        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.parentPage")}</Label><OptionCombobox value={String(settings.parentId)} onChange={(value) => setSettings({ ...settings, parentId: Number(value) })} placeholder={t("supportHelpWorkbench.selectParentPage")} options={options} /></div>
+        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.slug")}</Label><Input value={settings.slug} onChange={(event) => setSettings({ ...settings, slug: normalizeSupportSlug(event.target.value) })} /><p className="text-xs leading-5 text-muted-foreground">{t("supportHelpWorkbench.slugFormatHint")}</p><p className="text-xs leading-5 text-muted-foreground">{t("supportHelpWorkbench.slugChangeWarning")}</p></div>
+        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.summary")}</Label><Textarea value={settings.summary} onChange={(event) => setSettings({ ...settings, summary: event.target.value })} rows={4} placeholder={t("supportHelpWorkbench.summaryPlaceholder")} /></div>
       </div>
-      <DialogFooter><Button onClick={() => onOpenChange(false)}>{t("supportHelpWorkbench.done")}</Button></DialogFooter>
+      <DialogFooter><Button variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>{t("supportHelpWorkbench.cancel")}</Button><Button disabled={!settings.slug.trim() || saving} onClick={() => onSave(settings)}>{saving ? t("supportHelpWorkbench.saving") : t("supportHelpWorkbench.save")}</Button></DialogFooter>
     </DialogContent>
   </Dialog>
 }
