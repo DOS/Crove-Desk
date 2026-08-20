@@ -595,7 +595,7 @@ function SupportDocsFrame({
       <div className="support-docs-grid mx-auto max-w-[var(--support-docs-max-width)]">
         {navigation ? <aside className="hidden border-r xl:sticky xl:top-14 xl:block xl:h-[calc(100svh-3.5rem)] xl:overflow-y-auto">{navigation}</aside> : null}
         <div className="min-w-0 px-5 py-9 sm:px-6 sm:py-12 md:px-8 lg:px-10 2xl:px-12">{children}</div>
-        {toc ? <div className="hidden border-l 2xl:block">{toc}</div> : null}
+        {toc ? <div className="hidden 2xl:block">{toc}</div> : null}
       </div>
 
       {navigationOpen ? (
@@ -720,7 +720,6 @@ function HelpArticle({ page, pages, previewId, theme }: { page: SupportHelpPage;
         <span className="truncate">{page.title}</span>
       </div>
       <h1 className="mt-6 text-balance text-3xl font-bold tracking-tight sm:text-4xl">{page.title}</h1>
-      {page.summary ? <p className="mt-4 text-lg leading-8 text-muted-foreground">{page.summary}</p> : null}
       <div className="mt-5 text-xs text-muted-foreground">{t("supportPublic.help.updatedAt", { date: formatDateTime(page.publishedAt || page.updatedAt) })}</div>
       <div className="support-markdown mt-10">
         {page.contentType === "html" ? <div id={previewId}><SafeRichHTML html={page.content} className="support-rich-html text-base leading-8" /></div> : <MdPreview id={previewId} modelValue={page.content} theme={theme === "dark" ? "dark" : "light"} noMermaid noKatex noHighlight />}
