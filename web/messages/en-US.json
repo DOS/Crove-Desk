@@ -2449,6 +2449,9 @@
       "feedbackTitle": "Was this page helpful?",
       "feedbackDescription": "Your feedback helps us improve the documentation.",
       "copyCode": "Copy code",
+      "mermaidDiagram": "Documentation diagram",
+      "mermaidLoading": "Rendering diagram...",
+      "mermaidError": "The diagram syntax is invalid and cannot be displayed.",
       "previous": "Previous",
       "next": "Next"
     },

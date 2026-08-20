@@ -187,6 +187,40 @@
     color: var(--syntax-deletion);
   }
 
+  .support-mermaid {
+    margin-block-start: var(--typeset-flow);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: color-mix(in oklab, var(--muted) 45%, var(--background));
+  }
+
+  .support-mermaid-canvas {
+    min-height: 10rem;
+    overflow: auto;
+    padding: 1.25rem;
+  }
+
+  .support-mermaid-canvas > svg {
+    display: block;
+    width: 100%;
+    min-width: 28rem;
+    height: auto;
+    margin-inline: auto;
+  }
+
+  .support-mermaid-status {
+    display: grid;
+    min-height: 7.5rem;
+    place-items: center;
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+  }
+
+  .support-mermaid-error {
+    color: var(--destructive);
+  }
+
   .typeset :where(hr):not(:where(.not-typeset, .not-typeset *, [data-not-typeset], [data-not-typeset] *)) {
     border: 0;
     border-top: 1px solid var(--border);

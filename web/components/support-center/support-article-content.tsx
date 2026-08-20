@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo, type MouseEvent } from "react"
+import { Children, isValidElement, useEffect, useId, useMemo, useRef, type MouseEvent, type ReactNode } from "react"
+import { useTheme } from "next-themes"
 import rehypeHighlight from "rehype-highlight"
 import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown"
 import remarkBreaks from "remark-breaks"
@@ -11,6 +12,14 @@ import { useImageLightboxOptional } from "@/components/image-lightbox"
 import { SafeRichHTML } from "@/components/safe-rich-html"
 import { useI18n } from "@/i18n/provider"
 import { articleHeadingId } from "@/lib/support-article"
+
+let mermaidRenderQueue = Promise.resolve()
+
+function enqueueMermaidRender(task: () => Promise<void>) {
+  const next = mermaidRenderQueue.then(task, task)
+  mermaidRenderQueue = next.catch(() => undefined)
+  return next
+}
 
 type MarkdownNode = {
   children?: MarkdownNode[]
@@ -55,6 +64,101 @@ function supportArticleUrlTransform(url: string, key: string) {
   }
 }
 
+function reactNodeText(node: ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node)
+  if (Array.isArray(node)) return node.map(reactNodeText).join("")
+  if (isValidElement<{ children?: ReactNode }>(node)) return reactNodeText(node.props.children)
+  return ""
+}
+
+function mermaidDefinition(children: ReactNode) {
+  const code = Children.toArray(children).find(
+    (child) => isValidElement<{ className?: string }>(child) && child.props.className?.split(/\s+/).includes("language-mermaid"),
+  )
+  if (!isValidElement<{ children?: ReactNode }>(code)) return null
+  return reactNodeText(code.props.children).replace(/\n$/, "")
+}
+
+function MermaidDiagram({ definition }: { definition: string }) {
+  const t = useI18n()
+  const { resolvedTheme } = useTheme()
+  const containerRef = useRef<HTMLDivElement>(null)
+  const reactId = useId()
+  const diagramId = useMemo(() => `support-mermaid-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`, [reactId])
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    let cancelled = false
+    const status = document.createElement("div")
+    status.className = "support-mermaid-status"
+    status.setAttribute("role", "status")
+    status.textContent = t("supportPublic.help.mermaidLoading")
+    container.setAttribute("aria-busy", "true")
+    container.replaceChildren(status)
+
+    void enqueueMermaidRender(async () => {
+      try {
+        const { default: mermaid } = await import("mermaid")
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: "strict",
+          theme: resolvedTheme === "dark" ? "dark" : "default",
+          themeVariables: resolvedTheme === "dark" ? {
+            actorBkg: "#27272a",
+            actorBorder: "#8b5cf6",
+            actorLineColor: "#a1a1aa",
+            actorTextColor: "#f4f4f5",
+            edgeLabelBackground: "#18181b",
+            labelBoxBkgColor: "#27272a",
+            labelBoxBorderColor: "#8b5cf6",
+            labelTextColor: "#f4f4f5",
+            lineColor: "#a1a1aa",
+            loopTextColor: "#f4f4f5",
+            noteBkgColor: "#292524",
+            noteTextColor: "#f4f4f5",
+            primaryTextColor: "#f4f4f5",
+            signalColor: "#d4d4d8",
+            signalTextColor: "#f4f4f5",
+            tertiaryTextColor: "#f4f4f5",
+          } : undefined,
+          fontFamily: "var(--font-geist-sans), Arial, sans-serif",
+          flowchart: { useMaxWidth: true },
+        })
+        const valid = await mermaid.parse(definition, { suppressErrors: true })
+        if (!valid) throw new Error("Invalid Mermaid definition")
+        const { svg } = await mermaid.render(diagramId, definition)
+        if (cancelled) return
+        container.innerHTML = svg
+        container.setAttribute("aria-busy", "false")
+      } catch {
+        if (cancelled) return
+        const error = document.createElement("div")
+        error.className = "support-mermaid-status support-mermaid-error"
+        error.setAttribute("role", "alert")
+        error.textContent = t("supportPublic.help.mermaidError")
+        container.setAttribute("aria-busy", "false")
+        container.replaceChildren(error)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [definition, diagramId, resolvedTheme, t])
+
+  return (
+    <figure className="support-mermaid not-typeset" data-not-typeset>
+      <div
+        ref={containerRef}
+        className="support-mermaid-canvas"
+        role="img"
+        aria-label={t("supportPublic.help.mermaidDiagram")}
+      />
+    </figure>
+  )
+}
+
 type SupportArticleContentProps = {
   content: string
   contentType?: string
@@ -82,6 +186,8 @@ export function SupportArticleContent({ content, contentType = "markdown", id }:
       />
     ),
     pre: ({ children, ...props }) => {
+      const definition = mermaidDefinition(children)
+      if (definition !== null) return <MermaidDiagram definition={definition} />
       const copy = (event: MouseEvent<HTMLButtonElement>) => {
         const code = event.currentTarget.parentElement?.querySelector("code")?.textContent ?? ""
         void navigator.clipboard.writeText(code).then(() => toast.success(t("supportPublic.toast.codeCopied")))
