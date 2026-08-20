@@ -24,6 +24,8 @@ type ContentEditorProps = {
   onUploadImage?: UploadImageHandler
   height?: number | string
   allowedModes?: ReadonlyArray<ContentMode>
+  scrollMode?: "editor" | "document"
+  className?: string
 }
 
 function normalizeHeight(height?: number | string) {
@@ -55,6 +57,8 @@ export function ContentEditor({
   onUploadImage,
   height,
   allowedModes = CONTENT_MODE_OPTIONS,
+  scrollMode = "editor",
+  className,
 }: ContentEditorProps) {
   const t = useI18n()
   const editorHeight = normalizeHeight(height)
@@ -131,6 +135,8 @@ export function ContentEditor({
     <div
       className={cn(
         "w-full",
+        scrollMode === "document" && "content-editor-document",
+        className,
         fullscreen && "fixed inset-0 z-[10000] overflow-hidden bg-background p-4"
       )}
     >
@@ -147,6 +153,7 @@ export function ContentEditor({
           disabled={disabled}
           onUploadImage={onUploadImage}
           height={fullscreen ? "calc(100vh - 2rem)" : editorHeight}
+          scrollMode={fullscreen ? "editor" : scrollMode}
         />
       ) : (
         <HtmlEditor
@@ -161,6 +168,7 @@ export function ContentEditor({
           disabled={disabled}
           onUploadImage={onUploadImage}
           height={fullscreen ? "calc(100vh - 2rem)" : editorHeight}
+          scrollMode={fullscreen ? "editor" : scrollMode}
         />
       )}
     </div>

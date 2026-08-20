@@ -328,9 +328,9 @@ export function SupportHelpWorkbench() {
         </div>
       </aside>
 
-      <main key={selected?.id ?? "empty"} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <main key={selected?.id ?? "empty"} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
         {draft && selected ? <>
-          <div className="flex h-14 shrink-0 items-center justify-between gap-4 border-b px-4">
+          <div className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b bg-background px-4">
             <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
               <span className="shrink-0">{t("supportHelpWorkbench.title")}</span>
               {path.map((item) => <span key={item.id} className="flex min-w-0 items-center gap-2"><ChevronRightIcon className="size-3.5 shrink-0" /><span className="truncate">{item.title}</span></span>)}
@@ -343,14 +343,15 @@ export function SupportHelpWorkbench() {
               <Button onClick={() => void save()} disabled={!dirty || saving}><SaveIcon />{saving ? t("supportHelpWorkbench.saving") : t("supportHelpWorkbench.save")}</Button>
             </div>
           </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-5">
-            <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-auto shrink-0 border-0 px-0 text-3xl font-semibold shadow-none focus-visible:ring-0" aria-label={t("supportHelpWorkbench.pageTitle")} />
-            <div className="min-h-0 flex-1 overflow-hidden [&>div]:h-full">
+          <div className="flex min-h-[calc(100%_-_3.5rem)] flex-col px-5 pb-5 pt-4">
+            <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-auto shrink-0 border-0 px-2 pb-3 pt-1 text-3xl font-semibold shadow-none focus-visible:ring-0" aria-label={t("supportHelpWorkbench.pageTitle")} />
+            <div className="flex-1">
               <ContentEditor
                 value={{ mode: draft.contentType === "html" ? "html" : "markdown", raw: draft.content }}
                 onChange={(content) => setDraft({ ...draft, content: content.raw, contentType: content.mode })}
                 placeholder={t("supportHelpWorkbench.contentPlaceholder")}
-                height="100%"
+                scrollMode="document"
+                className="[--content-editor-toolbar-offset:3.5rem] [&>div]:rounded-none [&>div]:border-0"
               />
             </div>
           </div>

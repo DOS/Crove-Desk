@@ -17,6 +17,7 @@ import "./markdown-editor.css"
 import { EditorModeSwitch } from "./editor-mode-switch"
 import type { ContentMode, UploadImageHandler } from "./types"
 import { useI18n } from "@/i18n/provider"
+import { cn } from "@/lib/utils"
 
 export type MarkdownEditorRef = {
   focus: () => void
@@ -34,6 +35,7 @@ type MarkdownEditorProps = {
   disabled?: boolean
   onUploadImage?: UploadImageHandler
   height: string
+  scrollMode: "editor" | "document"
 }
 
 type MdEditorToolbars = NonNullable<ComponentProps<typeof MdEditor>["toolbars"]>
@@ -52,6 +54,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
       disabled = false,
       onUploadImage,
       height,
+      scrollMode,
     },
     ref
   ) {
@@ -129,9 +132,9 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
     return (
       <div
         className="w-full rounded-lg border bg-background"
-        style={{ height }}
+        style={scrollMode === "document" ? undefined : { height }}
       >
-        <div className="content-editor-markdown h-full">
+        <div className={cn("content-editor-markdown", scrollMode === "editor" && "h-full", scrollMode === "document" && "content-editor-markdown-document")}>
           <MdEditor
             ref={editorRef}
             id={editorId}
@@ -147,7 +150,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
             noHighlight
             placeholder={placeholder}
             disabled={disabled}
-            style={{ height: "100%" }}
+            style={scrollMode === "document" ? undefined : { height: "100%" }}
             onUploadImg={
               onUploadImage
                 ? async (files, callback) => {
