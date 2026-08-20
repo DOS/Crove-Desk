@@ -1,6 +1,16 @@
 "use client"
 
-import { cn } from "@/lib/utils"
+import { ChevronDownIcon } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useI18n } from "@/i18n/provider"
 
 import {
   CONTENT_MODE_OPTIONS,
@@ -25,36 +35,40 @@ export function EditorModeSwitch({
   disabled = false,
   onChange,
 }: EditorModeSwitchProps) {
+  const t = useI18n()
   const options = MODE_OPTIONS.filter((option) => allowedModes.includes(option.value))
+  const activeLabel = options.find((option) => option.value === value)?.label ?? value
 
   if (options.length <= 1) {
     return null
   }
 
   return (
-    <div className="mx-0.5 rounded-[3px] border border-border/80 bg-transparent p-0">
-      <div className="flex items-center">
-        {options.map((option) => {
-          const active = option.value === value
-          return (
-            <button
-              key={option.value}
-              type="button"
-              disabled={disabled}
-              onClick={() => onChange(option.value)}
-              className={cn(
-                "px-1.5 py-0 text-[12px] leading-6 whitespace-nowrap transition-colors",
-                "hover:bg-[#f2f2f2] disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-[#333]",
-                active
-                  ? "bg-[#f2f2f2] text-[#3f4a54] dark:bg-[#333] dark:text-[#999]"
-                  : "bg-transparent text-[#3f4a54] dark:text-[#999]"
-              )}
-            >
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button type="button" variant="outline" size="sm" className="mx-0.5 h-7 min-w-24 justify-between gap-2 bg-background px-2 text-xs font-medium shadow-none" />}
+        disabled={disabled}
+        aria-label={t("editor.modeSwitchLabel")}
+      >
+        <span>{activeLabel}</span>
+        <ChevronDownIcon className="size-3.5 text-muted-foreground" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-32">
+        <DropdownMenuRadioGroup
+          value={value}
+          onValueChange={(nextMode) => {
+            if (nextMode !== value) {
+              onChange(nextMode as ContentMode)
+            }
+          }}
+        >
+          {options.map((option) => (
+            <DropdownMenuRadioItem key={option.value} value={option.value} disabled={disabled}>
               {option.label}
-            </button>
-          )
-        })}
-      </div>
-    </div>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

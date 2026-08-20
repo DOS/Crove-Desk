@@ -145,7 +145,11 @@
     "fullscreen": "全屏",
     "exitFullscreen": "退出全屏",
     "previewOnly": "仅预览",
-    "modeSwitchConfirm": "切换到 {mode} 模式会尝试自动转换内容，复杂格式可能有损。是否继续？"
+    "modeSwitchTitle": "切换到 {mode} 模式？",
+    "modeSwitchDescription": "HTML 内容将自动转换为 Markdown，复杂样式、嵌入内容或部分结构可能无法完整保留。",
+    "modeSwitchAction": "转换并切换",
+    "modeSwitchCancel": "保持当前模式",
+    "modeSwitchLabel": "编辑器模式"
   },
   "locale": {
     "zh-CN": "简体中文",

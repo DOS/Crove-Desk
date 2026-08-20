@@ -145,7 +145,11 @@
     "fullscreen": "Fullscreen",
     "exitFullscreen": "Exit fullscreen",
     "previewOnly": "Preview Only",
-    "modeSwitchConfirm": "Switching to {mode} will try to convert the content automatically. Complex formatting may not be preserved. Continue?"
+    "modeSwitchTitle": "Switch to {mode}?",
+    "modeSwitchDescription": "The HTML content will be converted to Markdown. Complex styles, embedded content, or some structure may not be preserved.",
+    "modeSwitchAction": "Convert and switch",
+    "modeSwitchCancel": "Keep current mode",
+    "modeSwitchLabel": "Editor mode"
   },
   "locale": {
     "zh-CN": "简体中文",

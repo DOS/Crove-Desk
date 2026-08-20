@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 
 import { cn } from "@/lib/utils"
+import { useConfirm } from "@/components/confirm-provider"
 
 import { htmlToMarkdown, markdownToHtml } from "./convert"
 import { HtmlEditor } from "./html-editor"
@@ -61,6 +62,7 @@ export function ContentEditor({
   className,
 }: ContentEditorProps) {
   const t = useI18n()
+  const confirm = useConfirm()
   const editorHeight = normalizeHeight(height)
   const [fullscreen, setFullscreen] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -96,7 +98,7 @@ export function ContentEditor({
   }, [fullscreen])
 
   const handleModeChange = useCallback(
-    (nextMode: ContentMode) => {
+    async (nextMode: ContentMode) => {
       if (
         disabled ||
         normalizedAllowedModes.length <= 1 ||
@@ -111,9 +113,17 @@ export function ContentEditor({
         return
       }
 
-      const confirmed = window.confirm(
-        t("editor.modeSwitchConfirm", { mode: getModeLabel(nextMode) })
-      )
+      if (activeMode === "markdown" && nextMode === "html") {
+        onChange({ mode: nextMode, raw: convertContent(activeMode, value.raw) })
+        return
+      }
+
+      const confirmed = await confirm({
+        title: t("editor.modeSwitchTitle", { mode: getModeLabel(nextMode) }),
+        description: t("editor.modeSwitchDescription"),
+        confirmText: t("editor.modeSwitchAction"),
+        cancelText: t("editor.modeSwitchCancel"),
+      })
       if (!confirmed) {
         return
       }
@@ -123,7 +133,7 @@ export function ContentEditor({
         raw: convertContent(activeMode, value.raw),
       })
     },
-    [activeMode, disabled, normalizedAllowedModes, onChange, t, value.raw]
+    [activeMode, confirm, disabled, normalizedAllowedModes, onChange, t, value.raw]
   )
 
   useEffect(() => {
