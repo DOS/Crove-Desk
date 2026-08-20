@@ -645,8 +645,7 @@ function HelpNavigation({
   return (
     <div className="p-4">
       <SupportSearchInput value={title} onChange={onTitleChange} placeholder={t("supportPublic.help.searchPlaceholder")} compact />
-      <div className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("supportPublic.help.navigation")}</div>
-      <div className="grid gap-0.5">
+      <div className="mt-4 grid gap-0.5">
         {title.trim() ? searchResults.map((page) => (
           <a key={page.id} href={`/support/help/${page.slug || page.id}/`} onClick={() => onSelect(page)} className={cn("rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-muted", selectedPageId === page.id && "bg-primary/10 text-primary")}>
             <span className="block truncate font-medium">{page.title}</span>
