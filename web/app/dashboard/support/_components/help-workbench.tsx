@@ -40,6 +40,7 @@ import { OptionCombobox } from "@/components/option-combobox"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -129,7 +130,6 @@ export function SupportHelpWorkbench() {
   const [draft, setDraft] = useState<PageDraft | null>(null)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const [query, setQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published" | "hidden">("all")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [sorting, setSorting] = useState(false)
@@ -142,7 +142,7 @@ export function SupportHelpWorkbench() {
   )
 
   const dirty = Boolean(selected && draft && JSON.stringify(toDraft(selected)) !== JSON.stringify(draft))
-  const sortingDisabled = Boolean(query.trim()) || statusFilter !== "all" || loading || sorting
+  const sortingDisabled = Boolean(query.trim()) || loading || sorting
 
   const statusOptions = useMemo(() => [
     { value: "draft", label: t("supportHelpWorkbench.statusDraft") },
@@ -155,7 +155,10 @@ export function SupportHelpWorkbench() {
     try {
       const result = await fetchSupportHelpPagesAllAdmin()
       setPages(result)
-      const id = preferredId ?? selected?.id ?? result[0]?.id
+      const requestedId = preferredId ?? selected?.id
+      const id = requestedId && result.some((page) => page.id === requestedId)
+        ? requestedId
+        : result[0]?.id
       if (!id) {
         setSelected(null)
         setDraft(null)
@@ -278,6 +281,7 @@ export function SupportHelpWorkbench() {
     if (!confirmed) return
     try {
       await deleteSupportHelpPageAdmin(page.id)
+      selectionRequest.current += 1
       toast.success(t("supportHelpWorkbench.deleted"))
       await load(selected?.id === page.id ? undefined : selected?.id)
     } catch (error) {
@@ -313,10 +317,9 @@ export function SupportHelpWorkbench() {
 
   const visibleIds = useMemo(() => {
     const keyword = query.trim().toLowerCase()
-    if (!keyword && statusFilter === "all") return null
+    if (!keyword) return null
     const ids = new Set<number>()
     for (const page of pages) {
-      if (statusFilter !== "all" && page.status !== statusFilter) continue
       if (keyword && !`${page.title} ${page.slug} ${page.summary}`.toLowerCase().includes(keyword)) continue
       ids.add(page.id)
       let parentId = page.parentId
@@ -326,7 +329,7 @@ export function SupportHelpWorkbench() {
       }
     }
     return ids
-  }, [pages, query, statusFilter])
+  }, [pages, query])
 
   const roots = childPages(pages, 0).filter((page) => !visibleIds || visibleIds.has(page.id))
   const path = pagePath(pages, selected)
@@ -347,9 +350,6 @@ export function SupportHelpWorkbench() {
             <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder={t("supportHelpWorkbench.searchPlaceholder")} />
           </div>
           {query.trim() ? <p className="mt-2 text-xs text-muted-foreground">{t("supportHelpWorkbench.sortDisabledDuringSearch")}</p> : null}
-          <div className="mt-3 grid grid-cols-2 gap-1">
-            {(["all", "draft", "published", "hidden"] as const).map((status) => <Button key={status} size="sm" variant={statusFilter === status ? "secondary" : "ghost"} className="justify-between px-2 text-xs" onClick={() => setStatusFilter(status)}><span>{t(`supportHelpWorkbench.filter${status[0].toUpperCase()}${status.slice(1)}`)}</span><span className="text-muted-foreground">{status === "all" ? pages.length : pages.filter((page) => page.status === status).length}</span></Button>)}
-          </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => void handleDragEnd(event)}>
@@ -362,7 +362,7 @@ export function SupportHelpWorkbench() {
                   depth={0}
                   selectedId={selected?.id}
                   expanded={expanded}
-                  forceExpanded={Boolean(query) || statusFilter !== "all"}
+                  forceExpanded={Boolean(query)}
                   visibleIds={visibleIds}
                   sortingDisabled={sortingDisabled}
                   onToggle={(id) => setExpanded((current) => {
@@ -456,24 +456,33 @@ function PageTreeNode(props: PageTreeNodeProps) {
   const style: CSSProperties = { transform: CSS.Transform.toString(transform), transition }
 
   return <div ref={setNodeRef} style={style} className={cn(isDragging && "relative z-10 opacity-70")}>
-    <div className={cn("group flex h-9 items-center rounded-md pr-1 text-sm", selectedId === page.id ? "bg-accent text-accent-foreground" : "hover:bg-accent/60", isDragging && "shadow-sm")} style={{ paddingLeft: 4 + depth * 16 }}>
-      <button type="button" className="flex size-7 shrink-0 items-center justify-center" onClick={() => children.length && onToggle(page.id)} aria-label={open ? t("supportHelpWorkbench.collapse") : t("supportHelpWorkbench.expand")}>
-        <ChevronRightIcon className={cn("size-4 transition-transform", !children.length && "opacity-0", open && "rotate-90")} />
-      </button>
-      <button type="button" className="min-w-0 flex-1 truncate text-left" onClick={() => void onSelect(page)}>{page.title}</button>
-      <span className={cn("mr-1 size-1.5 rounded-full", page.status === "published" ? "bg-emerald-500" : page.status === "hidden" ? "bg-amber-500" : "bg-muted-foreground/40")} />
-      <button type="button" className="flex size-7 shrink-0 cursor-grab items-center justify-center text-muted-foreground touch-none active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-35" disabled={sortingDisabled} aria-label={t("supportHelpWorkbench.dragPage", { title: page.title })} title={sortingDisabled ? t("supportHelpWorkbench.dragDisabled") : t("supportHelpWorkbench.dragPage", { title: page.title })} {...attributes} {...listeners}>
-        <GripVerticalIcon className="size-3.5" />
-      </button>
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" className="opacity-0 group-hover:opacity-100 focus:opacity-100" aria-label={t("supportHelpWorkbench.pageActions", { title: page.title })} />}><MoreHorizontalIcon /></DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={() => onCreate(page.id)}><FilePlus2Icon />{t("supportHelpWorkbench.createChildPage")}</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={() => void onDelete(page)}><Trash2Icon />{t("supportHelpWorkbench.deletePage")}</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <ContextMenu>
+      <ContextMenuTrigger className="block">
+        <div className={cn("group flex h-9 items-center rounded-md pr-1 text-sm", selectedId === page.id ? "bg-accent text-accent-foreground" : "hover:bg-accent/60", isDragging && "shadow-sm")} style={{ paddingLeft: 4 + depth * 16 }}>
+          <button type="button" className="flex size-7 shrink-0 items-center justify-center" onClick={() => children.length && onToggle(page.id)} aria-label={open ? t("supportHelpWorkbench.collapse") : t("supportHelpWorkbench.expand")}>
+            <ChevronRightIcon className={cn("size-4 transition-transform", !children.length && "opacity-0", open && "rotate-90")} />
+          </button>
+          <button type="button" className="min-w-0 flex-1 truncate text-left" onClick={() => void onSelect(page)}>{page.title}</button>
+          <span className={cn("mr-1 size-1.5 rounded-full", page.status === "published" ? "bg-emerald-500" : page.status === "hidden" ? "bg-amber-500" : "bg-muted-foreground/40")} />
+          <button type="button" className="flex size-7 shrink-0 cursor-grab items-center justify-center text-muted-foreground touch-none active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-35" disabled={sortingDisabled} aria-label={t("supportHelpWorkbench.dragPage", { title: page.title })} title={sortingDisabled ? t("supportHelpWorkbench.dragDisabled") : t("supportHelpWorkbench.dragPage", { title: page.title })} {...attributes} {...listeners}>
+            <GripVerticalIcon className="size-3.5" />
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" className="opacity-0 group-hover:opacity-100 focus:opacity-100" aria-label={t("supportHelpWorkbench.pageActions", { title: page.title })} />}><MoreHorizontalIcon /></DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => onCreate(page.id)}><FilePlus2Icon />{t("supportHelpWorkbench.createChildPage")}</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => void onDelete(page)}><Trash2Icon />{t("supportHelpWorkbench.deletePage")}</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-40">
+        <ContextMenuItem onClick={() => onCreate(page.id)}><FilePlus2Icon />{t("supportHelpWorkbench.createChildPage")}</ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem variant="destructive" onClick={() => void onDelete(page)}><Trash2Icon />{t("supportHelpWorkbench.deletePage")}</ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
     {open ? <SortableContext items={children.map((child) => child.id)} strategy={verticalListSortingStrategy}>
       {children.map((child) => <PageTreeNode key={child.id} {...props} page={child} depth={depth + 1} />)}
     </SortableContext> : null}
