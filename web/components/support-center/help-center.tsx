@@ -689,7 +689,7 @@ function HelpArticle({ page, pages, previewId, onNavigate }: { page: SupportHelp
         <span className="truncate">{page.title}</span>
       </div>
       <h1 className="mt-6 text-balance text-3xl font-bold tracking-tight sm:text-4xl">{page.title}</h1>
-      <div className="mt-5 text-xs text-muted-foreground">{t("supportPublic.help.updatedAt", { date: formatDateTime(page.publishedAt || page.updatedAt) })}</div>
+      <div className="my-3 text-xs text-muted-foreground">{t("supportPublic.help.updatedAt", { date: formatDateTime(page.publishedAt || page.updatedAt) })}</div>
       <SupportArticleContent id={previewId} content={page.content} contentType={page.contentType} />
       <ChildPageLinks pages={pages.filter((item) => item.parentId === page.id)} onNavigate={onNavigate} />
       <div className="mt-12 flex flex-col gap-4 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
