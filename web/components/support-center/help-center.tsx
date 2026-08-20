@@ -481,7 +481,7 @@ export function SupportLoginPage() {
 function SupportShell({ section, title, description, children }: { section: "questions" | "ask" | "login"; title: string; description: string; children?: ReactNode }) {
   return (
     <SupportPageShell section={section}>
-      <SupportPageContent className="py-10 sm:py-12">
+      <SupportPageContent className="py-10 sm:py-12" width={section === "login" ? "standard" : "docs"}>
         <div className="mb-7">
           <p className="text-sm font-medium text-primary">{title}</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
