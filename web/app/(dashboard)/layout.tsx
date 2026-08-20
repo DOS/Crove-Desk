@@ -10,7 +10,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
 import { AppI18nProvider } from "@/i18n/provider"
 
-import "@/app/globals.css"
+import "./dashboard.css"
 import "md-editor-rt/lib/style.css"
 import "@/styles/main.scss"
 
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   description: "AI Customer Service Admin",
 }
 
-export default function RootLayout({
+export default function DashboardRootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
