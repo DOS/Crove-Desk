@@ -9,7 +9,7 @@ import {
   useRef,
 } from "react"
 import { Maximize2Icon, Minimize2Icon } from "lucide-react"
-import { MdEditor, NormalToolbar, type ExposeParam } from "md-editor-rt"
+import { config, MdEditor, NormalToolbar, type ExposeParam } from "md-editor-rt"
 import { useTheme } from "next-themes"
 
 import "./markdown-editor.css"
@@ -18,6 +18,12 @@ import { EditorModeSwitch } from "./editor-mode-switch"
 import type { ContentMode, UploadImageHandler } from "./types"
 import { useI18n } from "@/i18n/provider"
 import { cn } from "@/lib/utils"
+
+config({
+  codeMirrorExtensions(extensions) {
+    return extensions.filter((extension) => extension.type !== "linkShortener")
+  },
+})
 
 export type MarkdownEditorRef = {
   focus: () => void
