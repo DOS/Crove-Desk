@@ -383,7 +383,7 @@ export function SupportHelpWorkbench() {
         </div>
       </aside>
 
-      <main key={selected?.id ?? "empty"} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+      <main key={selected?.id ?? "empty"} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {draft && selected ? <>
           <div className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b bg-background px-4">
             <div className="flex min-w-0 flex-1 items-center gap-2 text-sm text-muted-foreground">
@@ -408,8 +408,8 @@ export function SupportHelpWorkbench() {
               {selected.status !== "published" ? <Button onClick={() => void changeStatus("published")} disabled={saving || dirty} title={t("supportHelpWorkbench.publishedAction")}><RocketIcon /><span className="hidden xl:inline">{t("supportHelpWorkbench.publishedAction")}</span></Button> : null}
             </div>
           </div>
-          <div className="flex min-h-[calc(100%-3.5rem)] flex-col bg-card">
-            <div className="flex flex-1 flex-col">
+          <div className="flex min-h-0 flex-1 flex-col bg-card">
+            <div className="flex min-h-0 flex-1 flex-col">
               <ContentEditor
                 value={{ mode: draft.contentType === "html" ? "html" : "markdown", raw: draft.content }}
                 onChange={(content) => setDraft({ ...draft, content: content.raw, contentType: content.mode })}
@@ -418,8 +418,8 @@ export function SupportHelpWorkbench() {
                   return { url: asset.url, alt: asset.filename, title: asset.filename }
                 }}
                 placeholder={t("supportHelpWorkbench.contentPlaceholder")}
-                scrollMode="document"
-                className="flex min-h-full flex-1 flex-col [--content-editor-toolbar-offset:3.5rem] [&>div]:flex-1 [&>div]:rounded-none [&>div]:border-0 [&>div]:bg-transparent"
+                height="100%"
+                className="min-h-0 flex-1 [&>div]:h-full [&>div]:rounded-none [&>div]:border-0 [&>div]:bg-transparent"
               />
             </div>
           </div>
