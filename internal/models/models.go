@@ -939,9 +939,9 @@ type KnowledgeChunk struct {
 // SupportHelpPage is both a help-center navigation node and a content page.
 type SupportHelpPage struct {
 	ID                        int64                       `gorm:"primaryKey;autoIncrement"`
-	ParentID                  int64                       `gorm:"type:bigint;not null;default:0;index"`
+	ParentID                  int64                       `gorm:"type:bigint;not null;default:0;index;uniqueIndex:idx_t_support_help_page_parent_slug"`
 	Title                     string                      `gorm:"type:varchar(255);not null;default:'';index"`
-	Slug                      string                      `gorm:"type:varchar(160);not null;default:'';uniqueIndex"`
+	Slug                      string                      `gorm:"type:varchar(160);not null;default:'';uniqueIndex:idx_t_support_help_page_parent_slug"`
 	Summary                   string                      `gorm:"type:text"`
 	ContentType               string                      `gorm:"type:varchar(20);not null;default:'markdown'"`
 	Content                   string                      `gorm:"type:text"`

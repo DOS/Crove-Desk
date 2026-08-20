@@ -11,7 +11,6 @@ import (
 	"agent-desk/internal/pkg/httpx/params"
 	"agent-desk/internal/repositories"
 	"agent-desk/internal/services"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -85,13 +84,11 @@ func SupportHelpPageGetNavigation(ctx *gin.Context) {
 }
 
 func SupportHelpPageGetBy(ctx *gin.Context) {
-	key := ctx.Param("idOrSlug")
-	item := repositories.SupportHelpPageRepository.GetBySlug(sqls.DB(), key)
-	if item == nil {
-		if id, err := strconv.ParseInt(key, 10, 64); err == nil {
-			item = repositories.SupportHelpPageRepository.Get(sqls.DB(), id)
-		}
+	id, ok := httpx.GetPathInt64(ctx, "id")
+	if !ok {
+		return
 	}
+	item := repositories.SupportHelpPageRepository.Get(sqls.DB(), id)
 	if item == nil || item.Status != enums.SupportHelpPageStatusPublished {
 		httpx.WriteJSON(ctx, httpx.JsonErrorMsg(ctx, "error.notFound"))
 		return

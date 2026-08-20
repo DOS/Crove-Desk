@@ -184,7 +184,7 @@ func (s *supportService) SaveHelpPage(req request.SaveSupportHelpPageRequest, op
 	if err := s.validateHelpPageParent(req.ID, req.ParentID); err != nil {
 		return nil, err
 	}
-	if existing := repositories.SupportHelpPageRepository.GetBySlug(sqls.DB(), slug); existing != nil && existing.ID != req.ID {
+	if existing := repositories.SupportHelpPageRepository.GetByParentIDAndSlug(sqls.DB(), req.ParentID, slug); existing != nil && existing.ID != req.ID {
 		return nil, errorsx.InvalidParam("page slug already exists")
 	}
 	status := normalizeHelpPageStatus(req.Status)

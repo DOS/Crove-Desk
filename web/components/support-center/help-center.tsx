@@ -26,7 +26,7 @@ import { toast } from "sonner"
 import { OptionCombobox } from "@/components/option-combobox"
 import { useImageLightboxOptional } from "@/components/image-lightbox"
 import { SupportArticleContent } from "@/components/support-center/support-article-content"
-import { SupportHelpLink, type HelpPageNavigationHandler, useSupportHelpRoute } from "@/components/support-center/support-help-navigation"
+import { flattenSupportHelpNavigation, SupportHelpLink, supportHelpPageHref, type HelpPageNavigationHandler, useSupportHelpRoute } from "@/components/support-center/support-help-navigation"
 import { useSupportHelpReader } from "@/components/support-center/use-support-help-reader"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -49,6 +49,7 @@ import {
   acceptSupportAnswer,
   createSupportAnswer,
   createSupportQuestion,
+  fetchSupportHelpNavigation,
   fetchSupportHelpPages,
   fetchSupportMe,
   fetchSupportQuestion,
@@ -72,20 +73,24 @@ export function SupportHelpCenter() {
   const t = useI18n()
   const [pages, setPages] = useState<SupportHelpPage[]>([])
   const [questions, setQuestions] = useState<SupportQuestion[]>([])
+  const [helpPagePaths, setHelpPagePaths] = useState<Map<number, string>>(new Map())
   const [query, setQuery] = useState("")
 
   useEffect(() => {
     void Promise.all([
       fetchSupportHelpPages({ limit: 6 }),
       fetchSupportQuestions({ limit: 6 }),
+      fetchSupportHelpNavigation(),
     ])
-      .then(([helpPage, questionPage]) => {
+      .then(([helpPage, questionPage, navigation]) => {
         setPages(helpPage.results)
         setQuestions(questionPage.results)
+        setHelpPagePaths(new Map(flattenSupportHelpNavigation(navigation).map((item) => [item.id, item.helpPath || ""])))
       })
       .catch(() => {
         setPages([])
         setQuestions([])
+        setHelpPagePaths(new Map())
       })
   }, [])
 
@@ -158,7 +163,7 @@ export function SupportHelpCenter() {
           </div>
           <div className="grid gap-6 lg:grid-cols-2">
             <PublicSection title={t("supportPublic.home.recommendedPages")} href="/support/help">
-              {pages.length ? pages.map((item) => <HelpPageRow key={item.id} item={item} />) : <EmptyState text={t("supportPublic.empty.noPages")} />}
+              {pages.length ? pages.map((item) => <HelpPageRow key={item.id} item={{ ...item, helpPath: helpPagePaths.get(item.id) }} />) : <EmptyState text={t("supportPublic.empty.noPages")} />}
             </PublicSection>
             <PublicSection title={t("supportPublic.home.hotQuestions")} href="/support/questions">
               {questions.length ? questions.map((item) => <QuestionRow key={item.id} item={item} />) : <EmptyState text={t("supportPublic.empty.noQuestions")} />}
@@ -185,8 +190,8 @@ function SupportHelpReader() {
   const [searchResults, setSearchResults] = useState<SupportHelpPage[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const [navigationOpen, setNavigationOpen] = useState(false)
-  const { activeSlug, navigate, replace } = useSupportHelpRoute(pathname)
-  const { page, pages, expanded, setExpanded, navigationLoading, pageLoading, failed } = useSupportHelpReader(activeSlug, replace)
+  const { activePath, navigate, replace } = useSupportHelpRoute(pathname)
+  const { page, pages, expanded, setExpanded, navigationLoading, pageLoading, failed } = useSupportHelpReader(activePath, replace)
   const navigateToHelpPage = useCallback<HelpPageNavigationHandler>((event, targetPage) => {
     navigate(event, targetPage)
     if (event.defaultPrevented) setNavigationOpen(false)
@@ -230,7 +235,7 @@ function SupportHelpReader() {
     <SupportDocsFrame
       navigationOpen={navigationOpen}
       onNavigationOpenChange={setNavigationOpen}
-      navigation={<HelpNavigation pages={visiblePages} rootPages={visiblePages.filter((item) => !item.parentId)} searchResults={searchResults} title={query} expanded={expanded} selectedPageId={page?.id ?? 0} loading={navigationLoading || searchLoading} failed={failed} onTitleChange={(value) => { setQuery(value); setSearchResults([]); setSearchLoading(Boolean(value.trim())) }} onExpandedChange={setExpanded} onNavigate={navigateToHelpPage} />}
+      navigation={<HelpNavigation pages={visiblePages} rootPages={visiblePages.filter((item) => !item.parentId)} searchResults={searchResults.map((item) => pages.find((candidate) => candidate.id === item.id) || item).filter((item) => Boolean(item.helpPath))} title={query} expanded={expanded} selectedPageId={page?.id ?? 0} loading={navigationLoading || searchLoading} failed={failed} onTitleChange={(value) => { setQuery(value); setSearchResults([]); setSearchLoading(Boolean(value.trim())) }} onExpandedChange={setExpanded} onNavigate={navigateToHelpPage} />}
       toc={<PublicArticleToc content={page?.content ?? ""} contentType={page?.contentType} />}
     >
       <div aria-busy={pageLoading} className={cn(page && pageLoading && "opacity-60 transition-opacity")}>
@@ -818,7 +823,7 @@ function PublicSection({ title, href, children }: { title: string; href: string;
 function HelpPageRow({ item }: { item: SupportHelpPage }) {
   const t = useI18n()
   return (
-    <a href={`/support/help/${item.slug || item.id}/`} className="block border-t px-1 py-3 first:border-t-0 hover:bg-muted/60">
+    <a href={supportHelpPageHref(item)} className="block border-t px-1 py-3 first:border-t-0 hover:bg-muted/60">
       <div className="line-clamp-1 font-medium text-primary">{item.title}</div>
       <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{item.summary || t("supportPublic.help.openPage")}</p>
     </a>

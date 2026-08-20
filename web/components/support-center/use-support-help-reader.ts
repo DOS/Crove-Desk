@@ -2,17 +2,18 @@
 
 import { useEffect, useRef, useState } from "react"
 
-import { fetchSupportHelpNavigation, fetchSupportHelpPage, type SupportHelpNavigationNode, type SupportHelpPage } from "@/lib/api/support"
+import { flattenSupportHelpNavigation } from "@/components/support-center/support-help-navigation"
+import { fetchSupportHelpNavigation, fetchSupportHelpPage, type SupportHelpPage } from "@/lib/api/support"
 
-export function useSupportHelpReader(activeSlug: string, onDefaultSlug: (slug: string) => void) {
+export function useSupportHelpReader(activePath: string, onDefaultPage: (page: SupportHelpPage) => void) {
   const [page, setPage] = useState<SupportHelpPage | null>(null)
   const [pages, setPages] = useState<SupportHelpPage[]>([])
   const [navigationLoading, setNavigationLoading] = useState(true)
   const [loadedSlug, setLoadedSlug] = useState("")
   const [failed, setFailed] = useState(false)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
-  const initialSlug = useRef(activeSlug)
-  const detailCache = useRef(new Map<string, SupportHelpPage>())
+  const initialPath = useRef(activePath)
+  const detailCache = useRef(new Map<number, SupportHelpPage>())
   const detailRequestId = useRef(0)
   const expandedInitialized = useRef(false)
 
@@ -20,45 +21,49 @@ export function useSupportHelpReader(activeSlug: string, onDefaultSlug: (slug: s
     void fetchSupportHelpNavigation()
       .then((tree) => {
         setFailed(false)
-        const navigationPages = flattenHelpNavigation(tree)
+        const navigationPages = flattenSupportHelpNavigation(tree)
         setPages(navigationPages)
-        const target = initialSlug.current || navigationPages[0]?.slug || String(navigationPages[0]?.id || "")
+        const target = navigationPages.find((item) => item.helpPath === initialPath.current) || navigationPages[0]
         if (!target) {
           setPage(null)
           setExpanded(new Set())
           return
         }
-        if (!initialSlug.current) onDefaultSlug(target)
+        if (!initialPath.current) onDefaultPage(target)
       })
       .catch(() => {
         setPage(null)
         setFailed(true)
       })
       .finally(() => setNavigationLoading(false))
-  }, [onDefaultSlug])
+  }, [onDefaultPage])
 
   useEffect(() => {
-    if (!activeSlug || !pages.length) return
+    if (!pages.length) return
+    const activePage = pages.find((item) => item.helpPath === activePath)
+    if (!activePage) {
+      setPage(null)
+      setFailed(Boolean(activePath))
+      return
+    }
     const requestId = ++detailRequestId.current
-    const cached = detailCache.current.get(activeSlug)
-    const detailRequest = cached ? Promise.resolve(cached) : fetchSupportHelpPage(activeSlug)
+    const cached = detailCache.current.get(activePage.id)
+    const detailRequest = cached ? Promise.resolve(cached) : fetchSupportHelpPage(activePage.id)
     void detailRequest
       .then((detail) => {
         if (requestId !== detailRequestId.current) return
-        detailCache.current.set(activeSlug, detail)
-        if (detail.slug) detailCache.current.set(detail.slug, detail)
-        detailCache.current.set(String(detail.id), detail)
+        detailCache.current.set(detail.id, detail)
         setFailed(false)
-        setPage(detail)
-        setLoadedSlug(activeSlug)
-        const activePath = [...helpPageAncestorIds(pages, detail.id), detail.id]
+        setPage({ ...detail, helpPath: activePage.helpPath })
+        setLoadedSlug(activePath)
+        const activePagePath = [...helpPageAncestorIds(pages, detail.id), detail.id]
         setExpanded((current) => {
           if (!expandedInitialized.current) {
             expandedInitialized.current = true
-            return new Set(activePath)
+            return new Set(activePagePath)
           }
           const next = new Set(current)
-          activePath.forEach((id) => next.add(id))
+          activePagePath.forEach((id) => next.add(id))
           return next
         })
       })
@@ -66,9 +71,9 @@ export function useSupportHelpReader(activeSlug: string, onDefaultSlug: (slug: s
         if (requestId !== detailRequestId.current) return
         setPage(null)
         setFailed(true)
-        setLoadedSlug(activeSlug)
+        setLoadedSlug(activePath)
       })
-  }, [activeSlug, pages])
+  }, [activePath, pages])
 
   return {
     page,
@@ -76,30 +81,9 @@ export function useSupportHelpReader(activeSlug: string, onDefaultSlug: (slug: s
     expanded,
     setExpanded,
     navigationLoading,
-    pageLoading: navigationLoading || Boolean(activeSlug && loadedSlug !== activeSlug),
+    pageLoading: navigationLoading || Boolean(activePath && loadedSlug !== activePath),
     failed,
   }
-}
-
-function flattenHelpNavigation(nodes: SupportHelpNavigationNode[]): SupportHelpPage[] {
-  return nodes.flatMap((node) => [
-    {
-      ...node,
-      summary: "",
-      contentType: "",
-      content: "",
-      coverUrl: "",
-      tags: [],
-      status: "published",
-      viewCount: 0,
-      helpfulCount: 0,
-      unhelpfulCount: 0,
-      publishedAt: "",
-      createdAt: "",
-      updatedAt: "",
-    },
-    ...flattenHelpNavigation(node.children),
-  ])
 }
 
 function helpPageAncestorIds(pages: SupportHelpPage[], pageId: number) {

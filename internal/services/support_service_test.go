@@ -160,6 +160,15 @@ func TestSupportSlugAllowsLettersNumbersAndHyphens(t *testing.T) {
 	}, operator); err == nil {
 		t.Fatal("expected underscore slug to fail validation")
 	}
+	if err := db.Create(&models.SupportHelpPage{ParentID: 0, Title: "Root", Slug: "shared-slug"}).Error; err != nil {
+		t.Fatalf("create first root slug: %v", err)
+	}
+	if err := db.Create(&models.SupportHelpPage{ParentID: 1, Title: "Child", Slug: "shared-slug"}).Error; err != nil {
+		t.Fatalf("allow the same slug under another parent: %v", err)
+	}
+	if err := db.Create(&models.SupportHelpPage{ParentID: 0, Title: "Duplicate root", Slug: "shared-slug"}).Error; err == nil {
+		t.Fatal("expected duplicate slug under the same parent to fail")
+	}
 }
 
 func TestSupportQuestionCategorySort(t *testing.T) {

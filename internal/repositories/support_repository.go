@@ -26,9 +26,9 @@ func (r *supportHelpPageRepository) Get(db *gorm.DB, id int64) *models.SupportHe
 	return ret
 }
 
-func (r *supportHelpPageRepository) GetBySlug(db *gorm.DB, slug string) *models.SupportHelpPage {
+func (r *supportHelpPageRepository) GetByParentIDAndSlug(db *gorm.DB, parentID int64, slug string) *models.SupportHelpPage {
 	ret := &models.SupportHelpPage{}
-	if err := db.First(ret, "slug = ?", slug).Error; err != nil {
+	if err := db.First(ret, "parent_id = ? AND slug = ?", parentID, slug).Error; err != nil {
 		return nil
 	}
 	return ret

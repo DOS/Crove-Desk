@@ -30,6 +30,7 @@ export type SupportHelpPage = {
   publishedAt: string
   createdAt: string
   updatedAt: string
+  helpPath?: string
 }
 
 export type SupportHelpNavigationNode = Pick<SupportHelpPage, "id" | "parentId" | "title" | "slug" | "sortNo"> & {
@@ -115,8 +116,8 @@ export function fetchSupportHelpNavigation() {
   return request<SupportHelpNavigationNode[]>("/api/support/help-page/navigation", { skipAuth: true })
 }
 
-export function fetchSupportHelpPage(idOrSlug: string | number) {
-  return request<SupportHelpPage>(`/api/support/help-page/${idOrSlug}`, { skipAuth: true })
+export function fetchSupportHelpPage(id: number) {
+  return request<SupportHelpPage>(`/api/support/help-page/${id}`, { skipAuth: true })
 }
 
 export function submitSupportHelpPageFeedback(id: number, helpful: boolean) {
