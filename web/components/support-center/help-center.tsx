@@ -11,6 +11,7 @@ import {
   FolderIcon,
   FolderOpenIcon,
   HeadphonesIcon,
+  LoaderCircleIcon,
   MenuIcon,
   MessageCircleMoreIcon,
   ThumbsDownIcon,
@@ -31,6 +32,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { SupportPageContent, SupportPageShell } from "@/components/support-center/support-page-shell"
 import { SupportHeader } from "@/components/support-center/support-header"
+import { useSupportAuth } from "@/components/support-center/support-auth-provider"
 import { SupportEmptyState as EmptyState, SupportFormField as LabeledField, SupportInfoCard as InfoCard, SupportQuestionStatusBadge as QuestionStatusBadge, SupportSearchInput } from "@/components/support-center/support-ui"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -364,12 +366,19 @@ export function SupportQuestionDetail() {
 export function SupportAskQuestion() {
   const t = useI18n()
   const router = useRouter()
+  const { ready, session } = useSupportAuth()
   const [categories, setCategories] = useState<SupportCategory[]>([])
   const [categoryId, setCategoryId] = useState(0)
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
   const [tags, setTags] = useState("")
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (ready && !session) {
+      router.replace("/support/login?next=%2Fsupport%2Fquestions%2Fask")
+    }
+  }, [ready, router, session])
 
   useEffect(() => {
     void fetchSupportQuestionCategories().then((items) => {
@@ -394,6 +403,19 @@ export function SupportAskQuestion() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (!ready || !session) {
+    return (
+      <SupportPageShell section="ask">
+        <SupportPageContent className="py-10 sm:py-12" width="docs">
+          <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
+            <LoaderCircleIcon className="size-4 animate-spin" />
+            {t("supportPublic.loading.session")}
+          </div>
+        </SupportPageContent>
+      </SupportPageShell>
+    )
   }
 
   return (
@@ -433,11 +455,17 @@ export function SupportAskQuestion() {
 export function SupportLoginPage() {
   const t = useI18n()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const { ready, session } = useSupportAuth()
   const [mode, setMode] = useState<"login" | "register">("login")
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (ready && session) router.replace(getSupportLoginDestination(searchParams.get("next")))
+  }, [ready, router, searchParams, session])
 
   const submit = async () => {
     if (submitting) return
@@ -447,7 +475,7 @@ export function SupportLoginPage() {
         ? loginSupportCustomer({ email, password })
         : registerSupportCustomer({ name, email, password }))
       toast.success(t("supportPublic.toast.loggedIn"))
-      router.push("/support/questions")
+      router.replace(getSupportLoginDestination(searchParams.get("next")))
     } finally {
       setSubmitting(false)
     }
@@ -1001,8 +1029,17 @@ function AnswerCard({ answer, questionId, onChanged }: { answer: SupportAnswer; 
 
 async function ensureSupportLogin() {
   if (!readSession()?.accessToken) {
-    window.location.href = "/support/login"
+    window.location.assign(`/support/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`)
     throw new Error("login required")
   }
-  await fetchSupportMe()
+  try {
+    await fetchSupportMe()
+  } catch (error) {
+    window.location.assign(`/support/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`)
+    throw error
+  }
+}
+
+function getSupportLoginDestination(next: string | null) {
+  return next?.startsWith("/support/") && !next.startsWith("/support/login") ? next : "/support/questions"
 }

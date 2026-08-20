@@ -2502,6 +2502,12 @@
       "switchToRegister": "No account? Register",
       "switchToLogin": "Already have an account? Log in"
     },
+    "account": {
+      "loading": "Loading sign-in status",
+      "openMenu": "Open account menu",
+      "signOut": "Sign out",
+      "signingOut": "Signing out..."
+    },
     "actions": {
       "search": "Search",
       "viewAll": "View all",
@@ -2539,7 +2545,8 @@
     "loading": {
       "navigation": "Loading documentation...",
       "page": "Loading page...",
-      "question": "Loading question..."
+      "question": "Loading question...",
+      "session": "Checking sign-in status..."
     },
     "toast": {
       "feedbackSaved": "Thanks for the feedback",

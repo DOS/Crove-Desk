@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 
 import { ImageLightboxProvider } from "@/components/image-lightbox"
+import { SupportAuthProvider } from "@/components/support-center/support-auth-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
@@ -36,12 +37,14 @@ export default function SupportRootLayout({
       >
         <AppI18nProvider>
           <ThemeProvider>
-            <ImageLightboxProvider>
-              <TooltipProvider>
-                {children}
-                <Toaster position="top-center" richColors />
-              </TooltipProvider>
-            </ImageLightboxProvider>
+            <SupportAuthProvider>
+              <ImageLightboxProvider>
+                <TooltipProvider>
+                  {children}
+                  <Toaster position="top-center" richColors />
+                </TooltipProvider>
+              </ImageLightboxProvider>
+            </SupportAuthProvider>
           </ThemeProvider>
         </AppI18nProvider>
       </body>

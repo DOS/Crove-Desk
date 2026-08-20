@@ -2502,6 +2502,12 @@
       "switchToRegister": "没有账号，去注册",
       "switchToLogin": "已有账号，去登录"
     },
+    "account": {
+      "loading": "正在加载登录状态",
+      "openMenu": "打开账号菜单",
+      "signOut": "退出登录",
+      "signingOut": "正在退出..."
+    },
     "actions": {
       "search": "搜索",
       "viewAll": "查看全部",
@@ -2539,7 +2545,8 @@
     "loading": {
       "navigation": "正在加载文档导航...",
       "page": "正在加载页面...",
-      "question": "正在加载问题..."
+      "question": "正在加载问题...",
+      "session": "正在检查登录状态..."
     },
     "toast": {
       "feedbackSaved": "感谢反馈",
