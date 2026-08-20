@@ -20,7 +20,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 
 import { OptionCombobox } from "@/components/option-combobox"
@@ -30,6 +30,13 @@ import { SupportHelpLink, type HelpPageNavigationHandler, useSupportHelpRoute } 
 import { useSupportHelpReader } from "@/components/support-center/use-support-help-reader"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { SupportPageContent, SupportPageShell } from "@/components/support-center/support-page-shell"
 import { SupportHeader } from "@/components/support-center/support-header"
 import { useSupportAuth } from "@/components/support-center/support-auth-provider"
@@ -622,6 +629,7 @@ function HelpArticle({ page, pages, previewId, onNavigate }: { page: SupportHelp
   const t = useI18n()
   const lightbox = useImageLightboxOptional()
   const [feedbackPending, setFeedbackPending] = useState(false)
+  const breadcrumbs = helpPageBreadcrumbs(pages, page)
   const currentIndex = pages.findIndex((item) => item.id === page.id)
   const previousPage = currentIndex > 0 ? pages[currentIndex - 1] : null
   const nextPage = currentIndex >= 0 ? pages[currentIndex + 1] : null
@@ -683,11 +691,27 @@ function HelpArticle({ page, pages, previewId, onNavigate }: { page: SupportHelp
   }, [lightbox, page.content, page.contentType, previewId, t])
   return (
     <article className="mx-auto max-w-[var(--support-article-width)]">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href="/support/help" className="hover:text-foreground">{t("supportPublic.help.title")}</Link>
-        <ChevronRightIcon className="size-3.5" />
-        <span className="truncate">{page.title}</span>
-      </div>
+      <Breadcrumb>
+        <BreadcrumbList className="gap-y-1">
+          <BreadcrumbItem>
+            <Link href="/support/help" className="transition-colors hover:text-foreground">{t("supportPublic.help.title")}</Link>
+          </BreadcrumbItem>
+          {breadcrumbs.map((item) => (
+            <Fragment key={item.id}>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem className="min-w-0">
+                {item.id === page.id ? (
+                  <BreadcrumbPage className="truncate">{item.title}</BreadcrumbPage>
+                ) : (
+                  <SupportHelpLink page={item} onNavigate={onNavigate} className="truncate transition-colors hover:text-foreground">
+                    {item.title}
+                  </SupportHelpLink>
+                )}
+              </BreadcrumbItem>
+            </Fragment>
+          ))}
+        </BreadcrumbList>
+      </Breadcrumb>
       <h1 className="mt-6 text-balance text-3xl font-bold tracking-tight sm:text-4xl">{page.title}</h1>
       <div className="my-3 text-xs text-muted-foreground">{t("supportPublic.help.updatedAt", { date: formatDateTime(page.publishedAt || page.updatedAt) })}</div>
       <SupportArticleContent id={previewId} content={page.content} contentType={page.contentType} />
@@ -708,6 +732,21 @@ function HelpArticle({ page, pages, previewId, onNavigate }: { page: SupportHelp
       </nav> : null}
     </article>
   )
+}
+
+function helpPageBreadcrumbs(pages: SupportHelpPage[], page: SupportHelpPage) {
+  const pagesById = new Map(pages.map((item) => [item.id, item]))
+  const ancestors: SupportHelpPage[] = []
+  const visited = new Set<number>([page.id])
+  let parentId = page.parentId
+  while (parentId && !visited.has(parentId)) {
+    const parent = pagesById.get(parentId)
+    if (!parent) break
+    ancestors.unshift(parent)
+    visited.add(parent.id)
+    parentId = parent.parentId
+  }
+  return [...ancestors, page]
 }
 
 function ArticlePager({ page, direction, onNavigate }: { page: SupportHelpPage; direction: "previous" | "next"; onNavigate: HelpPageNavigationHandler }) {
