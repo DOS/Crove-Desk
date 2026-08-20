@@ -64,6 +64,7 @@ export function ContentEditor({
   const editorHeight = normalizeHeight(height)
   const [fullscreen, setFullscreen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const effectiveScrollMode = fullscreen ? "editor" : scrollMode
   const normalizedAllowedModes = allowedModes.length > 0 ? allowedModes : CONTENT_MODE_OPTIONS
   const activeMode = normalizedAllowedModes.includes(value.mode)
     ? value.mode
@@ -135,8 +136,8 @@ export function ContentEditor({
     <div
       className={cn(
         "w-full",
-        scrollMode === "document" && "content-editor-document",
-        className,
+        effectiveScrollMode === "document" && "content-editor-document",
+        !fullscreen && className,
         fullscreen && "fixed inset-0 z-[10000] overflow-hidden bg-background p-4"
       )}
     >
@@ -153,7 +154,7 @@ export function ContentEditor({
           disabled={disabled}
           onUploadImage={onUploadImage}
           height={fullscreen ? "calc(100vh - 2rem)" : editorHeight}
-          scrollMode={fullscreen ? "editor" : scrollMode}
+          scrollMode={effectiveScrollMode}
         />
       ) : (
         <HtmlEditor
@@ -168,7 +169,7 @@ export function ContentEditor({
           disabled={disabled}
           onUploadImage={onUploadImage}
           height={fullscreen ? "calc(100vh - 2rem)" : editorHeight}
-          scrollMode={fullscreen ? "editor" : scrollMode}
+          scrollMode={effectiveScrollMode}
         />
       )}
     </div>
