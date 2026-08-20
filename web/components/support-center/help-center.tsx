@@ -254,27 +254,29 @@ export function SupportQuestionList() {
   }, [categoryId, status, title])
 
   return (
-    <SupportShell section="questions" title={t("supportPublic.questions.title")} description={t("supportPublic.questions.description")}>
-      <div className="grid gap-6 lg:grid-cols-[256px_minmax(0,1fr)]">
-        <CategoryRail categories={categories} active={categoryId} onChange={setCategoryId} />
-        <section className="min-w-0">
-          <div className="rounded-2xl border bg-card p-4 shadow-sm">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-              <SupportSearchInput value={title} onChange={setTitle} placeholder={t("supportPublic.questions.searchPlaceholder")} />
-              <div className="flex shrink-0 flex-wrap gap-2">
-                <Button variant={status === "all" ? "default" : "outline"} onClick={() => setStatus("all")}>{t("supportPublic.status.all")}</Button>
-                <Button variant={status === "normal" ? "default" : "outline"} onClick={() => setStatus("normal")}>{t("supportPublic.status.normal")}</Button>
-                <Button variant={status === "resolved" ? "default" : "outline"} onClick={() => setStatus("resolved")}>{t("supportPublic.status.resolved")}</Button>
-                <Link className={buttonVariants()} href="/support/questions/ask">{t("supportPublic.actions.askQuestion")}</Link>
+    <SupportPageShell section="questions">
+      <SupportPageContent className="py-10 sm:py-12" width="docs">
+        <div className="grid gap-6 lg:grid-cols-[256px_minmax(0,1fr)]">
+          <CategoryRail categories={categories} active={categoryId} onChange={setCategoryId} />
+          <section className="min-w-0">
+            <div className="rounded-2xl border bg-card p-4 shadow-sm">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                <SupportSearchInput value={title} onChange={setTitle} placeholder={t("supportPublic.questions.searchPlaceholder")} />
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <Button variant={status === "all" ? "default" : "outline"} onClick={() => setStatus("all")}>{t("supportPublic.status.all")}</Button>
+                  <Button variant={status === "normal" ? "default" : "outline"} onClick={() => setStatus("normal")}>{t("supportPublic.status.normal")}</Button>
+                  <Button variant={status === "resolved" ? "default" : "outline"} onClick={() => setStatus("resolved")}>{t("supportPublic.status.resolved")}</Button>
+                  <Link className={buttonVariants()} href="/support/questions/ask">{t("supportPublic.actions.askQuestion")}</Link>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="mt-4 grid gap-3">
-            {questions.length ? questions.map((item) => <QuestionRow key={item.id} item={item} />) : <EmptyState text={t("supportPublic.empty.noQuestionsMatched")} />}
-          </div>
-        </section>
-      </div>
-    </SupportShell>
+            <div className="mt-4 grid gap-3">
+              {questions.length ? questions.map((item) => <QuestionRow key={item.id} item={item} />) : <EmptyState text={t("supportPublic.empty.noQuestionsMatched")} />}
+            </div>
+          </section>
+        </div>
+      </SupportPageContent>
+    </SupportPageShell>
   )
 }
 
