@@ -23,7 +23,7 @@ import { MdPreview } from "md-editor-rt"
 import Link from "next/link"
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useTheme } from "next-themes"
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react"
 import { toast } from "sonner"
 
 import { OptionCombobox } from "@/components/option-combobox"
@@ -60,6 +60,18 @@ import { cn, formatDateTime } from "@/lib/utils"
 
 const pageBackground =
   "bg-[#f7f9fc] dark:bg-background"
+
+type HelpPageNavigationHandler = (event: ReactMouseEvent<HTMLElement>, page: SupportHelpPage) => void
+
+function supportHelpPageHref(slugOrId: string | number) {
+  return `/support/help/${encodeURIComponent(String(slugOrId))}/`
+}
+
+function helpSlugFromPathname(pathname: string) {
+  const parts = pathname.split("/").filter(Boolean)
+  const helpIndex = parts.findIndex((part, index) => part === "help" && parts[index - 1] === "support")
+  return helpIndex >= 0 ? decodeURIComponent(parts[helpIndex + 1] || "") : ""
+}
 
 export function SupportHelpCenter() {
   const t = useI18n()
@@ -177,43 +189,103 @@ function SupportHelpReader() {
   const pathname = usePathname()
   const [page, setPage] = useState<SupportHelpPage | null>(null)
   const [pages, setPages] = useState<SupportHelpPage[]>([])
+  const [activeSlug, setActiveSlug] = useState(() => helpSlugFromPathname(pathname))
   const [query, setQuery] = useState("")
   const [searchResults, setSearchResults] = useState<SupportHelpPage[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [navigationLoading, setNavigationLoading] = useState(true)
+  const [pageLoading, setPageLoading] = useState(true)
   const [failed, setFailed] = useState(false)
   const [navigationOpen, setNavigationOpen] = useState(false)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
-  const slug = useMemo(() => {
-    const parts = pathname.split("/").filter(Boolean)
-    const helpIndex = parts.findIndex((part, index) => part === "help" && parts[index - 1] === "support")
-    return helpIndex >= 0 ? decodeURIComponent(parts[helpIndex + 1] || "") : ""
-  }, [pathname])
+  const initialSlug = useRef(activeSlug)
+  const detailCache = useRef(new Map<string, SupportHelpPage>())
+  const detailRequestId = useRef(0)
+  const expandedInitialized = useRef(false)
 
   useEffect(() => {
     void fetchSupportHelpPages({ limit: 500 })
-      .then(async (list) => {
+      .then((list) => {
         setFailed(false)
         setPages(list.results)
-        const target = slug || list.results[0]?.slug || String(list.results[0]?.id || "")
+        const target = initialSlug.current || list.results[0]?.slug || String(list.results[0]?.id || "")
         if (!target) {
           setPage(null)
           setExpanded(new Set())
+          setPageLoading(false)
           return
         }
-        const detail = await fetchSupportHelpPage(target)
-        setPage(detail)
-        setExpanded(new Set([...helpPageAncestorIds(list.results, detail.id), detail.id]))
-        if (!slug && detail.slug) {
-          window.history.replaceState(null, "", `/support/help/${detail.slug}/`)
+        if (!initialSlug.current) {
+          window.history.replaceState(null, "", supportHelpPageHref(target))
+          setActiveSlug(target)
         }
       })
       .catch(() => {
         setPage(null)
         setFailed(true)
+        setPageLoading(false)
       })
-      .finally(() => setLoading(false))
-  }, [slug])
+      .finally(() => setNavigationLoading(false))
+  }, [])
+
+  useEffect(() => {
+    if (!activeSlug || !pages.length) return
+    const requestId = ++detailRequestId.current
+    const cached = detailCache.current.get(activeSlug)
+    const detailRequest = cached ? Promise.resolve(cached) : fetchSupportHelpPage(activeSlug)
+    void detailRequest
+      .then((detail) => {
+        if (requestId !== detailRequestId.current) return
+        detailCache.current.set(activeSlug, detail)
+        if (detail.slug) detailCache.current.set(detail.slug, detail)
+        detailCache.current.set(String(detail.id), detail)
+        setFailed(false)
+        setPage(detail)
+        const activePath = [...helpPageAncestorIds(pages, detail.id), detail.id]
+        setExpanded((current) => {
+          if (!expandedInitialized.current) {
+            expandedInitialized.current = true
+            return new Set(activePath)
+          }
+          const next = new Set(current)
+          activePath.forEach((id) => next.add(id))
+          return next
+        })
+      })
+      .catch(() => {
+        if (requestId !== detailRequestId.current) return
+        setFailed(true)
+      })
+      .finally(() => {
+        if (requestId === detailRequestId.current) setPageLoading(false)
+      })
+  }, [activeSlug, pages])
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setPageLoading(true)
+      setActiveSlug(helpSlugFromPathname(window.location.pathname))
+    }
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [])
+
+  const navigateToHelpPage = useCallback<HelpPageNavigationHandler>((event, targetPage) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    event.preventDefault()
+    const target = targetPage.slug || String(targetPage.id)
+    const href = supportHelpPageHref(target)
+    if (window.location.pathname === href) {
+      setNavigationOpen(false)
+      window.scrollTo({ top: 0, behavior: "auto" })
+      return
+    }
+    window.history.pushState(null, "", href)
+    setPageLoading(true)
+    setActiveSlug(target)
+    setNavigationOpen(false)
+    window.scrollTo({ top: 0, behavior: "auto" })
+  }, [])
 
   useEffect(() => {
     if (!page) return
@@ -253,10 +325,12 @@ function SupportHelpReader() {
     <SupportDocsFrame
       navigationOpen={navigationOpen}
       onNavigationOpenChange={setNavigationOpen}
-      navigation={<HelpNavigation pages={visiblePages} rootPages={visiblePages.filter((item) => !item.parentId)} searchResults={searchResults} title={query} expanded={expanded} selectedPageId={page?.id ?? 0} loading={loading || searchLoading} failed={failed} onTitleChange={(value) => { setQuery(value); setSearchResults([]); setSearchLoading(Boolean(value.trim())) }} onExpandedChange={setExpanded} onSelect={() => setNavigationOpen(false)} linkMode />}
+      navigation={<HelpNavigation pages={visiblePages} rootPages={visiblePages.filter((item) => !item.parentId)} searchResults={searchResults} title={query} expanded={expanded} selectedPageId={page?.id ?? 0} loading={navigationLoading || searchLoading} failed={failed} onTitleChange={(value) => { setQuery(value); setSearchResults([]); setSearchLoading(Boolean(value.trim())) }} onExpandedChange={setExpanded} onNavigate={navigateToHelpPage} linkMode />}
       toc={<PublicArticleToc content={page?.content ?? ""} contentType={page?.contentType} />}
     >
-      {page ? <HelpArticle page={page} pages={pages} previewId="support-help-page-detail-preview" theme={resolvedTheme} /> : <div className="grid min-h-[60svh] place-items-center"><EmptyState text={loading ? t("supportPublic.loading.page") : failed ? t("supportPublic.empty.pageNotFound") : t("supportPublic.empty.noPages")} /></div>}
+      <div aria-busy={pageLoading} className={cn(page && pageLoading && "opacity-60 transition-opacity")}>
+        {page ? <HelpArticle page={page} pages={pages} previewId="support-help-page-detail-preview" theme={resolvedTheme} onNavigate={navigateToHelpPage} /> : <div className="grid min-h-[60svh] place-items-center"><EmptyState text={pageLoading ? t("supportPublic.loading.page") : failed ? t("supportPublic.empty.pageNotFound") : t("supportPublic.empty.noPages")} /></div>}
+      </div>
     </SupportDocsFrame>
   )
 }
@@ -580,8 +654,7 @@ function SupportDocsFrame({
             </Button>
           ) : null}
           <Link href="/support" className="flex shrink-0 items-center gap-2 font-semibold tracking-tight">
-            <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground"><BookOpenIcon className="size-4" /></span>
-            <span>AgentDesk</span>
+            <span>AGENT DESK</span>
             <span className="hidden border-l pl-2 font-normal text-muted-foreground sm:inline">{t("supportPublic.help.title")}</span>
           </Link>
           <nav className="ml-auto flex items-center gap-1">
@@ -625,7 +698,7 @@ function HelpNavigation({
   failed,
   onTitleChange,
   onExpandedChange,
-  onSelect,
+  onNavigate,
   linkMode = false,
 }: {
   pages: SupportHelpPage[]
@@ -638,7 +711,7 @@ function HelpNavigation({
   failed: boolean
   onTitleChange: (value: string) => void
   onExpandedChange: (value: Set<number>) => void
-  onSelect: (item: SupportHelpPage) => void
+  onNavigate: HelpPageNavigationHandler
   linkMode?: boolean
 }) {
   const t = useI18n()
@@ -647,7 +720,7 @@ function HelpNavigation({
       <SupportSearchInput value={title} onChange={onTitleChange} placeholder={t("supportPublic.help.searchPlaceholder")} compact />
       <div className="mt-4 grid gap-0.5">
         {title.trim() ? searchResults.map((page) => (
-          <a key={page.id} href={`/support/help/${page.slug || page.id}/`} onClick={() => onSelect(page)} className={cn("rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-muted", selectedPageId === page.id && "bg-primary/10 text-primary")}>
+          <a key={page.id} href={supportHelpPageHref(page.slug || page.id)} onClick={(event) => onNavigate(event, page)} className={cn("rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-muted", selectedPageId === page.id && "bg-primary/10 text-primary")}>
             <span className="block truncate font-medium">{page.title}</span>
             {page.summary ? <span className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">{page.summary}</span> : null}
           </a>
@@ -657,7 +730,7 @@ function HelpNavigation({
             if (next.has(id)) next.delete(id)
             else next.add(id)
             onExpandedChange(next)
-          }} onSelect={onSelect} linkMode={linkMode} />
+          }} onNavigate={onNavigate} linkMode={linkMode} />
         ))}
         {loading ? <div className="px-2 py-8 text-center text-sm text-muted-foreground">{t("supportPublic.loading.navigation")}</div> : null}
         {!loading && (title.trim() ? !searchResults.length : !pages.length) ? <EmptyState text={failed ? t("supportPublic.empty.pagesFailed") : t("supportPublic.empty.noPagesMatched")} compact /> : null}
@@ -666,7 +739,7 @@ function HelpNavigation({
   )
 }
 
-function HelpArticle({ page, pages, previewId, theme }: { page: SupportHelpPage; pages: SupportHelpPage[]; previewId: string; theme?: string }) {
+function HelpArticle({ page, pages, previewId, theme, onNavigate }: { page: SupportHelpPage; pages: SupportHelpPage[]; previewId: string; theme?: string; onNavigate: HelpPageNavigationHandler }) {
   const t = useI18n()
   const lightbox = useImageLightboxOptional()
   const [feedbackPending, setFeedbackPending] = useState(false)
@@ -724,7 +797,7 @@ function HelpArticle({ page, pages, previewId, theme }: { page: SupportHelpPage;
       <div className="support-markdown">
         {page.contentType === "html" ? <div id={previewId}><SafeRichHTML html={page.content} className="support-rich-html text-base leading-8" /></div> : <MdPreview id={previewId} modelValue={page.content} theme={theme === "dark" ? "dark" : "light"} noMermaid noKatex noHighlight />}
       </div>
-      <ChildPageLinks pages={pages.filter((item) => item.parentId === page.id)} />
+      <ChildPageLinks pages={pages.filter((item) => item.parentId === page.id)} onNavigate={onNavigate} />
       <div className="mt-12 flex flex-col gap-4 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-sm font-medium">{t("supportPublic.help.feedbackTitle")}</div>
@@ -736,16 +809,16 @@ function HelpArticle({ page, pages, previewId, theme }: { page: SupportHelpPage;
         </div>
       </div>
       {(previousPage || nextPage) ? <nav className="mt-8 grid gap-3 sm:grid-cols-2">
-        {previousPage ? <ArticlePager page={previousPage} direction="previous" /> : <span />}
-        {nextPage ? <ArticlePager page={nextPage} direction="next" /> : null}
+        {previousPage ? <ArticlePager page={previousPage} direction="previous" onNavigate={onNavigate} /> : <span />}
+        {nextPage ? <ArticlePager page={nextPage} direction="next" onNavigate={onNavigate} /> : null}
       </nav> : null}
     </article>
   )
 }
 
-function ArticlePager({ page, direction }: { page: SupportHelpPage; direction: "previous" | "next" }) {
+function ArticlePager({ page, direction, onNavigate }: { page: SupportHelpPage; direction: "previous" | "next"; onNavigate: HelpPageNavigationHandler }) {
   const t = useI18n()
-  return <a href={`/support/help/${page.slug || page.id}/`} className={cn("group rounded-xl border px-4 py-3 transition-colors hover:border-primary/40 hover:bg-muted/50", direction === "next" && "text-right")}>
+  return <a href={supportHelpPageHref(page.slug || page.id)} onClick={(event) => onNavigate(event, page)} className={cn("group rounded-xl border px-4 py-3 transition-colors hover:border-primary/40 hover:bg-muted/50", direction === "next" && "text-right")}>
     <span className="text-xs text-muted-foreground">{t(`supportPublic.help.${direction}`)}</span>
     <span className="mt-1 flex items-center justify-between gap-3 text-sm font-medium text-primary">{direction === "previous" ? <ChevronRightIcon className="size-4 rotate-180" /> : null}<span className={cn("truncate", direction === "next" && "ml-auto")}>{page.title}</span>{direction === "next" ? <ChevronRightIcon className="size-4" /> : null}</span>
   </a>
@@ -842,7 +915,7 @@ function PublicHelpPageNode({
   expanded,
   selectedPageId,
   onToggle,
-  onSelect,
+  onNavigate,
   linkMode = false,
 }: {
   page: SupportHelpPage
@@ -851,7 +924,7 @@ function PublicHelpPageNode({
   expanded: Set<number>
   selectedPageId: number
   onToggle: (id: number) => void
-  onSelect: (item: SupportHelpPage) => void
+  onNavigate: HelpPageNavigationHandler
   linkMode?: boolean
 }) {
   const t = useI18n()
@@ -881,12 +954,12 @@ function PublicHelpPageNode({
           </button>
         ) : <span className="size-7 shrink-0" />}
         {linkMode ? (
-          <a href={`/support/help/${page.slug || page.id}/`} className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left" onClick={() => onSelect(page)} aria-current={selected ? "page" : undefined}>
+          <a href={supportHelpPageHref(page.slug || page.id)} className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left" onClick={(event) => onNavigate(event, page)} aria-current={selected ? "page" : undefined}>
             {hasChildren ? (open ? <FolderOpenIcon className="size-4 shrink-0" /> : <FolderIcon className="size-4 shrink-0" />) : <FileTextIcon className="size-3.5 shrink-0 opacity-70" />}
             <span className="truncate">{page.title}</span>
           </a>
         ) : (
-          <button type="button" className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left" onClick={() => onSelect(page)} aria-current={selected ? "page" : undefined}>
+          <button type="button" className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left" onClick={(event) => onNavigate(event, page)} aria-current={selected ? "page" : undefined}>
             {hasChildren ? (open ? <FolderOpenIcon className="size-4 shrink-0" /> : <FolderIcon className="size-4 shrink-0" />) : <FileTextIcon className="size-3.5 shrink-0 opacity-70" />}
             <span className="truncate">{page.title}</span>
           </button>
@@ -896,7 +969,7 @@ function PublicHelpPageNode({
         <div className="relative before:absolute before:inset-y-1 before:w-px before:bg-border/80" style={{ marginLeft: `${depth * 16 + 17}px` }}>
           <div style={{ marginLeft: `${-(depth * 16 + 17)}px` }}>
             {children.map((child) => (
-              <PublicHelpPageNode key={child.id} page={child} depth={depth + 1} pages={pages} expanded={expanded} selectedPageId={selectedPageId} onToggle={onToggle} onSelect={onSelect} linkMode={linkMode} />
+              <PublicHelpPageNode key={child.id} page={child} depth={depth + 1} pages={pages} expanded={expanded} selectedPageId={selectedPageId} onToggle={onToggle} onNavigate={onNavigate} linkMode={linkMode} />
             ))}
           </div>
         </div>
@@ -918,7 +991,7 @@ function helpPageAncestorIds(pages: SupportHelpPage[], pageId: number) {
   return ancestors
 }
 
-function ChildPageLinks({ pages }: { pages: SupportHelpPage[] }) {
+function ChildPageLinks({ pages, onNavigate }: { pages: SupportHelpPage[]; onNavigate: HelpPageNavigationHandler }) {
   const t = useI18n()
   if (!pages.length) return null
   return (
@@ -926,7 +999,7 @@ function ChildPageLinks({ pages }: { pages: SupportHelpPage[] }) {
       <h3 className="mb-3 font-semibold">{t("supportPublic.help.childPages")}</h3>
       <div className="grid gap-2 sm:grid-cols-2">
         {pages.map((page) => (
-          <a key={page.id} href={`/support/help/${page.slug || page.id}/`} className="rounded-xl border p-3 transition hover:bg-muted/60">
+          <a key={page.id} href={supportHelpPageHref(page.slug || page.id)} onClick={(event) => onNavigate(event, page)} className="rounded-xl border p-3 transition hover:bg-muted/60">
             <span className="font-medium">{page.title}</span>
             {page.summary ? <span className="mt-1 block text-sm text-muted-foreground">{page.summary}</span> : null}
           </a>
