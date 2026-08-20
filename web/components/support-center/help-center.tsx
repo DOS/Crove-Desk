@@ -8,6 +8,8 @@ import {
   ChevronRightIcon,
   CircleHelpIcon,
   FileTextIcon,
+  FolderIcon,
+  FolderOpenIcon,
   HeadphonesIcon,
   HomeIcon,
   MenuIcon,
@@ -193,14 +195,15 @@ function SupportHelpReader() {
       .then(async (list) => {
         setFailed(false)
         setPages(list.results)
-        setExpanded(new Set(list.results.map((item) => item.id)))
         const target = slug || list.results[0]?.slug || String(list.results[0]?.id || "")
         if (!target) {
           setPage(null)
+          setExpanded(new Set())
           return
         }
         const detail = await fetchSupportHelpPage(target)
         setPage(detail)
+        setExpanded(new Set([...helpPageAncestorIds(list.results, detail.id), detail.id]))
         if (!slug && detail.slug) {
           window.history.replaceState(null, "", `/support/help/${detail.slug}/`)
         }
@@ -856,35 +859,65 @@ function PublicHelpPageNode({
   const t = useI18n()
   const open = expanded.has(page.id)
   const children = pages.filter((item) => item.parentId === page.id)
+  const hasChildren = children.length > 0
+  const selected = selectedPageId === page.id
   return (
-    <div>
+    <div className={cn(depth === 0 && "mt-1 first:mt-0")}>
       <div
         className={cn(
-          "flex h-9 w-full items-center rounded-lg pr-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground",
-          selectedPageId === page.id && "bg-primary/10 font-medium text-primary"
+          "group relative flex min-h-9 w-full items-center rounded-md pr-2 text-sm text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground",
+          depth === 0 && hasChildren && "font-semibold text-foreground",
+          selected && "bg-primary/10 font-medium text-primary before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-primary"
         )}
-        style={{ paddingLeft: `${depth * 12 + 4}px` }}
+        style={{ paddingLeft: `${depth * 16 + 4}px` }}
       >
-        {linkMode ? <span className="size-7 shrink-0" /> : (
-          <button type="button" className="flex size-7 shrink-0 items-center justify-center" onClick={() => children.length && onToggle(page.id)} aria-label={open ? t("supportPublic.a11y.collapse") : t("supportPublic.a11y.expand")}>
-            {children.length ? (open ? <ChevronDownIcon className="size-4" /> : <ChevronRightIcon className="size-4" />) : <span className="size-4" />}
+        {hasChildren ? (
+          <button
+            type="button"
+            className="flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-background/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={() => onToggle(page.id)}
+            aria-expanded={open}
+            aria-label={open ? t("supportPublic.a11y.collapse") : t("supportPublic.a11y.expand")}
+          >
+            {open ? <ChevronDownIcon className="size-4" /> : <ChevronRightIcon className="size-4" />}
           </button>
-        )}
+        ) : <span className="size-7 shrink-0" />}
         {linkMode ? (
-          <a href={`/support/help/${page.slug || page.id}/`} className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => onSelect(page)}>
-            <FileTextIcon className="size-3.5 shrink-0" /><span className="truncate">{page.title}</span>
+          <a href={`/support/help/${page.slug || page.id}/`} className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left" onClick={() => onSelect(page)} aria-current={selected ? "page" : undefined}>
+            {hasChildren ? (open ? <FolderOpenIcon className="size-4 shrink-0" /> : <FolderIcon className="size-4 shrink-0" />) : <FileTextIcon className="size-3.5 shrink-0 opacity-70" />}
+            <span className="truncate">{page.title}</span>
           </a>
         ) : (
-          <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => onSelect(page)}>
-            <FileTextIcon className="size-3.5 shrink-0" /><span className="truncate">{page.title}</span>
+          <button type="button" className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left" onClick={() => onSelect(page)} aria-current={selected ? "page" : undefined}>
+            {hasChildren ? (open ? <FolderOpenIcon className="size-4 shrink-0" /> : <FolderIcon className="size-4 shrink-0" />) : <FileTextIcon className="size-3.5 shrink-0 opacity-70" />}
+            <span className="truncate">{page.title}</span>
           </button>
         )}
       </div>
-      {open ? children.map((child) => (
-        <PublicHelpPageNode key={child.id} page={child} depth={depth + 1} pages={pages} expanded={expanded} selectedPageId={selectedPageId} onToggle={onToggle} onSelect={onSelect} linkMode={linkMode} />
-      )) : null}
+      {open && hasChildren ? (
+        <div className="relative before:absolute before:inset-y-1 before:w-px before:bg-border/80" style={{ marginLeft: `${depth * 16 + 17}px` }}>
+          <div style={{ marginLeft: `${-(depth * 16 + 17)}px` }}>
+            {children.map((child) => (
+              <PublicHelpPageNode key={child.id} page={child} depth={depth + 1} pages={pages} expanded={expanded} selectedPageId={selectedPageId} onToggle={onToggle} onSelect={onSelect} linkMode={linkMode} />
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
+}
+
+function helpPageAncestorIds(pages: SupportHelpPage[], pageId: number) {
+  const ancestors: number[] = []
+  const pagesById = new Map(pages.map((item) => [item.id, item]))
+  const visited = new Set<number>()
+  let parentId = pagesById.get(pageId)?.parentId ?? 0
+  while (parentId && !visited.has(parentId)) {
+    ancestors.push(parentId)
+    visited.add(parentId)
+    parentId = pagesById.get(parentId)?.parentId ?? 0
+  }
+  return ancestors
 }
 
 function ChildPageLinks({ pages }: { pages: SupportHelpPage[] }) {
