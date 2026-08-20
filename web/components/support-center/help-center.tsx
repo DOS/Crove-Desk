@@ -19,16 +19,14 @@ import {
   ThumbsUpIcon,
   XIcon,
 } from "lucide-react"
-import { MdPreview } from "md-editor-rt"
 import Link from "next/link"
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
-import { useTheme } from "next-themes"
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 
 import { OptionCombobox } from "@/components/option-combobox"
 import { useImageLightboxOptional } from "@/components/image-lightbox"
-import { SafeRichHTML } from "@/components/safe-rich-html"
+import { SupportArticleContent } from "@/components/support-center/support-article-content"
 import { SupportHelpLink, type HelpPageNavigationHandler, useSupportHelpRoute } from "@/components/support-center/support-help-navigation"
 import { useSupportHelpReader } from "@/components/support-center/use-support-help-reader"
 import { Badge } from "@/components/ui/badge"
@@ -174,7 +172,6 @@ export function SupportHelpPageDetail() {
 
 function SupportHelpReader() {
   const t = useI18n()
-  const { resolvedTheme } = useTheme()
   const pathname = usePathname()
   const [query, setQuery] = useState("")
   const [searchResults, setSearchResults] = useState<SupportHelpPage[]>([])
@@ -229,7 +226,7 @@ function SupportHelpReader() {
       toc={<PublicArticleToc content={page?.content ?? ""} contentType={page?.contentType} />}
     >
       <div aria-busy={pageLoading} className={cn(page && pageLoading && "opacity-60 transition-opacity")}>
-        {page ? <HelpArticle page={page} pages={pages} previewId="support-help-page-detail-preview" theme={resolvedTheme} onNavigate={navigateToHelpPage} /> : <div className="grid min-h-[60svh] place-items-center"><EmptyState text={pageLoading ? t("supportPublic.loading.page") : failed ? t("supportPublic.empty.pageNotFound") : t("supportPublic.empty.noPages")} /></div>}
+        {page ? <HelpArticle page={page} pages={pages} previewId="support-help-page-detail-preview" onNavigate={navigateToHelpPage} /> : <div className="grid min-h-[60svh] place-items-center"><EmptyState text={pageLoading ? t("supportPublic.loading.page") : failed ? t("supportPublic.empty.pageNotFound") : t("supportPublic.empty.noPages")} /></div>}
       </div>
     </SupportDocsFrame>
   )
@@ -637,7 +634,7 @@ function HelpNavigation({
   )
 }
 
-function HelpArticle({ page, pages, previewId, theme, onNavigate }: { page: SupportHelpPage; pages: SupportHelpPage[]; previewId: string; theme?: string; onNavigate: HelpPageNavigationHandler }) {
+function HelpArticle({ page, pages, previewId, onNavigate }: { page: SupportHelpPage; pages: SupportHelpPage[]; previewId: string; onNavigate: HelpPageNavigationHandler }) {
   const t = useI18n()
   const lightbox = useImageLightboxOptional()
   const [feedbackPending, setFeedbackPending] = useState(false)
@@ -666,7 +663,8 @@ function HelpArticle({ page, pages, previewId, theme, onNavigate }: { page: Supp
       block.classList.add("group", "relative")
       const button = document.createElement("button")
       button.type = "button"
-      button.className = "absolute right-2 top-2 rounded-md border border-border bg-background/90 px-2 py-1 text-xs text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus:opacity-100"
+      button.className = "not-typeset absolute right-2 top-2 rounded-md border border-border bg-background/90 px-2 py-1 text-xs text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus:opacity-100"
+      button.dataset.notTypeset = "true"
       button.textContent = t("supportPublic.help.copyCode")
       button.setAttribute("aria-label", t("supportPublic.help.copyCode"))
       const copy = () => void navigator.clipboard.writeText(block.querySelector("code")?.textContent || block.textContent || "").then(() => toast.success(t("supportPublic.toast.codeCopied")))
@@ -681,6 +679,17 @@ function HelpArticle({ page, pages, previewId, theme, onNavigate }: { page: Supp
       image.addEventListener("click", open)
       cleanup.push(() => image.removeEventListener("click", open))
     })
+    container.querySelectorAll<HTMLTableElement>("table").forEach((table) => {
+      if (table.parentElement?.classList.contains("typeset-scroll")) return
+      const wrapper = document.createElement("div")
+      wrapper.className = "typeset-scroll"
+      table.before(wrapper)
+      wrapper.appendChild(table)
+      cleanup.push(() => {
+        wrapper.before(table)
+        wrapper.remove()
+      })
+    })
     return () => cleanup.forEach((dispose) => dispose())
   }, [lightbox, page.content, previewId, t])
   return (
@@ -692,9 +701,7 @@ function HelpArticle({ page, pages, previewId, theme, onNavigate }: { page: Supp
       </div>
       <h1 className="mt-6 text-balance text-3xl font-bold tracking-tight sm:text-4xl">{page.title}</h1>
       <div className="mt-5 text-xs text-muted-foreground">{t("supportPublic.help.updatedAt", { date: formatDateTime(page.publishedAt || page.updatedAt) })}</div>
-      <div className="support-markdown">
-        {page.contentType === "html" ? <div id={previewId}><SafeRichHTML html={page.content} className="support-rich-html text-base leading-8" /></div> : <MdPreview id={previewId} modelValue={page.content} theme={theme === "dark" ? "dark" : "light"} noMermaid noKatex noHighlight />}
-      </div>
+      <SupportArticleContent id={previewId} content={page.content} contentType={page.contentType} />
       <ChildPageLinks pages={pages.filter((item) => item.parentId === page.id)} onNavigate={onNavigate} />
       <div className="mt-12 flex flex-col gap-4 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
         <div>

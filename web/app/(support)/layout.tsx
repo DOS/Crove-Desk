@@ -8,7 +8,6 @@ import { Toaster } from "@/components/ui/sonner"
 import { AppI18nProvider } from "@/i18n/provider"
 
 import "./support.css"
-import "md-editor-rt/lib/style.css"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
