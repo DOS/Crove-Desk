@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, type MouseEvent } from "react"
+import rehypeHighlight from "rehype-highlight"
 import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown"
 import remarkBreaks from "remark-breaks"
 import remarkGfm from "remark-gfm"
@@ -115,7 +116,10 @@ export function SupportArticleContent({ content, contentType = "markdown", id }:
     <div id={id} className="typeset typeset-support-docs">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks]}
-        rehypePlugins={[rehypeArticleHeadingIds]}
+        rehypePlugins={[
+          rehypeArticleHeadingIds,
+          [rehypeHighlight, { detect: false, plainText: ["text", "txt", "plaintext"] }],
+        ]}
         skipHtml
         urlTransform={supportArticleUrlTransform}
         components={components}

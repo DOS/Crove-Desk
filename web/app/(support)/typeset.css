@@ -107,7 +107,7 @@
     border: 1px solid var(--border);
     border-radius: 0.75rem;
     background: var(--muted);
-    padding: 1em 1.1em;
+    padding: 1em 5.5rem 1em 1.1em;
     color: var(--foreground);
     font-family: var(--typeset-font-mono), monospace;
     font-size: 0.875em;
@@ -119,6 +119,72 @@
     background: transparent;
     padding: 0;
     font: inherit;
+  }
+
+  .typeset-support-docs {
+    --syntax-comment: oklch(0.52 0.02 255);
+    --syntax-keyword: oklch(0.48 0.19 292);
+    --syntax-string: oklch(0.46 0.13 145);
+    --syntax-number: oklch(0.5 0.16 52);
+    --syntax-title: oklch(0.45 0.17 255);
+    --syntax-variable: oklch(0.48 0.17 22);
+    --syntax-meta: oklch(0.48 0.12 210);
+    --syntax-addition: oklch(0.43 0.13 145);
+    --syntax-deletion: oklch(0.5 0.18 22);
+  }
+
+  .dark .typeset-support-docs {
+    --syntax-comment: oklch(0.68 0.02 255);
+    --syntax-keyword: oklch(0.76 0.14 304);
+    --syntax-string: oklch(0.78 0.12 145);
+    --syntax-number: oklch(0.8 0.13 75);
+    --syntax-title: oklch(0.78 0.12 245);
+    --syntax-variable: oklch(0.78 0.13 30);
+    --syntax-meta: oklch(0.77 0.1 210);
+    --syntax-addition: oklch(0.78 0.12 145);
+    --syntax-deletion: oklch(0.76 0.15 25);
+  }
+
+  .typeset-support-docs :where(.hljs-comment, .hljs-quote) {
+    color: var(--syntax-comment);
+    font-style: italic;
+  }
+
+  .typeset-support-docs :where(.hljs-keyword, .hljs-selector-tag, .hljs-subst) {
+    color: var(--syntax-keyword);
+  }
+
+  .typeset-support-docs :where(.hljs-string, .hljs-regexp, .hljs-doctag) {
+    color: var(--syntax-string);
+  }
+
+  .typeset-support-docs :where(.hljs-number, .hljs-literal) {
+    color: var(--syntax-number);
+  }
+
+  .typeset-support-docs :where(.hljs-title, .hljs-section, .hljs-selector-id, .hljs-selector-class) {
+    color: var(--syntax-title);
+    font-weight: 600;
+  }
+
+  .typeset-support-docs :where(.hljs-variable, .hljs-template-variable, .hljs-attr, .hljs-attribute) {
+    color: var(--syntax-variable);
+  }
+
+  .typeset-support-docs :where(.hljs-built_in, .hljs-type, .hljs-class .hljs-title, .hljs-symbol, .hljs-bullet) {
+    color: var(--syntax-meta);
+  }
+
+  .typeset-support-docs :where(.hljs-meta, .hljs-meta .hljs-keyword) {
+    color: var(--syntax-meta);
+  }
+
+  .typeset-support-docs .hljs-addition {
+    color: var(--syntax-addition);
+  }
+
+  .typeset-support-docs .hljs-deletion {
+    color: var(--syntax-deletion);
   }
 
   .typeset :where(hr):not(:where(.not-typeset, .not-typeset *, [data-not-typeset], [data-not-typeset] *)) {
@@ -168,6 +234,12 @@
   @media (pointer: coarse) {
     .typeset-support-docs pre > button[data-not-typeset] {
       opacity: 1;
+    }
+  }
+
+  @media (width < 40rem) {
+    .typeset-support-docs :where(pre) {
+      padding: 3rem 1.1em 1em;
     }
   }
 }
