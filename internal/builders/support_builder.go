@@ -39,6 +39,28 @@ func BuildSupportHelpPage(item *models.SupportHelpPage, includeContent bool) *re
 	}
 }
 
+func BuildSupportHelpPageNavigationTree(list []models.SupportHelpPage) []*response.SupportHelpPageNavigationResponse {
+	nodes := make(map[int64]*response.SupportHelpPageNavigationResponse, len(list))
+	for i := range list {
+		item := &list[i]
+		nodes[item.ID] = &response.SupportHelpPageNavigationResponse{
+			ID: item.ID, ParentID: item.ParentID, Title: item.Title, Slug: item.Slug, SortNo: item.SortNo,
+			Children: make([]*response.SupportHelpPageNavigationResponse, 0),
+		}
+	}
+	roots := make([]*response.SupportHelpPageNavigationResponse, 0)
+	for i := range list {
+		item := &list[i]
+		node := nodes[item.ID]
+		if item.ParentID == 0 || nodes[item.ParentID] == nil {
+			roots = append(roots, node)
+			continue
+		}
+		nodes[item.ParentID].Children = append(nodes[item.ParentID].Children, node)
+	}
+	return roots
+}
+
 func BuildSupportQuestionCategory(item *models.SupportQuestionCategory) *response.SupportQuestionCategoryResponse {
 	if item == nil {
 		return nil

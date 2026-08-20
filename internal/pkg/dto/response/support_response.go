@@ -31,6 +31,17 @@ type SupportHelpPageResponse struct {
 	UpdatedAt                 string                      `json:"updatedAt"`
 }
 
+// SupportHelpPageNavigationResponse is the lightweight public document tree.
+// Content remains available only from the help-page detail endpoint.
+type SupportHelpPageNavigationResponse struct {
+	ID       int64                                `json:"id"`
+	ParentID int64                                `json:"parentId"`
+	Title    string                               `json:"title"`
+	Slug     string                               `json:"slug"`
+	SortNo   int                                  `json:"sortNo"`
+	Children []*SupportHelpPageNavigationResponse `json:"children"`
+}
+
 type SupportQuestionCategoryResponse struct {
 	ID          int64        `json:"id"`
 	Name        string       `json:"name"`

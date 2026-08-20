@@ -39,6 +39,13 @@ func (r *supportHelpPageRepository) Find(db *gorm.DB, cnd *sqls.Cnd) (list []mod
 	return
 }
 
+// FindNavigationItems deliberately selects only fields required to render the
+// public help navigation. Article content is fetched on demand by its detail API.
+func (r *supportHelpPageRepository) FindNavigationItems(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportHelpPage) {
+	cnd.Find(db.Select("id", "parent_id", "title", "slug", "sort_no"), &list)
+	return
+}
+
 func (r *supportHelpPageRepository) FindPageByCnd(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportHelpPage, paging *sqls.Paging) {
 	cnd.Find(db, &list)
 	paging = &sqls.Paging{Page: cnd.Paging.Page, Limit: cnd.Paging.Limit, Total: cnd.Count(db, &models.SupportHelpPage{})}

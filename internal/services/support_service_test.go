@@ -96,6 +96,36 @@ func TestSupportHelpPageHierarchy(t *testing.T) {
 	}
 }
 
+func TestFindPublicHelpNavigationSelectsPublishedMetadataInTreeOrder(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&models.SupportHelpPage{}); err != nil {
+		t.Fatalf("migrate help page: %v", err)
+	}
+	sqls.SetDB(db)
+	items := []*models.SupportHelpPage{
+		{ParentID: 0, Title: "Install", Slug: "install", Content: "install content", Status: enums.SupportHelpPageStatusPublished, SortNo: 0},
+		{ParentID: 0, Title: "Overview", Slug: "overview", Content: "overview content", Status: enums.SupportHelpPageStatusPublished, SortNo: 1},
+		{ParentID: 2, Title: "Change log", Slug: "changelog", Content: "change log content", Status: enums.SupportHelpPageStatusPublished, SortNo: 0},
+		{ParentID: 0, Title: "Draft", Slug: "draft", Content: "draft content", Status: enums.SupportHelpPageStatusDraft, SortNo: 0},
+	}
+	for _, item := range items {
+		if err := db.Create(item).Error; err != nil {
+			t.Fatalf("create help page: %v", err)
+		}
+	}
+
+	list := SupportService.FindPublicHelpNavigation()
+	if len(list) != 3 || list[0].Slug != "install" || list[1].Slug != "changelog" || list[2].Slug != "overview" {
+		t.Fatalf("unexpected navigation rows: %#v", list)
+	}
+	if list[0].Content != "" || list[1].Content != "" || list[2].Content != "" {
+		t.Fatalf("navigation query must not load article content: %#v", list)
+	}
+}
+
 func TestSupportSlugAllowsLettersNumbersAndHyphens(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {

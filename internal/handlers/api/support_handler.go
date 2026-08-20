@@ -79,6 +79,11 @@ func SupportHelpPageAnyList(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, &web.PageResult{Results: results, Page: paging})
 }
 
+func SupportHelpPageGetNavigation(ctx *gin.Context) {
+	list := services.SupportService.FindPublicHelpNavigation()
+	httpx.WriteJSON(ctx, builders.BuildSupportHelpPageNavigationTree(list))
+}
+
 func SupportHelpPageGetBy(ctx *gin.Context) {
 	key := ctx.Param("idOrSlug")
 	item := repositories.SupportHelpPageRepository.GetBySlug(sqls.DB(), key)

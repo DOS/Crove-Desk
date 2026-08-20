@@ -99,6 +99,10 @@ func (s *supportService) FindHelpPages(cnd *sqls.Cnd) []models.SupportHelpPage {
 	return repositories.SupportHelpPageRepository.Find(sqls.DB(), cnd)
 }
 
+func (s *supportService) FindPublicHelpNavigation() []models.SupportHelpPage {
+	return repositories.SupportHelpPageRepository.FindNavigationItems(sqls.DB(), sqls.NewCnd().Eq("status", enums.SupportHelpPageStatusPublished).Asc("sort_no").Asc("id"))
+}
+
 func (s *supportService) FindHelpPageByID(id int64) *models.SupportHelpPage {
 	return repositories.SupportHelpPageRepository.Get(sqls.DB(), id)
 }

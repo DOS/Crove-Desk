@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 
-import { fetchSupportHelpPage, fetchSupportHelpPages, type SupportHelpPage } from "@/lib/api/support"
+import { fetchSupportHelpNavigation, fetchSupportHelpPage, type SupportHelpNavigationNode, type SupportHelpPage } from "@/lib/api/support"
 
 export function useSupportHelpReader(activeSlug: string, onDefaultSlug: (slug: string) => void) {
   const [page, setPage] = useState<SupportHelpPage | null>(null)
@@ -17,11 +17,12 @@ export function useSupportHelpReader(activeSlug: string, onDefaultSlug: (slug: s
   const expandedInitialized = useRef(false)
 
   useEffect(() => {
-    void fetchSupportHelpPages({ limit: 500 })
-      .then((list) => {
+    void fetchSupportHelpNavigation()
+      .then((tree) => {
         setFailed(false)
-        setPages(list.results)
-        const target = initialSlug.current || list.results[0]?.slug || String(list.results[0]?.id || "")
+        const navigationPages = flattenHelpNavigation(tree)
+        setPages(navigationPages)
+        const target = initialSlug.current || navigationPages[0]?.slug || String(navigationPages[0]?.id || "")
         if (!target) {
           setPage(null)
           setExpanded(new Set())
@@ -78,6 +79,27 @@ export function useSupportHelpReader(activeSlug: string, onDefaultSlug: (slug: s
     pageLoading: navigationLoading || Boolean(activeSlug && loadedSlug !== activeSlug),
     failed,
   }
+}
+
+function flattenHelpNavigation(nodes: SupportHelpNavigationNode[]): SupportHelpPage[] {
+  return nodes.flatMap((node) => [
+    {
+      ...node,
+      summary: "",
+      contentType: "",
+      content: "",
+      coverUrl: "",
+      tags: [],
+      status: "published",
+      viewCount: 0,
+      helpfulCount: 0,
+      unhelpfulCount: 0,
+      publishedAt: "",
+      createdAt: "",
+      updatedAt: "",
+    },
+    ...flattenHelpNavigation(node.children),
+  ])
 }
 
 function helpPageAncestorIds(pages: SupportHelpPage[], pageId: number) {

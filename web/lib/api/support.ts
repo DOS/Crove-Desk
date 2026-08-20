@@ -32,6 +32,10 @@ export type SupportHelpPage = {
   updatedAt: string
 }
 
+export type SupportHelpNavigationNode = Pick<SupportHelpPage, "id" | "parentId" | "title" | "slug" | "sortNo"> & {
+  children: SupportHelpNavigationNode[]
+}
+
 export type SupportQuestion = {
   id: number
   categoryId: number
@@ -105,6 +109,10 @@ export function fetchSupportHelpPages(query?: Record<string, string | number | u
   return request<PageResult<SupportHelpPage>>(`/api/support/help-page/list${toQueryString(query)}`, {
     skipAuth: true,
   })
+}
+
+export function fetchSupportHelpNavigation() {
+  return request<SupportHelpNavigationNode[]>("/api/support/help-page/navigation", { skipAuth: true })
 }
 
 export function fetchSupportHelpPage(idOrSlug: string | number) {
