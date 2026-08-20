@@ -366,3 +366,52 @@
     @apply font-sans;
   }
 }
+
+@layer components {
+  .support-markdown .md-editor,
+  .support-markdown .md-editor-preview-wrapper,
+  .support-markdown .md-editor-preview {
+    background: transparent;
+  }
+
+  .support-markdown .md-editor-preview-wrapper {
+    padding: 0;
+  }
+
+  .support-markdown .md-editor-preview {
+    color: var(--foreground);
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1.8;
+  }
+
+  .support-markdown .md-editor-preview h1:first-child {
+    display: none;
+  }
+
+  .support-markdown .md-editor-preview h2 {
+    margin-top: 2.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.65rem;
+  }
+
+  .support-markdown .md-editor-preview h3 {
+    margin-top: 2rem;
+  }
+
+  .support-markdown .md-editor-preview a {
+    color: var(--primary);
+    text-decoration-color: color-mix(in oklab, var(--primary) 35%, transparent);
+    text-underline-offset: 0.2em;
+  }
+
+  .support-markdown .md-editor-preview pre {
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+  }
+
+  .support-markdown .md-editor-preview blockquote {
+    border-left-color: var(--primary);
+    color: var(--muted-foreground);
+  }
+}

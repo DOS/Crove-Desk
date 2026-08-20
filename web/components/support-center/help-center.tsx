@@ -9,9 +9,12 @@ import {
   CircleHelpIcon,
   FileTextIcon,
   HeadphonesIcon,
+  HomeIcon,
+  MenuIcon,
   MessageCircleMoreIcon,
   SearchIcon,
   ThumbsUpIcon,
+  XIcon,
 } from "lucide-react"
 import { MdPreview } from "md-editor-rt"
 import Link from "next/link"
@@ -162,89 +165,63 @@ export function SupportHelpList() {
   const [selectedPage, setSelectedPage] = useState<SupportHelpPage | null>(null)
   const [title, setTitle] = useState("")
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
+  const [navigationOpen, setNavigationOpen] = useState(false)
 
   useEffect(() => {
-    void fetchSupportHelpPages({ title, limit: 500 }).then((page) => {
-      setPages(page.results)
-      setExpanded(new Set(page.results.map((item) => item.id)))
-      const first = page.results[0]
-      if (first) {
-        void fetchSupportHelpPage(first.slug || first.id).then(setSelectedPage)
-      } else {
+    void fetchSupportHelpPages({ title, limit: 500 })
+      .then(async (page) => {
+        setPages(page.results)
+        setExpanded(new Set(page.results.map((item) => item.id)))
+        const first = page.results[0]
+        setSelectedPage(first ? await fetchSupportHelpPage(first.slug || first.id) : null)
+      })
+      .catch(() => {
+        setPages([])
         setSelectedPage(null)
-      }
-    })
+        setFailed(true)
+      })
+      .finally(() => setLoading(false))
   }, [title])
 
   const rootPages = useMemo(() => pages.filter((item) => !item.parentId), [pages])
 
   const selectPage = async (page: SupportHelpPage) => {
     setSelectedPage(await fetchSupportHelpPage(page.slug || page.id))
+    setNavigationOpen(false)
   }
 
   return (
-    <SupportShell title={t("supportPublic.help.title")} description={t("supportPublic.help.description")}>
-      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)_210px]">
-        <aside className="content-start lg:sticky lg:top-6 lg:max-h-[calc(100svh-3rem)] lg:overflow-y-auto">
-          <Card className="gap-0 rounded-2xl border-border bg-card py-0 shadow-sm">
-            <CardContent className="p-3">
-              <SupportSearchInput value={title} onChange={setTitle} placeholder={t("supportPublic.help.searchPlaceholder")} compact />
-              <div className="mt-3 grid gap-1">
-                {rootPages.map((page) => (
-                  <PublicHelpPageNode
-                    key={page.id}
-                    page={page}
-                    depth={0}
-                    pages={pages}
-                    expanded={expanded}
-                    selectedPageId={selectedPage?.id ?? 0}
-                    onToggle={(id) =>
-                      setExpanded((current) => {
-                        const next = new Set(current)
-                        if (next.has(id)) next.delete(id)
-                        else next.add(id)
-                        return next
-                      })
-                    }
-                    onSelect={(item) => void selectPage(item)}
-                  />
-                ))}
-                {!pages.length ? <EmptyState text={t("supportPublic.empty.noPagesMatched")} compact /> : null}
-              </div>
-            </CardContent>
-          </Card>
-        </aside>
-
-        <article className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7">
-          {selectedPage ? (
-            <>
-              <div className="mb-5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <Badge variant="secondary">{formatDateTime(selectedPage.publishedAt || selectedPage.updatedAt)}</Badge>
-              </div>
-              <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{selectedPage.title}</h2>
-              {selectedPage.summary && <p className="mt-2 text-sm leading-6 text-muted-foreground">{selectedPage.summary}</p>}
-              {selectedPage.content ? (
-                <div className="support-markdown mt-7">
-                  <MdPreview id="support-public-help-preview" modelValue={selectedPage.content} theme={resolvedTheme === "dark" ? "dark" : "light"} noMermaid noKatex noHighlight />
-                </div>
-              ) : null}
-              <ChildPageLinks pages={pages.filter((page) => page.parentId === selectedPage.id)} />
-              <div className="mt-8 flex flex-wrap gap-2 border-t pt-5">
-                <Button variant="outline" onClick={() => void submitSupportHelpPageFeedback(selectedPage.id, true).then(() => toast.success(t("supportPublic.toast.feedbackSaved")))}>
-                  <ThumbsUpIcon /> {t("supportPublic.actions.helpful")}
-                </Button>
-                <Link className={buttonVariants({ variant: "outline" })} href={`/support/help/${selectedPage.slug || selectedPage.id}`}>
-                  {t("supportPublic.actions.openStandalone")}
-                </Link>
-              </div>
-            </>
-          ) : (
-            <EmptyState text={t("supportPublic.empty.selectPage")} />
-          )}
-        </article>
-        <PublicArticleToc content={selectedPage?.content ?? ""} />
-      </div>
-    </SupportShell>
+    <SupportDocsFrame
+      navigationOpen={navigationOpen}
+      onNavigationOpenChange={setNavigationOpen}
+      navigation={
+        <HelpNavigation
+          pages={pages}
+          rootPages={rootPages}
+          title={title}
+          expanded={expanded}
+          selectedPageId={selectedPage?.id ?? 0}
+          loading={loading}
+          failed={failed}
+          onTitleChange={(value) => {
+            setLoading(true)
+            setFailed(false)
+            setTitle(value)
+          }}
+          onExpandedChange={setExpanded}
+          onSelect={(item) => void selectPage(item)}
+        />
+      }
+      toc={<PublicArticleToc content={selectedPage?.content ?? ""} />}
+    >
+      {selectedPage ? (
+        <HelpArticle page={selectedPage} pages={pages} previewId="support-public-help-preview" theme={resolvedTheme} />
+      ) : (
+        <div className="grid min-h-[50svh] place-items-center"><EmptyState text={loading ? t("supportPublic.loading.page") : failed ? t("supportPublic.empty.pagesFailed") : pages.length ? t("supportPublic.empty.selectPage") : t("supportPublic.empty.noPages")} /></div>
+      )}
+    </SupportDocsFrame>
   )
 }
 
@@ -254,6 +231,7 @@ export function SupportHelpPageDetail() {
   const params = useParams<{ slug: string }>()
   const [page, setPage] = useState<SupportHelpPage | null>(null)
   const [pages, setPages] = useState<SupportHelpPage[]>([])
+  const [navigationOpen, setNavigationOpen] = useState(false)
 
   useEffect(() => {
     if (params.slug) {
@@ -265,32 +243,18 @@ export function SupportHelpPageDetail() {
   }, [params.slug])
 
   if (!page) {
-    return <SupportShell title={t("supportPublic.help.title")} description={t("supportPublic.loading.page")} />
+    return <SupportDocsFrame navigationOpen={false} onNavigationOpenChange={() => undefined} navigation={null} toc={null}><div className="grid min-h-[60svh] place-items-center text-sm text-muted-foreground">{t("supportPublic.loading.page")}</div></SupportDocsFrame>
   }
 
   return (
-    <SupportShell title={page.title} description={page.summary}>
-      <article className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
-        <div className="min-w-0 rounded-2xl border bg-card p-5 shadow-sm sm:p-7">
-          <div className="mb-5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <Badge variant="secondary">{formatDateTime(page.publishedAt || page.updatedAt)}</Badge>
-          </div>
-          <div className="support-markdown">
-            <MdPreview id="support-help-page-detail-preview" modelValue={page.content} theme={resolvedTheme === "dark" ? "dark" : "light"} noMermaid noKatex noHighlight />
-          </div>
-          <ChildPageLinks pages={pages.filter((item) => item.parentId === page.id)} />
-          <div className="mt-8 flex flex-wrap gap-2 border-t pt-5">
-            <Button variant="outline" onClick={() => void submitSupportHelpPageFeedback(page.id, true).then(() => toast.success(t("supportPublic.toast.feedbackSaved")))}>
-              <ThumbsUpIcon /> {t("supportPublic.actions.helpful")}
-            </Button>
-            <Link className={buttonVariants({ variant: "outline" })} href="/support/questions/ask">
-              {t("supportPublic.actions.askQuestion")}
-            </Link>
-          </div>
-        </div>
-        <PublicArticleToc content={page.content} />
-      </article>
-    </SupportShell>
+    <SupportDocsFrame
+      navigationOpen={navigationOpen}
+      onNavigationOpenChange={setNavigationOpen}
+      navigation={<HelpNavigation pages={pages} rootPages={pages.filter((item) => !item.parentId)} title="" expanded={new Set(pages.map((item) => item.id))} selectedPageId={page.id} loading={false} failed={false} onTitleChange={() => undefined} onExpandedChange={() => undefined} onSelect={() => undefined} linkMode />}
+      toc={<PublicArticleToc content={page.content} />}
+    >
+      <HelpArticle page={page} pages={pages} previewId="support-help-page-detail-preview" theme={resolvedTheme} />
+    </SupportDocsFrame>
   )
 }
 
@@ -589,6 +553,161 @@ function SupportHeader() {
   )
 }
 
+function SupportDocsFrame({
+  children,
+  navigation,
+  toc,
+  navigationOpen,
+  onNavigationOpenChange,
+}: {
+  children: ReactNode
+  navigation: ReactNode
+  toc: ReactNode
+  navigationOpen: boolean
+  onNavigationOpenChange: (open: boolean) => void
+}) {
+  const t = useI18n()
+  return (
+    <main className="min-h-svh bg-background text-foreground">
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-3 px-4 sm:px-6">
+          {navigation ? (
+            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => onNavigationOpenChange(true)} aria-label={t("supportPublic.a11y.openNavigation")}>
+              <MenuIcon />
+            </Button>
+          ) : null}
+          <Link href="/support" className="flex shrink-0 items-center gap-2 font-semibold tracking-tight">
+            <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground"><BookOpenIcon className="size-4" /></span>
+            <span>AgentDesk</span>
+            <span className="hidden border-l pl-2 font-normal text-muted-foreground sm:inline">{t("supportPublic.help.title")}</span>
+          </Link>
+          <nav className="ml-auto flex items-center gap-1">
+            <Link className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden sm:inline-flex")} href="/support"><HomeIcon />{t("supportPublic.nav.home")}</Link>
+            <Link className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden sm:inline-flex")} href="/support/questions">{t("supportPublic.nav.questions")}</Link>
+            <Link className={buttonVariants({ variant: "outline", size: "sm" })} href="/support/questions/ask">{t("supportPublic.actions.askQuestion")}</Link>
+          </nav>
+        </div>
+      </header>
+
+      <div className="mx-auto grid max-w-[1440px] lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_220px]">
+        {navigation ? <aside className="hidden border-r lg:sticky lg:top-14 lg:block lg:h-[calc(100svh-3.5rem)] lg:overflow-y-auto">{navigation}</aside> : null}
+        <div className="min-w-0 px-5 py-9 sm:px-10 sm:py-12 xl:px-14">{children}</div>
+        {toc ? <div className="hidden border-l xl:block">{toc}</div> : null}
+      </div>
+
+      {navigationOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button className="absolute inset-0 bg-black/45" aria-label={t("supportPublic.a11y.closeNavigation")} onClick={() => onNavigationOpenChange(false)} />
+          <aside className="relative h-full w-[min(86vw,320px)] overflow-y-auto border-r bg-background shadow-xl">
+            <div className="flex h-14 items-center justify-between border-b px-4">
+              <span className="font-semibold">{t("supportPublic.help.navigation")}</span>
+              <Button variant="ghost" size="icon" onClick={() => onNavigationOpenChange(false)} aria-label={t("supportPublic.a11y.closeNavigation")}><XIcon /></Button>
+            </div>
+            {navigation}
+          </aside>
+        </div>
+      ) : null}
+    </main>
+  )
+}
+
+function HelpNavigation({
+  pages,
+  rootPages,
+  title,
+  expanded,
+  selectedPageId,
+  loading,
+  failed,
+  onTitleChange,
+  onExpandedChange,
+  onSelect,
+  linkMode = false,
+}: {
+  pages: SupportHelpPage[]
+  rootPages: SupportHelpPage[]
+  title: string
+  expanded: Set<number>
+  selectedPageId: number
+  loading: boolean
+  failed: boolean
+  onTitleChange: (value: string) => void
+  onExpandedChange: (value: Set<number>) => void
+  onSelect: (item: SupportHelpPage) => void
+  linkMode?: boolean
+}) {
+  const t = useI18n()
+  return (
+    <div className="p-4">
+      {!linkMode ? <SupportSearchInput value={title} onChange={onTitleChange} placeholder={t("supportPublic.help.searchPlaceholder")} compact /> : null}
+      <div className={cn("mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground", !linkMode && "mt-6")}>{t("supportPublic.help.navigation")}</div>
+      <div className="grid gap-0.5">
+        {rootPages.map((page) => (
+          <PublicHelpPageNode key={page.id} page={page} depth={0} pages={pages} expanded={expanded} selectedPageId={selectedPageId} onToggle={(id) => {
+            const next = new Set(expanded)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            onExpandedChange(next)
+          }} onSelect={onSelect} linkMode={linkMode} />
+        ))}
+        {loading ? <div className="px-2 py-8 text-center text-sm text-muted-foreground">{t("supportPublic.loading.navigation")}</div> : null}
+        {!loading && !pages.length ? <EmptyState text={failed ? t("supportPublic.empty.pagesFailed") : t("supportPublic.empty.noPagesMatched")} compact /> : null}
+      </div>
+    </div>
+  )
+}
+
+function HelpArticle({ page, pages, previewId, theme }: { page: SupportHelpPage; pages: SupportHelpPage[]; previewId: string; theme?: string }) {
+  const t = useI18n()
+  const [feedbackPending, setFeedbackPending] = useState(false)
+  const currentIndex = pages.findIndex((item) => item.id === page.id)
+  const previousPage = currentIndex > 0 ? pages[currentIndex - 1] : null
+  const nextPage = currentIndex >= 0 ? pages[currentIndex + 1] : null
+  const submitFeedback = async () => {
+    if (feedbackPending) return
+    setFeedbackPending(true)
+    try {
+      await submitSupportHelpPageFeedback(page.id, true)
+      toast.success(t("supportPublic.toast.feedbackSaved"))
+    } finally {
+      setFeedbackPending(false)
+    }
+  }
+  return (
+    <article className="mx-auto max-w-[820px]">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Link href="/support/help" className="hover:text-foreground">{t("supportPublic.help.title")}</Link>
+        <ChevronRightIcon className="size-3.5" />
+        <span className="truncate">{page.title}</span>
+      </div>
+      <h1 className="mt-6 text-balance text-3xl font-bold tracking-tight sm:text-4xl">{page.title}</h1>
+      {page.summary ? <p className="mt-4 text-lg leading-8 text-muted-foreground">{page.summary}</p> : null}
+      <div className="mt-5 text-xs text-muted-foreground">{t("supportPublic.help.updatedAt", { date: formatDateTime(page.publishedAt || page.updatedAt) })}</div>
+      <div className="support-markdown mt-10"><MdPreview id={previewId} modelValue={page.content} theme={theme === "dark" ? "dark" : "light"} noMermaid noKatex noHighlight /></div>
+      <ChildPageLinks pages={pages.filter((item) => item.parentId === page.id)} />
+      <div className="mt-12 flex flex-col gap-4 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="text-sm font-medium">{t("supportPublic.help.feedbackTitle")}</div>
+          <div className="mt-1 text-sm text-muted-foreground">{t("supportPublic.help.feedbackDescription")}</div>
+        </div>
+        <Button variant="outline" disabled={feedbackPending} onClick={() => void submitFeedback()}><ThumbsUpIcon />{feedbackPending ? t("supportPublic.actions.processing") : t("supportPublic.actions.helpful")}</Button>
+      </div>
+      {(previousPage || nextPage) ? <nav className="mt-8 grid gap-3 sm:grid-cols-2">
+        {previousPage ? <ArticlePager page={previousPage} direction="previous" /> : <span />}
+        {nextPage ? <ArticlePager page={nextPage} direction="next" /> : null}
+      </nav> : null}
+    </article>
+  )
+}
+
+function ArticlePager({ page, direction }: { page: SupportHelpPage; direction: "previous" | "next" }) {
+  const t = useI18n()
+  return <Link href={`/support/help/${page.slug || page.id}`} className={cn("group rounded-xl border px-4 py-3 transition-colors hover:border-primary/40 hover:bg-muted/50", direction === "next" && "text-right")}>
+    <span className="text-xs text-muted-foreground">{t(`supportPublic.help.${direction}`)}</span>
+    <span className="mt-1 flex items-center justify-between gap-3 text-sm font-medium text-primary">{direction === "previous" ? <ChevronRightIcon className="size-4 rotate-180" /> : null}<span className={cn("truncate", direction === "next" && "ml-auto")}>{page.title}</span>{direction === "next" ? <ChevronRightIcon className="size-4" /> : null}</span>
+  </Link>
+}
+
 function SupportEntryCard({
   href,
   icon,
@@ -681,6 +800,7 @@ function PublicHelpPageNode({
   selectedPageId,
   onToggle,
   onSelect,
+  linkMode = false,
 }: {
   page: SupportHelpPage
   depth: number
@@ -689,6 +809,7 @@ function PublicHelpPageNode({
   selectedPageId: number
   onToggle: (id: number) => void
   onSelect: (item: SupportHelpPage) => void
+  linkMode?: boolean
 }) {
   const t = useI18n()
   const open = expanded.has(page.id)
@@ -702,16 +823,23 @@ function PublicHelpPageNode({
         )}
         style={{ paddingLeft: `${depth * 12 + 4}px` }}
       >
-        <button type="button" className="flex size-7 shrink-0 items-center justify-center" onClick={() => children.length && onToggle(page.id)} aria-label={open ? t("supportPublic.a11y.collapse") : t("supportPublic.a11y.expand")}>
-          {children.length ? (open ? <ChevronDownIcon className="size-4" /> : <ChevronRightIcon className="size-4" />) : <span className="size-4" />}
-        </button>
-        <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => onSelect(page)}>
-          <FileTextIcon className="size-3.5 shrink-0" />
-          <span className="truncate">{page.title}</span>
-        </button>
+        {linkMode ? <span className="size-7 shrink-0" /> : (
+          <button type="button" className="flex size-7 shrink-0 items-center justify-center" onClick={() => children.length && onToggle(page.id)} aria-label={open ? t("supportPublic.a11y.collapse") : t("supportPublic.a11y.expand")}>
+            {children.length ? (open ? <ChevronDownIcon className="size-4" /> : <ChevronRightIcon className="size-4" />) : <span className="size-4" />}
+          </button>
+        )}
+        {linkMode ? (
+          <Link href={`/support/help/${page.slug || page.id}`} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+            <FileTextIcon className="size-3.5 shrink-0" /><span className="truncate">{page.title}</span>
+          </Link>
+        ) : (
+          <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => onSelect(page)}>
+            <FileTextIcon className="size-3.5 shrink-0" /><span className="truncate">{page.title}</span>
+          </button>
+        )}
       </div>
       {open ? children.map((child) => (
-        <PublicHelpPageNode key={child.id} page={child} depth={depth + 1} pages={pages} expanded={expanded} selectedPageId={selectedPageId} onToggle={onToggle} onSelect={onSelect} />
+        <PublicHelpPageNode key={child.id} page={child} depth={depth + 1} pages={pages} expanded={expanded} selectedPageId={selectedPageId} onToggle={onToggle} onSelect={onSelect} linkMode={linkMode} />
       )) : null}
     </div>
   )
@@ -742,11 +870,11 @@ function PublicArticleToc({ content }: { content: string }) {
     title: match[2].replace(/[*_`]/g, ""),
   }))
   return (
-    <aside className="hidden xl:block">
-      <div className="sticky top-6 rounded-2xl border bg-card p-4 shadow-sm">
-        <div className="mb-3 text-xs font-medium uppercase text-muted-foreground">{t("supportPublic.help.toc")}</div>
+    <aside className="sticky top-14 max-h-[calc(100svh-3.5rem)] overflow-y-auto px-5 py-12">
+      <div>
+        <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("supportPublic.help.toc")}</div>
         {headings.length ? headings.map((item, index) => (
-          <div key={`${item.title}-${index}`} className={cn("py-1.5 text-sm text-muted-foreground", item.level === 3 && "pl-3")}>{item.title}</div>
+          <div key={`${item.title}-${index}`} className={cn("border-l py-1.5 pl-3 text-sm text-muted-foreground", item.level === 3 && "pl-6")}>{item.title}</div>
         )) : <div className="text-sm text-muted-foreground">{t("supportPublic.help.noToc")}</div>}
       </div>
     </aside>

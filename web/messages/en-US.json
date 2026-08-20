@@ -2388,6 +2388,7 @@
   "supportPublic": {
     "brand": "AgentDesk Support",
     "nav": {
+      "home": "Home",
       "help": "Help",
       "questions": "FAQ",
       "login": "Log In"
@@ -2417,8 +2418,14 @@
       "searchPlaceholder": "Search help docs",
       "openPage": "Open help page",
       "childPages": "Pages in this section",
+      "navigation": "Documentation",
       "toc": "On this page",
-      "noToc": "No sections"
+      "noToc": "No sections",
+      "updatedAt": "Updated {date}",
+      "feedbackTitle": "Was this page helpful?",
+      "feedbackDescription": "Your feedback helps us improve the documentation.",
+      "previous": "Previous",
+      "next": "Next"
     },
     "questions": {
       "title": "FAQ Community",
@@ -2489,11 +2496,13 @@
       "noPages": "No published pages yet",
       "noQuestions": "No community questions yet",
       "noPagesMatched": "No pages found",
+      "pagesFailed": "Could not load the documentation. Try again later.",
       "noQuestionsMatched": "No questions found",
       "noAnswers": "No answers yet",
       "selectPage": "Select a page on the left"
     },
     "loading": {
+      "navigation": "Loading documentation...",
       "page": "Loading page...",
       "question": "Loading question..."
     },
@@ -2504,6 +2513,8 @@
       "loggedIn": "Logged in"
     },
     "a11y": {
+      "openNavigation": "Open documentation navigation",
+      "closeNavigation": "Close documentation navigation",
       "collapse": "Collapse child pages",
       "expand": "Expand child pages"
     }

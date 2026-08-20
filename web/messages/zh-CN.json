@@ -2388,6 +2388,7 @@
   "supportPublic": {
     "brand": "AgentDesk 支持中心",
     "nav": {
+      "home": "首页",
       "help": "帮助",
       "questions": "FAQ",
       "login": "登录"
@@ -2417,8 +2418,14 @@
       "searchPlaceholder": "搜索帮助文档",
       "openPage": "查看帮助页面",
       "childPages": "本节页面",
+      "navigation": "文档导航",
       "toc": "本页目录",
-      "noToc": "暂无章节"
+      "noToc": "暂无章节",
+      "updatedAt": "更新于 {date}",
+      "feedbackTitle": "这篇文档对你有帮助吗？",
+      "feedbackDescription": "你的反馈会帮助我们持续改进文档。",
+      "previous": "上一篇",
+      "next": "下一篇"
     },
     "questions": {
       "title": "FAQ 社区",
@@ -2489,11 +2496,13 @@
       "noPages": "暂无已发布页面",
       "noQuestions": "暂无社区问题",
       "noPagesMatched": "没有找到页面",
+      "pagesFailed": "文档加载失败，请稍后重试",
       "noQuestionsMatched": "没有找到问题",
       "noAnswers": "暂无回答",
       "selectPage": "选择左侧页面查看内容"
     },
     "loading": {
+      "navigation": "正在加载文档导航...",
       "page": "正在加载页面...",
       "question": "正在加载问题..."
     },
@@ -2504,6 +2513,8 @@
       "loggedIn": "已登录"
     },
     "a11y": {
+      "openNavigation": "打开文档导航",
+      "closeNavigation": "关闭文档导航",
       "collapse": "折叠子页面",
       "expand": "展开子页面"
     }
