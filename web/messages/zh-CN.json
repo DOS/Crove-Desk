@@ -99,6 +99,7 @@
     "selectParentPage": "选择父页面",
     "rootDirectory": "根目录",
     "slug": "Slug",
+    "slugFormatHint": "仅支持字母、数字和连字符（-）。",
     "slugChangeWarning": "修改后原文档链接将失效，请同步更新外部引用。",
     "status": "状态",
     "selectStatus": "选择状态",

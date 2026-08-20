@@ -99,6 +99,7 @@
     "selectParentPage": "Select a parent page",
     "rootDirectory": "Root",
     "slug": "Slug",
+    "slugFormatHint": "Use letters, numbers, and hyphens (-) only.",
     "slugChangeWarning": "Changing the slug breaks the previous URL. Update any external references.",
     "status": "Status",
     "selectStatus": "Select a status",

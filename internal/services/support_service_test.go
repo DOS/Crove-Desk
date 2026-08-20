@@ -94,3 +94,39 @@ func TestSupportHelpPageHierarchy(t *testing.T) {
 		t.Fatalf("delete second leaf page: %v", err)
 	}
 }
+
+func TestSupportSlugAllowsLettersNumbersAndHyphens(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&models.SupportHelpPage{}, &models.SupportQuestionCategory{}); err != nil {
+		t.Fatalf("migrate support models: %v", err)
+	}
+	sqls.SetDB(db)
+	operator := &dto.AuthPrincipal{UserID: 1, Username: "admin"}
+
+	page, err := SupportService.SaveHelpPage(request.SaveSupportHelpPageRequest{
+		Title: "Release notes", Slug: "release-2026-08", ContentType: "markdown", Status: enums.SupportHelpPageStatusDraft,
+	}, operator)
+	if err != nil {
+		t.Fatalf("save slug containing hyphens: %v", err)
+	}
+	if page.Slug != "release-2026-08" {
+		t.Fatalf("unexpected saved slug: %q", page.Slug)
+	}
+	category, err := SupportService.SaveQuestionCategory(request.SaveSupportQuestionCategoryRequest{
+		Name: "Release notes", Slug: "release-2026-08",
+	}, operator)
+	if err != nil {
+		t.Fatalf("save category slug containing hyphens: %v", err)
+	}
+	if category.Slug != "release-2026-08" {
+		t.Fatalf("unexpected saved category slug: %q", category.Slug)
+	}
+	if _, err := SupportService.SaveHelpPage(request.SaveSupportHelpPageRequest{
+		Title: "Invalid slug", Slug: "release_notes", ContentType: "markdown", Status: enums.SupportHelpPageStatusDraft,
+	}, operator); err == nil {
+		t.Fatal("expected underscore slug to fail validation")
+	}
+}

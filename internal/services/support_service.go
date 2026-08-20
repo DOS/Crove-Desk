@@ -10,6 +10,7 @@ import (
 	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/repositories"
 	"encoding/json"
+	"regexp"
 	"strings"
 	"time"
 
@@ -18,6 +19,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
+
+var supportSlugPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
 
 const (
 	supportUserContextKey = "supportUser"
@@ -171,6 +174,9 @@ func (s *supportService) SaveHelpPage(req request.SaveSupportHelpPageRequest, op
 	if title == "" || slug == "" {
 		return nil, errorsx.InvalidParam("title and slug are required")
 	}
+	if err := validateSupportSlug(slug); err != nil {
+		return nil, err
+	}
 	if err := s.validateHelpPageParent(req.ID, req.ParentID); err != nil {
 		return nil, err
 	}
@@ -278,6 +284,9 @@ func (s *supportService) SaveQuestionCategory(req request.SaveSupportQuestionCat
 	name, slug := strings.TrimSpace(req.Name), normalizeSupportSlug(req.Slug)
 	if name == "" || slug == "" {
 		return nil, errorsx.InvalidParam("name and slug are required")
+	}
+	if err := validateSupportSlug(slug); err != nil {
+		return nil, err
 	}
 	now := time.Now()
 	if req.ID > 0 {
@@ -483,6 +492,13 @@ func normalizeSupportEmail(email string) string {
 
 func normalizeSupportSlug(slug string) string {
 	return strings.ToLower(strings.TrimSpace(slug))
+}
+
+func validateSupportSlug(slug string) error {
+	if !supportSlugPattern.MatchString(slug) {
+		return errorsx.InvalidParamI18n("error.supportHelpPage.invalidSlug")
+	}
+	return nil
 }
 
 func normalizeContentType(contentType string) string {

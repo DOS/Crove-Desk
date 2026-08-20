@@ -46,6 +46,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useI18n } from "@/i18n/provider"
+import { normalizeSupportSlug } from "@/lib/support-slug"
 import {
   changeSupportHelpPageStatusAdmin,
   deleteSupportHelpPageAdmin,
@@ -73,10 +74,6 @@ function toDraft(page: AdminSupportHelpPage): PageDraft {
     contentType: page.contentType || "markdown",
     tags: page.tags ?? [],
   }
-}
-
-function slugify(value: string) {
-  return value.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")
 }
 
 function descendantIds(pages: AdminSupportHelpPage[], id: number) {
@@ -525,8 +522,8 @@ function CreatePageDialog({ state, pages, onOpenChange, onCreated }: { state: Cr
     <DialogContent>
       <DialogHeader><DialogTitle>{t("supportHelpWorkbench.createPage")}</DialogTitle><DialogDescription>{t("supportHelpWorkbench.createDescription")}</DialogDescription></DialogHeader>
       <div className="grid gap-4 py-2">
-        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.pageTitle")}</Label><Input autoFocus value={title} onChange={(event) => { setTitle(event.target.value); if (!slug) setSlug(slugify(event.target.value)) }} /></div>
-        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.slug")}</Label><Input value={slug} onChange={(event) => setSlug(slugify(event.target.value))} placeholder="getting-started" /></div>
+        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.pageTitle")}</Label><Input autoFocus value={title} onChange={(event) => { setTitle(event.target.value); if (!slug) setSlug(normalizeSupportSlug(event.target.value)) }} /></div>
+        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.slug")}</Label><Input value={slug} onChange={(event) => setSlug(normalizeSupportSlug(event.target.value))} placeholder="getting-started" /><p className="text-xs leading-5 text-muted-foreground">{t("supportHelpWorkbench.slugFormatHint")}</p></div>
         <div className="grid gap-2"><Label>{t("supportHelpWorkbench.parentPage")}</Label><OptionCombobox value={String(parentId)} onChange={(value) => setParentId(Number(value))} placeholder={t("supportHelpWorkbench.selectParentPage")} options={[{ value: "0", label: t("supportHelpWorkbench.rootDirectory") }, ...pages.map((page) => ({ value: String(page.id), label: page.title }))]} /></div>
       </div>
       <DialogFooter><Button variant="outline" disabled={creating} onClick={() => onOpenChange(false)}>{t("supportHelpWorkbench.cancel")}</Button><Button disabled={!title.trim() || !slug.trim() || creating} onClick={() => void create()}>{creating ? t("supportHelpWorkbench.creating") : t("supportHelpWorkbench.createAndEdit")}</Button></DialogFooter>
@@ -546,7 +543,7 @@ function PageSettingsDialog({ open, onOpenChange, pages, selected, draft, onChan
       <DialogHeader><DialogTitle>{t("supportHelpWorkbench.pageSettings")}</DialogTitle><DialogDescription>{t("supportHelpWorkbench.settingsDescription")}</DialogDescription></DialogHeader>
       <div className="grid gap-4 py-2">
         <div className="grid gap-2"><Label>{t("supportHelpWorkbench.parentPage")}</Label><OptionCombobox value={String(draft.parentId)} onChange={(value) => onChange({ ...draft, parentId: Number(value) })} placeholder={t("supportHelpWorkbench.selectParentPage")} options={options} /></div>
-        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.slug")}</Label><Input value={draft.slug} onChange={(event) => onChange({ ...draft, slug: slugify(event.target.value) })} /><p className="text-xs leading-5 text-muted-foreground">{t("supportHelpWorkbench.slugChangeWarning")}</p></div>
+        <div className="grid gap-2"><Label>{t("supportHelpWorkbench.slug")}</Label><Input value={draft.slug} onChange={(event) => onChange({ ...draft, slug: normalizeSupportSlug(event.target.value) })} /><p className="text-xs leading-5 text-muted-foreground">{t("supportHelpWorkbench.slugFormatHint")}</p><p className="text-xs leading-5 text-muted-foreground">{t("supportHelpWorkbench.slugChangeWarning")}</p></div>
         <div className="grid gap-2"><Label>{t("supportHelpWorkbench.summary")}</Label><Textarea value={draft.summary} onChange={(event) => onChange({ ...draft, summary: event.target.value })} rows={4} placeholder={t("supportHelpWorkbench.summaryPlaceholder")} /></div>
       </div>
       <DialogFooter><Button onClick={() => onOpenChange(false)}>{t("supportHelpWorkbench.done")}</Button></DialogFooter>

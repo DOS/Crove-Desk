@@ -27,6 +27,7 @@ import {
   type AdminSupportQuestionDetail,
 } from "@/lib/api/admin"
 import { formatDateTime } from "@/lib/utils"
+import { normalizeSupportSlug, supportSlugPattern } from "@/lib/support-slug"
 
 const categoryStatusOptions = [
   { value: "all", label: "全部状态" },
@@ -86,13 +87,13 @@ const crudFormLabels = {
       form={{
         fields: [
           { name: "name", label: "分类名称", placeholder: "请输入分类名称", required: true, trim: true },
-          { name: "slug", label: "Slug", placeholder: "例如 account-security", required: true, trim: true, pattern: /^[a-z0-9]+(?:-[a-z0-9]+)*$/, patternMessage: "仅支持小写字母、数字和连字符" },
+          { name: "slug", label: "Slug", placeholder: "例如 account-security", required: true, trim: true, normalizeInput: normalizeSupportSlug, pattern: supportSlugPattern, patternMessage: "仅支持字母、数字和连字符（-）" },
           { name: "description", label: "分类说明", placeholder: "说明该分类包含的问题范围", type: "textarea", rows: 3, trim: true },
           { name: "status", label: "状态", type: "select", defaultValue: "1", valueType: "number", required: true, options: categoryStatusOptions.filter((item) => item.value !== "all"), valueFromItem: (item) => String(item.status) },
           { name: "sortNo", label: "排序", type: "number", defaultValue: "0", min: 0, valueType: "number" },
           { name: "remark", label: "备注", placeholder: "仅后台可见", type: "textarea", rows: 3, trim: true },
         ],
-        transformSubmitValues: (values) => ({ name: String(values.name), slug: String(values.slug), description: String(values.description ?? ""), status: Number(values.status), sortNo: Number(values.sortNo || 0), remark: String(values.remark ?? "") }),
+        transformSubmitValues: (values) => ({ name: String(values.name), slug: normalizeSupportSlug(String(values.slug)), description: String(values.description ?? ""), status: Number(values.status), sortNo: Number(values.sortNo || 0), remark: String(values.remark ?? "") }),
         labels: { ...crudFormLabels, createTitle: "新建 FAQ 分类", editTitle: "编辑 FAQ 分类" },
       }}
       labels={{
