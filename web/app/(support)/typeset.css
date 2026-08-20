@@ -201,6 +201,24 @@
     padding: 1.25rem;
   }
 
+  .support-mermaid-preview {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: inherit;
+  }
+
+  .support-mermaid-preview[data-support-lightbox-item] {
+    cursor: zoom-in;
+  }
+
+  .support-mermaid-preview:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
+
   .support-mermaid-canvas > svg {
     display: block;
     width: 100%;

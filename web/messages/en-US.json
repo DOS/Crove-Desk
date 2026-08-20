@@ -691,8 +691,12 @@
     "rotateLeft": "Rotate left",
     "rotateRight": "Rotate right",
     "reset": "Reset zoom, position, and rotation",
+    "previous": "View previous image",
+    "next": "View next image",
+    "position": "{current} / {total}",
     "close": "Close",
-    "help": "Use the mouse wheel or pinch gesture to zoom. Drag to pan the image. Use the toolbar to rotate left or right."
+    "help": "Use the mouse wheel or pinch gesture to zoom. Drag to pan the image. Use the toolbar to rotate left or right.",
+    "galleryHelp": "Use the left and right arrow keys to switch images. Use the mouse wheel or pinch gesture to zoom, and drag to pan."
   },
   "companyPicker": {
     "placeholder": "Select a company",
@@ -2450,6 +2454,7 @@
       "feedbackDescription": "Your feedback helps us improve the documentation.",
       "copyCode": "Copy code",
       "mermaidDiagram": "Documentation diagram",
+      "mermaidPreview": "Enlarge diagram",
       "mermaidLoading": "Rendering diagram...",
       "mermaidError": "The diagram syntax is invalid and cannot be displayed.",
       "previous": "Previous",

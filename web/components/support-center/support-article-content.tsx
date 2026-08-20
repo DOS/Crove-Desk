@@ -1,6 +1,6 @@
 "use client"
 
-import { Children, isValidElement, useEffect, useId, useMemo, useRef, type MouseEvent, type ReactNode } from "react"
+import { Children, isValidElement, useEffect, useId, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react"
 import { useTheme } from "next-themes"
 import rehypeHighlight from "rehype-highlight"
 import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown"
@@ -8,7 +8,7 @@ import remarkBreaks from "remark-breaks"
 import remarkGfm from "remark-gfm"
 import { toast } from "sonner"
 
-import { useImageLightboxOptional } from "@/components/image-lightbox"
+import { useImageLightboxOptional, type ImageLightboxContextValue, type ImageLightboxItem } from "@/components/image-lightbox"
 import { SafeRichHTML } from "@/components/safe-rich-html"
 import { useI18n } from "@/i18n/provider"
 import { articleHeadingId } from "@/lib/support-article"
@@ -19,6 +19,51 @@ function enqueueMermaidRender(task: () => Promise<void>) {
   const next = mermaidRenderQueue.then(task, task)
   mermaidRenderQueue = next.catch(() => undefined)
   return next
+}
+
+function registerArticleLightboxItem(element: HTMLElement) {
+  element.dataset.supportLightboxItem = ""
+}
+
+function unregisterArticleLightboxItem(element: HTMLElement) {
+  delete element.dataset.supportLightboxItem
+}
+
+function resolveArticleLightboxItem(element: HTMLElement): ImageLightboxItem | null {
+  const svg = element.querySelector<SVGSVGElement>("svg")
+  if (svg) {
+    const figure = element.closest<HTMLElement>(".support-mermaid")
+    return {
+      src: `mermaid:${svg.id}`,
+      alt: element.querySelector<HTMLElement>("[role='img']")?.getAttribute("aria-label") ?? "",
+      svg: svg.outerHTML,
+      backgroundColor: figure ? window.getComputedStyle(figure).backgroundColor : undefined,
+    }
+  }
+  if (element instanceof HTMLImageElement) {
+    const src = element.getAttribute("src")
+    return src ? { src, alt: element.alt } : null
+  }
+  return null
+}
+
+function openArticleLightbox(lightbox: ImageLightboxContextValue, target: HTMLElement) {
+  const article = target.closest(".typeset-support-docs")
+  if (!article) return
+  const elements = Array.from(article.querySelectorAll<HTMLElement>("[data-support-lightbox-item]"))
+  const entries = elements.flatMap((element) => {
+    const item = resolveArticleLightboxItem(element)
+    return item ? [{ element, item }] : []
+  })
+  const index = entries.findIndex((entry) => entry.element === target)
+  if (index < 0) return
+  const items = entries.map((entry) => entry.item)
+  if (typeof lightbox.openGallery === "function") {
+    lightbox.openGallery(items, index)
+  } else {
+    const item = items[index]
+    lightbox.open(item.src, item.alt)
+  }
 }
 
 type MarkdownNode = {
@@ -82,12 +127,18 @@ function mermaidDefinition(children: ReactNode) {
 function MermaidDiagram({ definition }: { definition: string }) {
   const t = useI18n()
   const { resolvedTheme } = useTheme()
+  const lightbox = useImageLightboxOptional()
+  const previewRef = useRef<HTMLButtonElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const reactId = useId()
   const diagramId = useMemo(() => `support-mermaid-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`, [reactId])
+  const renderKey = `${definition}\n${resolvedTheme}`
+  const [readyRenderKey, setReadyRenderKey] = useState<string | null>(null)
+  const isReady = readyRenderKey === renderKey
 
   useEffect(() => {
     const container = containerRef.current
+    const preview = previewRef.current
     if (!container) return
     let cancelled = false
     const status = document.createElement("div")
@@ -131,6 +182,10 @@ function MermaidDiagram({ definition }: { definition: string }) {
         if (cancelled) return
         container.innerHTML = svg
         container.setAttribute("aria-busy", "false")
+        if (lightbox && preview) {
+          registerArticleLightboxItem(preview)
+          setReadyRenderKey(renderKey)
+        }
       } catch {
         if (cancelled) return
         const error = document.createElement("div")
@@ -144,17 +199,29 @@ function MermaidDiagram({ definition }: { definition: string }) {
 
     return () => {
       cancelled = true
+      if (preview) unregisterArticleLightboxItem(preview)
     }
-  }, [definition, diagramId, resolvedTheme, t])
+  }, [definition, diagramId, lightbox, renderKey, resolvedTheme, t])
 
   return (
     <figure className="support-mermaid not-typeset" data-not-typeset>
-      <div
-        ref={containerRef}
-        className="support-mermaid-canvas"
-        role="img"
-        aria-label={t("supportPublic.help.mermaidDiagram")}
-      />
+      <button
+        ref={previewRef}
+        type="button"
+        disabled={!isReady}
+        className="support-mermaid-preview"
+        aria-label={t("supportPublic.help.mermaidPreview")}
+        onClick={(event) => {
+          if (lightbox) openArticleLightbox(lightbox, event.currentTarget)
+        }}
+      >
+        <div
+          ref={containerRef}
+          className="support-mermaid-canvas"
+          role="img"
+          aria-label={t("supportPublic.help.mermaidDiagram")}
+        />
+      </button>
     </figure>
   )
 }
@@ -181,8 +248,14 @@ export function SupportArticleContent({ content, contentType = "markdown", id }:
         {...props}
         alt={alt ?? ""}
         src={src}
+        ref={(image) => {
+          if (image && lightbox && typeof src === "string") {
+            registerArticleLightboxItem(image)
+            return () => unregisterArticleLightboxItem(image)
+          }
+        }}
         className={lightbox && typeof src === "string" ? "cursor-zoom-in" : undefined}
-        onClick={lightbox && typeof src === "string" ? () => lightbox.open(src, alt ?? "") : undefined}
+        onClick={lightbox && typeof src === "string" ? (event) => openArticleLightbox(lightbox, event.currentTarget) : undefined}
       />
     ),
     pre: ({ children, ...props }) => {
