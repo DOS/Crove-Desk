@@ -883,17 +883,32 @@ function ChildPageLinks({ pages, onNavigate }: { pages: SupportHelpPage[]; onNav
   const t = useI18n()
   if (!pages.length) return null
   return (
-    <div className="mt-8 border-t pt-5">
-      <h3 className="mb-3 font-semibold">{t("supportPublic.help.childPages")}</h3>
-      <div className="grid gap-2 sm:grid-cols-2">
+    <section className="mt-10 border-t pt-6" aria-labelledby="support-child-pages-title">
+      <h2 id="support-child-pages-title" className="mb-4 text-sm font-semibold tracking-tight text-foreground">
+        {t("supportPublic.help.childPages")}
+      </h2>
+      <div className="grid gap-3 sm:grid-cols-2">
         {pages.map((page) => (
-          <SupportHelpLink key={page.id} page={page} onNavigate={onNavigate} className="rounded-xl border p-3 transition hover:bg-muted/60">
-            <span className="font-medium">{page.title}</span>
-            {page.summary ? <span className="mt-1 block text-sm text-muted-foreground">{page.summary}</span> : null}
+          <SupportHelpLink
+            key={page.id}
+            page={page}
+            onNavigate={onNavigate}
+            className="group flex min-w-0 items-start gap-3 rounded-xl border border-border/70 bg-card p-4 shadow-xs transition-[border-color,background-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/[0.025] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-muted/60 text-muted-foreground transition-colors group-hover:border-primary/20 group-hover:bg-primary/10 group-hover:text-primary">
+              <FileTextIcon className="size-4" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold leading-6 text-foreground transition-colors group-hover:text-primary">
+                {page.title}
+              </span>
+              {page.summary ? <span className="mt-0.5 line-clamp-3 text-sm leading-5 text-muted-foreground">{page.summary}</span> : null}
+            </span>
+            <ArrowRightIcon className="mt-2 size-4 shrink-0 text-muted-foreground/60 transition-[color,transform] group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden="true" />
           </SupportHelpLink>
         ))}
       </div>
-    </div>
+    </section>
   )
 }
 
