@@ -2385,6 +2385,129 @@
     "result": "Result Preview",
     "notFound": "Agent run not found"
   },
+  "supportPublic": {
+    "brand": "AgentDesk Support",
+    "nav": {
+      "help": "Help",
+      "questions": "FAQ",
+      "login": "Log In"
+    },
+    "home": {
+      "badge": "Support Center",
+      "title": "Docs, community answers, and live support in one place.",
+      "description": "Capture recurring questions like a community and organize guidance like a docs site. Search first, then contact support when needed.",
+      "searchPlaceholder": "Search help pages or questions",
+      "helpTitle": "Help Center",
+      "helpDescription": "Official guides, deployment notes, and troubleshooting.",
+      "questionsTitle": "FAQ Community",
+      "questionsDescription": "Browse questions, then log in to ask or answer.",
+      "chatTitle": "Live Support",
+      "chatDescription": "Open a support conversation when self-service is not enough.",
+      "quickPanelTitle": "Quick Links",
+      "quickPanelDescription": "Continue by task",
+      "unsolvedQuestions": "View unsolved questions",
+      "browseDocs": "Browse help docs",
+      "askQuestion": "Ask a question",
+      "recommendedPages": "Recommended Pages",
+      "hotQuestions": "Popular Questions"
+    },
+    "help": {
+      "title": "Help Center",
+      "description": "Read official guides, deployment notes, and troubleshooting docs.",
+      "searchPlaceholder": "Search help docs",
+      "openPage": "Open help page",
+      "childPages": "Pages in this section",
+      "toc": "On this page",
+      "noToc": "No sections"
+    },
+    "questions": {
+      "title": "FAQ Community",
+      "description": "Signed-in users can ask, answer, vote, and accept best answers.",
+      "searchPlaceholder": "Search question titles",
+      "detailTitle": "Question Detail",
+      "answers": "Answers",
+      "votes": "Votes",
+      "views": "Views"
+    },
+    "ask": {
+      "title": "Ask a Question",
+      "description": "Sign in to submit a question. Community members and support agents can answer.",
+      "category": "Category",
+      "categoryPlaceholder": "Select category",
+      "categorySearch": "Search categories",
+      "categoryEmpty": "No categories",
+      "questionTitle": "Question title",
+      "questionTitlePlaceholder": "Describe the question in one sentence",
+      "content": "Details",
+      "contentPlaceholder": "Describe the issue, environment, and what you have already tried",
+      "tags": "Tags",
+      "tagsPlaceholder": "Separate tags with commas"
+    },
+    "answer": {
+      "title": "Submit Answer",
+      "placeholder": "Write your answer",
+      "best": "Best Answer"
+    },
+    "login": {
+      "title": "Log In to Support",
+      "description": "Log in to ask, answer, vote, and accept best answers.",
+      "name": "Name",
+      "namePlaceholder": "Enter your name",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email",
+      "password": "Password",
+      "passwordPlaceholder": "At least 8 characters",
+      "loginAction": "Log In",
+      "registerAction": "Register and Log In",
+      "switchToRegister": "No account? Register",
+      "switchToLogin": "Already have an account? Log in"
+    },
+    "actions": {
+      "search": "Search",
+      "viewAll": "View all",
+      "helpful": "Helpful",
+      "openStandalone": "Open separately",
+      "askQuestion": "Ask Question",
+      "publishQuestion": "Publish Question",
+      "publishAnswer": "Publish Answer",
+      "publishing": "Publishing...",
+      "processing": "Processing...",
+      "accept": "Accept"
+    },
+    "status": {
+      "all": "All",
+      "normal": "Unsolved",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    },
+    "common": {
+      "allCategories": "All categories",
+      "uncategorized": "Uncategorized",
+      "user": "User"
+    },
+    "empty": {
+      "noPages": "No published pages yet",
+      "noQuestions": "No community questions yet",
+      "noPagesMatched": "No pages found",
+      "noQuestionsMatched": "No questions found",
+      "noAnswers": "No answers yet",
+      "selectPage": "Select a page on the left"
+    },
+    "loading": {
+      "page": "Loading page...",
+      "question": "Loading question..."
+    },
+    "toast": {
+      "feedbackSaved": "Thanks for the feedback",
+      "answerCreated": "Answer published",
+      "questionCreated": "Question published",
+      "loggedIn": "Logged in"
+    },
+    "a11y": {
+      "collapse": "Collapse child pages",
+      "expand": "Expand child pages"
+    }
+  },
   "nav": {
     "overview": "Overview",
     "receptionCenter": "Support Desk",

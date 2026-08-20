@@ -2385,6 +2385,129 @@
     "result": "结果摘要",
     "notFound": "未找到 Agent 运行记录"
   },
+  "supportPublic": {
+    "brand": "AgentDesk 支持中心",
+    "nav": {
+      "help": "帮助",
+      "questions": "FAQ",
+      "login": "登录"
+    },
+    "home": {
+      "badge": "支持中心",
+      "title": "文档、社区问答和在线咨询集中在这里。",
+      "description": "像社区一样沉淀问题，像文档站一样组织知识。先自助检索，必要时再进入在线咨询。",
+      "searchPlaceholder": "搜索帮助页面或问题",
+      "helpTitle": "帮助中心",
+      "helpDescription": "官方指南、部署文档和故障排查。",
+      "questionsTitle": "FAQ 社区",
+      "questionsDescription": "浏览问题，登录后提问和回答。",
+      "chatTitle": "在线咨询",
+      "chatDescription": "仍然无法解决时进入客服会话。",
+      "quickPanelTitle": "快速入口",
+      "quickPanelDescription": "按当前任务继续",
+      "unsolvedQuestions": "查看未解决问题",
+      "browseDocs": "浏览帮助文档",
+      "askQuestion": "提出一个问题",
+      "recommendedPages": "推荐页面",
+      "hotQuestions": "热门问题"
+    },
+    "help": {
+      "title": "帮助中心",
+      "description": "查看官方使用指南、部署说明和排障文档。",
+      "searchPlaceholder": "搜索帮助文档",
+      "openPage": "查看帮助页面",
+      "childPages": "本节页面",
+      "toc": "本页目录",
+      "noToc": "暂无章节"
+    },
+    "questions": {
+      "title": "FAQ 社区",
+      "description": "登录用户可以提问、回答、点赞并采纳最佳答案。",
+      "searchPlaceholder": "搜索问题标题",
+      "detailTitle": "问题详情",
+      "answers": "回答",
+      "votes": "赞同",
+      "views": "浏览"
+    },
+    "ask": {
+      "title": "提出问题",
+      "description": "登录后提交问题，社区成员和客服可参与回答。",
+      "category": "分类",
+      "categoryPlaceholder": "选择分类",
+      "categorySearch": "搜索分类",
+      "categoryEmpty": "暂无分类",
+      "questionTitle": "问题标题",
+      "questionTitlePlaceholder": "用一句话描述问题",
+      "content": "问题详情",
+      "contentPlaceholder": "详细描述你的问题、环境和已尝试的排查步骤",
+      "tags": "标签",
+      "tagsPlaceholder": "标签，用英文逗号分隔"
+    },
+    "answer": {
+      "title": "提交回答",
+      "placeholder": "写下你的回答",
+      "best": "最佳答案"
+    },
+    "login": {
+      "title": "登录支持中心",
+      "description": "登录后可以提问、回答、点赞和采纳最佳答案。",
+      "name": "姓名",
+      "namePlaceholder": "请输入姓名",
+      "email": "邮箱",
+      "emailPlaceholder": "请输入邮箱",
+      "password": "密码",
+      "passwordPlaceholder": "密码，至少 8 位",
+      "loginAction": "登录",
+      "registerAction": "注册并登录",
+      "switchToRegister": "没有账号，去注册",
+      "switchToLogin": "已有账号，去登录"
+    },
+    "actions": {
+      "search": "搜索",
+      "viewAll": "查看全部",
+      "helpful": "有帮助",
+      "openStandalone": "独立打开",
+      "askQuestion": "我要提问",
+      "publishQuestion": "发布问题",
+      "publishAnswer": "发布回答",
+      "publishing": "发布中...",
+      "processing": "处理中...",
+      "accept": "采纳"
+    },
+    "status": {
+      "all": "全部",
+      "normal": "未解决",
+      "resolved": "已解决",
+      "closed": "已关闭"
+    },
+    "common": {
+      "allCategories": "全部分类",
+      "uncategorized": "未分类",
+      "user": "用户"
+    },
+    "empty": {
+      "noPages": "暂无已发布页面",
+      "noQuestions": "暂无社区问题",
+      "noPagesMatched": "没有找到页面",
+      "noQuestionsMatched": "没有找到问题",
+      "noAnswers": "暂无回答",
+      "selectPage": "选择左侧页面查看内容"
+    },
+    "loading": {
+      "page": "正在加载页面...",
+      "question": "正在加载问题..."
+    },
+    "toast": {
+      "feedbackSaved": "感谢反馈",
+      "answerCreated": "回答已发布",
+      "questionCreated": "问题已发布",
+      "loggedIn": "已登录"
+    },
+    "a11y": {
+      "collapse": "折叠子页面",
+      "expand": "展开子页面"
+    }
+  },
   "nav": {
     "overview": "总览",
     "receptionCenter": "接待中心",
