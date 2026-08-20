@@ -5,6 +5,7 @@ import (
 	"agent-desk/internal/pkg/dto"
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/enums"
+	"agent-desk/internal/repositories"
 	"strings"
 	"testing"
 
@@ -128,5 +129,33 @@ func TestSupportSlugAllowsLettersNumbersAndHyphens(t *testing.T) {
 		Title: "Invalid slug", Slug: "release_notes", ContentType: "markdown", Status: enums.SupportHelpPageStatusDraft,
 	}, operator); err == nil {
 		t.Fatal("expected underscore slug to fail validation")
+	}
+}
+
+func TestSupportQuestionCategorySort(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&models.SupportQuestionCategory{}); err != nil {
+		t.Fatalf("migrate category: %v", err)
+	}
+	sqls.SetDB(db)
+	categories := []*models.SupportQuestionCategory{
+		{Name: "First", Slug: "first", SortNo: 0, Status: enums.StatusOk},
+		{Name: "Second", Slug: "second", SortNo: 1, Status: enums.StatusOk},
+		{Name: "Third", Slug: "third", SortNo: 2, Status: enums.StatusOk},
+	}
+	for _, category := range categories {
+		if err := db.Create(category).Error; err != nil {
+			t.Fatalf("create category: %v", err)
+		}
+	}
+	if err := SupportService.UpdateQuestionCategorySort([]int64{categories[2].ID, categories[0].ID, categories[1].ID}); err != nil {
+		t.Fatalf("sort categories: %v", err)
+	}
+	sorted := repositories.SupportQuestionCategoryRepository.Find(sqls.DB(), sqls.NewCnd().Asc("sort_no"))
+	if len(sorted) != 3 || sorted[0].ID != categories[2].ID || sorted[1].ID != categories[0].ID || sorted[2].ID != categories[1].ID {
+		t.Fatalf("unexpected sorted categories: %#v", sorted)
 	}
 }

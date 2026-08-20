@@ -94,6 +94,10 @@ func (r *supportQuestionCategoryRepository) Updates(db *gorm.DB, id int64, colum
 	return db.Model(&models.SupportQuestionCategory{}).Where("id = ?", id).Updates(columns).Error
 }
 
+func (r *supportQuestionCategoryRepository) UpdateColumn(db *gorm.DB, id int64, column string, value any) error {
+	return db.Model(&models.SupportQuestionCategory{}).Where("id = ?", id).UpdateColumn(column, value).Error
+}
+
 func (r *supportQuestionCategoryRepository) Delete(db *gorm.DB, id int64) error {
 	return db.Delete(&models.SupportQuestionCategory{}, "id = ?", id).Error
 }

@@ -182,6 +182,23 @@ func SupportQuestionCategoryPostUpdate(ctx *gin.Context) {
 	SupportQuestionCategoryPostCreate(ctx)
 }
 
+func SupportQuestionCategoryPostUpdateSort(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionUpdate); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	var ids []int64
+	if err := params.ReadJSON(ctx, &ids); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	if err := services.SupportService.UpdateQuestionCategorySort(ids); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, nil)
+}
+
 func SupportQuestionCategoryPostDelete(ctx *gin.Context) {
 	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionUpdate); err != nil {
 		httpx.WriteJSON(ctx, err)

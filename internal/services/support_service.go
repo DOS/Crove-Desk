@@ -293,12 +293,12 @@ func (s *supportService) SaveQuestionCategory(req request.SaveSupportQuestionCat
 		if repositories.SupportQuestionCategoryRepository.Get(sqls.DB(), req.ID) == nil {
 			return nil, errorsx.InvalidParam("category not found")
 		}
-		if err := repositories.SupportQuestionCategoryRepository.Updates(sqls.DB(), req.ID, map[string]any{"name": name, "slug": slug, "description": strings.TrimSpace(req.Description), "sort_no": req.SortNo, "status": req.Status, "remark": strings.TrimSpace(req.Remark), "update_user_id": operator.UserID, "update_user_name": operator.Username, "updated_at": now}); err != nil {
+		if err := repositories.SupportQuestionCategoryRepository.Updates(sqls.DB(), req.ID, map[string]any{"name": name, "slug": slug, "description": strings.TrimSpace(req.Description), "status": req.Status, "remark": strings.TrimSpace(req.Remark), "update_user_id": operator.UserID, "update_user_name": operator.Username, "updated_at": now}); err != nil {
 			return nil, err
 		}
 		return repositories.SupportQuestionCategoryRepository.Get(sqls.DB(), req.ID), nil
 	}
-	item := &models.SupportQuestionCategory{Name: name, Slug: slug, Description: strings.TrimSpace(req.Description), SortNo: req.SortNo, Status: req.Status, Remark: strings.TrimSpace(req.Remark), AuditFields: auditFieldsFromOperator(operator, now)}
+	item := &models.SupportQuestionCategory{Name: name, Slug: slug, Description: strings.TrimSpace(req.Description), Status: req.Status, Remark: strings.TrimSpace(req.Remark), AuditFields: auditFieldsFromOperator(operator, now)}
 	if item.Status == 0 {
 		item.Status = enums.StatusOk
 	}
@@ -306,6 +306,17 @@ func (s *supportService) SaveQuestionCategory(req request.SaveSupportQuestionCat
 		return nil, err
 	}
 	return item, nil
+}
+
+func (s *supportService) UpdateQuestionCategorySort(ids []int64) error {
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		for i, id := range ids {
+			if err := repositories.SupportQuestionCategoryRepository.UpdateColumn(ctx.Tx, id, "sort_no", i); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (s *supportService) DeleteQuestionCategory(id int64) error {

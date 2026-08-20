@@ -43,7 +43,6 @@ type SaveSupportQuestionCategoryRequest struct {
 	Name        string       `json:"name"`
 	Slug        string       `json:"slug"`
 	Description string       `json:"description"`
-	SortNo      int          `json:"sortNo"`
 	Status      enums.Status `json:"status"`
 	Remark      string       `json:"remark"`
 }

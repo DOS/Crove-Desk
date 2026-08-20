@@ -2430,10 +2430,17 @@ export function saveSupportQuestionCategoryAdmin(payload: Partial<AdminSupportCa
 }
 
 export function deleteSupportQuestionCategoryAdmin(id: number) {
-  return request<void>("/api/dashboard/support-question-category/delete", {
-    method: "POST",
-    body: JSON.stringify({ id }),
-  })
+	return request<void>("/api/dashboard/support-question-category/delete", {
+		method: "POST",
+		body: JSON.stringify({ id }),
+	})
+}
+
+export function updateSupportQuestionCategorySortAdmin(ids: number[]) {
+	return request<void>("/api/dashboard/support-question-category/update_sort", {
+		method: "POST",
+		body: JSON.stringify(ids),
+	})
 }
 
 export function fetchSupportQuestionsAdmin(query?: Record<string, string | number | undefined>) {
