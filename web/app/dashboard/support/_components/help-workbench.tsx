@@ -343,7 +343,7 @@ export function SupportHelpWorkbench() {
               <Button onClick={() => void save()} disabled={!dirty || saving}><SaveIcon />{saving ? t("supportHelpWorkbench.saving") : t("supportHelpWorkbench.save")}</Button>
             </div>
           </div>
-          <div className="flex min-h-[calc(100%_-_3.5rem)] flex-col px-5 pb-5 pt-4">
+          <div className="flex min-h-[calc(100%_-_3.5rem)] flex-col pb-5 pt-4">
             <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-auto shrink-0 border-0 px-2 pb-3 pt-1 text-3xl font-semibold shadow-none focus-visible:ring-0" aria-label={t("supportHelpWorkbench.pageTitle")} />
             <div className="flex flex-1 flex-col">
               <ContentEditor
