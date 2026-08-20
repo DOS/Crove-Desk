@@ -331,9 +331,16 @@ export function SupportHelpWorkbench() {
       <main key={selected?.id ?? "empty"} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
         {draft && selected ? <>
           <div className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b bg-background px-4">
-            <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-              <span className="shrink-0">{t("supportHelpWorkbench.title")}</span>
-              {path.map((item) => <span key={item.id} className="flex min-w-0 items-center gap-2"><ChevronRightIcon className="size-3.5 shrink-0" /><span className="truncate">{item.title}</span></span>)}
+            <div className="flex min-w-0 flex-1 items-center gap-2 text-sm text-muted-foreground">
+              {path.map((item, index) => <span key={item.id} className="flex min-w-0 items-center gap-2">{index > 0 ? <ChevronRightIcon className="size-3.5 shrink-0" /> : null}<span className="truncate">{item.title}</span></span>)}
+              {path.length > 0 ? <ChevronRightIcon className="size-3.5 shrink-0" /> : null}
+              <Input
+                value={draft.title}
+                onChange={(event) => setDraft({ ...draft, title: event.target.value })}
+                className="h-8 min-w-32 max-w-xl flex-1 border-border/60 bg-muted/30 px-2 text-sm font-medium text-foreground shadow-none hover:border-border hover:bg-muted/50 focus-visible:bg-background"
+                placeholder={t("supportHelpWorkbench.pageTitle")}
+                aria-label={t("supportHelpWorkbench.pageTitle")}
+              />
               <Badge variant="outline" className="ml-1 shrink-0">{statusLabel}</Badge>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -343,15 +350,14 @@ export function SupportHelpWorkbench() {
               <Button onClick={() => void save()} disabled={!dirty || saving}><SaveIcon />{saving ? t("supportHelpWorkbench.saving") : t("supportHelpWorkbench.save")}</Button>
             </div>
           </div>
-          <div className="flex min-h-[calc(100%_-_3.5rem)] flex-col pb-5 pt-4">
-            <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="h-auto shrink-0 border-0 px-2 pb-3 pt-1 text-3xl font-semibold shadow-none focus-visible:ring-0" aria-label={t("supportHelpWorkbench.pageTitle")} />
+          <div className="flex min-h-[calc(100%_-_3.5rem)] flex-col bg-muted/20">
             <div className="flex flex-1 flex-col">
               <ContentEditor
                 value={{ mode: draft.contentType === "html" ? "html" : "markdown", raw: draft.content }}
                 onChange={(content) => setDraft({ ...draft, content: content.raw, contentType: content.mode })}
                 placeholder={t("supportHelpWorkbench.contentPlaceholder")}
                 scrollMode="document"
-                className="flex min-h-full flex-1 flex-col [--content-editor-toolbar-offset:3.5rem] [&>div]:flex-1 [&>div]:rounded-none [&>div]:border-0"
+                className="flex min-h-full flex-1 flex-col [--content-editor-toolbar-offset:3.5rem] [&>div]:flex-1 [&>div]:rounded-none [&>div]:border-0 [&>div]:bg-transparent"
               />
             </div>
           </div>
