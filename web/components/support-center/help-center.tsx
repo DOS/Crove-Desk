@@ -509,12 +509,11 @@ function SupportHeader() {
   return (
     <header className="mx-auto flex h-16 max-w-[var(--support-shell-max-width)] items-center justify-between px-5 sm:px-6 md:px-8 lg:px-10">
       <Link href="/support" className="flex items-center gap-2.5 font-semibold tracking-tight">
-        <span className="grid size-8 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-          <CircleHelpIcon className="size-[18px]" />
-        </span>
-        <span>
-          AgentDesk <span className="font-normal text-muted-foreground">{t("supportPublic.home.badge")}</span>
-        </span>
+        {/* <span>
+          AGENT DESK <span className="font-normal text-muted-foreground">{t("supportPublic.home.badge")}</span>
+        </span> */}
+        <span>AGENT DESK</span>
+        <span className="hidden border-l pl-2 font-normal text-muted-foreground sm:inline">{t("supportPublic.home.badge")}</span>
       </Link>
       <nav className="flex items-center gap-1 sm:gap-2">
         <Link className={cn(buttonVariants({ variant: "ghost" }), "hidden sm:inline-flex")} href="/support/help">{t("supportPublic.nav.help")}</Link>
@@ -674,10 +673,14 @@ function HelpArticle({ page, pages, previewId, onNavigate }: { page: SupportHelp
       block.appendChild(button)
       cleanup.push(() => { button.removeEventListener("click", copy); button.remove() })
     })
-    container.querySelectorAll<HTMLImageElement>("img").forEach((image) => {
+    const articleImages = Array.from(container.querySelectorAll<HTMLImageElement>("img"))
+    articleImages.forEach((image, imageIndex) => {
       if (!lightbox) return
       image.classList.add("cursor-zoom-in")
-      const open = () => lightbox.open(image.currentSrc || image.src, image.alt)
+      const open = () => lightbox.openGallery(articleImages.map((item) => ({
+        src: item.currentSrc || item.src,
+        alt: item.alt,
+      })), imageIndex)
       image.addEventListener("click", open)
       cleanup.push(() => image.removeEventListener("click", open))
     })
