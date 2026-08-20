@@ -721,7 +721,7 @@ function HelpArticle({ page, pages, previewId, theme }: { page: SupportHelpPage;
       </div>
       <h1 className="mt-6 text-balance text-3xl font-bold tracking-tight sm:text-4xl">{page.title}</h1>
       <div className="mt-5 text-xs text-muted-foreground">{t("supportPublic.help.updatedAt", { date: formatDateTime(page.publishedAt || page.updatedAt) })}</div>
-      <div className="support-markdown mt-10">
+      <div className="support-markdown">
         {page.contentType === "html" ? <div id={previewId}><SafeRichHTML html={page.content} className="support-rich-html text-base leading-8" /></div> : <MdPreview id={previewId} modelValue={page.content} theme={theme === "dark" ? "dark" : "light"} noMermaid noKatex noHighlight />}
       </div>
       <ChildPageLinks pages={pages.filter((item) => item.parentId === page.id)} />
@@ -952,7 +952,9 @@ function PublicArticleToc({ content, contentType = "markdown" }: { content: stri
       <div>
         <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("supportPublic.help.toc")}</div>
         {headings.length ? headings.map((item, index) => (
-          <a key={`${item.title}-${index}`} href={`#${item.id}`} className={cn("block border-l py-1.5 pl-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground", item.level === 3 && "pl-6")}>{item.title}</a>
+          <a key={`${item.title}-${index}`} href={`#${item.id}`} className={cn("block border-l py-1.5 pl-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground", item.level === 3 && "pl-6")}>
+            <span className="line-clamp-3">{item.title}</span>
+          </a>
         )) : <div className="text-sm text-muted-foreground">{t("supportPublic.help.noToc")}</div>}
       </div>
     </aside>
