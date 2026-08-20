@@ -454,36 +454,38 @@ export function SupportLoginPage() {
   }
 
   return (
-    <SupportShell section="login" title={t("supportPublic.login.title")} description={t("supportPublic.login.description")}>
-      <div className="mx-auto max-w-md rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
-        <div className="grid gap-4">
-          {mode === "register" && (
-            <LabeledField label={t("supportPublic.login.name")}>
-              <Input value={name} onChange={(event) => setName(event.target.value)} placeholder={t("supportPublic.login.namePlaceholder")} className="bg-card" />
+    <SupportPageShell section="login">
+      <SupportPageContent className="py-10 sm:py-12">
+        <div className="mx-auto max-w-md rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+          <div className="grid gap-4">
+            {mode === "register" && (
+              <LabeledField label={t("supportPublic.login.name")}>
+                <Input value={name} onChange={(event) => setName(event.target.value)} placeholder={t("supportPublic.login.namePlaceholder")} className="bg-card" />
+              </LabeledField>
+            )}
+            <LabeledField label={t("supportPublic.login.email")}>
+              <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("supportPublic.login.emailPlaceholder")} className="bg-card" />
             </LabeledField>
-          )}
-          <LabeledField label={t("supportPublic.login.email")}>
-            <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("supportPublic.login.emailPlaceholder")} className="bg-card" />
-          </LabeledField>
-          <LabeledField label={t("supportPublic.login.password")}>
-            <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={t("supportPublic.login.passwordPlaceholder")} className="bg-card" />
-          </LabeledField>
-          <Button disabled={submitting} onClick={() => void submit()}>
-            {submitting ? t("supportPublic.actions.processing") : mode === "login" ? t("supportPublic.login.loginAction") : t("supportPublic.login.registerAction")}
-          </Button>
-          <Button variant="ghost" onClick={() => setMode(mode === "login" ? "register" : "login")}>
-            {mode === "login" ? t("supportPublic.login.switchToRegister") : t("supportPublic.login.switchToLogin")}
-          </Button>
+            <LabeledField label={t("supportPublic.login.password")}>
+              <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={t("supportPublic.login.passwordPlaceholder")} className="bg-card" />
+            </LabeledField>
+            <Button disabled={submitting} onClick={() => void submit()}>
+              {submitting ? t("supportPublic.actions.processing") : mode === "login" ? t("supportPublic.login.loginAction") : t("supportPublic.login.registerAction")}
+            </Button>
+            <Button variant="ghost" onClick={() => setMode(mode === "login" ? "register" : "login")}>
+              {mode === "login" ? t("supportPublic.login.switchToRegister") : t("supportPublic.login.switchToLogin")}
+            </Button>
+          </div>
         </div>
-      </div>
-    </SupportShell>
+      </SupportPageContent>
+    </SupportPageShell>
   )
 }
 
-function SupportShell({ section, title, description, children }: { section: "questions" | "ask" | "login"; title: string; description: string; children?: ReactNode }) {
+function SupportShell({ section, title, description, children }: { section: "questions" | "ask"; title: string; description: string; children?: ReactNode }) {
   return (
     <SupportPageShell section={section}>
-      <SupportPageContent className="py-10 sm:py-12" width={section === "login" ? "standard" : "docs"}>
+      <SupportPageContent className="py-10 sm:py-12" width="docs">
         <div className="mb-7">
           <p className="text-sm font-medium text-primary">{title}</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
