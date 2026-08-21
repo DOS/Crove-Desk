@@ -510,7 +510,7 @@ export function SupportAskQuestion() {
 
           <Input id="support-question-title" value={title} onChange={(event) => { setTitle(event.target.value); setFormError("") }} placeholder={t("supportPublic.ask.questionTitlePlaceholder")} className="rounded-md bg-card" disabled={submitting} aria-label={t("supportPublic.ask.questionTitle")} />
 
-          <div className="grid gap-2" role="group" aria-labelledby="support-question-content-label">
+          <div className="grid min-w-0 gap-2" role="group" aria-labelledby="support-question-content-label">
             <span id="support-question-content-label" className="sr-only">{t("supportPublic.ask.content")}</span>
             <ContentEditor
               value={{ mode: "markdown", raw: content }}
@@ -519,6 +519,7 @@ export function SupportAskQuestion() {
               disabled={submitting}
               allowedModes={["markdown"]}
               height={420}
+              className="min-w-0"
             />
           </div>
 
