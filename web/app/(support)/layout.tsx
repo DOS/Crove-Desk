@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 
 import { ImageLightboxProvider } from "@/components/image-lightbox"
+import { ConfirmProvider } from "@/components/confirm-provider"
 import { SupportAuthProvider } from "@/components/support-center/support-auth-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -9,6 +10,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { AppI18nProvider } from "@/i18n/provider"
 
 import "./support.css"
+import "md-editor-rt/lib/style.css"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,12 +40,14 @@ export default function SupportRootLayout({
         <AppI18nProvider>
           <ThemeProvider>
             <SupportAuthProvider>
-              <ImageLightboxProvider>
-                <TooltipProvider>
-                  {children}
-                  <Toaster position="top-center" richColors />
-                </TooltipProvider>
-              </ImageLightboxProvider>
+              <ConfirmProvider>
+                <ImageLightboxProvider>
+                  <TooltipProvider>
+                    {children}
+                    <Toaster position="top-center" richColors />
+                  </TooltipProvider>
+                </ImageLightboxProvider>
+              </ConfirmProvider>
             </SupportAuthProvider>
           </ThemeProvider>
         </AppI18nProvider>

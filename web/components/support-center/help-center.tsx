@@ -23,7 +23,7 @@ import { useParams, usePathname, useRouter, useSearchParams } from "next/navigat
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 
-import { OptionCombobox } from "@/components/option-combobox"
+import { ContentEditor } from "@/components/content-editor"
 import { useImageLightboxOptional } from "@/components/image-lightbox"
 import { SupportArticleContent } from "@/components/support-center/support-article-content"
 import { flattenSupportHelpNavigation, SupportHelpLink, supportHelpPageHref, type HelpPageNavigationHandler, useSupportHelpRoute } from "@/components/support-center/support-help-navigation"
@@ -393,11 +393,14 @@ export function SupportAskQuestion() {
   const router = useRouter()
   const { ready, session } = useSupportAuth()
   const [categories, setCategories] = useState<SupportCategory[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [categoriesFailed, setCategoriesFailed] = useState(false)
   const [categoryId, setCategoryId] = useState(0)
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
   const [tags, setTags] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState("")
 
   useEffect(() => {
     if (ready && !session) {
@@ -405,15 +408,38 @@ export function SupportAskQuestion() {
     }
   }, [ready, router, session])
 
-  useEffect(() => {
-    void fetchSupportQuestionCategories().then((items) => {
-      setCategories(items)
-      setCategoryId(items[0]?.id ?? 0)
-    })
+  const loadCategories = useCallback(() => {
+    setCategoriesLoading(true)
+    setCategoriesFailed(false)
+    void fetchSupportQuestionCategories()
+      .then((items) => {
+        setCategories(items)
+        setCategoryId((current) => current || items[0]?.id || 0)
+      })
+      .catch(() => {
+        setCategories([])
+        setCategoriesFailed(true)
+      })
+      .finally(() => setCategoriesLoading(false))
   }, [])
+
+  useEffect(loadCategories, [loadCategories])
 
   const submit = async () => {
     if (submitting) return
+    if (!categoryId) {
+      setFormError(t("supportPublic.ask.categoryRequired"))
+      return
+    }
+    if (!title.trim()) {
+      setFormError(t("supportPublic.ask.titleRequired"))
+      return
+    }
+    if (!content.trim()) {
+      setFormError(t("supportPublic.ask.contentRequired"))
+      return
+    }
+    setFormError("")
     setSubmitting(true)
     try {
       await ensureSupportLogin()
@@ -425,6 +451,8 @@ export function SupportAskQuestion() {
       })
       toast.success(t("supportPublic.toast.questionCreated"))
       router.push(`/support/questions/${question.id}`)
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : t("api.requestFailed"))
     } finally {
       setSubmitting(false)
     }
@@ -444,36 +472,69 @@ export function SupportAskQuestion() {
   }
 
   return (
-    <SupportShell section="ask" title={t("supportPublic.ask.title")} description={t("supportPublic.ask.description")}>
-      <div className="mx-auto max-w-3xl rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
-        <div className="grid gap-4">
-          <LabeledField label={t("supportPublic.ask.category")}>
-            <OptionCombobox
-              value={String(categoryId || "")}
-              onChange={(value) => setCategoryId(Number(value))}
-              options={categories.map((item) => ({ value: String(item.id), label: item.name }))}
-              placeholder={t("supportPublic.ask.categoryPlaceholder")}
-              searchPlaceholder={t("supportPublic.ask.categorySearch")}
-              emptyText={t("supportPublic.ask.categoryEmpty")}
+    <SupportPageShell section="ask">
+      <SupportPageContent className="py-8 sm:py-10" width="docs">
+        <form
+        className="w-full rounded-xl border bg-card p-4 sm:p-5"
+        onSubmit={(event) => {
+          event.preventDefault()
+          void submit()
+        }}
+      >
+        <div className="mb-3 border-b pb-3">
+          <h1 className="text-lg font-medium">{t("supportPublic.ask.formTitle")}</h1>
+        </div>
+
+        <div className="grid gap-3">
+          <fieldset aria-label={t("supportPublic.ask.category")}>
+            <legend className="sr-only">{t("supportPublic.ask.category")}</legend>
+            <div className="flex flex-wrap gap-1">
+              {categories.map((item) => (
+                <Button
+                  key={item.id}
+                  type="button"
+                  size="sm"
+                  variant={categoryId === item.id ? "default" : "secondary"}
+                  className="rounded-md"
+                  disabled={categoriesLoading || submitting}
+                  aria-pressed={categoryId === item.id}
+                  onClick={() => { setCategoryId(item.id); setFormError("") }}
+                >
+                  {item.name}
+                </Button>
+              ))}
+            </div>
+            {categoriesLoading ? <p className="mt-2 text-xs text-muted-foreground">{t("supportPublic.loading.categories")}</p> : null}
+            {categoriesFailed ? <button type="button" className="mt-2 text-xs text-destructive underline-offset-4 hover:underline" onClick={loadCategories}>{t("supportPublic.ask.categoriesFailed")}</button> : null}
+          </fieldset>
+
+          <Input id="support-question-title" value={title} onChange={(event) => { setTitle(event.target.value); setFormError("") }} placeholder={t("supportPublic.ask.questionTitlePlaceholder")} className="rounded-md bg-card" disabled={submitting} aria-label={t("supportPublic.ask.questionTitle")} />
+
+          <div className="grid gap-2" role="group" aria-labelledby="support-question-content-label">
+            <span id="support-question-content-label" className="sr-only">{t("supportPublic.ask.content")}</span>
+            <ContentEditor
+              value={{ mode: "markdown", raw: content }}
+              onChange={(next) => { setContent(next.raw); setFormError("") }}
+              placeholder={t("supportPublic.ask.contentPlaceholder")}
+              disabled={submitting}
+              allowedModes={["markdown"]}
+              height={420}
             />
-          </LabeledField>
-          <LabeledField label={t("supportPublic.ask.questionTitle")}>
-            <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={t("supportPublic.ask.questionTitlePlaceholder")} className="bg-card" />
-          </LabeledField>
-          <LabeledField label={t("supportPublic.ask.content")}>
-            <Textarea value={content} onChange={(event) => setContent(event.target.value)} rows={9} placeholder={t("supportPublic.ask.contentPlaceholder")} className="bg-card" />
-          </LabeledField>
-          <LabeledField label={t("supportPublic.ask.tags")}>
-            <Input value={tags} onChange={(event) => setTags(event.target.value)} placeholder={t("supportPublic.ask.tagsPlaceholder")} className="bg-card" />
-          </LabeledField>
-          <div className="flex justify-end">
-            <Button disabled={submitting || !title.trim() || !content.trim()} onClick={() => void submit()}>
+          </div>
+
+          <Input id="support-question-tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder={t("supportPublic.ask.tagsPlaceholder")} className="rounded-md bg-card" disabled={submitting} aria-label={t("supportPublic.ask.tags")} />
+
+          {formError ? <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{formError}</div> : null}
+
+          <div className="flex justify-end pt-1">
+            <Button type="submit" disabled={submitting || categoriesLoading || categoriesFailed}>
               {submitting ? t("supportPublic.actions.publishing") : t("supportPublic.actions.publishQuestion")}
             </Button>
           </div>
         </div>
-      </div>
-    </SupportShell>
+        </form>
+      </SupportPageContent>
+    </SupportPageShell>
   )
 }
 
