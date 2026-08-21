@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -41,34 +42,9 @@ func NewServer() (*gin.Engine, error) {
 
 	addRouter(app)
 
-	notFoundPrefixes := []string{"/api/"}
-	if baseURL := strings.TrimRight(cfg.Storage.Local.BaseURL, "/"); baseURL != "" {
-		notFoundPrefixes = append(notFoundPrefixes, baseURL+"/")
-	}
+	handleSpa(app)
+
 	app.StaticFS(cfg.Storage.Local.BaseURL, ginx.StaticFiles(cfg.Storage.Local.Root))
-	spaHandler := ginx.HandleSPA(app, ginx.SPAOptions{
-		Root:         "./web/out",
-		EmbeddedFS:   webspa.SPA,
-		EmbeddedRoot: "out",
-		DirOptions: ginx.DirOptions{
-			ShowList:  false,
-			SPA:       true,
-			IndexName: "index.html",
-		},
-		NotFoundPrefixes: notFoundPrefixes,
-		NotFoundHandler: func(ctx *gin.Context) {
-			httpx.WriteHttpStatusJSON(ctx, http.StatusNotFound, web.JsonErrorCode(http.StatusNotFound, i18nx.T(ctx, "error.notFound")))
-		},
-	})
-	// Runtime-authored help pages cannot be enumerated by the statically exported
-	// Next.js build. Serve the exported help reader shell for every document slug;
-	// the client resolves the slug from the pathname and loads the published page.
-	helpPageHandler := func(ctx *gin.Context) {
-		ctx.Request.URL.Path = "/support/help/"
-		spaHandler(ctx)
-	}
-	app.GET("/support/help/*slug", helpPageHandler)
-	app.HEAD("/support/help/*slug", helpPageHandler)
 
 	return app, nil
 }
@@ -216,4 +192,71 @@ func addRouter(app *gin.Engine) {
 
 	thirdGroup := app.Group("/api/third")
 	registerThirdWechatRoutes(thirdGroup.Group("/wechat"))
+}
+
+type spaShellRewrite struct {
+	Route     string
+	ShellPath string
+	Match     func(*gin.Context) bool
+}
+
+func handleSpa(app *gin.Engine) {
+	cfg := config.Current()
+
+	spaHandler := ginx.HandleSPA(app, ginx.SPAOptions{
+		Root:         "./web/out",
+		EmbeddedFS:   webspa.SPA,
+		EmbeddedRoot: "out",
+		DirOptions: ginx.DirOptions{
+			ShowList:  false,
+			SPA:       true,
+			IndexName: "index.html",
+		},
+		NotFoundPrefixes: func() []string {
+			notFoundPrefixes := []string{"/api/"}
+			if baseURL := strings.TrimRight(cfg.Storage.Local.BaseURL, "/"); baseURL != "" {
+				notFoundPrefixes = append(notFoundPrefixes, baseURL+"/")
+			}
+			return notFoundPrefixes
+		}(),
+		NotFoundHandler: func(ctx *gin.Context) {
+			httpx.WriteHttpStatusJSON(ctx, http.StatusNotFound, web.JsonErrorCode(http.StatusNotFound, i18nx.T(ctx, "error.notFound")))
+		},
+	})
+
+	// SPA rewrites
+	registerSPAShellRewrites(app, spaHandler)
+}
+
+func registerSPAShellRewrites(app *gin.Engine, spaHandler gin.HandlerFunc) {
+	rewrites := []spaShellRewrite{
+		{
+			// Runtime-authored help pages cannot be enumerated by static export.
+			Route:     "/support/help/*slug",
+			ShellPath: "/support/help/",
+		},
+		{
+			// Keep the public RESTful URL and serve the exported detail shell for IDs.
+			Route:     "/support/questions/:id",
+			ShellPath: "/support/questions/detail/",
+			Match: func(ctx *gin.Context) bool {
+				value, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
+				return err == nil && value > 0
+			},
+		},
+	}
+	for _, rewrite := range rewrites {
+		handler := newSPAShellRewriteHandler(spaHandler, rewrite)
+		app.GET(rewrite.Route, handler)
+		app.HEAD(rewrite.Route, handler)
+	}
+}
+
+func newSPAShellRewriteHandler(spaHandler gin.HandlerFunc, rewrite spaShellRewrite) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		if rewrite.Match == nil || rewrite.Match(ctx) {
+			ctx.Request.URL.Path = rewrite.ShellPath
+		}
+		spaHandler(ctx)
+	}
 }

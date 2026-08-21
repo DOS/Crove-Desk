@@ -19,7 +19,7 @@ import {
   XIcon,
 } from "lucide-react"
 import Link from "next/link"
-import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 
@@ -311,23 +311,31 @@ export function SupportQuestionList() {
 
 export function SupportQuestionDetail() {
   const t = useI18n()
-  const params = useParams<{ id: string }>()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const questionId = useMemo(() => {
+    const queryId = Number(searchParams.get("id"))
+    if (queryId > 0) {
+      return queryId
+    }
+    const pathId = Number(pathname.split("/").filter(Boolean).at(-1))
+    return pathId > 0 ? pathId : 0
+  }, [pathname, searchParams])
   const [question, setQuestion] = useState<SupportQuestion | null>(null)
   const [answers, setAnswers] = useState<SupportAnswer[]>([])
   const [content, setContent] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
   const reload = () => {
-    const id = Number(params.id)
-    if (id > 0) {
-      void fetchSupportQuestion(id).then((detail) => {
+    if (questionId > 0) {
+      void fetchSupportQuestion(questionId).then((detail) => {
         setQuestion(detail.question)
         setAnswers(detail.answers)
       })
     }
   }
 
-  useEffect(reload, [params.id])
+  useEffect(reload, [questionId])
 
   const submitAnswer = async () => {
     if (!question || submitting) return
@@ -460,7 +468,7 @@ export function SupportAskQuestion() {
         tags: tags.split(",").map((item) => item.trim()).filter(Boolean),
       })
       toast.success(t("supportPublic.toast.questionCreated"))
-      router.push(`/support/questions/${question.id}`)
+      window.location.assign(supportQuestionHref(question.id))
     } catch (error) {
       const message = error instanceof Error ? error.message : t("api.requestFailed")
       setFormError(message)
@@ -918,7 +926,7 @@ function HelpPageRow({ item }: { item: SupportHelpPage }) {
 
 function QuestionRow({ item }: { item: SupportQuestion }) {
   return (
-    <Link href={`/support/questions/${item.id}`} className="block border-t px-1 py-3 first:border-t-0 hover:bg-muted/60">
+    <a href={supportQuestionHref(item.id)} className="block border-t px-1 py-3 first:border-t-0 hover:bg-muted/60">
       <div className="flex items-start justify-between gap-3">
         <div className="line-clamp-1 font-medium">{item.title}</div>
         <QuestionStatusBadge status={item.status} />
@@ -928,8 +936,12 @@ function QuestionRow({ item }: { item: SupportQuestion }) {
         <span><MessageCircleMoreIcon className="mr-1 inline size-3" />{item.answerCount}</span>
         <span><ThumbsUpIcon className="mr-1 inline size-3" />{item.voteCount}</span>
       </div>
-    </Link>
+    </a>
   )
+}
+
+function supportQuestionHref(id: number) {
+  return `/support/questions/${id}`
 }
 
 function SupportQuestionContent({ content }: { content: string }) {

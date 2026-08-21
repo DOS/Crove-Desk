@@ -1,5 +1,5 @@
 import { SupportQuestionDetail } from "@/components/support-center/help-center"
 
-export default function SupportQuestionDetailPage() {
+export default function SupportQuestionDetailQueryPage() {
   return <SupportQuestionDetail />
 }
