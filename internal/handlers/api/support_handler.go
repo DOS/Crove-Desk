@@ -33,23 +33,6 @@ func SupportPostRegister(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, ret)
 }
 
-func SupportPostLogin(ctx *gin.Context) {
-	req := request.SupportCustomerLoginRequest{}
-	if err := params.ReadJSON(ctx, &req); err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	ret, err := services.AuthService.Login(request.LoginRequest{
-		Username: req.Email,
-		Password: req.Password,
-	}, config.Current().Auth, ctx.ClientIP(), ctx.GetHeader("User-Agent"))
-	if err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	httpx.WriteJSON(ctx, ret)
-}
-
 func SupportGetMe(ctx *gin.Context) {
 	principal, err := services.SupportService.RequireSupportUser(ctx)
 	if err != nil {

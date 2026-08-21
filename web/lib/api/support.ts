@@ -1,4 +1,5 @@
 import { type PageResult } from "@/lib/api/admin"
+import { loginWithPassword } from "@/lib/api/auth"
 import { request } from "@/lib/api/client"
 import { type AuthSession, writeSession } from "@/lib/auth"
 
@@ -83,13 +84,7 @@ export type SupportUser = {
 }
 
 export async function loginSupportCustomer(payload: { email: string; password: string }) {
-  const session = await request<AuthSession>("/api/support/auth/login", {
-    method: "POST",
-    skipAuth: true,
-    body: JSON.stringify(payload),
-  })
-  writeSession(session)
-  return session
+  return loginWithPassword({ username: payload.email, password: payload.password })
 }
 
 export async function registerSupportCustomer(payload: { name: string; email: string; password: string }) {

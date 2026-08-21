@@ -8,11 +8,6 @@ type SupportCustomerRegisterRequest struct {
 	Password string `json:"password"`
 }
 
-type SupportCustomerLoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 type SaveSupportHelpPageRequest struct {
 	ID          int64                       `json:"id"`
 	ParentID    int64                       `json:"parentId"`

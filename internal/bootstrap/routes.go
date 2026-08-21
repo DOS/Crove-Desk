@@ -45,7 +45,6 @@ func registerApiMessageRoutes(group *gin.RouterGroup) {
 
 func registerApiSupportRoutes(group *gin.RouterGroup) {
 	group.POST("/auth/register", api.SupportPostRegister)
-	group.POST("/auth/login", api.SupportPostLogin)
 	group.GET("/me", api.SupportGetMe)
 	group.Any("/help-page/list", api.SupportHelpPageAnyList)
 	group.GET("/help-page/navigation", api.SupportHelpPageGetNavigation)
