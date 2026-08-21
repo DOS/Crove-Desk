@@ -25,6 +25,7 @@ import { toast } from "sonner"
 
 import { ContentEditor } from "@/components/content-editor"
 import { useImageLightboxOptional } from "@/components/image-lightbox"
+import { SafeRichHTML } from "@/components/safe-rich-html"
 import { SupportArticleContent } from "@/components/support-center/support-article-content"
 import { flattenSupportHelpNavigation, SupportHelpLink, supportHelpPageHref, type HelpPageNavigationHandler, useSupportHelpRoute } from "@/components/support-center/support-help-navigation"
 import { useSupportHelpReader } from "@/components/support-center/use-support-help-reader"
@@ -69,6 +70,7 @@ import {
 import { readSession } from "@/lib/auth"
 import { articleHeadingId, markdownHeadingText } from "@/lib/support-article"
 import { cn, formatDateTime } from "@/lib/utils"
+import type { ContentValue } from "@/components/content-editor"
 
 export function SupportHelpCenter() {
   const t = useI18n()
@@ -351,7 +353,7 @@ export function SupportQuestionDetail() {
         <section className="min-w-0 space-y-4">
           <Card className="rounded-2xl border-border bg-card shadow-sm">
             <CardContent className="p-5">
-              <div className="whitespace-pre-wrap text-sm leading-7">{question.content}</div>
+              <SupportQuestionContent content={question.content} />
               <div className="mt-5 flex flex-wrap items-center gap-2">
                 <QuestionStatusBadge status={question.status} />
                 <Button variant="outline" size="sm" onClick={() => void ensureSupportLogin().then(() => voteSupportQuestion(question.id)).then(reload)}>
@@ -397,7 +399,7 @@ export function SupportAskQuestion() {
   const [categoriesFailed, setCategoriesFailed] = useState(false)
   const [categoryId, setCategoryId] = useState(0)
   const [title, setTitle] = useState("")
-  const [content, setContent] = useState("")
+  const [content, setContent] = useState<ContentValue>({ mode: "html", raw: "" })
   const [tags, setTags] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState("")
@@ -435,7 +437,7 @@ export function SupportAskQuestion() {
       setFormError(t("supportPublic.ask.titleRequired"))
       return
     }
-    if (!content.trim()) {
+    if (!content.raw.trim()) {
       setFormError(t("supportPublic.ask.contentRequired"))
       return
     }
@@ -446,7 +448,7 @@ export function SupportAskQuestion() {
       const question = await createSupportQuestion({
         categoryId,
         title,
-        content,
+        content: content.raw,
         tags: tags.split(",").map((item) => item.trim()).filter(Boolean),
       })
       toast.success(t("supportPublic.toast.questionCreated"))
@@ -475,7 +477,7 @@ export function SupportAskQuestion() {
     <SupportPageShell section="ask">
       <SupportPageContent className="py-8 sm:py-10" width="docs">
         <form
-        className="w-full rounded-xl border bg-card p-4 sm:p-5"
+        className="w-full rounded-md border bg-card p-4 sm:p-5"
         onSubmit={(event) => {
           event.preventDefault()
           void submit()
@@ -513,11 +515,11 @@ export function SupportAskQuestion() {
           <div className="grid min-w-0 gap-2" role="group" aria-labelledby="support-question-content-label">
             <span id="support-question-content-label" className="sr-only">{t("supportPublic.ask.content")}</span>
             <ContentEditor
-              value={{ mode: "markdown", raw: content }}
-              onChange={(next) => { setContent(next.raw); setFormError("") }}
+              value={content}
+              onChange={(next) => { setContent(next); setFormError("") }}
               placeholder={t("supportPublic.ask.contentPlaceholder")}
               disabled={submitting}
-              allowedModes={["markdown"]}
+              allowedModes={["html", "markdown"]}
               height={420}
               className="min-w-0"
             />
@@ -919,6 +921,13 @@ function QuestionRow({ item }: { item: SupportQuestion }) {
       </div>
     </Link>
   )
+}
+
+function SupportQuestionContent({ content }: { content: string }) {
+  if (/<\/?[a-z][\s\S]*>/i.test(content)) {
+    return <SafeRichHTML html={content} className="text-sm leading-7" />
+  }
+  return <div className="whitespace-pre-wrap text-sm leading-7">{content}</div>
 }
 
 function PublicHelpPageNode({
