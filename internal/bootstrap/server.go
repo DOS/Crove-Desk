@@ -233,15 +233,28 @@ func registerSPAShellRewrites(app *gin.Engine, spaHandler gin.HandlerFunc) {
 		{
 			// Runtime-authored help pages cannot be enumerated by static export.
 			Route:     "/support/help/*slug",
-			ShellPath: "/support/help/",
+			ShellPath: "/support/help.html",
 		},
 		{
 			// Keep the public RESTful URL and serve the exported detail shell for IDs.
-			Route:     "/support/questions/:id",
-			ShellPath: "/support/questions/detail/",
+			Route:     "/support/question/:id",
+			ShellPath: "/support/question/detail.html",
 			Match: func(ctx *gin.Context) bool {
 				value, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 				return err == nil && value > 0
+			},
+		},
+		{
+			Route:     "/support/questions/ask",
+			ShellPath: "/support/questions/ask.html",
+		},
+		{
+			// FAQ category pages are runtime-authored through category slugs.
+			Route:     "/support/questions/:slug",
+			ShellPath: "/support/questions.html",
+			Match: func(ctx *gin.Context) bool {
+				slug := ctx.Param("slug")
+				return slug != "" && slug != "ask" && slug != "detail"
 			},
 		},
 	}

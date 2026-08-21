@@ -251,6 +251,8 @@ function SupportHelpReader() {
 
 export function SupportQuestionList() {
   const t = useI18n()
+  const pathname = usePathname()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const requestSeq = useRef(0)
   const [categories, setCategories] = useState<SupportCategory[]>([])
@@ -260,9 +262,11 @@ export function SupportQuestionList() {
   const [questionsLoading, setQuestionsLoading] = useState(true)
   const [questionsFailed, setQuestionsFailed] = useState(false)
   const [questionPage, setQuestionPage] = useState({ page: 1, limit: 20, total: 0 })
-  const [categoryId, setCategoryId] = useState<number | "all">("all")
   const title = searchParams.get("title") || ""
   const [status, setStatus] = useState(searchParams.get("status") || "all")
+  const categorySlug = questionCategorySlugFromPath(pathname) || searchParams.get("category") || ""
+  const activeCategory = categorySlug ? categories.find((item) => item.slug === categorySlug) : undefined
+  const categoryId: number | "all" = categorySlug ? activeCategory?.id ?? "all" : "all"
 
   const loadCategories = useCallback(() => {
     setCategoriesLoading(true)
@@ -282,6 +286,13 @@ export function SupportQuestionList() {
   }, [loadCategories])
 
   const loadQuestions = useCallback((page = 1, append = false) => {
+    if (categorySlug && !activeCategory) {
+      setQuestions([])
+      setQuestionPage((current) => ({ ...current, page: 1, total: 0 }))
+      setQuestionsLoading(categoriesLoading)
+      setQuestionsFailed(!categoriesLoading)
+      return
+    }
     const seq = requestSeq.current + 1
     requestSeq.current = seq
     setQuestionsLoading(true)
@@ -306,7 +317,7 @@ export function SupportQuestionList() {
       .finally(() => {
         if (seq === requestSeq.current) setQuestionsLoading(false)
       })
-  }, [categoryId, questionPage.limit, status, title])
+  }, [activeCategory, categoriesLoading, categoryId, categorySlug, questionPage.limit, status, title])
 
   useEffect(() => {
     const timer = window.setTimeout(() => loadQuestions(1), 180)
@@ -319,12 +330,23 @@ export function SupportQuestionList() {
     { value: "normal", label: t("supportPublic.status.normal") },
     { value: "resolved", label: t("supportPublic.status.resolved") },
   ]
+  const handleCategoryChange = (value: number | "all") => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete("category")
+    const query = params.toString()
+    if (value === "all") {
+      router.push(`/support/questions${query ? `?${query}` : ""}`)
+      return
+    }
+    const category = categories.find((item) => item.id === value)
+    router.push(`/support/questions/${encodeURIComponent(category?.slug || String(value))}${query ? `?${query}` : ""}`)
+  }
 
   return (
     <main className="min-h-svh bg-background text-foreground">
       <SupportHeader section="questions" />
       <div className="mx-auto grid max-w-[var(--support-docs-max-width)] xl:grid-cols-[var(--support-doc-nav-width)_minmax(0,1fr)] 2xl:grid-cols-[var(--support-doc-nav-wide-width)_minmax(0,1fr)]">
-        <SupportQuestionCategoryNav categories={categories} active={categoryId} loading={categoriesLoading} failed={categoriesFailed} onChange={setCategoryId} onRetry={loadCategories} />
+        <SupportQuestionCategoryNav categories={categories} active={categoryId} loading={categoriesLoading} failed={categoriesFailed} onChange={handleCategoryChange} onRetry={loadCategories} />
         <section className="min-w-0 bg-background">
           <div className="px-5 pt-4 sm:px-6 md:px-8 lg:px-10 2xl:px-12">
             <div className="flex flex-col gap-3 border-b pb-4 xl:flex-row xl:items-center xl:justify-between">
@@ -1080,7 +1102,16 @@ function questionExcerpt(content: string) {
 }
 
 function supportQuestionHref(id: number) {
-  return `/support/questions/${id}`
+  return `/support/question/${id}`
+}
+
+function questionCategorySlugFromPath(pathname: string) {
+  const segments = pathname.split("/").filter(Boolean)
+  if (segments[0] !== "support" || segments[1] !== "questions" || segments.length !== 3) {
+    return ""
+  }
+  const slug = segments[2]
+  return slug && slug !== "ask" && slug !== "detail" ? decodeURIComponent(slug) : ""
 }
 
 function SupportQuestionContent({ content }: { content: string }) {

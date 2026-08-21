@@ -34,7 +34,10 @@ export function SupportHeader({
   const t = useI18n()
   const pathname = usePathname()
 
-  const isActive = (href: string) => href === "/support" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`)
+  const isActive = (href: string) => {
+    if (href === "/support/questions" && pathname.startsWith("/support/question/")) return true
+    return href === "/support" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`)
+  }
 
   return (
     <header className={cn("sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80", className)}>
