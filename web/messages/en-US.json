@@ -2521,7 +2521,9 @@
       "detailTitle": "Question Detail",
       "answers": "Answers",
       "votes": "Votes",
-      "views": "Views"
+      "views": "Views",
+      "askedBy": "Asked by {name}",
+      "updatedAt": "Updated {date}"
     },
     "ask": {
       "title": "Ask a Question",
@@ -2578,7 +2580,11 @@
       "publishAnswer": "Publish Answer",
       "publishing": "Publishing...",
       "processing": "Processing...",
-      "accept": "Accept"
+      "accept": "Accept",
+      "retry": "Retry",
+      "loadMore": "Load more",
+      "viewDiscussion": "View discussion",
+      "answerQuestion": "Answer"
     },
     "status": {
       "all": "All",
@@ -2598,6 +2604,7 @@
       "pageNotFound": "This page does not exist, is not published, or has been withdrawn",
       "pagesFailed": "Could not load the documentation. Try again later.",
       "noQuestionsMatched": "No questions found",
+      "questionsFailed": "Could not load questions. Try again later.",
       "noAnswers": "No answers yet",
       "selectPage": "Select a page on the left"
     },
@@ -2606,6 +2613,7 @@
       "navigation": "Loading documentation...",
       "page": "Loading page...",
       "question": "Loading question...",
+      "questions": "Loading questions...",
       "session": "Checking sign-in status..."
     },
     "toast": {

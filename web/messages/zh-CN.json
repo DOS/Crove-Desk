@@ -2521,7 +2521,9 @@
       "detailTitle": "问题详情",
       "answers": "回答",
       "votes": "赞同",
-      "views": "浏览"
+      "views": "浏览",
+      "askedBy": "{name} 提问",
+      "updatedAt": "{date} 更新"
     },
     "ask": {
       "title": "提出问题",
@@ -2578,7 +2580,11 @@
       "publishAnswer": "发布回答",
       "publishing": "发布中...",
       "processing": "处理中...",
-      "accept": "采纳"
+      "accept": "采纳",
+      "retry": "重试",
+      "loadMore": "加载更多",
+      "viewDiscussion": "查看讨论",
+      "answerQuestion": "参与回答"
     },
     "status": {
       "all": "全部",
@@ -2598,6 +2604,7 @@
       "pageNotFound": "文档不存在、尚未发布或已被撤回",
       "pagesFailed": "文档加载失败，请稍后重试",
       "noQuestionsMatched": "没有找到问题",
+      "questionsFailed": "问题加载失败，请稍后重试",
       "noAnswers": "暂无回答",
       "selectPage": "选择左侧页面查看内容"
     },
@@ -2606,6 +2613,7 @@
       "navigation": "正在加载文档导航...",
       "page": "正在加载页面...",
       "question": "正在加载问题...",
+      "questions": "正在加载问题...",
       "session": "正在检查登录状态..."
     },
     "toast": {

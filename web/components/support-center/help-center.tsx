@@ -7,6 +7,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   CircleHelpIcon,
+  EyeIcon,
   FileTextIcon,
   FolderIcon,
   FolderOpenIcon,
@@ -251,10 +252,14 @@ function SupportHelpReader() {
 export function SupportQuestionList() {
   const t = useI18n()
   const searchParams = useSearchParams()
+  const requestSeq = useRef(0)
   const [categories, setCategories] = useState<SupportCategory[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [categoriesFailed, setCategoriesFailed] = useState(false)
   const [questions, setQuestions] = useState<SupportQuestion[]>([])
+  const [questionsLoading, setQuestionsLoading] = useState(true)
+  const [questionsFailed, setQuestionsFailed] = useState(false)
+  const [questionPage, setQuestionPage] = useState({ page: 1, limit: 20, total: 0 })
   const [categoryId, setCategoryId] = useState<number | "all">("all")
   const [title, setTitle] = useState(searchParams.get("title") || "")
   const [status, setStatus] = useState(searchParams.get("status") || "all")
@@ -271,41 +276,104 @@ export function SupportQuestionList() {
       .finally(() => setCategoriesLoading(false))
   }, [])
 
-  useEffect(loadCategories, [loadCategories])
-
   useEffect(() => {
+    const timer = window.setTimeout(loadCategories, 0)
+    return () => window.clearTimeout(timer)
+  }, [loadCategories])
+
+  const loadQuestions = useCallback((page = 1, append = false) => {
+    const seq = requestSeq.current + 1
+    requestSeq.current = seq
+    setQuestionsLoading(true)
+    setQuestionsFailed(false)
     void fetchSupportQuestions({
       categoryId: categoryId === "all" ? undefined : categoryId,
       status: status === "all" ? undefined : status,
       title,
-      limit: 20,
-    }).then((page) => setQuestions(page.results))
-  }, [categoryId, status, title])
+      page,
+      limit: questionPage.limit,
+    })
+      .then((result) => {
+        if (seq !== requestSeq.current) return
+        setQuestions((current) => append ? [...current, ...result.results] : result.results)
+        setQuestionPage(result.page)
+      })
+      .catch(() => {
+        if (seq !== requestSeq.current) return
+        if (!append) setQuestions([])
+        setQuestionsFailed(true)
+      })
+      .finally(() => {
+        if (seq === requestSeq.current) setQuestionsLoading(false)
+      })
+  }, [categoryId, questionPage.limit, status, title])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => loadQuestions(1), 180)
+    return () => window.clearTimeout(timer)
+  }, [loadQuestions])
+
+  const hasMoreQuestions = questions.length < questionPage.total
+  const statusOptions = [
+    { value: "all", label: t("supportPublic.status.all") },
+    { value: "normal", label: t("supportPublic.status.normal") },
+    { value: "resolved", label: t("supportPublic.status.resolved") },
+  ]
 
   return (
-    <SupportPageShell section="questions">
-      <SupportPageContent className="py-10 sm:py-12" width="docs">
-        <div className="grid gap-6 lg:grid-cols-[256px_minmax(0,1fr)]">
-          <SupportQuestionCategoryNav categories={categories} active={categoryId} loading={categoriesLoading} failed={categoriesFailed} onChange={setCategoryId} onRetry={loadCategories} />
-          <section className="min-w-0">
-            <div className="rounded-2xl border bg-card p-4 shadow-sm">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-                <SupportSearchInput value={title} onChange={setTitle} placeholder={t("supportPublic.questions.searchPlaceholder")} />
-                <div className="flex shrink-0 flex-wrap gap-2">
-                  <Button variant={status === "all" ? "default" : "outline"} onClick={() => setStatus("all")}>{t("supportPublic.status.all")}</Button>
-                  <Button variant={status === "normal" ? "default" : "outline"} onClick={() => setStatus("normal")}>{t("supportPublic.status.normal")}</Button>
-                  <Button variant={status === "resolved" ? "default" : "outline"} onClick={() => setStatus("resolved")}>{t("supportPublic.status.resolved")}</Button>
-                  <Link className={buttonVariants()} href="/support/questions/ask">{t("supportPublic.actions.askQuestion")}</Link>
-                </div>
+    <main className="min-h-svh bg-background text-foreground">
+      <SupportHeader section="questions" />
+      <div className="mx-auto grid max-w-[var(--support-docs-max-width)] xl:grid-cols-[var(--support-doc-nav-width)_minmax(0,1fr)] 2xl:grid-cols-[var(--support-doc-nav-wide-width)_minmax(0,1fr)]">
+        <SupportQuestionCategoryNav categories={categories} active={categoryId} loading={categoriesLoading} failed={categoriesFailed} onChange={setCategoryId} onRetry={loadCategories} />
+        <section className="min-w-0 bg-background">
+          <div className="border-b px-5 py-4 sm:px-6 md:px-8 lg:px-10 2xl:px-12">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex min-w-0 gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                {statusOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={cn(
+                      "h-8 whitespace-nowrap rounded-md px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      status === option.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                    aria-pressed={status === option.value}
+                    onClick={() => setStatus(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+                <SupportSearchInput value={title} onChange={setTitle} placeholder={t("supportPublic.questions.searchPlaceholder")} compact />
+                <Link className={cn(buttonVariants(), "h-9 px-3")} href="/support/questions/ask">{t("supportPublic.actions.askQuestion")}</Link>
               </div>
             </div>
-            <div className="mt-4 grid gap-3">
-              {questions.length ? questions.map((item) => <QuestionRow key={item.id} item={item} />) : <EmptyState text={t("supportPublic.empty.noQuestionsMatched")} />}
-            </div>
-          </section>
-        </div>
-      </SupportPageContent>
-    </SupportPageShell>
+          </div>
+          <div className="grid gap-2 px-5 py-3 sm:px-6 md:px-8 lg:px-10 2xl:px-12">
+            {questions.length ? questions.map((item) => <QuestionCard key={item.id} item={item} />) : null}
+            {questionsLoading && !questions.length ? <QuestionListLoading /> : null}
+            {!questionsLoading && questionsFailed ? (
+              <div className="rounded-md border border-destructive/25 bg-destructive/5 p-4 text-sm text-destructive">
+                <div>{t("supportPublic.empty.questionsFailed")}</div>
+                <Button variant="destructive" size="sm" className="mt-3" onClick={() => loadQuestions(1)}>
+                  {t("supportPublic.actions.retry")}
+                </Button>
+              </div>
+            ) : null}
+            {!questionsLoading && !questionsFailed && !questions.length ? <EmptyState text={t("supportPublic.empty.noQuestionsMatched")} /> : null}
+            {hasMoreQuestions ? (
+              <div className="flex justify-center py-2">
+                <Button variant="ghost" size="sm" disabled={questionsLoading} onClick={() => loadQuestions(questionPage.page + 1, true)}>
+                  {questionsLoading ? <LoaderCircleIcon className="animate-spin" /> : <ChevronDownIcon />}
+                  {questionsLoading ? t("supportPublic.loading.questions") : t("supportPublic.actions.loadMore")}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </section>
+      </div>
+    </main>
   )
 }
 
@@ -938,6 +1006,78 @@ function QuestionRow({ item }: { item: SupportQuestion }) {
       </div>
     </a>
   )
+}
+
+function QuestionCard({ item }: { item: SupportQuestion }) {
+  const t = useI18n()
+  const actionLabel = item.answerCount > 0 || item.status === "resolved" ? t("supportPublic.actions.viewDiscussion") : t("supportPublic.actions.answerQuestion")
+  return (
+    <article className="group rounded-md border border-border bg-card px-3.5 py-3 transition hover:border-neutral-300 hover:bg-muted/30">
+      <a href={supportQuestionHref(item.id)} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <QuestionStatusPill status={item.status} />
+              {item.bestAnswerId > 0 ? <span className="inline-flex h-5 items-center rounded bg-neutral-100 px-1.5 text-[11px] font-medium text-primary">{t("supportPublic.answer.best")}</span> : null}
+              <span className="truncate text-xs text-muted-foreground">{item.categoryName || t("supportPublic.common.uncategorized")}</span>
+            </div>
+            <h2 className="mt-1.5 line-clamp-1 text-[15px] font-semibold leading-6">{item.title}</h2>
+            <p className="mt-1 line-clamp-1 text-sm leading-5 text-muted-foreground">{questionExcerpt(item.content)}</p>
+          </div>
+          <div className="flex items-center gap-2 md:justify-end">
+            <QuestionMetric icon={<MessageCircleMoreIcon className="size-3.5" />} value={item.answerCount} label={t("supportPublic.questions.answers")} />
+            <QuestionMetric icon={<ThumbsUpIcon className="size-3.5" />} value={item.voteCount} label={t("supportPublic.questions.votes")} />
+            <QuestionMetric className="hidden sm:inline-flex" icon={<EyeIcon className="size-3.5" />} value={item.viewCount} label={t("supportPublic.questions.views")} />
+          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            <span className="truncate">{t("supportPublic.questions.askedBy", { name: item.userName || t("supportPublic.common.user") })}</span>
+            <span className="hidden text-neutral-300 sm:inline">/</span>
+            <span>{t("supportPublic.questions.updatedAt", { date: formatDateTime(item.updatedAt || item.createdAt) })}</span>
+          </div>
+          <span className="inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-primary group-hover:bg-primary/10">
+            {actionLabel}
+            <ArrowRightIcon className="size-3.5" />
+          </span>
+        </div>
+      </a>
+    </article>
+  )
+}
+
+function QuestionMetric({ icon, value, label, className }: { icon: ReactNode; value: number; label: string; className?: string }) {
+  return (
+    <span className={cn("inline-flex h-7 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs text-muted-foreground", className)} title={label} aria-label={`${label}: ${value}`}>
+      {icon}
+      {value}
+    </span>
+  )
+}
+
+function QuestionStatusPill({ status }: { status: string }) {
+  const t = useI18n()
+  if (status === "resolved") return <span className="inline-flex h-5 items-center rounded bg-emerald-50 px-1.5 text-[11px] font-medium text-emerald-700">{t("supportPublic.status.resolved")}</span>
+  if (status === "closed") return <span className="inline-flex h-5 items-center rounded bg-neutral-100 px-1.5 text-[11px] font-medium text-muted-foreground">{t("supportPublic.status.closed")}</span>
+  return <span className="inline-flex h-5 items-center rounded bg-amber-50 px-1.5 text-[11px] font-medium text-amber-700">{t("supportPublic.status.normal")}</span>
+}
+
+function QuestionListLoading() {
+  return (
+    <div className="grid gap-2" aria-hidden="true">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="rounded-md border border-border bg-card px-3.5 py-3">
+          <div className="h-4 w-28 animate-pulse rounded bg-muted" />
+          <div className="mt-3 h-5 w-4/5 animate-pulse rounded bg-muted" />
+          <div className="mt-2 h-4 w-2/3 animate-pulse rounded bg-muted" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function questionExcerpt(content: string) {
+  return content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
 }
 
 function supportQuestionHref(id: number) {
