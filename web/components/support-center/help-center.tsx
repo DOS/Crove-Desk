@@ -326,8 +326,8 @@ export function SupportQuestionList() {
       <div className="mx-auto grid max-w-[var(--support-docs-max-width)] xl:grid-cols-[var(--support-doc-nav-width)_minmax(0,1fr)] 2xl:grid-cols-[var(--support-doc-nav-wide-width)_minmax(0,1fr)]">
         <SupportQuestionCategoryNav categories={categories} active={categoryId} loading={categoriesLoading} failed={categoriesFailed} onChange={setCategoryId} onRetry={loadCategories} />
         <section className="min-w-0 bg-background">
-          <div className="border-b px-5 py-4 sm:px-6 md:px-8 lg:px-10 2xl:px-12">
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="px-5 pt-4 sm:px-6 md:px-8 lg:px-10 2xl:px-12">
+            <div className="flex flex-col gap-3 border-b pb-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex min-w-0 gap-1.5 overflow-x-auto pb-1 sm:pb-0">
                 {statusOptions.map((option) => (
                   <button
