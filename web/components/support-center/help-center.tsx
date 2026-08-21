@@ -261,7 +261,7 @@ export function SupportQuestionList() {
   const [questionsFailed, setQuestionsFailed] = useState(false)
   const [questionPage, setQuestionPage] = useState({ page: 1, limit: 20, total: 0 })
   const [categoryId, setCategoryId] = useState<number | "all">("all")
-  const [title, setTitle] = useState(searchParams.get("title") || "")
+  const title = searchParams.get("title") || ""
   const [status, setStatus] = useState(searchParams.get("status") || "all")
 
   const loadCategories = useCallback(() => {
@@ -345,7 +345,6 @@ export function SupportQuestionList() {
                 ))}
               </div>
               <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-                <SupportSearchInput value={title} onChange={setTitle} placeholder={t("supportPublic.questions.searchPlaceholder")} compact />
                 <Link className={cn(buttonVariants(), "h-9 px-3")} href="/support/questions/ask">{t("supportPublic.actions.askQuestion")}</Link>
               </div>
             </div>
