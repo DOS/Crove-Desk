@@ -6,19 +6,12 @@ import {
   useContext,
   useCallback,
   useEffect,
-  useState,
   type ReactNode,
 } from "react"
 import { usePathname, useRouter } from "next/navigation"
 
-import { fetchProfile, logout } from "@/lib/api/auth"
-import {
-  AUTH_SESSION_EXPIRED_EVENT,
-  clearSession,
-  readSession,
-  writeSession,
-  type AuthSession,
-} from "@/lib/auth"
+import { SessionProvider, useSession } from "@/components/session-provider"
+import { type AuthSession } from "@/lib/auth"
 
 type AuthContextValue = {
   session: AuthSession | null
@@ -30,57 +23,29 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  return (
+    <SessionProvider>
+      <DashboardAuthProvider>{children}</DashboardAuthProvider>
+    </SessionProvider>
+  )
+}
+
+function DashboardAuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const [session, setSession] = useState<AuthSession | null>(null)
-  const [ready, setReady] = useState(false)
+  const { session, ready, refreshSession, signOut: endSession } = useSession()
   const isDashboardLoginRoute = pathname?.startsWith("/dashboard/login") ?? false
   const requiresAuth =
     ((pathname?.startsWith("/dashboard") ?? false) ||
       (pathname?.startsWith("/workbench") ?? false)) &&
     !isDashboardLoginRoute
 
-  const refreshProfile = useCallback(async () => {
-    const stored = readSession()
-    if (!stored) {
-      setSession(null)
-      setReady(true)
-      return
-    }
-
-    try {
-      const profile = await fetchProfile()
-      const nextSession: AuthSession = {
-        ...stored,
-        user: profile.user,
-        permissions: profile.permissions,
-        roles: profile.roles,
-        accessToken: profile.accessToken || stored.accessToken,
-        expiresAt: profile.expiresAt || stored.expiresAt,
-      }
-      writeSession(nextSession)
-      setSession(nextSession)
-    } catch (error) {
-      const errorCode = (error as Error & { errorCode?: number }).errorCode
-      if (errorCode === 3000 || errorCode === 3002) {
-        clearSession()
-        setSession(null)
-        if (requiresAuth) {
-          startTransition(() => {
-            router.replace("/dashboard/login")
-          })
-        }
-      }
-    } finally {
-      setReady(true)
-    }
-  }, [requiresAuth, router])
+  const refreshProfile = useCallback(() => refreshSession(), [refreshSession])
 
   async function signOut() {
     try {
-      await logout()
+      await endSession()
     } finally {
-      setSession(null)
       startTransition(() => {
         router.replace("/dashboard/login")
       })
@@ -88,36 +53,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    function handleAuthExpired() {
-      setSession(null)
-      if (requiresAuth) {
-        startTransition(() => {
-          router.replace("/dashboard/login")
-        })
-      }
-    }
-
-    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleAuthExpired)
-    return () => {
-      window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleAuthExpired)
-    }
-  }, [requiresAuth, router])
-
-  useEffect(() => {
-    const stored = readSession()
-    setSession(stored)
-    if (stored) {
-      void refreshProfile()
-      return
-    }
-
-    setReady(true)
-    if (requiresAuth) {
+    if (ready && !session && requiresAuth) {
       startTransition(() => {
         router.replace("/dashboard/login")
       })
     }
-  }, [requiresAuth, refreshProfile, router])
+  }, [ready, requiresAuth, router, session])
 
   return (
     <AuthContext.Provider value={{ session, ready, refreshProfile, signOut }}>
