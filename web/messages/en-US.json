@@ -2511,6 +2511,10 @@
     "questions": {
       "title": "FAQ Community",
       "description": "Signed-in users can ask, answer, vote, and accept best answers.",
+      "categoryNavigation": "Question categories",
+      "moreCategories": "More categories",
+      "more": "More",
+      "categoriesFailed": "Could not load categories. Click to retry.",
       "searchPlaceholder": "Search question titles",
       "detailTitle": "Question Detail",
       "answers": "Answers",
@@ -2591,6 +2595,7 @@
       "selectPage": "Select a page on the left"
     },
     "loading": {
+      "categories": "Loading categories…",
       "navigation": "Loading documentation...",
       "page": "Loading page...",
       "question": "Loading question...",

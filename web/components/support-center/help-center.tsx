@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { SupportPageContent, SupportPageShell } from "@/components/support-center/support-page-shell"
 import { SupportHeader } from "@/components/support-center/support-header"
+import { SupportQuestionCategoryNav } from "@/components/support-center/support-question-category-nav"
 import { useSupportAuth } from "@/components/support-center/support-auth-provider"
 import { SupportEmptyState as EmptyState, SupportFormField as LabeledField, SupportInfoCard as InfoCard, SupportQuestionStatusBadge as QuestionStatusBadge, SupportSearchInput } from "@/components/support-center/support-ui"
 import { Card, CardContent } from "@/components/ui/card"
@@ -249,14 +250,26 @@ export function SupportQuestionList() {
   const t = useI18n()
   const searchParams = useSearchParams()
   const [categories, setCategories] = useState<SupportCategory[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [categoriesFailed, setCategoriesFailed] = useState(false)
   const [questions, setQuestions] = useState<SupportQuestion[]>([])
   const [categoryId, setCategoryId] = useState<number | "all">("all")
   const [title, setTitle] = useState(searchParams.get("title") || "")
   const [status, setStatus] = useState(searchParams.get("status") || "all")
 
-  useEffect(() => {
-    void fetchSupportQuestionCategories().then(setCategories)
+  const loadCategories = useCallback(() => {
+    setCategoriesLoading(true)
+    setCategoriesFailed(false)
+    void fetchSupportQuestionCategories()
+      .then(setCategories)
+      .catch(() => {
+        setCategories([])
+        setCategoriesFailed(true)
+      })
+      .finally(() => setCategoriesLoading(false))
   }, [])
+
+  useEffect(loadCategories, [loadCategories])
 
   useEffect(() => {
     void fetchSupportQuestions({
@@ -271,7 +284,7 @@ export function SupportQuestionList() {
     <SupportPageShell section="questions">
       <SupportPageContent className="py-10 sm:py-12" width="docs">
         <div className="grid gap-6 lg:grid-cols-[256px_minmax(0,1fr)]">
-          <CategoryRail categories={categories} active={categoryId} onChange={setCategoryId} />
+          <SupportQuestionCategoryNav categories={categories} active={categoryId} loading={categoriesLoading} failed={categoriesFailed} onChange={setCategoryId} onRetry={loadCategories} />
           <section className="min-w-0">
             <div className="rounded-2xl border bg-card p-4 shadow-sm">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -1024,20 +1037,6 @@ function PublicArticleToc({ content, contentType = "markdown" }: { content: stri
             <span className="line-clamp-3">{item.title}</span>
           </a>
         )) : <div className="text-sm text-muted-foreground">{t("supportPublic.help.noToc")}</div>}
-      </div>
-    </aside>
-  )
-}
-
-function CategoryRail({ categories, active, onChange }: { categories: SupportCategory[]; active: number | "all"; onChange: (value: number | "all") => void }) {
-  const t = useI18n()
-  return (
-    <aside className="content-start rounded-2xl border bg-card p-3 shadow-sm">
-      <Button className="w-full justify-start" variant={active === "all" ? "default" : "ghost"} onClick={() => onChange("all")}>{t("supportPublic.common.allCategories")}</Button>
-      <div className="mt-1 grid gap-1">
-        {categories.map((item) => (
-          <Button className="w-full justify-start" key={item.id} variant={active === item.id ? "default" : "ghost"} onClick={() => onChange(item.id)}>{item.name}</Button>
-        ))}
       </div>
     </aside>
   )

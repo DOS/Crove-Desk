@@ -2511,6 +2511,10 @@
     "questions": {
       "title": "FAQ 社区",
       "description": "登录用户可以提问、回答、点赞并采纳最佳答案。",
+      "categoryNavigation": "问题分类",
+      "moreCategories": "更多分类",
+      "more": "更多",
+      "categoriesFailed": "分类加载失败，点击重试",
       "searchPlaceholder": "搜索问题标题",
       "detailTitle": "问题详情",
       "answers": "回答",
@@ -2591,6 +2595,7 @@
       "selectPage": "选择左侧页面查看内容"
     },
     "loading": {
+      "categories": "正在加载分类…",
       "navigation": "正在加载文档导航...",
       "page": "正在加载页面...",
       "question": "正在加载问题...",

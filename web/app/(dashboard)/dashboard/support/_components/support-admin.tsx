@@ -53,8 +53,8 @@ export function DashboardSupportFaqCategoryAdmin() {
   const t = useI18n()
   const categoryStatusOptions = [
     { value: "all", label: t("supportFaqCategory.allStatuses") },
-    { value: "1", label: t("supportFaqCategory.enabled") },
-    { value: "2", label: t("supportFaqCategory.disabled") },
+    { value: "0", label: t("supportFaqCategory.enabled") },
+    { value: "1", label: t("supportFaqCategory.disabled") },
   ]
   const crudFormLabels = {
     create: t("supportFaqCategory.create"),
@@ -77,7 +77,7 @@ export function DashboardSupportFaqCategoryAdmin() {
       columns={[
         { key: "name", label: t("supportFaqCategory.name"), render: (item) => <div><div className="font-medium">{item.name}</div><div className="mt-1 text-sm text-muted-foreground">{item.description || t("supportFaqCategory.noDescription")}</div></div> },
         { key: "slug", label: "Slug", className: "w-48", render: (item) => <span className="font-mono text-sm">{item.slug}</span> },
-        { key: "status", label: t("supportFaqCategory.status"), className: "w-28", render: (item) => <Badge variant={item.status === 1 ? "default" : "outline"}>{item.status === 1 ? t("supportFaqCategory.enabled") : t("supportFaqCategory.disabled")}</Badge> },
+        { key: "status", label: t("supportFaqCategory.status"), className: "w-28", render: (item) => <Badge variant={item.status === 0 ? "default" : "outline"}>{item.status === 0 ? t("supportFaqCategory.enabled") : t("supportFaqCategory.disabled")}</Badge> },
       ]}
       fetchList={fetchSupportQuestionCategoriesAdmin}
       getItemId={(item) => item.id}
@@ -97,7 +97,7 @@ export function DashboardSupportFaqCategoryAdmin() {
           { name: "name", label: t("supportFaqCategory.name"), placeholder: t("supportFaqCategory.namePlaceholder"), required: true, trim: true },
           { name: "slug", label: "Slug", placeholder: t("supportFaqCategory.slugPlaceholder"), required: true, trim: true, normalizeInput: normalizeSupportSlug, pattern: supportSlugPattern, patternMessage: t("supportFaqCategory.slugPatternMessage") },
           { name: "description", label: t("supportFaqCategory.description"), placeholder: t("supportFaqCategory.descriptionPlaceholder"), type: "textarea", rows: 3, trim: true },
-          { name: "status", label: t("supportFaqCategory.status"), type: "select", defaultValue: "1", valueType: "number", required: true, options: categoryStatusOptions.filter((item) => item.value !== "all"), valueFromItem: (item) => String(item.status) },
+          { name: "status", label: t("supportFaqCategory.status"), type: "select", defaultValue: "0", valueType: "number", required: true, options: categoryStatusOptions.filter((item) => item.value !== "all"), valueFromItem: (item) => String(item.status) },
           { name: "remark", label: t("supportFaqCategory.remark"), placeholder: t("supportFaqCategory.remarkPlaceholder"), type: "textarea", rows: 3, trim: true },
         ],
         transformSubmitValues: (values) => ({ name: String(values.name), slug: normalizeSupportSlug(String(values.slug)), description: String(values.description ?? ""), status: Number(values.status), remark: String(values.remark ?? "") }),
