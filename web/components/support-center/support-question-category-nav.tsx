@@ -50,10 +50,14 @@ export function SupportQuestionCategoryNav({ categories, active, loading = false
   )
 
   return (
-    <aside className="min-w-0 self-start xl:sticky xl:top-14 xl:h-[calc(100svh-3.5rem)] xl:overflow-y-auto xl:border-r" aria-label={t("supportPublic.questions.categoryNavigation")}>
-      <nav className="overflow-hidden border-b bg-background xl:border-b-0">
-        <ScrollArea className="hidden max-h-[calc(100svh-3.5rem)] xl:block">
-          <div className="grid gap-0.5 px-3 py-4">{categoryItems()}</div>
+    <aside className="min-w-0 self-start xl:sticky xl:top-14 xl:h-[calc(100svh-3.5rem)] xl:border-r" aria-label={t("supportPublic.questions.categoryNavigation")}>
+      <nav className="h-full overflow-hidden border-b bg-background xl:border-b-0">
+        <ScrollArea className="hidden h-full xl:block">
+          <div className="grid gap-0.5 px-3 py-4">
+            {categoryItems()}
+            {loading ? <div className="px-2.5 py-2 text-xs text-muted-foreground">{t("supportPublic.loading.categories")}</div> : null}
+            {failed ? <button type="button" className="mt-2 px-2.5 text-left text-sm text-destructive underline-offset-4 hover:underline" onClick={onRetry}>{t("supportPublic.questions.categoriesFailed")}</button> : null}
+          </div>
         </ScrollArea>
         <div className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-1 px-5 xl:hidden">
           <div ref={mobileScrollRef} className="overflow-x-auto overscroll-x-contain [scrollbar-width:thin]"><div className="flex w-max min-w-max gap-1">{categoryItems()}</div></div>
@@ -61,13 +65,15 @@ export function SupportQuestionCategoryNav({ categories, active, loading = false
             <DrawerTrigger asChild><button type="button" className="inline-flex h-8 items-center gap-1 rounded-md bg-muted px-2 text-xs text-muted-foreground hover:bg-muted/80" aria-label={t("supportPublic.questions.moreCategories")}><MoreHorizontalIcon aria-hidden="true" className="size-4" /><span>{t("supportPublic.questions.more")}</span></button></DrawerTrigger>
             <DrawerContent className="pb-[max(1rem,env(safe-area-inset-bottom))]">
               <DrawerHeader><DrawerTitle>{t("supportPublic.questions.moreCategories")}</DrawerTitle></DrawerHeader>
-              <div className="grid max-h-[min(56vh,27.5rem)] grid-cols-2 gap-2 overflow-y-auto px-4 pb-4">{categoryItems(true)}</div>
+              <ScrollArea className="max-h-[min(56vh,27.5rem)]">
+                <div className="grid grid-cols-2 gap-2 px-4 pb-4">{categoryItems(true)}</div>
+              </ScrollArea>
             </DrawerContent>
           </Drawer>
         </div>
       </nav>
-      {loading ? <div className="px-3 py-2 text-xs text-muted-foreground">{t("supportPublic.loading.categories")}</div> : null}
-      {failed ? <button type="button" className="mt-2 text-sm text-destructive underline-offset-4 hover:underline" onClick={onRetry}>{t("supportPublic.questions.categoriesFailed")}</button> : null}
+      {loading ? <div className="px-5 py-2 text-xs text-muted-foreground xl:hidden">{t("supportPublic.loading.categories")}</div> : null}
+      {failed ? <button type="button" className="mt-2 px-5 text-sm text-destructive underline-offset-4 hover:underline xl:hidden" onClick={onRetry}>{t("supportPublic.questions.categoriesFailed")}</button> : null}
     </aside>
   )
 }
