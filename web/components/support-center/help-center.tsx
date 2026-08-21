@@ -26,7 +26,6 @@ import { toast } from "sonner"
 
 import { ContentEditor } from "@/components/content-editor"
 import { useImageLightboxOptional } from "@/components/image-lightbox"
-import { SafeRichHTML } from "@/components/safe-rich-html"
 import { SupportArticleContent } from "@/components/support-center/support-article-content"
 import { flattenSupportHelpNavigation, SupportHelpLink, supportHelpPageHref, type HelpPageNavigationHandler, useSupportHelpRoute } from "@/components/support-center/support-help-navigation"
 import { useSupportHelpReader } from "@/components/support-center/use-support-help-reader"
@@ -43,7 +42,7 @@ import { SupportPageContent, SupportPageShell } from "@/components/support-cente
 import { SupportHeader } from "@/components/support-center/support-header"
 import { SupportQuestionCategoryNav } from "@/components/support-center/support-question-category-nav"
 import { useSupportAuth } from "@/components/support-center/support-auth-provider"
-import { SupportEmptyState as EmptyState, SupportFormField as LabeledField, SupportInfoCard as InfoCard, SupportQuestionStatusBadge as QuestionStatusBadge, SupportSearchInput } from "@/components/support-center/support-ui"
+import { SupportEmptyState as EmptyState, SupportFormField as LabeledField, SupportQuestionStatusBadge as QuestionStatusBadge, SupportSearchInput } from "@/components/support-center/support-ui"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -187,6 +186,87 @@ export function SupportHelpPageDetail() {
   return <SupportHelpReader />
 }
 
+function useSupportQuestionCategoryRoute() {
+  const pathname = usePathname()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [categories, setCategories] = useState<SupportCategory[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [categoriesFailed, setCategoriesFailed] = useState(false)
+  const categorySlug = questionCategorySlugFromPath(pathname) || searchParams.get("category") || ""
+  const activeCategory = categorySlug ? categories.find((item) => item.slug === categorySlug) : undefined
+  const activeCategoryId: number | "all" = categorySlug ? activeCategory?.id ?? "all" : "all"
+
+  const loadCategories = useCallback(() => {
+    setCategoriesLoading(true)
+    setCategoriesFailed(false)
+    void fetchSupportQuestionCategories()
+      .then(setCategories)
+      .catch(() => {
+        setCategories([])
+        setCategoriesFailed(true)
+      })
+      .finally(() => setCategoriesLoading(false))
+  }, [])
+
+  useEffect(() => {
+    const timer = window.setTimeout(loadCategories, 0)
+    return () => window.clearTimeout(timer)
+  }, [loadCategories])
+
+  const changeCategory = useCallback((value: number | "all") => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete("category")
+    const query = params.toString()
+    if (value === "all") {
+      router.push(`/support/questions${query ? `?${query}` : ""}`)
+      return
+    }
+    const category = categories.find((item) => item.id === value)
+    router.push(`/support/questions/${encodeURIComponent(category?.slug || String(value))}${query ? `?${query}` : ""}`)
+  }, [categories, router, searchParams])
+
+  return {
+    activeCategory,
+    activeCategoryId,
+    categories,
+    categoriesFailed,
+    categoriesLoading,
+    categorySlug,
+    changeCategory,
+    loadCategories,
+  }
+}
+
+function SupportQuestionFrame({
+  active,
+  categoryRoute,
+  children,
+}: {
+  active?: number | "all"
+  categoryRoute: ReturnType<typeof useSupportQuestionCategoryRoute>
+  children: ReactNode
+}) {
+  return (
+    <main className="min-h-svh bg-background text-foreground">
+      <SupportHeader section="questions" />
+      <div className="mx-auto grid max-w-[var(--support-docs-max-width)] xl:grid-cols-[var(--support-doc-nav-width)_minmax(0,1fr)] 2xl:grid-cols-[var(--support-doc-nav-wide-width)_minmax(0,1fr)]">
+        <SupportQuestionCategoryNav
+          categories={categoryRoute.categories}
+          active={active ?? categoryRoute.activeCategoryId}
+          loading={categoryRoute.categoriesLoading}
+          failed={categoryRoute.categoriesFailed}
+          onChange={categoryRoute.changeCategory}
+          onRetry={categoryRoute.loadCategories}
+        />
+        <section className="min-w-0 bg-background">
+          {children}
+        </section>
+      </div>
+    </main>
+  )
+}
+
 function SupportHelpReader() {
   const t = useI18n()
   const pathname = usePathname()
@@ -251,46 +331,22 @@ function SupportHelpReader() {
 
 export function SupportQuestionList() {
   const t = useI18n()
-  const pathname = usePathname()
-  const router = useRouter()
   const searchParams = useSearchParams()
+  const categoryRoute = useSupportQuestionCategoryRoute()
   const requestSeq = useRef(0)
-  const [categories, setCategories] = useState<SupportCategory[]>([])
-  const [categoriesLoading, setCategoriesLoading] = useState(true)
-  const [categoriesFailed, setCategoriesFailed] = useState(false)
   const [questions, setQuestions] = useState<SupportQuestion[]>([])
   const [questionsLoading, setQuestionsLoading] = useState(true)
   const [questionsFailed, setQuestionsFailed] = useState(false)
   const [questionPage, setQuestionPage] = useState({ page: 1, limit: 20, total: 0 })
   const title = searchParams.get("title") || ""
   const [status, setStatus] = useState(searchParams.get("status") || "all")
-  const categorySlug = questionCategorySlugFromPath(pathname) || searchParams.get("category") || ""
-  const activeCategory = categorySlug ? categories.find((item) => item.slug === categorySlug) : undefined
-  const categoryId: number | "all" = categorySlug ? activeCategory?.id ?? "all" : "all"
-
-  const loadCategories = useCallback(() => {
-    setCategoriesLoading(true)
-    setCategoriesFailed(false)
-    void fetchSupportQuestionCategories()
-      .then(setCategories)
-      .catch(() => {
-        setCategories([])
-        setCategoriesFailed(true)
-      })
-      .finally(() => setCategoriesLoading(false))
-  }, [])
-
-  useEffect(() => {
-    const timer = window.setTimeout(loadCategories, 0)
-    return () => window.clearTimeout(timer)
-  }, [loadCategories])
 
   const loadQuestions = useCallback((page = 1, append = false) => {
-    if (categorySlug && !activeCategory) {
+    if (categoryRoute.categorySlug && !categoryRoute.activeCategory) {
       setQuestions([])
       setQuestionPage((current) => ({ ...current, page: 1, total: 0 }))
-      setQuestionsLoading(categoriesLoading)
-      setQuestionsFailed(!categoriesLoading)
+      setQuestionsLoading(categoryRoute.categoriesLoading)
+      setQuestionsFailed(!categoryRoute.categoriesLoading)
       return
     }
     const seq = requestSeq.current + 1
@@ -298,7 +354,7 @@ export function SupportQuestionList() {
     setQuestionsLoading(true)
     setQuestionsFailed(false)
     void fetchSupportQuestions({
-      categoryId: categoryId === "all" ? undefined : categoryId,
+      categoryId: categoryRoute.activeCategoryId === "all" ? undefined : categoryRoute.activeCategoryId,
       status: status === "all" ? undefined : status,
       title,
       page,
@@ -317,7 +373,7 @@ export function SupportQuestionList() {
       .finally(() => {
         if (seq === requestSeq.current) setQuestionsLoading(false)
       })
-  }, [activeCategory, categoriesLoading, categoryId, categorySlug, questionPage.limit, status, title])
+  }, [categoryRoute.activeCategory, categoryRoute.activeCategoryId, categoryRoute.categoriesLoading, categoryRoute.categorySlug, questionPage.limit, status, title])
 
   useEffect(() => {
     const timer = window.setTimeout(() => loadQuestions(1), 180)
@@ -330,71 +386,54 @@ export function SupportQuestionList() {
     { value: "normal", label: t("supportPublic.status.normal") },
     { value: "resolved", label: t("supportPublic.status.resolved") },
   ]
-  const handleCategoryChange = (value: number | "all") => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.delete("category")
-    const query = params.toString()
-    if (value === "all") {
-      router.push(`/support/questions${query ? `?${query}` : ""}`)
-      return
-    }
-    const category = categories.find((item) => item.id === value)
-    router.push(`/support/questions/${encodeURIComponent(category?.slug || String(value))}${query ? `?${query}` : ""}`)
-  }
 
   return (
-    <main className="min-h-svh bg-background text-foreground">
-      <SupportHeader section="questions" />
-      <div className="mx-auto grid max-w-[var(--support-docs-max-width)] xl:grid-cols-[var(--support-doc-nav-width)_minmax(0,1fr)] 2xl:grid-cols-[var(--support-doc-nav-wide-width)_minmax(0,1fr)]">
-        <SupportQuestionCategoryNav categories={categories} active={categoryId} loading={categoriesLoading} failed={categoriesFailed} onChange={handleCategoryChange} onRetry={loadCategories} />
-        <section className="min-w-0 bg-background">
-          <div className="px-5 pt-4 sm:px-6 md:px-8 lg:px-10 2xl:px-12">
-            <div className="flex flex-col gap-3 border-b pb-4 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex min-w-0 gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-                {statusOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={cn(
-                      "h-8 whitespace-nowrap rounded-md px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      status === option.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                    aria-pressed={status === option.value}
-                    onClick={() => setStatus(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-                <Link className={cn(buttonVariants(), "h-9 px-3")} href="/support/questions/ask">{t("supportPublic.actions.askQuestion")}</Link>
-              </div>
-            </div>
+    <SupportQuestionFrame categoryRoute={categoryRoute}>
+      <div className="px-5 pt-4 sm:px-6 md:px-8 lg:px-10 2xl:px-12">
+        <div className="flex flex-col gap-3 border-b pb-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex min-w-0 gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            {statusOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={cn(
+                  "h-8 whitespace-nowrap rounded-md px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  status === option.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+                aria-pressed={status === option.value}
+                onClick={() => setStatus(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
-          <div className="grid gap-2 px-5 py-3 sm:px-6 md:px-8 lg:px-10 2xl:px-12">
-            {questions.length ? questions.map((item) => <QuestionCard key={item.id} item={item} />) : null}
-            {questionsLoading && !questions.length ? <QuestionListLoading /> : null}
-            {!questionsLoading && questionsFailed ? (
-              <div className="rounded-md border border-destructive/25 bg-destructive/5 p-4 text-sm text-destructive">
-                <div>{t("supportPublic.empty.questionsFailed")}</div>
-                <Button variant="destructive" size="sm" className="mt-3" onClick={() => loadQuestions(1)}>
-                  {t("supportPublic.actions.retry")}
-                </Button>
-              </div>
-            ) : null}
-            {!questionsLoading && !questionsFailed && !questions.length ? <EmptyState text={t("supportPublic.empty.noQuestionsMatched")} /> : null}
-            {hasMoreQuestions ? (
-              <div className="flex justify-center py-2">
-                <Button variant="ghost" size="sm" disabled={questionsLoading} onClick={() => loadQuestions(questionPage.page + 1, true)}>
-                  {questionsLoading ? <LoaderCircleIcon className="animate-spin" /> : <ChevronDownIcon />}
-                  {questionsLoading ? t("supportPublic.loading.questions") : t("supportPublic.actions.loadMore")}
-                </Button>
-              </div>
-            ) : null}
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+            <Link className={cn(buttonVariants(), "h-9 px-3")} href="/support/questions/ask">{t("supportPublic.actions.askQuestion")}</Link>
           </div>
-        </section>
+        </div>
       </div>
-    </main>
+      <div className="grid gap-2 px-5 py-3 sm:px-6 md:px-8 lg:px-10 2xl:px-12">
+        {questions.length ? questions.map((item) => <QuestionCard key={item.id} item={item} />) : null}
+        {questionsLoading && !questions.length ? <QuestionListLoading /> : null}
+        {!questionsLoading && questionsFailed ? (
+          <div className="rounded-md border border-destructive/25 bg-destructive/5 p-4 text-sm text-destructive">
+            <div>{t("supportPublic.empty.questionsFailed")}</div>
+            <Button variant="destructive" size="sm" className="mt-3" onClick={() => loadQuestions(1)}>
+              {t("supportPublic.actions.retry")}
+            </Button>
+          </div>
+        ) : null}
+        {!questionsLoading && !questionsFailed && !questions.length ? <EmptyState text={t("supportPublic.empty.noQuestionsMatched")} /> : null}
+        {hasMoreQuestions ? (
+          <div className="flex justify-center py-2">
+            <Button variant="ghost" size="sm" disabled={questionsLoading} onClick={() => loadQuestions(questionPage.page + 1, true)}>
+              {questionsLoading ? <LoaderCircleIcon className="animate-spin" /> : <ChevronDownIcon />}
+              {questionsLoading ? t("supportPublic.loading.questions") : t("supportPublic.actions.loadMore")}
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    </SupportQuestionFrame>
   )
 }
 
@@ -402,6 +441,7 @@ export function SupportQuestionDetail() {
   const t = useI18n()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const categoryRoute = useSupportQuestionCategoryRoute()
   const questionId = useMemo(() => {
     const queryId = Number(searchParams.get("id"))
     if (queryId > 0) {
@@ -440,50 +480,60 @@ export function SupportQuestionDetail() {
     }
   }
 
-  if (!question) {
-    return <SupportShell section="questions" title={t("supportPublic.questions.detailTitle")} description={t("supportPublic.loading.question")} />
-  }
-
   return (
-    <SupportShell section="questions" title={question.title} description={`${question.categoryName || t("supportPublic.common.uncategorized")} · ${question.userName || t("supportPublic.common.user")}`}>
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <section className="min-w-0 space-y-4">
-          <Card className="rounded-2xl border-border bg-card shadow-sm">
-            <CardContent className="p-5">
-              <SupportQuestionContent content={question.content} />
-              <div className="mt-5 flex flex-wrap items-center gap-2">
-                <QuestionStatusBadge status={question.status} />
-                <Button variant="outline" size="sm" onClick={() => void ensureSupportLogin().then(() => voteSupportQuestion(question.id)).then(reload)}>
-                  <ThumbsUpIcon /> {question.voteCount}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="space-y-3">
-            {answers.length ? answers.map((answer) => (
-              <AnswerCard key={answer.id} answer={answer} questionId={question.id} onChanged={reload} />
-            )) : <EmptyState text={t("supportPublic.empty.noAnswers")} />}
-          </div>
-
-          <Card className="rounded-2xl border-border bg-card shadow-sm">
-            <CardContent className="p-5">
-              <h2 className="font-semibold">{t("supportPublic.answer.title")}</h2>
-              <Textarea value={content} onChange={(event) => setContent(event.target.value)} rows={6} placeholder={t("supportPublic.answer.placeholder")} className="mt-3 bg-card" />
-              <Button className="mt-3" disabled={submitting || !content.trim()} onClick={() => void submitAnswer()}>
-                {submitting ? t("supportPublic.actions.publishing") : t("supportPublic.actions.publishAnswer")}
+    <SupportQuestionFrame active={question?.categoryId ?? "all"} categoryRoute={categoryRoute}>
+      <div className="px-5 py-9 sm:px-6 sm:py-12 md:px-8 lg:px-10 2xl:px-12">
+        {question ? (
+          <article className="mx-auto w-full">
+            <Breadcrumb>
+              <BreadcrumbList className="gap-y-1">
+                <BreadcrumbItem>
+                  <Link href="/support/questions" className="transition-colors hover:text-foreground">{t("supportPublic.questions.title")}</Link>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{question.categoryName || t("supportPublic.common.uncategorized")}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <h1 className="mt-6 text-balance text-3xl font-bold tracking-tight sm:text-4xl">{question.title}</h1>
+            <div className="my-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
+              <span>{t("supportPublic.questions.askedBy", { name: question.userName || t("supportPublic.common.user") })}</span>
+              <span>{t("supportPublic.questions.updatedAt", { date: formatDateTime(question.updatedAt || question.createdAt) })}</span>
+              <QuestionStatusBadge status={question.status} />
+            </div>
+            <SupportQuestionArticleContent id={`support-question-${question.id}`} content={question.content} />
+            <div className="mt-8 flex flex-wrap items-center gap-2 border-t pt-5">
+              <Button variant="outline" size="sm" onClick={() => void ensureSupportLogin().then(() => voteSupportQuestion(question.id)).then(reload)}>
+                <ThumbsUpIcon /> {question.voteCount}
               </Button>
-            </CardContent>
-          </Card>
-        </section>
+              <QuestionMetric icon={<MessageCircleMoreIcon className="size-3.5" />} value={question.answerCount} label={t("supportPublic.questions.answers")} />
+              <QuestionMetric icon={<EyeIcon className="size-3.5" />} value={question.viewCount} label={t("supportPublic.questions.views")} />
+            </div>
 
-        <aside className="space-y-3">
-          <InfoCard label={t("supportPublic.questions.answers")} value={String(question.answerCount)} />
-          <InfoCard label={t("supportPublic.questions.votes")} value={String(question.voteCount)} />
-          <InfoCard label={t("supportPublic.questions.views")} value={String(question.viewCount)} />
-        </aside>
+            <section className="mt-10 space-y-3" aria-label={t("supportPublic.questions.answers")}>
+              {answers.length ? answers.map((answer) => (
+                <AnswerCard key={answer.id} answer={answer} questionId={question.id} onChanged={reload} />
+              )) : <EmptyState text={t("supportPublic.empty.noAnswers")} />}
+            </section>
+
+            <Card className="mt-5 rounded-md border-border bg-card shadow-none">
+              <CardContent className="p-5">
+                <h2 className="font-semibold">{t("supportPublic.answer.title")}</h2>
+                <Textarea value={content} onChange={(event) => setContent(event.target.value)} rows={6} placeholder={t("supportPublic.answer.placeholder")} className="mt-3 bg-card" />
+                <Button className="mt-3" disabled={submitting || !content.trim()} onClick={() => void submitAnswer()}>
+                  {submitting ? t("supportPublic.actions.publishing") : t("supportPublic.actions.publishAnswer")}
+                </Button>
+              </CardContent>
+            </Card>
+          </article>
+        ) : (
+          <div className="grid min-h-[60svh] place-items-center">
+            <EmptyState text={t("supportPublic.loading.question")} />
+          </div>
+        )}
       </div>
-    </SupportShell>
+    </SupportQuestionFrame>
   )
 }
 
@@ -700,21 +750,6 @@ export function SupportLoginPage() {
             </Button>
           </div>
         </div>
-      </SupportPageContent>
-    </SupportPageShell>
-  )
-}
-
-function SupportShell({ section, title, description, children }: { section: "questions" | "ask"; title: string; description: string; children?: ReactNode }) {
-  return (
-    <SupportPageShell section={section}>
-      <SupportPageContent className="py-10 sm:py-12" width="docs">
-        <div className="mb-7">
-          <p className="text-sm font-medium text-primary">{title}</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
-          {description ? <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">{description}</p> : null}
-        </div>
-        {children}
       </SupportPageContent>
     </SupportPageShell>
   )
@@ -1114,11 +1149,63 @@ function questionCategorySlugFromPath(pathname: string) {
   return slug && slug !== "ask" && slug !== "detail" ? decodeURIComponent(slug) : ""
 }
 
-function SupportQuestionContent({ content }: { content: string }) {
-  if (/<\/?[a-z][\s\S]*>/i.test(content)) {
-    return <SafeRichHTML html={content} className="text-sm leading-7" />
-  }
-  return <div className="whitespace-pre-wrap text-sm leading-7">{content}</div>
+function SupportQuestionArticleContent({ content, id }: { content: string; id: string }) {
+  const contentType = questionContentType(content)
+  useHtmlArticleEnhancements(id, content, contentType)
+  return <SupportArticleContent id={id} content={content} contentType={contentType} />
+}
+
+function questionContentType(content: string) {
+  return /<\/?[a-z][\s\S]*>/i.test(content) ? "html" : "markdown"
+}
+
+function useHtmlArticleEnhancements(id: string, content: string, contentType: string) {
+  const t = useI18n()
+  const lightbox = useImageLightboxOptional()
+  useEffect(() => {
+    if (contentType !== "html") return
+    const container = document.getElementById(id)
+    if (!container) return
+    const cleanup: Array<() => void> = []
+    container.querySelectorAll<HTMLPreElement>("pre").forEach((block) => {
+      block.classList.add("group", "relative")
+      if (block.querySelector("[data-support-copy-code]")) return
+      const button = document.createElement("button")
+      button.type = "button"
+      button.className = "not-typeset absolute right-2 top-2 rounded-md border border-border bg-background/90 px-2 py-1 text-xs text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus:opacity-100"
+      button.dataset.notTypeset = "true"
+      button.dataset.supportCopyCode = "true"
+      button.textContent = t("supportPublic.help.copyCode")
+      button.setAttribute("aria-label", t("supportPublic.help.copyCode"))
+      const copy = () => void navigator.clipboard.writeText(block.querySelector("code")?.textContent || block.textContent || "").then(() => toast.success(t("supportPublic.toast.codeCopied")))
+      button.addEventListener("click", copy)
+      block.appendChild(button)
+      cleanup.push(() => { button.removeEventListener("click", copy); button.remove() })
+    })
+    const articleImages = Array.from(container.querySelectorAll<HTMLImageElement>("img"))
+    articleImages.forEach((image, imageIndex) => {
+      if (!lightbox) return
+      image.classList.add("cursor-zoom-in")
+      const open = () => lightbox.openGallery(articleImages.map((item) => ({
+        src: item.currentSrc || item.src,
+        alt: item.alt,
+      })), imageIndex)
+      image.addEventListener("click", open)
+      cleanup.push(() => image.removeEventListener("click", open))
+    })
+    container.querySelectorAll<HTMLTableElement>("table").forEach((table) => {
+      if (table.parentElement?.classList.contains("typeset-scroll")) return
+      const wrapper = document.createElement("div")
+      wrapper.className = "typeset-scroll"
+      table.before(wrapper)
+      wrapper.appendChild(table)
+      cleanup.push(() => {
+        wrapper.before(table)
+        wrapper.remove()
+      })
+    })
+    return () => cleanup.forEach((dispose) => dispose())
+  }, [content, contentType, id, lightbox, t])
 }
 
 function PublicHelpPageNode({
@@ -1307,7 +1394,7 @@ function PublicArticleToc({ content, contentType = "markdown" }: { content: stri
 function AnswerCard({ answer, questionId, onChanged }: { answer: SupportAnswer; questionId: number; onChanged: () => void }) {
   const t = useI18n()
   return (
-    <Card className={cn("rounded-2xl border-border bg-card shadow-sm", answer.isBestAnswer && "border-emerald-300 ring-2 ring-emerald-100 dark:border-emerald-700 dark:ring-emerald-950")}>
+    <Card className={cn("rounded-md border-border bg-card shadow-none", answer.isBestAnswer && "border-emerald-300 ring-2 ring-emerald-100 dark:border-emerald-700 dark:ring-emerald-950")}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -1316,7 +1403,9 @@ function AnswerCard({ answer, questionId, onChanged }: { answer: SupportAnswer; 
           </div>
           {answer.isBestAnswer && <Badge className="bg-emerald-600 text-white"><CheckCircle2Icon /> {t("supportPublic.answer.best")}</Badge>}
         </div>
-        <div className="mt-4 whitespace-pre-wrap text-sm leading-7">{answer.content}</div>
+        <div className="mt-4">
+          <SupportQuestionArticleContent id={`support-answer-${answer.id}`} content={answer.content} />
+        </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => void ensureSupportLogin().then(() => voteSupportAnswer(answer.id)).then(onChanged)}>
             <ThumbsUpIcon /> {answer.voteCount}
