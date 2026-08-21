@@ -39,8 +39,8 @@ function normalizeHeight(height?: number | string) {
   return "400px"
 }
 
-function getModeLabel(mode: ContentMode) {
-  return mode === "markdown" ? "Markdown" : "HTML"
+function getModeLabel(mode: ContentMode, t: (key: string) => string) {
+  return mode === "markdown" ? t("editor.modeLabelMarkdown") : t("editor.modeLabelRichText")
 }
 
 function convertContent(mode: ContentMode, raw: string) {
@@ -119,7 +119,7 @@ export function ContentEditor({
       }
 
       const confirmed = await confirm({
-        title: t("editor.modeSwitchTitle", { mode: getModeLabel(nextMode) }),
+        title: t("editor.modeSwitchTitle", { mode: getModeLabel(nextMode, t) }),
         description: t("editor.modeSwitchDescription"),
         confirmText: t("editor.modeSwitchAction"),
         cancelText: t("editor.modeSwitchCancel"),

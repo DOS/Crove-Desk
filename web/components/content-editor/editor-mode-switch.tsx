@@ -24,11 +24,6 @@ type EditorModeSwitchProps = {
   onChange: (nextMode: ContentMode) => void
 }
 
-const MODE_OPTIONS: Array<{ value: ContentMode; label: string }> = [
-  { value: "markdown", label: "Markdown" },
-  { value: "html", label: "HTML" },
-]
-
 export function EditorModeSwitch({
   value,
   allowedModes = CONTENT_MODE_OPTIONS,
@@ -36,6 +31,10 @@ export function EditorModeSwitch({
   onChange,
 }: EditorModeSwitchProps) {
   const t = useI18n()
+  const MODE_OPTIONS: Array<{ value: ContentMode; label: string }> = [
+    { value: "markdown", label: t("editor.modeLabelMarkdown") },
+    { value: "html", label: t("editor.modeLabelRichText") },
+  ]
   const options = MODE_OPTIONS.filter((option) => allowedModes.includes(option.value))
   const activeLabel = options.find((option) => option.value === value)?.label ?? value
 

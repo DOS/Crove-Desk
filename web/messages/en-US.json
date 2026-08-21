@@ -169,8 +169,10 @@
     "fullscreen": "Fullscreen",
     "exitFullscreen": "Exit fullscreen",
     "previewOnly": "Preview Only",
+    "modeLabelMarkdown": "Markdown",
+    "modeLabelRichText": "Rich Text",
     "modeSwitchTitle": "Switch to {mode}?",
-    "modeSwitchDescription": "The HTML content will be converted to Markdown. Complex styles, embedded content, or some structure may not be preserved.",
+    "modeSwitchDescription": "Rich Text content will be converted to Markdown. Complex styles, embedded content, or some structure may not be preserved.",
     "modeSwitchAction": "Convert and switch",
     "modeSwitchCancel": "Keep current mode",
     "modeSwitchLabel": "Editor mode"
