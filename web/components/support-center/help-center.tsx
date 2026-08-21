@@ -427,6 +427,14 @@ export function SupportAskQuestion() {
 
   useEffect(loadCategories, [loadCategories])
 
+  const handleContentChange = useCallback((next: ContentValue) => {
+    if (content.mode === next.mode && content.raw === next.raw) {
+      return
+    }
+    setContent(next)
+    setFormError("")
+  }, [content.mode, content.raw])
+
   const submit = async () => {
     if (submitting) return
     if (!categoryId) {
@@ -454,7 +462,8 @@ export function SupportAskQuestion() {
       toast.success(t("supportPublic.toast.questionCreated"))
       router.push(`/support/questions/${question.id}`)
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : t("api.requestFailed"))
+      const message = error instanceof Error ? error.message : t("api.requestFailed")
+      setFormError(message)
     } finally {
       setSubmitting(false)
     }
@@ -516,7 +525,7 @@ export function SupportAskQuestion() {
             <span id="support-question-content-label" className="sr-only">{t("supportPublic.ask.content")}</span>
             <ContentEditor
               value={content}
-              onChange={(next) => { setContent(next); setFormError("") }}
+              onChange={handleContentChange}
               placeholder={t("supportPublic.ask.contentPlaceholder")}
               disabled={submitting}
               allowedModes={["html", "markdown"]}
