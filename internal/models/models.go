@@ -87,14 +87,14 @@ type AgentToolInvocation struct {
 }
 
 type Migration struct {
-	ID         int64     `gorm:"primaryKey;autoIncrement"`
-	Version    int64     `gorm:"type:bigint;not null;uniqueIndex"`
-	Remark     string    `gorm:"type:text"`
-	Success    bool      `gorm:"not null;default:false"`
-	ErrorInfo  string    `gorm:"type:text"`
-	RetryCount int       `gorm:"type:int;not null;default:0"`
-	CreatedAt  time.Time `gorm:"type:datetime"`
-	UpdatedAt  time.Time `gorm:"type:datetime"`
+	ID         int64  `gorm:"primaryKey;autoIncrement"`
+	Version    int64  `gorm:"type:bigint;not null;uniqueIndex"`
+	Remark     string `gorm:"type:text"`
+	Success    bool   `gorm:"not null;default:false"`
+	ErrorInfo  string `gorm:"type:text"`
+	RetryCount int    `gorm:"type:int;not null;default:0"`
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 // SystemConfig 运营侧系统配置项；具体有哪些 config_key 由业务代码约定，表内一行一项。
@@ -116,8 +116,8 @@ type TicketNoSequence struct {
 	ID        int64     `gorm:"primaryKey;autoIncrement"`
 	DateKey   string    `gorm:"column:date_key;type:varchar(8);not null;uniqueIndex"`
 	NextSeq   int64     `gorm:"column:next_seq;type:bigint;not null;default:1"`
-	CreatedAt time.Time `gorm:"type:datetime;not null;index"`
-	UpdatedAt time.Time `gorm:"type:datetime;not null;index"`
+	CreatedAt time.Time `gorm:"not null;index"`
+	UpdatedAt time.Time `gorm:"not null;index"`
 }
 
 // TicketView 工单工作台个人保存视图。
@@ -140,18 +140,18 @@ type Notification struct {
 	BizType          string       `gorm:"type:varchar(50);not null;default:'';index"`
 	BizID            int64        `gorm:"type:bigint;not null;default:0;index"`
 	ActionURL        string       `gorm:"type:varchar(255);not null;default:''"`
-	ReadAt           *time.Time   `gorm:"type:datetime;index"`
+	ReadAt           *time.Time   `gorm:"index"`
 	Status           enums.Status `gorm:"type:int;not null;default:0;index"`
-	CreatedAt        time.Time    `gorm:"type:datetime;not null;index"`
+	CreatedAt        time.Time    `gorm:"not null;index"`
 }
 
 // AuditFields 定义涉及用户操作数据的统一审计字段。
 // 该结构记录数据创建与更新的时间、操作者ID和操作者名称。
 type AuditFields struct {
-	CreatedAt      time.Time `gorm:"type:datetime;not null;index"`          // CreatedAt 记录数据创建时间。
+	CreatedAt      time.Time `gorm:"not null;index"`                        // CreatedAt 记录数据创建时间。
 	CreateUserID   int64     `gorm:"type:bigint;not null;default:0;index"`  // CreateUserID 记录创建人用户ID；系统任务写0。
 	CreateUserName string    `gorm:"type:varchar(100);not null;default:''"` // CreateUserName 记录创建人名称；系统任务写system。
-	UpdatedAt      time.Time `gorm:"type:datetime;not null;index"`          // UpdatedAt 记录数据最近更新时间。
+	UpdatedAt      time.Time `gorm:"not null;index"`                        // UpdatedAt 记录数据最近更新时间。
 	UpdateUserID   int64     `gorm:"type:bigint;not null;default:0;index"`  // UpdateUserID 记录最后更新人用户ID；系统任务写0。
 	UpdateUserName string    `gorm:"type:varchar(100);not null;default:''"` // UpdateUserName 记录最后更新人名称；系统任务写system。
 }
@@ -167,10 +167,10 @@ type User struct {
 	Password     string       `gorm:"type:varchar(255);not null;default:''"`
 	PasswordSalt string       `gorm:"type:varchar(64);not null;default:''"`
 	Status       enums.Status `gorm:"type:int;not null;default:0;index"`
-	LastLoginAt  *time.Time   `gorm:"type:datetime"`
-	LastLoginIP  string       `gorm:"type:varchar(64);not null;default:''"`
-	Remark       string       `gorm:"type:text"`
-	DeletedAt    *time.Time   `gorm:"type:datetime;index"`
+	LastLoginAt  *time.Time
+	LastLoginIP  string     `gorm:"type:varchar(64);not null;default:''"`
+	Remark       string     `gorm:"type:text"`
+	DeletedAt    *time.Time `gorm:"index"`
 	AuditFields
 }
 
@@ -185,7 +185,7 @@ type UserIdentity struct {
 	ProviderName    string              `gorm:"type:varchar(100);not null;default:''"`
 	RawProfile      string              `gorm:"type:text"`
 	Status          enums.Status        `gorm:"type:int;not null;default:0;index"`
-	LastAuthAt      *time.Time          `gorm:"type:datetime"`
+	LastAuthAt      *time.Time
 	AuditFields
 }
 
@@ -209,7 +209,7 @@ type Customer struct {
 	Name          string       `gorm:"type:varchar(100);not null;default:'';index"` // Name 为客户姓名或展示名称。
 	Gender        enums.Gender `gorm:"type:int;not null;default:0;"`                // Gender 为性别：0未知 1男 2女。
 	CompanyID     int64        `gorm:"type:bigint;not null;default:0;index"`        // CompanyID 为所属公司ID；0表示无所属公司（个人客户）。
-	LastActiveAt  *time.Time   `gorm:"type:datetime;"`                              // LastActiveAt 为最近活跃时间。
+	LastActiveAt  *time.Time   // LastActiveAt 为最近活跃时间。
 	PrimaryMobile string       `gorm:"type:varchar(32);not null;default:'';index"`  // PrimaryMobile 为主手机号（冗余展示字段）。
 	PrimaryEmail  string       `gorm:"type:varchar(100);not null;default:'';index"` // PrimaryEmail 为主邮箱（冗余展示字段）。
 	Status        enums.Status `gorm:"type:int;not null;default:0;"`                // Status 为客户状态。
@@ -238,10 +238,10 @@ type CustomerContact struct {
 	ContactValue string            `gorm:"type:varchar(200);not null;default:'';index;uniqueIndex:uk_customer_contact"` // ContactValue 为联系方式值。
 	IsPrimary    bool              `gorm:"not null;default:false;index"`                                                // IsPrimary 表示是否主联系方式。
 	IsVerified   bool              `gorm:"not null;default:false;index"`                                                // IsVerified 表示是否已验证。
-	VerifiedAt   *time.Time        `gorm:"type:datetime"`                                                               // VerifiedAt 为验证时间。
-	Source       string            `gorm:"type:varchar(30);not null;default:'';index"`                                  // Source 为来源：manual/import/system。
-	Status       enums.Status      `gorm:"type:int;not null;default:0;index"`                                           // Status 为联系方式状态。
-	Remark       string            `gorm:"type:varchar(255);not null;default:''"`                                       // Remark 为备注。
+	VerifiedAt   *time.Time        // VerifiedAt 为验证时间。
+	Source       string            `gorm:"type:varchar(30);not null;default:'';index"` // Source 为来源：manual/import/system。
+	Status       enums.Status      `gorm:"type:int;not null;default:0;index"`          // Status 为联系方式状态。
+	Remark       string            `gorm:"type:varchar(255);not null;default:''"`      // Remark 为备注。
 	AuditFields
 }
 
@@ -295,12 +295,12 @@ type RolePermission struct {
 //
 //	用于处理少量临时授权或拒绝授权场景。
 type UserPermission struct {
-	ID           int64      `gorm:"primaryKey;autoIncrement"`
-	UserID       int64      `gorm:"type:bigint;not null;index;uniqueIndex:uk_user_permission"`
-	PermissionID int64      `gorm:"type:bigint;not null;index;uniqueIndex:uk_user_permission"`
-	Effect       int        `gorm:"type:int;not null;default:1;index"` // Effect 表示权限生效方式：1允许 -1拒绝。
-	ExpiredAt    *time.Time `gorm:"type:datetime"`
-	Remark       string     `gorm:"type:text"`
+	ID           int64 `gorm:"primaryKey;autoIncrement"`
+	UserID       int64 `gorm:"type:bigint;not null;index;uniqueIndex:uk_user_permission"`
+	PermissionID int64 `gorm:"type:bigint;not null;index;uniqueIndex:uk_user_permission"`
+	Effect       int   `gorm:"type:int;not null;default:1;index"` // Effect 表示权限生效方式：1允许 -1拒绝。
+	ExpiredAt    *time.Time
+	Remark       string `gorm:"type:text"`
 	AuditFields
 }
 
@@ -312,9 +312,9 @@ type LoginSession struct {
 	ClientType string     `gorm:"type:varchar(50);not null;default:'';index"` // ClientType 为客户端类型，后台 Web 端固定为 admin_web。
 	ClientIP   string     `gorm:"type:varchar(64);not null;default:''"`       // ClientIP 为登录请求来源 IP。
 	UserAgent  string     `gorm:"type:varchar(255);not null;default:''"`      // UserAgent 为登录请求浏览器或客户端 UA。
-	ExpiredAt  time.Time  `gorm:"type:datetime;not null;index"`               // ExpiredAt 为 token 过期时间。
-	RevokedAt  *time.Time `gorm:"type:datetime;index"`                        // RevokedAt 为主动注销或踢下线时间，非空表示已失效。
-	LastSeenAt *time.Time `gorm:"type:datetime"`                              // LastSeenAt 为最近一次成功鉴权时间。
+	ExpiredAt  time.Time  `gorm:"not null;index"`                             // ExpiredAt 为 token 过期时间。
+	RevokedAt  *time.Time `gorm:"index"`                                      // RevokedAt 为主动注销或踢下线时间，非空表示已失效。
+	LastSeenAt *time.Time // LastSeenAt 为最近一次成功鉴权时间。
 	AuditFields
 }
 
@@ -327,7 +327,7 @@ type LoginCredentialLog struct {
 	ClientIP  string    `gorm:"type:varchar(64);not null;default:''"`        // ClientIP 为登录请求来源 IP。
 	UserAgent string    `gorm:"type:varchar(255);not null;default:''"`       // UserAgent 为登录请求浏览器或客户端 UA。
 	Reason    string    `gorm:"type:varchar(255);not null;default:''"`       // Reason 为校验结果原因。
-	CreatedAt time.Time `gorm:"type:datetime;not null;index"`                // CreatedAt 为日志创建时间。
+	CreatedAt time.Time `gorm:"not null;index"`                              // CreatedAt 为日志创建时间。
 }
 
 // Asset 存储的文件资源，如上传的附件等。
@@ -366,15 +366,15 @@ type Conversation struct {
 	CurrentAssigneeID   int64                           `gorm:"type:bigint;not null;default:0;index"`        // CurrentAssigneeID 为当前接待客服ID。
 	CurrentTeamID       int64                           `gorm:"type:bigint;not null;default:0;index"`        // CurrentTeamID 为当前处理客服组ID。
 	LastMessageID       int64                           `gorm:"type:bigint;not null;default:0;index"`        // LastMessageID 为最后一条消息ID。
-	LastMessageAt       time.Time                       `gorm:"type:datetime;index"`                         // LastMessageAt 为最后消息时间。
-	LastActiveAt        time.Time                       `gorm:"type:datetime;index"`                         // LastActiveAt 为会话最近活跃时间。
+	LastMessageAt       time.Time                       `gorm:"index"`                                       // LastMessageAt 为最后消息时间。
+	LastActiveAt        time.Time                       `gorm:"index"`                                       // LastActiveAt 为会话最近活跃时间。
 	LastMessageSummary  string                          `gorm:"type:varchar(255);not null;default:''"`       // LastMessageSummary 为最后一条消息摘要。
 	CustomerUnreadCount int                             `gorm:"type:int;not null;default:0"`                 // CustomerUnreadCount 为用户侧未读数。
 	AgentUnreadCount    int                             `gorm:"type:int;not null;default:0"`                 // AgentUnreadCount 为客服侧未读数。
-	HandoffAt           *time.Time                      `gorm:"type:datetime;index"`                         // HandoffAt 为最近一次转人工时间。
+	HandoffAt           *time.Time                      `gorm:"index"`                                       // HandoffAt 为最近一次转人工时间。
 	HandoffReason       string                          `gorm:"type:varchar(255);not null;default:''"`       // HandoffReason 为最近一次转人工原因。
 	AIReplyRounds       int                             `gorm:"type:int;not null;default:0"`                 // AIReplyRounds 为当前会话内 AI 已成功回复次数。
-	ClosedAt            *time.Time                      `gorm:"type:datetime;index"`                         // ClosedAt 为会话关闭时间。
+	ClosedAt            *time.Time                      `gorm:"index"`                                       // ClosedAt 为会话关闭时间。
 	ClosedBy            int64                           `gorm:"type:bigint;not null;default:0;index"`        // ClosedBy 为关闭人用户ID，访客关闭时写0。
 	CloseReason         string                          `gorm:"type:varchar(255);not null;default:''"`       // CloseReason 为关闭原因。
 	AuditFields
@@ -382,13 +382,13 @@ type Conversation struct {
 
 // ConversationParticipant 会话参与方。
 type ConversationParticipant struct {
-	ID                    int64        `gorm:"primaryKey;autoIncrement"`
-	ConversationID        int64        `gorm:"type:bigint;not null;index;uniqueIndex:uk_conversation_participant"`
-	ParticipantType       string       `gorm:"type:varchar(30);not null;default:'';index;uniqueIndex:uk_conversation_participant"`
-	ParticipantID         int64        `gorm:"type:bigint;not null;default:0;uniqueIndex:uk_conversation_participant"`
-	ExternalParticipantID string       `gorm:"type:varchar(128);not null;default:''"`
-	JoinedAt              *time.Time   `gorm:"type:datetime"`
-	LeftAt                *time.Time   `gorm:"type:datetime"`
+	ID                    int64  `gorm:"primaryKey;autoIncrement"`
+	ConversationID        int64  `gorm:"type:bigint;not null;index;uniqueIndex:uk_conversation_participant"`
+	ParticipantType       string `gorm:"type:varchar(30);not null;default:'';index;uniqueIndex:uk_conversation_participant"`
+	ParticipantID         int64  `gorm:"type:bigint;not null;default:0;uniqueIndex:uk_conversation_participant"`
+	ExternalParticipantID string `gorm:"type:varchar(128);not null;default:''"`
+	JoinedAt              *time.Time
+	LeftAt                *time.Time
 	Status                enums.Status `gorm:"type:int;not null;default:0;index"`
 	AuditFields
 }
@@ -401,7 +401,7 @@ type ConversationReadState struct {
 	ReaderID          int64              `gorm:"type:bigint;not null;default:0;uniqueIndex:uk_conversation_reader"`
 	ExternalReaderID  string             `gorm:"type:varchar(128);not null;default:'';uniqueIndex:uk_conversation_reader"`
 	LastReadMessageID int64              `gorm:"type:bigint;not null;default:0;index"`
-	LastReadAt        *time.Time         `gorm:"type:datetime"`
+	LastReadAt        *time.Time
 	AuditFields
 }
 
@@ -419,11 +419,11 @@ type Message struct {
 	Content         string                `gorm:"type:text"`
 	Payload         string                `gorm:"type:text"`
 	SendStatus      enums.IMMessageStatus `gorm:"type:int;not null;default:2;index"`
-	SentAt          *time.Time            `gorm:"type:datetime;index"`
-	DeliveredAt     *time.Time            `gorm:"type:datetime"`
-	ReadAt          *time.Time            `gorm:"type:datetime"`
-	RecalledAt      *time.Time            `gorm:"type:datetime"`
-	QuotedMessageID int64                 `gorm:"type:bigint;not null;default:0;index"`
+	SentAt          *time.Time            `gorm:"index"`
+	DeliveredAt     *time.Time
+	ReadAt          *time.Time
+	RecalledAt      *time.Time
+	QuotedMessageID int64 `gorm:"type:bigint;not null;default:0;index"`
 	AuditFields
 }
 
@@ -434,7 +434,7 @@ type WxWorkKFSyncState struct {
 	ID         int64        `gorm:"primaryKey;autoIncrement"`                         // ID 为同步状态主键。
 	OpenKfID   string       `gorm:"type:varchar(64);not null;default:'';uniqueIndex"` // OpenKfID 为企业微信客服账号ID。
 	NextCursor string       `gorm:"type:varchar(128);not null;default:''"`            // NextCursor 为下一次增量同步使用的游标。
-	LastSyncAt *time.Time   `gorm:"type:datetime;index"`                              // LastSyncAt 为最近一次成功同步时间。
+	LastSyncAt *time.Time   `gorm:"index"`                                            // LastSyncAt 为最近一次成功同步时间。
 	Status     enums.Status `gorm:"type:int;not null;default:0;index"`                // Status 为同步状态记录状态。
 	Remark     string       `gorm:"type:text"`                                        // Remark 为同步异常、人工备注等补充信息。
 	AuditFields
@@ -452,7 +452,7 @@ type WxWorkKFConversation struct {
 	ServicerUserID string       `gorm:"type:varchar(128);not null;default:'';index"`                // ServicerUserID 为企业微信当前接待客服成员UserID。
 	SessionStatus  string       `gorm:"type:varchar(30);not null;default:'';index"`                 // SessionStatus 为微信侧会话状态快照，如接入中、转接中、已结束。
 	LastWxMsgID    string       `gorm:"type:varchar(64);not null;default:'';index"`                 // LastWxMsgID 为最近一次同步到的微信消息ID。
-	LastWxMsgTime  *time.Time   `gorm:"type:datetime;index"`                                        // LastWxMsgTime 为最近一次微信消息时间。
+	LastWxMsgTime  *time.Time   `gorm:"index"`                                                      // LastWxMsgTime 为最近一次微信消息时间。
 	RawProfile     string       `gorm:"type:text"`                                                  // RawProfile 为微信侧原始会话补充信息JSON。
 	Status         enums.Status `gorm:"type:int;not null;default:0;index"`                          // Status 为渠道会话映射状态。
 	AuditFields
@@ -488,9 +488,9 @@ type ChannelMessageOutbox struct {
 	Payload        string     `gorm:"type:text"`                                                                 // Payload 为渠道发送所需的标准化请求数据JSON。
 	SendStatus     string     `gorm:"type:varchar(30);not null;default:'';index"`                                // SendStatus 为当前投递状态，如 pending、sending、sent、failed。
 	RetryCount     int        `gorm:"type:int;not null;default:0"`                                               // RetryCount 为已重试次数。
-	NextRetryAt    *time.Time `gorm:"type:datetime;index"`                                                       // NextRetryAt 为下一次允许重试时间。
+	NextRetryAt    *time.Time `gorm:"index"`                                                                     // NextRetryAt 为下一次允许重试时间。
 	LastError      string     `gorm:"type:text"`                                                                 // LastError 为最近一次发送失败信息。
-	SentAt         *time.Time `gorm:"type:datetime;index"`                                                       // SentAt 为最终发送成功时间。
+	SentAt         *time.Time `gorm:"index"`                                                                     // SentAt 为最终发送成功时间。
 	AuditFields
 }
 
@@ -503,9 +503,9 @@ type ConversationAssignment struct {
 	AssignType     string                   `gorm:"type:varchar(30);not null;default:'';index"`
 	Reason         string                   `gorm:"type:varchar(255);not null;default:''"`
 	Status         enums.IMAssignmentStatus `gorm:"type:int;not null;index"`
-	CreatedAt      time.Time                `gorm:"type:datetime;not null;index"`
-	FinishedAt     *time.Time               `gorm:"type:datetime"`
-	OperatorID     int64                    `gorm:"type:bigint;not null;default:0;index"`
+	CreatedAt      time.Time                `gorm:"not null;index"`
+	FinishedAt     *time.Time
+	OperatorID     int64 `gorm:"type:bigint;not null;default:0;index"`
 }
 
 // ConversationTag 会话标签关联
@@ -562,9 +562,9 @@ type AgentRevision struct {
 	AgentID         int64        `gorm:"type:bigint;not null;index;uniqueIndex:uk_agent_revision"`
 	Revision        int          `gorm:"type:int;not null;uniqueIndex:uk_agent_revision"`
 	Status          enums.Status `gorm:"type:int;not null;default:0;index"`
-	Definition      string       `gorm:"type:longtext"`
+	Definition      string       `gorm:"type:text"`
 	DefinitionHash  string       `gorm:"type:varchar(64);not null;default:'';index"`
-	PublishedAt     *time.Time   `gorm:"type:datetime;index"`
+	PublishedAt     *time.Time   `gorm:"index"`
 	PublishedByID   int64        `gorm:"type:bigint;not null;default:0;index"`
 	PublishedByName string       `gorm:"type:varchar(100);not null;default:''"`
 	AuditFields
@@ -581,12 +581,12 @@ type AgentRun struct {
 	Status           string     `gorm:"type:varchar(30);not null;default:'';index"`
 	PromptTokens     int        `gorm:"type:int;not null;default:0"`
 	CompletionTokens int        `gorm:"type:int;not null;default:0"`
-	StartedAt        time.Time  `gorm:"type:datetime;not null;index"`
-	EndedAt          *time.Time `gorm:"type:datetime;index"`
+	StartedAt        time.Time  `gorm:"not null;index"`
+	EndedAt          *time.Time `gorm:"index"`
 	ErrorMessage     string     `gorm:"type:text"`
 	TraceData        string     `gorm:"type:text"`
-	CreatedAt        time.Time  `gorm:"type:datetime;not null;index"`
-	UpdatedAt        time.Time  `gorm:"type:datetime;not null;index"`
+	CreatedAt        time.Time  `gorm:"not null;index"`
+	UpdatedAt        time.Time  `gorm:"not null;index"`
 }
 
 // AgentStep records a normalized model, tool, workflow, or policy transition.
@@ -600,10 +600,10 @@ type AgentStep struct {
 	InputPreview  string     `gorm:"type:text"`
 	OutputPreview string     `gorm:"type:text"`
 	ErrorMessage  string     `gorm:"type:text"`
-	StartedAt     time.Time  `gorm:"type:datetime;not null;index"`
-	EndedAt       *time.Time `gorm:"type:datetime;index"`
+	StartedAt     time.Time  `gorm:"not null;index"`
+	EndedAt       *time.Time `gorm:"index"`
 	DurationMS    int        `gorm:"type:int;not null;default:0"`
-	CreatedAt     time.Time  `gorm:"type:datetime;not null;index"`
+	CreatedAt     time.Time  `gorm:"not null;index"`
 }
 
 // AgentToolCall records the safety-relevant details of a normalized tool call.
@@ -619,7 +619,7 @@ type AgentToolCall struct {
 	ResultPreview    string    `gorm:"type:text"`
 	ErrorMessage     string    `gorm:"type:text"`
 	DurationMS       int       `gorm:"type:int;not null;default:0"`
-	CreatedAt        time.Time `gorm:"type:datetime;not null;index"`
+	CreatedAt        time.Time `gorm:"not null;index"`
 }
 
 // AgentRunQualityFeedback is an operator-provided quality review for one
@@ -639,7 +639,7 @@ type AIWorkflow struct {
 	Name               string       `gorm:"type:varchar(100);not null;default:'';index"`
 	Description        string       `gorm:"type:text"`
 	Status             enums.Status `gorm:"type:int;not null;default:0;index"`
-	DraftDefinition    string       `gorm:"type:longtext"`
+	DraftDefinition    string       `gorm:"type:text"`
 	PublishedVersionID int64        `gorm:"type:bigint;not null;default:0;index"`
 	SortNo             int          `gorm:"type:int;not null;default:0;index"`
 	AuditFields
@@ -651,9 +651,9 @@ type AIWorkflowVersion struct {
 	WorkflowID      int64        `gorm:"type:bigint;not null;default:0;index"`
 	Version         int          `gorm:"type:int;not null;default:0;index"`
 	Status          enums.Status `gorm:"type:int;not null;default:0;index"`
-	Definition      string       `gorm:"type:longtext"`
+	Definition      string       `gorm:"type:text"`
 	DefinitionHash  string       `gorm:"type:varchar(64);not null;default:'';index"`
-	PublishedAt     *time.Time   `gorm:"type:datetime;index"`
+	PublishedAt     *time.Time   `gorm:"index"`
 	PublishedByID   int64        `gorm:"type:bigint;not null;default:0;index"`
 	PublishedByName string       `gorm:"type:varchar(100);not null;default:''"`
 	AuditFields
@@ -683,8 +683,8 @@ type AIWorkflowRun struct {
 	AIAgentID         int64      `gorm:"type:bigint;not null;default:0;index"`
 	MessageID         int64      `gorm:"type:bigint;not null;default:0;index"`
 	Status            int        `gorm:"type:int;not null;default:0;index"`
-	StartedAt         time.Time  `gorm:"type:datetime;not null;index"`
-	EndedAt           *time.Time `gorm:"type:datetime;index"`
+	StartedAt         time.Time  `gorm:"not null;index"`
+	EndedAt           *time.Time `gorm:"index"`
 	InterruptType     string     `gorm:"type:varchar(50);not null;default:'';index"`
 	InterruptNodeID   string     `gorm:"type:varchar(100);not null;default:'';index"`
 	ErrorMessage      string     `gorm:"type:text"`
@@ -701,8 +701,8 @@ type AIWorkflowNodeRun struct {
 	InputPreview  string     `gorm:"type:text"`
 	OutputPreview string     `gorm:"type:text"`
 	ErrorMessage  string     `gorm:"type:text"`
-	StartedAt     time.Time  `gorm:"type:datetime;not null;index"`
-	EndedAt       *time.Time `gorm:"type:datetime;index"`
+	StartedAt     time.Time  `gorm:"not null;index"`
+	EndedAt       *time.Time `gorm:"index"`
 	DurationMS    int        `gorm:"type:int;not null;default:0"`
 }
 
@@ -741,7 +741,7 @@ type ConversationEventLog struct {
 	OperatorID     int64              `gorm:"type:bigint;not null;default:0;index"`
 	Content        string             `gorm:"type:text"`
 	Payload        string             `gorm:"type:text"`
-	CreatedAt      time.Time          `gorm:"type:datetime;not null;index"`
+	CreatedAt      time.Time          `gorm:"not null;index"`
 }
 
 // Ticket 客服问题记录。
@@ -756,7 +756,7 @@ type Ticket struct {
 	ConversationID    int64              `gorm:"type:bigint;not null;default:0;index"`
 	Status            enums.TicketStatus `gorm:"type:varchar(50);not null;default:'pending';index"`
 	CurrentAssigneeID int64              `gorm:"type:bigint;not null;default:0;index"`
-	HandledAt         *time.Time         `gorm:"type:datetime;index"`
+	HandledAt         *time.Time         `gorm:"index"`
 	AuditFields
 }
 
@@ -774,7 +774,7 @@ type TicketProgress struct {
 	TicketID  int64     `gorm:"type:bigint;not null;index"`
 	Content   string    `gorm:"type:text"`
 	AuthorID  int64     `gorm:"type:bigint;not null;default:0;index"`
-	CreatedAt time.Time `gorm:"type:datetime;not null;index"`
+	CreatedAt time.Time `gorm:"not null;index"`
 }
 
 // AgentProfile 客服档案。
@@ -790,8 +790,8 @@ type AgentProfile struct {
 	PriorityLevel         int                 `gorm:"type:int;not null;default:0;index"`                // PriorityLevel 表示自动分配优先级，值越大越优先。
 	AutoAssignEnabled     bool                `gorm:"not null;default:true;index"`                      // AutoAssignEnabled 表示是否参与自动分配。
 	ReceiveOfflineMessage bool                `gorm:"not null;default:false"`                           // ReceiveOfflineMessage 表示离线时是否仍接收离线消息或转接消息。
-	LastOnlineAt          *time.Time          `gorm:"type:datetime;index"`                              // LastOnlineAt 记录最近一次在线时间。
-	LastStatusAt          *time.Time          `gorm:"type:datetime;index"`                              // LastStatusAt 记录最近一次状态变更时间。
+	LastOnlineAt          *time.Time          `gorm:"index"`                                            // LastOnlineAt 记录最近一次在线时间。
+	LastStatusAt          *time.Time          `gorm:"index"`                                            // LastStatusAt 记录最近一次状态变更时间。
 	Status                enums.Status        `gorm:"type:int;not null;default:0;index"`                // Status 表示客服档案状态
 	Remark                string              `gorm:"type:text"`                                        // Remark 记录客服备注信息。
 	AuditFields
@@ -812,8 +812,8 @@ type AgentTeam struct {
 type AgentTeamSchedule struct {
 	ID      int64        `gorm:"primaryKey;autoIncrement"`              // ID 为组排班主键。
 	TeamID  int64        `gorm:"type:bigint;not null;index"`            // TeamID 为被排班的客服组ID。
-	StartAt time.Time    `gorm:"type:datetime;not null;index"`          // StartAt 为班次开始时间。
-	EndAt   time.Time    `gorm:"type:datetime;not null;index"`          // EndAt 为班次结束时间。
+	StartAt time.Time    `gorm:"not null;index"`                        // StartAt 为班次开始时间。
+	EndAt   time.Time    `gorm:"not null;index"`                        // EndAt 为班次结束时间。
 	Remark  string       `gorm:"type:varchar(255);not null;default:''"` // Remark 记录排班备注。
 	Status  enums.Status `gorm:"type:int;not null;default:0;index"`     // Status 表示组排班记录状态。
 	AuditFields
@@ -885,7 +885,7 @@ type KnowledgeDocument struct {
 	Content         string                             `gorm:"type:text"`                                         // Content 为文档内容。
 	Status          enums.Status                       `gorm:"type:int;not null;default:0;index"`                 // Status 为状态
 	IndexStatus     enums.KnowledgeDocumentIndexStatus `gorm:"type:varchar(20);not null;default:'pending';index"` // IndexStatus 为索引状态：pending/indexed/failed。
-	IndexedAt       *time.Time                         `gorm:"type:datetime;index"`                               // IndexedAt 为最近一次索引成功时间。
+	IndexedAt       *time.Time                         `gorm:"index"`                                             // IndexedAt 为最近一次索引成功时间。
 	IndexError      string                             `gorm:"type:text"`                                         // IndexError 为最近一次索引失败信息。
 	ContentHash     string                             `gorm:"type:varchar(64);not null;default:'';index"`        // ContentHash 为内容哈希，用于变更检测。
 	AuditFields
@@ -901,7 +901,7 @@ type KnowledgeFAQ struct {
 	SimilarQuestions string                             `gorm:"type:text"`                                         // SimilarQuestions 为相似问 JSON 数组。
 	Status           enums.Status                       `gorm:"type:int;not null;default:0;index"`                 // Status 为状态。
 	IndexStatus      enums.KnowledgeDocumentIndexStatus `gorm:"type:varchar(20);not null;default:'pending';index"` // IndexStatus 为索引状态：pending/indexed/failed。
-	IndexedAt        *time.Time                         `gorm:"type:datetime;index"`                               // IndexedAt 为最近一次索引成功时间。
+	IndexedAt        *time.Time                         `gorm:"index"`                                             // IndexedAt 为最近一次索引成功时间。
 	IndexError       string                             `gorm:"type:text"`                                         // IndexError 为最近一次索引失败信息。
 	Remark           string                             `gorm:"type:text"`                                         // Remark 为备注。
 	AuditFields
@@ -924,8 +924,8 @@ type KnowledgeChunk struct {
 	Provider        string       `gorm:"type:varchar(30);not null;default:''"`        // Provider 为分块 provider。
 	Status          enums.Status `gorm:"type:int;not null;default:0;index"`           // Status 为状态：1有效 2已删除。
 	VectorID        string       `gorm:"type:varchar(100);not null;default:'';index"` // VectorID 为向量库中的point ID。
-	CreatedAt       time.Time    `gorm:"type:datetime;not null;index"`
-	UpdatedAt       time.Time    `gorm:"type:datetime;not null;index"`
+	CreatedAt       time.Time    `gorm:"not null;index"`
+	UpdatedAt       time.Time    `gorm:"not null;index"`
 }
 
 // KnowledgeRetrieveLog 检索日志表。
@@ -958,7 +958,7 @@ type KnowledgeRetrieveLog struct {
 	CompletionTokens   int       `gorm:"type:int;not null;default:0"`                // CompletionTokens 为completion token数。
 	ModelName          string    `gorm:"type:varchar(100);not null;default:''"`      // ModelName 为使用的模型名称。
 	TraceData          string    `gorm:"type:text"`                                  // TraceData 为链路追踪数据JSON。
-	CreatedAt          time.Time `gorm:"type:datetime;not null;index"`
+	CreatedAt          time.Time `gorm:"not null;index"`
 }
 
 // KnowledgeRetrieveHit 检索命中详情表。
@@ -982,7 +982,7 @@ type KnowledgeRetrieveHit struct {
 	UsedInAnswer    bool      `gorm:"not null;default:false"`                // UsedInAnswer 是否用于生成答案。
 	IsCitation      bool      `gorm:"not null;default:false"`                // IsCitation 是否作为引用返回。
 	Snippet         string    `gorm:"type:text"`                             // Snippet 为内容片段。
-	CreatedAt       time.Time `gorm:"type:datetime;not null;index"`
+	CreatedAt       time.Time `gorm:"not null;index"`
 }
 
 // KnowledgeFeedback 问答反馈表。
@@ -994,7 +994,7 @@ type KnowledgeFeedback struct {
 	UserID         int64     `gorm:"type:bigint;not null;default:0;index"`  // UserID 为用户ID。
 	AgentID        int64     `gorm:"type:bigint;not null;default:0;index"`  // AgentID 为坐席ID。
 	Remark         string    `gorm:"type:text"`                             // Remark 为备注。
-	CreatedAt      time.Time `gorm:"type:datetime;not null;index"`
+	CreatedAt      time.Time `gorm:"not null;index"`
 }
 
 // SkillDefinition 表示可由后台配置并参与运行时路由的 Skill 定义。
@@ -1002,7 +1002,7 @@ type SkillDefinition struct {
 	ID            int64        `gorm:"primaryKey;autoIncrement"`                    // ID 为 Skill 主键。
 	Name          string       `gorm:"type:varchar(100);not null;default:'';index"` // Name 为 Skill 的展示名称，用于后台列表、配置页和人工选择场景。
 	Description   string       `gorm:"type:varchar(255);not null;default:''"`       // Description 为 Skill 的简要说明，用于描述该 Skill 的适用场景和职责边界。
-	Instruction   string       `gorm:"type:longtext"`                               // Instruction 为 Skill 的主体说明文档存储字段，使用 Markdown 编写，供 Agent 理解任务目标、步骤和工具使用要求。
+	Instruction   string       `gorm:"type:text"`                                   // Instruction 为 Skill 的主体说明文档存储字段，使用 Markdown 编写，供 Agent 理解任务目标、步骤和工具使用要求。
 	Examples      string       `gorm:"type:text"`                                   // Examples 为示例问法 JSON 数组字符串。
 	ToolWhitelist string       `gorm:"type:text"`                                   // ToolWhitelist 为允许使用的工具编码 JSON 数组字符串。
 	Status        enums.Status `gorm:"type:int;not null;default:0;index"`           // Status 为 Skill 当前状态，使用全局通用状态：0启用 1禁用 2删除。
@@ -1027,9 +1027,9 @@ type ConversationInterrupt struct {
 	Status              string     `gorm:"type:varchar(30);not null;default:'';index"`
 	PromptText          string     `gorm:"type:text"`
 	RequestData         string     `gorm:"type:text"`
-	CheckPointData      string     `gorm:"type:longtext"`
+	CheckPointData      string     `gorm:"type:text"`
 	ResumeCount         int        `gorm:"type:int;not null;default:0"`
-	ExpiresAt           *time.Time `gorm:"type:datetime;index"`
-	CreatedAt           time.Time  `gorm:"type:datetime;not null;index"`
-	UpdatedAt           time.Time  `gorm:"type:datetime;not null;index"`
+	ExpiresAt           *time.Time `gorm:"index"`
+	CreatedAt           time.Time  `gorm:"not null;index"`
+	UpdatedAt           time.Time  `gorm:"not null;index"`
 }

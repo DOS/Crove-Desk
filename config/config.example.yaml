@@ -10,11 +10,15 @@ server:
       - http://localhost:8083
 
 db:
-  # Database driver. Supported values: sqlite, mysql.
+  # Database driver. Supported values: sqlite, mysql, postgres (or postgresql).
   type: sqlite
   # Database connection string.
   # SQLite example: file:./data/app.db?_busy_timeout=5000
   # MySQL example: user:password@tcp(127.0.0.1:3306)/cs_ai_agent_db?charset=utf8mb4&parseTime=True&multiStatements=true&loc=Local
+  # PostgreSQL (Supabase Session Pooler) example:
+  #   dsn: "host=aws-1-ap-southeast-1.pooler.supabase.com user=postgres.gulptwduchsjcsbndmua password=<PASSWORD> dbname=postgres port=5432 sslmode=require search_path=desk"
+  # PostgreSQL URI example:
+  #   dsn: "postgresql://postgres.gulptwduchsjcsbndmua:<PASSWORD>@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require&search_path=desk"
   # For MySQL, keep parseTime=True so datetime fields are scanned into Go time values correctly.
   dsn: file:./data/app.db?_busy_timeout=5000
   # Maximum number of idle connections kept in the pool. Values <= 0 use the database/sql default.

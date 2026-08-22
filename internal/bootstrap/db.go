@@ -12,6 +12,7 @@ import (
 
 	"github.com/mlogclub/simple/sqls"
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 
 	// "gorm.io/driver/sqlite" // Sqlite driver based on CGO
 	"github.com/glebarez/sqlite" // Pure go SQLite driver, checkout https://github.com/glebarez/sqlite for details
@@ -24,7 +25,7 @@ import (
 
 func InitDB(cfg config.DBConfig) (*gorm.DB, error) {
 	var dialector gorm.Dialector
-	switch cfg.Type {
+	switch strings.ToLower(strings.TrimSpace(cfg.Type)) {
 	case "sqlite":
 		if err := ensureSQLiteDir(cfg.DSN); err != nil {
 			return nil, err
@@ -32,6 +33,8 @@ func InitDB(cfg config.DBConfig) (*gorm.DB, error) {
 		dialector = sqlite.Open(cfg.DSN)
 	case "mysql":
 		dialector = mysql.Open(cfg.DSN)
+	case "postgres", "postgresql", "pg":
+		dialector = postgres.Open(cfg.DSN)
 	default:
 		return nil, fmt.Errorf("unsupported db type: %s", cfg.Type)
 	}
