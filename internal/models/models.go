@@ -55,6 +55,12 @@ var Models = []any{
 	&KnowledgeRetrieveLog{},
 	&KnowledgeRetrieveHit{},
 	&KnowledgeFeedback{},
+	&SupportHelpPage{},
+	&SupportQuestionCategory{},
+	&SupportQuestion{},
+	&SupportAnswer{},
+	&SupportQuestionVote{},
+	&SupportAnswerVote{},
 	&SkillDefinition{},
 	&AgentRevision{},
 	&AgentRun{},
@@ -158,15 +164,16 @@ type AuditFields struct {
 
 // User 后台用户账号。
 type User struct {
-	ID           int64        `gorm:"primaryKey;autoIncrement"`
-	Username     string       `gorm:"type:varchar(100);not null;uniqueIndex"`
-	Nickname     string       `gorm:"type:varchar(100);not null;default:'';index"`
-	Avatar       string       `gorm:"type:varchar(255);not null;default:''"`
-	Mobile       *string      `gorm:"type:varchar(32);uniqueIndex"`
-	Email        *string      `gorm:"type:varchar(100);uniqueIndex"`
-	Password     string       `gorm:"type:varchar(255);not null;default:''"`
-	PasswordSalt string       `gorm:"type:varchar(64);not null;default:''"`
-	Status       enums.Status `gorm:"type:int;not null;default:0;index"`
+	ID           int64          `gorm:"primaryKey;autoIncrement"`
+	Username     string         `gorm:"type:varchar(100);not null;uniqueIndex"`
+	Nickname     string         `gorm:"type:varchar(100);not null;default:'';index"`
+	Avatar       string         `gorm:"type:varchar(255);not null;default:''"`
+	Mobile       *string        `gorm:"type:varchar(32);uniqueIndex"`
+	Email        *string        `gorm:"type:varchar(100);uniqueIndex"`
+	Password     string         `gorm:"type:varchar(255);not null;default:''"`
+	PasswordSalt string         `gorm:"type:varchar(64);not null;default:''"`
+	UserType     enums.UserType `gorm:"column:user_type;type:varchar(20);not null;default:'user';index"`
+	Status       enums.Status   `gorm:"type:int;not null;default:0;index"`
 	LastLoginAt  *time.Time
 	LastLoginIP  string     `gorm:"type:varchar(64);not null;default:''"`
 	Remark       string     `gorm:"type:text"`
@@ -206,6 +213,7 @@ type Company struct {
 //	用于存储客户稳定画像信息，不包含平台身份映射和多联系方式明细。
 type Customer struct {
 	ID            int64        `gorm:"primaryKey;autoIncrement"`                    // ID 为客户主键。
+	UserID        int64        `gorm:"type:bigint;not null;default:0;index"`        // UserID 为关联的统一登录账号ID，0表示未绑定。
 	Name          string       `gorm:"type:varchar(100);not null;default:'';index"` // Name 为客户姓名或展示名称。
 	Gender        enums.Gender `gorm:"type:int;not null;default:0;"`                // Gender 为性别：0未知 1男 2女。
 	CompanyID     int64        `gorm:"type:bigint;not null;default:0;index"`        // CompanyID 为所属公司ID；0表示无所属公司（个人客户）。
@@ -926,6 +934,90 @@ type KnowledgeChunk struct {
 	VectorID        string       `gorm:"type:varchar(100);not null;default:'';index"` // VectorID 为向量库中的point ID。
 	CreatedAt       time.Time    `gorm:"not null;index"`
 	UpdatedAt       time.Time    `gorm:"not null;index"`
+}
+
+// SupportHelpPage is both a help-center navigation node and a content page.
+type SupportHelpPage struct {
+	ID                        int64                       `gorm:"primaryKey;autoIncrement"`
+	ParentID                  int64                       `gorm:"type:bigint;not null;default:0;index;uniqueIndex:idx_t_support_help_page_parent_slug"`
+	Title                     string                      `gorm:"type:varchar(255);not null;default:'';index"`
+	Slug                      string                      `gorm:"type:varchar(160);not null;default:'';uniqueIndex:idx_t_support_help_page_parent_slug"`
+	Summary                   string                      `gorm:"type:text"`
+	ContentType               string                      `gorm:"type:varchar(20);not null;default:'markdown'"`
+	Content                   string                      `gorm:"type:text"`
+	CoverURL                  string                      `gorm:"type:varchar(255);not null;default:''"`
+	TagsJSON                  string                      `gorm:"type:text"`
+	Status                    enums.SupportHelpPageStatus `gorm:"type:varchar(20);not null;default:'draft';index"`
+	SortNo                    int                         `gorm:"type:int;not null;default:0;index"`
+	ViewCount                 int64                       `gorm:"type:bigint;not null;default:0"`
+	HelpfulCount              int64                       `gorm:"type:bigint;not null;default:0"`
+	UnhelpfulCount            int64                       `gorm:"type:bigint;not null;default:0"`
+	PublishedAt               *time.Time                  `gorm:"type:datetime;index"`
+	SyncedKnowledgeDocumentID int64                       `gorm:"type:bigint;not null;default:0;index"`
+	Remark                    string                      `gorm:"type:text"`
+	AuditFields
+}
+
+// SupportQuestionCategory groups public FAQ community questions.
+type SupportQuestionCategory struct {
+	ID          int64        `gorm:"primaryKey;autoIncrement"`
+	Name        string       `gorm:"type:varchar(100);not null;default:'';index"`
+	Slug        string       `gorm:"type:varchar(120);not null;default:'';uniqueIndex"`
+	Description string       `gorm:"type:text"`
+	SortNo      int          `gorm:"type:int;not null;default:0;index"`
+	Status      enums.Status `gorm:"type:int;not null;default:0;index"`
+	Remark      string       `gorm:"type:text"`
+	AuditFields
+}
+
+// SupportQuestion is a logged-in-customer question in the public FAQ community.
+type SupportQuestion struct {
+	ID                 int64                         `gorm:"primaryKey;autoIncrement"`
+	CategoryID         int64                         `gorm:"type:bigint;not null;default:0;index"`
+	UserID             int64                         `gorm:"type:bigint;not null;index"`
+	Title              string                        `gorm:"type:varchar(255);not null;default:'';index"`
+	Content            string                        `gorm:"type:text"`
+	TagsJSON           string                        `gorm:"type:text"`
+	Status             enums.SupportQuestionStatus   `gorm:"type:varchar(20);not null;default:'normal';index"`
+	BestAnswerID       int64                         `gorm:"type:bigint;not null;default:0;index"`
+	AnswerCount        int64                         `gorm:"type:bigint;not null;default:0"`
+	VoteCount          int64                         `gorm:"type:bigint;not null;default:0"`
+	ViewCount          int64                         `gorm:"type:bigint;not null;default:0"`
+	LastAnsweredAt     *time.Time                    `gorm:"type:datetime;index"`
+	LastAnswerUserType enums.SupportAnswerAuthorType `gorm:"type:varchar(20);not null;default:''"`
+	LastAnswerUserID   int64                         `gorm:"type:bigint;not null;default:0"`
+	AuditFields
+}
+
+// SupportAnswer is an answer from either a customer or a backend user.
+type SupportAnswer struct {
+	ID           int64                         `gorm:"primaryKey;autoIncrement"`
+	QuestionID   int64                         `gorm:"type:bigint;not null;index"`
+	AuthorType   enums.SupportAnswerAuthorType `gorm:"type:varchar(20);not null;default:'customer';index"`
+	AuthorID     int64                         `gorm:"type:bigint;not null;index"`
+	Content      string                        `gorm:"type:text"`
+	Status       enums.SupportAnswerStatus     `gorm:"type:varchar(20);not null;default:'normal';index"`
+	VoteCount    int64                         `gorm:"type:bigint;not null;default:0"`
+	IsBestAnswer bool                          `gorm:"not null;default:false;index"`
+	AuditFields
+}
+
+type SupportQuestionVote struct {
+	ID         int64     `gorm:"primaryKey;autoIncrement"`
+	QuestionID int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_question_vote"`
+	UserID     int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_question_vote"`
+	VoteValue  int       `gorm:"type:int;not null;default:1"`
+	CreatedAt  time.Time `gorm:"type:datetime;not null;index"`
+	UpdatedAt  time.Time `gorm:"type:datetime;not null;index"`
+}
+
+type SupportAnswerVote struct {
+	ID        int64     `gorm:"primaryKey;autoIncrement"`
+	AnswerID  int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_answer_vote"`
+	UserID    int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_answer_vote"`
+	VoteValue int       `gorm:"type:int;not null;default:1"`
+	CreatedAt time.Time `gorm:"type:datetime;not null;index"`
+	UpdatedAt time.Time `gorm:"type:datetime;not null;index"`
 }
 
 // KnowledgeRetrieveLog 检索日志表。

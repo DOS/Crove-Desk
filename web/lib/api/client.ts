@@ -22,15 +22,41 @@ export type BlobResponse = {
   filename: string
 }
 
+export class ApiRequestError extends Error {
+  errorCode?: number
+
+  constructor(message: string, errorCode?: number, options?: ErrorOptions) {
+    super(message, options)
+    this.name = "ApiRequestError"
+    this.errorCode = errorCode
+  }
+}
+
+export function isApiRequestError(error: unknown): error is ApiRequestError {
+  return error instanceof ApiRequestError
+}
+
+function normalizeApiRequestError(error: unknown) {
+  if (isApiRequestError(error)) {
+    return error
+  }
+  return new ApiRequestError(
+    translateCurrentMessage("api.requestFailed"),
+    undefined,
+    { cause: error }
+  )
+}
+
 async function parseResult<T>(response: Response) {
   const payload = (await response.json()) as JsonResult<T>
   if (!response.ok || !payload.success) {
     if (payload.errorCode === 3000 || payload.errorCode === 3002) {
       expireSession()
     }
-    const error = new Error(payload.message || translateCurrentMessage("api.requestFailed"))
-    ;(error as Error & { errorCode?: number }).errorCode = payload.errorCode
-    throw error
+    throw new ApiRequestError(
+      payload.message || translateCurrentMessage("api.requestFailed"),
+      payload.errorCode
+    )
   }
   return payload.data
 }
@@ -74,14 +100,17 @@ export async function request<T>(
   const authHeaders = buildRequestHeaders(headers, skipAuth, rest.body)
 
   const requestBaseUrl = baseUrl !== undefined ? baseUrl : API_BASE_URL
-  const response = await fetch(`${requestBaseUrl}${path}`, {
-    ...rest,
-    headers: authHeaders,
-    cache: "no-store",
-  })
-  onResponse?.(response)
-
-  return parseResult<T>(response)
+  try {
+    const response = await fetch(`${requestBaseUrl}${path}`, {
+      ...rest,
+      headers: authHeaders,
+      cache: "no-store",
+    })
+    onResponse?.(response)
+    return await parseResult<T>(response)
+  } catch (error) {
+    throw normalizeApiRequestError(error)
+  }
 }
 
 export async function requestBlob(
@@ -107,10 +136,10 @@ export async function requestBlob(
     } catch (error) {
       throw error
     }
-    throw new Error(translateCurrentMessage("api.requestFailed"))
+    throw new ApiRequestError(translateCurrentMessage("api.requestFailed"))
   }
   if (!response.ok) {
-    throw new Error(response.statusText || translateCurrentMessage("api.requestFailed"))
+    throw new ApiRequestError(response.statusText || translateCurrentMessage("api.requestFailed"))
   }
   return {
     blob: await response.blob(),

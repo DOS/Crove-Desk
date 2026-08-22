@@ -167,6 +167,14 @@ var (
 	PermissionKnowledgeFAQUpdate      = Permission{Name: "更新知识FAQ", Code: "knowledgeFAQ.update", Type: "api", GroupName: "knowledgeFAQ", Method: "POST", APIPath: "/api/dashboard/knowledge-faq/update", SortNo: 1570}
 	PermissionKnowledgeFAQDelete      = Permission{Name: "删除知识FAQ", Code: "knowledgeFAQ.delete", Type: "api", GroupName: "knowledgeFAQ", Method: "POST", APIPath: "/api/dashboard/knowledge-faq/delete", SortNo: 1580}
 
+	// 支持中心相关权限
+	PermissionSupportHelpPageView   = Permission{Name: "查看帮助中心页面", Code: "supportHelpPage.view", Type: "api", GroupName: "supportHelpPage", Method: "ANY", APIPath: "/api/dashboard/support-help-page/list", SortNo: 1590}
+	PermissionSupportHelpPageCreate = Permission{Name: "创建帮助中心页面", Code: "supportHelpPage.create", Type: "api", GroupName: "supportHelpPage", Method: "POST", APIPath: "/api/dashboard/support-help-page/create", SortNo: 1591}
+	PermissionSupportHelpPageUpdate = Permission{Name: "更新帮助中心页面", Code: "supportHelpPage.update", Type: "api", GroupName: "supportHelpPage", Method: "POST", APIPath: "/api/dashboard/support-help-page/update", SortNo: 1592}
+	PermissionSupportHelpPageDelete = Permission{Name: "删除帮助中心页面", Code: "supportHelpPage.delete", Type: "api", GroupName: "supportHelpPage", Method: "POST", APIPath: "/api/dashboard/support-help-page/delete", SortNo: 1593}
+	PermissionSupportQuestionView   = Permission{Name: "查看支持中心问答", Code: "supportQuestion.view", Type: "api", GroupName: "supportQuestion", Method: "ANY", APIPath: "/api/dashboard/support-question/list", SortNo: 1594}
+	PermissionSupportQuestionUpdate = Permission{Name: "管理支持中心问答", Code: "supportQuestion.update", Type: "api", GroupName: "supportQuestion", Method: "POST", APIPath: "/api/dashboard/support-question/moderate", SortNo: 1595}
+
 	// Skill 定义相关权限
 	PermissionSkillDefinitionView   = Permission{Name: "查看技能定义", Code: "skillDefinition.view", Type: "api", GroupName: "skillDefinition", Method: "ANY", APIPath: "/api/dashboard/skill-definition/list", SortNo: 1610}
 	PermissionSkillDefinitionCreate = Permission{Name: "创建技能定义", Code: "skillDefinition.create", Type: "api", GroupName: "skillDefinition", Method: "POST", APIPath: "/api/dashboard/skill-definition/create", SortNo: 1620}
@@ -271,6 +279,12 @@ var Permissions = []Permission{
 	PermissionKnowledgeFAQCreate,
 	PermissionKnowledgeFAQUpdate,
 	PermissionKnowledgeFAQDelete,
+	PermissionSupportHelpPageView,
+	PermissionSupportHelpPageCreate,
+	PermissionSupportHelpPageUpdate,
+	PermissionSupportHelpPageDelete,
+	PermissionSupportQuestionView,
+	PermissionSupportQuestionUpdate,
 	PermissionSkillDefinitionView,
 	PermissionSkillDefinitionCreate,
 	PermissionSkillDefinitionUpdate,

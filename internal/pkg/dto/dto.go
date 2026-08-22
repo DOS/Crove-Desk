@@ -7,6 +7,7 @@ type AuthPrincipal struct {
 	Username    string
 	Nickname    string
 	Avatar      string
+	UserType    enums.UserType
 	Status      enums.Status
 	Roles       []string
 	Permissions []string

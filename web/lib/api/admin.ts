@@ -27,6 +27,7 @@ export type AdminUser = {
   avatar: string
   mobile?: string
   email?: string
+  userType: string
   status: number
   isSystem: boolean
   lastLoginAt?: string
@@ -2304,6 +2305,184 @@ export function debugKnowledgeSearch(payload: KnowledgeSearchPayload) {
   return request<KnowledgeSearchResponse>("/api/dashboard/knowledge-retrieve/debug/search", {
     method: "POST",
     body: JSON.stringify(payload),
+  })
+}
+
+export type AdminSupportCategory = {
+  id: number
+  name: string
+  slug: string
+  description: string
+  parentId?: number
+  sortNo: number
+  status: number
+  remark: string
+}
+
+export type AdminSupportHelpPage = {
+  id: number
+  parentId: number
+  title: string
+  slug: string
+  summary: string
+  contentType: string
+  content: string
+  coverUrl: string
+  tags: string[]
+  status: string
+  sortNo: number
+  viewCount: number
+  helpfulCount: number
+  unhelpfulCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type AdminSupportQuestion = {
+  id: number
+  categoryId: number
+  categoryName: string
+  userId: number
+  userName: string
+  userType: string
+  title: string
+  content: string
+  tags: string[]
+  status: string
+  bestAnswerId: number
+  answerCount: number
+  voteCount: number
+  viewCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type AdminSupportAnswer = {
+  id: number
+  questionId: number
+  authorType: string
+  authorName: string
+  content: string
+  status: string
+  voteCount: number
+  isBestAnswer: boolean
+  createdAt: string
+}
+
+export type AdminSupportQuestionDetail = {
+  question: AdminSupportQuestion
+  answers: AdminSupportAnswer[]
+}
+
+export function fetchSupportHelpPagesAdmin(query?: Record<string, string | number | undefined>) {
+  return request<PageResult<AdminSupportHelpPage>>(`/api/dashboard/support-help-page/list${toQueryString(query)}`)
+}
+
+export function fetchSupportHelpPagesAllAdmin() {
+  return request<AdminSupportHelpPage[]>("/api/dashboard/support-help-page/list_all")
+}
+
+export function fetchSupportHelpPageAdmin(id: number) {
+  return request<AdminSupportHelpPage>(`/api/dashboard/support-help-page/${id}`)
+}
+
+export function saveSupportHelpPageAdmin(payload: Partial<AdminSupportHelpPage>) {
+  return request<AdminSupportHelpPage>(payload.id ? "/api/dashboard/support-help-page/update" : "/api/dashboard/support-help-page/create", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateSupportHelpPageSettingsAdmin(payload: Pick<AdminSupportHelpPage, "id" | "parentId" | "slug" | "summary">) {
+  return request<AdminSupportHelpPage>("/api/dashboard/support-help-page/update_settings", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteSupportHelpPageAdmin(id: number) {
+  return request<void>("/api/dashboard/support-help-page/delete", {
+    method: "POST",
+    body: JSON.stringify({ id }),
+  })
+}
+
+export function updateSupportHelpPageSortAdmin(payload: { parentId: number; ids: number[] }) {
+  return request<void>("/api/dashboard/support-help-page/update_sort", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}
+
+export function changeSupportHelpPageStatusAdmin(id: number, status: "draft" | "published" | "hidden") {
+  return request<AdminSupportHelpPage>("/api/dashboard/support-help-page/change_status", {
+    method: "POST",
+    body: JSON.stringify({ id, status }),
+  })
+}
+
+export function fetchSupportQuestionCategoriesAdmin(query?: Record<string, string | number | undefined>) {
+  return request<PageResult<AdminSupportCategory>>(`/api/dashboard/support-question-category/list${toQueryString(query)}`)
+}
+
+export function fetchSupportQuestionCategoriesAllAdmin() {
+  return request<AdminSupportCategory[]>("/api/dashboard/support-question-category/list_all")
+}
+
+export function saveSupportQuestionCategoryAdmin(payload: Partial<AdminSupportCategory>) {
+  return request<AdminSupportCategory>(payload.id ? "/api/dashboard/support-question-category/update" : "/api/dashboard/support-question-category/create", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteSupportQuestionCategoryAdmin(id: number) {
+	return request<void>("/api/dashboard/support-question-category/delete", {
+		method: "POST",
+		body: JSON.stringify({ id }),
+	})
+}
+
+export function updateSupportQuestionCategorySortAdmin(ids: number[]) {
+	return request<void>("/api/dashboard/support-question-category/update_sort", {
+		method: "POST",
+		body: JSON.stringify(ids),
+	})
+}
+
+export function fetchSupportQuestionsAdmin(query?: Record<string, string | number | undefined>) {
+  return request<PageResult<AdminSupportQuestion>>(`/api/dashboard/support-question/list${toQueryString(query)}`)
+}
+
+export function fetchSupportQuestionAdmin(id: number) {
+  return request<AdminSupportQuestionDetail>(`/api/dashboard/support-question/${id}`)
+}
+
+export function moderateSupportQuestionAdmin(id: number, status: string) {
+  return request<void>("/api/dashboard/support-question/moderate", {
+    method: "POST",
+    body: JSON.stringify({ id, status }),
+  })
+}
+
+export function createSupportAnswerAdmin(questionId: number, content: string) {
+  return request<AdminSupportAnswer>("/api/dashboard/support-question/answer/create", {
+    method: "POST",
+    body: JSON.stringify({ questionId, content }),
+  })
+}
+
+export function moderateSupportAnswerAdmin(id: number, status: string) {
+  return request<void>("/api/dashboard/support-question/answer/moderate", {
+    method: "POST",
+    body: JSON.stringify({ id, status }),
+  })
+}
+
+export function acceptSupportAnswerAdmin(questionId: number, answerId: number) {
+  return request<void>("/api/dashboard/support-question/accept_answer", {
+    method: "POST",
+    body: JSON.stringify({ questionId, answerId }),
   })
 }
 
