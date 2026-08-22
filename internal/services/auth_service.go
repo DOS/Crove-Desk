@@ -340,7 +340,7 @@ func (s *authService) loadUserPermissionCodes(tx *gorm.DB, userID int64) ([]stri
 		Joins("JOIN t_user_role AS ur ON ur.role_id = rp.role_id").
 		Where("ur.user_id = ?", userID).
 		Where("p.status = ?", enums.StatusOk)
-	if err := db.Order("p.sort_no ASC, p.id ASC").Scan(&permissionRows).Error; err != nil {
+	if err := db.Scan(&permissionRows).Error; err != nil {
 		return nil, err
 	}
 
