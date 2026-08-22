@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"agent-desk/internal/pkg/config"
 	"os"
 	"path/filepath"
 	"testing"
@@ -62,5 +63,17 @@ func TestEnsureSQLiteDir(t *testing.T) {
 		t.Fatalf("os.Stat() error = %v", err)
 	} else if !info.IsDir() {
 		t.Fatalf("expected %q to be a directory", filepath.Dir(dbPath))
+	}
+}
+
+func TestInitDB_UnsupportedType(t *testing.T) {
+	t.Parallel()
+
+	_, err := InitDB(config.DBConfig{
+		Type: "oracle",
+		DSN:  "test",
+	})
+	if err == nil {
+		t.Fatal("expected error for unsupported db type, got nil")
 	}
 }

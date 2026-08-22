@@ -4,7 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"log/slog"
-	"path/filepath"
+	"path"
 	"strings"
 	"sync"
 
@@ -78,15 +78,15 @@ func loadMessages() {
 			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yml") {
 				continue
 			}
-			path := filepath.Join("locales", entry.Name())
-			data, err := localeFiles.ReadFile(path)
+			filePath := path.Join("locales", entry.Name())
+			data, err := localeFiles.ReadFile(filePath)
 			if err != nil {
-				slog.Error("read locale file failed", "file", path, "err", err)
+				slog.Error("read locale file failed", "file", filePath, "err", err)
 				continue
 			}
 			values := make(map[string]string)
 			if err := yaml.Unmarshal(data, &values); err != nil {
-				slog.Error("parse locale file failed", "file", path, "err", err)
+				slog.Error("parse locale file failed", "file", filePath, "err", err)
 				continue
 			}
 			locale := strings.TrimSuffix(entry.Name(), ".yml")
