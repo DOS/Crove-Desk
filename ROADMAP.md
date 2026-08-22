@@ -38,9 +38,9 @@ gantt
 - [x] **1.1. Fork & Thiết lập Repository**:
   - [x] Fork source base từ `huabeitech/agent-desk` sang GitHub org `DOS` (`https://github.com/DOS/Crove-Desk`).
   - [x] Thiết lập bộ tài liệu kiến trúc kỹ thuật (`docs/ARCHITECTURE.md`) và quy chuẩn phát triển (`AGENTS.md`).
-- [ ] **1.2. Cấu hình Database & Vector DB**:
-  - [ ] Cấu hình kết nối PostgreSQL vào Supabase `dos.me` (Schema `desk`, user/role `desk_app`).
-  - [ ] Đảm bảo cơ chế AutoMigrate tương thích cả PostgreSQL và SQLite/MySQL cho dev local.
+- [x] **1.2. Cấu hình Database & Vector DB**:
+  - [x] Cấu hình kết nối PostgreSQL vào Supabase `dos.me` (Schema `desk`, user/role `desk_app`, Session Pooler port `5432`).
+  - [x] Đảm bảo cơ chế AutoMigrate tương thích cả PostgreSQL, MySQL và SQLite cho dev local.
   - [ ] Thiết lập Qdrant Vector DB local trên VM `crove-server` phục vụ RAG.
 - [ ] **1.3. Triển khai Docker & Cloudflare Tunnel**:
   - [ ] Viết cấu hình `docker-compose.prod.yml` và Dockerfile tối ưu hóa cho Go binary + Next.js standalone.
