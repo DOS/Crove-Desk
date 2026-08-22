@@ -27,6 +27,7 @@ const (
 )
 
 var (
+	oidcMu           sync.Mutex
 	oidcCfg          config.OIDCConfig
 	provider         *gooidc.Provider
 	oauthConfig      *oauth2.Config
@@ -62,6 +63,9 @@ type loginTicket struct {
 }
 
 func Init(ctx context.Context) error {
+	oidcMu.Lock()
+	defer oidcMu.Unlock()
+
 	provider = nil
 	oauthConfig = nil
 	idTokenVerifier = nil
@@ -85,7 +89,13 @@ func Init(ctx context.Context) error {
 		return i18nx.Errorf("error.e0040")
 	}
 
-	p, err := gooidc.NewProvider(ctx, strings.TrimSpace(cfg.Issuer))
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	connCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	p, err := gooidc.NewProvider(connCtx, strings.TrimSpace(cfg.Issuer))
 	if err != nil {
 		return err
 	}
@@ -105,11 +115,20 @@ func Init(ctx context.Context) error {
 	return nil
 }
 
+func ensureInitialized(ctx context.Context) {
+	if !Enabled() && config.Current().OIDC.Enabled {
+		_ = Init(ctx)
+	}
+}
+
 func Enabled() bool {
+	oidcMu.Lock()
+	defer oidcMu.Unlock()
 	return oidcCfg.Enabled && provider != nil && oauthConfig != nil && idTokenVerifier != nil
 }
 
 func BuildAuthCodeURL(next string) (string, error) {
+	ensureInitialized(context.Background())
 	if !Enabled() {
 		return "", errorsx.BusinessErrorI18n(1, "error.oidc.loginDisabled")
 	}
@@ -117,10 +136,13 @@ func BuildAuthCodeURL(next string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	oidcMu.Lock()
+	defer oidcMu.Unlock()
 	return oauthConfig.AuthCodeURL(state), nil
 }
 
 func ExchangeCode(ctx context.Context, code string) (*Profile, error) {
+	ensureInitialized(ctx)
 	if !Enabled() {
 		return nil, errorsx.BusinessErrorI18n(1, "error.oidc.loginDisabled")
 	}
@@ -128,7 +150,14 @@ func ExchangeCode(ctx context.Context, code string) (*Profile, error) {
 	if code == "" {
 		return nil, errorsx.InvalidParamI18n("error.e0041")
 	}
-	token, err := oauthConfig.Exchange(ctx, code)
+
+	oidcMu.Lock()
+	verifier := idTokenVerifier
+	oauthCfg := oauthConfig
+	prov := provider
+	oidcMu.Unlock()
+
+	token, err := oauthCfg.Exchange(ctx, code)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +165,7 @@ func ExchangeCode(ctx context.Context, code string) (*Profile, error) {
 	if !ok || strings.TrimSpace(rawIDToken) == "" {
 		return nil, errorsx.UnauthorizedI18n("error.e0038")
 	}
-	idToken, err := idTokenVerifier.Verify(ctx, rawIDToken)
+	idToken, err := verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +173,7 @@ func ExchangeCode(ctx context.Context, code string) (*Profile, error) {
 	if err != nil {
 		return nil, err
 	}
-	userInfo, err := provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
+	userInfo, err := prov.UserInfo(ctx, oauth2.StaticTokenSource(token))
 	if err == nil && userInfo != nil && strings.TrimSpace(userInfo.Subject) == profile.Subject {
 		if mergedProfile, mergeErr := profileFromUserInfo(userInfo, profile); mergeErr == nil {
 			profile = mergedProfile
