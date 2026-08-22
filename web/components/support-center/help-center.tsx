@@ -45,7 +45,6 @@ import { useSupportAuth } from "@/components/support-center/support-auth-provide
 import { SupportEmptyState as EmptyState, SupportFormField as LabeledField, SupportQuestionStatusBadge as QuestionStatusBadge, SupportSearchInput } from "@/components/support-center/support-ui"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { useI18n } from "@/i18n/provider"
 import {
   acceptSupportAnswer,
@@ -452,7 +451,7 @@ export function SupportQuestionDetail() {
   }, [pathname, searchParams])
   const [question, setQuestion] = useState<SupportQuestion | null>(null)
   const [answers, setAnswers] = useState<SupportAnswer[]>([])
-  const [content, setContent] = useState("")
+  const [content, setContent] = useState<ContentValue>({ mode: "html", raw: "" })
   const [submitting, setSubmitting] = useState(false)
 
   const reload = () => {
@@ -471,8 +470,8 @@ export function SupportQuestionDetail() {
     setSubmitting(true)
     try {
       await ensureSupportLogin()
-      await createSupportAnswer({ questionId: question.id, content })
-      setContent("")
+      await createSupportAnswer({ questionId: question.id, contentType: content.mode, content: content.raw })
+      setContent({ mode: "html", raw: "" })
       toast.success(t("supportPublic.toast.answerCreated"))
       reload()
     } finally {
@@ -502,7 +501,7 @@ export function SupportQuestionDetail() {
               <span>{t("supportPublic.questions.updatedAt", { date: formatDateTime(question.updatedAt || question.createdAt) })}</span>
               <QuestionStatusBadge status={question.status} />
             </div>
-            <SupportQuestionArticleContent id={`support-question-${question.id}`} content={question.content} />
+            <SupportQuestionArticleContent id={`support-question-${question.id}`} content={question.content} contentType={question.contentType} />
             <div className="mt-8 flex flex-wrap items-center gap-2 border-t pt-5">
               <Button variant="outline" size="sm" onClick={() => void ensureSupportLogin().then(() => voteSupportQuestion(question.id)).then(reload)}>
                 <ThumbsUpIcon /> {question.voteCount}
@@ -520,8 +519,18 @@ export function SupportQuestionDetail() {
             <Card className="mt-5 rounded-md border-border bg-card shadow-none">
               <CardContent className="p-5">
                 <h2 className="font-semibold">{t("supportPublic.answer.title")}</h2>
-                <Textarea value={content} onChange={(event) => setContent(event.target.value)} rows={6} placeholder={t("supportPublic.answer.placeholder")} className="mt-3 bg-card" />
-                <Button className="mt-3" disabled={submitting || !content.trim()} onClick={() => void submitAnswer()}>
+                <div className="mt-3 min-w-0">
+                  <ContentEditor
+                    value={content}
+                    onChange={setContent}
+                    placeholder={t("supportPublic.answer.placeholder")}
+                    disabled={submitting}
+                    allowedModes={["html", "markdown"]}
+                    height={260}
+                    className="min-w-0"
+                  />
+                </div>
+                <Button className="mt-3" disabled={submitting || !content.raw.trim()} onClick={() => void submitAnswer()}>
                   {submitting ? t("supportPublic.actions.publishing") : t("supportPublic.actions.publishAnswer")}
                 </Button>
               </CardContent>
@@ -603,6 +612,7 @@ export function SupportAskQuestion() {
       const question = await createSupportQuestion({
         categoryId,
         title,
+        contentType: content.mode,
         content: content.raw,
         tags: tags.split(",").map((item) => item.trim()).filter(Boolean),
       })
@@ -1149,10 +1159,10 @@ function questionCategorySlugFromPath(pathname: string) {
   return slug && slug !== "ask" && slug !== "detail" ? decodeURIComponent(slug) : ""
 }
 
-function SupportQuestionArticleContent({ content, id }: { content: string; id: string }) {
-  const contentType = questionContentType(content)
-  useHtmlArticleEnhancements(id, content, contentType)
-  return <SupportArticleContent id={id} content={content} contentType={contentType} />
+function SupportQuestionArticleContent({ content, contentType, id }: { content: string; contentType?: string; id: string }) {
+  const resolvedContentType = contentType || questionContentType(content)
+  useHtmlArticleEnhancements(id, content, resolvedContentType)
+  return <SupportArticleContent id={id} content={content} contentType={resolvedContentType} />
 }
 
 function questionContentType(content: string) {
@@ -1404,7 +1414,7 @@ function AnswerCard({ answer, questionId, onChanged }: { answer: SupportAnswer; 
           {answer.isBestAnswer && <Badge className="bg-emerald-600 text-white"><CheckCircle2Icon /> {t("supportPublic.answer.best")}</Badge>}
         </div>
         <div className="mt-4">
-          <SupportQuestionArticleContent id={`support-answer-${answer.id}`} content={answer.content} />
+          <SupportQuestionArticleContent id={`support-answer-${answer.id}`} content={answer.content} contentType={answer.contentType} />
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => void ensureSupportLogin().then(() => voteSupportAnswer(answer.id)).then(onChanged)}>

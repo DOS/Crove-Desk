@@ -62,6 +62,7 @@ type SupportQuestionResponse struct {
 	UserName           string                        `json:"userName"`
 	UserType           enums.UserType                `json:"userType"`
 	Title              string                        `json:"title"`
+	ContentType        string                        `json:"contentType"`
 	Content            string                        `json:"content"`
 	Tags               []string                      `json:"tags"`
 	Status             enums.SupportQuestionStatus   `json:"status"`
@@ -82,6 +83,7 @@ type SupportAnswerResponse struct {
 	AuthorType   enums.SupportAnswerAuthorType `json:"authorType"`
 	AuthorID     int64                         `json:"authorId"`
 	AuthorName   string                        `json:"authorName"`
+	ContentType  string                        `json:"contentType"`
 	Content      string                        `json:"content"`
 	Status       enums.SupportAnswerStatus     `json:"status"`
 	VoteCount    int64                         `json:"voteCount"`

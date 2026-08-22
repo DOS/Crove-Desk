@@ -46,6 +46,7 @@ export type SupportQuestion = {
   userName: string
   userType: string
   title: string
+  contentType: string
   content: string
   tags: string[]
   status: string
@@ -63,6 +64,7 @@ export type SupportAnswer = {
   authorType: string
   authorId: number
   authorName: string
+  contentType: string
   content: string
   status: string
   voteCount: number
@@ -140,6 +142,7 @@ export function fetchSupportQuestion(id: number) {
 export function createSupportQuestion(payload: {
   categoryId: number
   title: string
+  contentType: string
   content: string
   tags: string[]
 }) {
@@ -149,7 +152,7 @@ export function createSupportQuestion(payload: {
   })
 }
 
-export function createSupportAnswer(payload: { questionId: number; content: string }) {
+export function createSupportAnswer(payload: { questionId: number; contentType: string; content: string }) {
   return request<SupportAnswer>("/api/support/answer/create", {
     method: "POST",
     body: JSON.stringify(payload),

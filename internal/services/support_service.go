@@ -391,7 +391,7 @@ func (s *supportService) CreateQuestion(req request.CreateSupportQuestionRequest
 	}
 	tags, _ := json.Marshal(normalizeTags(req.Tags))
 	now := time.Now()
-	item := &models.SupportQuestion{CategoryID: req.CategoryID, UserID: principal.UserID, Title: title, Content: content, TagsJSON: string(tags), Status: enums.SupportQuestionStatusNormal, AuditFields: supportAuditFields(principal.UserID, supportPrincipalName(principal), now)}
+	item := &models.SupportQuestion{CategoryID: req.CategoryID, UserID: principal.UserID, Title: title, ContentType: normalizeContentType(req.ContentType), Content: content, TagsJSON: string(tags), Status: enums.SupportQuestionStatusNormal, AuditFields: supportAuditFields(principal.UserID, supportPrincipalName(principal), now)}
 	if err := repositories.SupportQuestionRepository.Create(sqls.DB(), item); err != nil {
 		return nil, err
 	}
@@ -410,24 +410,24 @@ func (s *supportService) UpdateQuestion(req request.UpdateSupportQuestionRequest
 		return errorsx.BusinessError(1, "resolved or closed question cannot be edited")
 	}
 	tags, _ := json.Marshal(normalizeTags(req.Tags))
-	return repositories.SupportQuestionRepository.Updates(sqls.DB(), req.ID, map[string]any{"category_id": req.CategoryID, "title": strings.TrimSpace(req.Title), "content": strings.TrimSpace(req.Content), "tags_json": string(tags), "update_user_id": principal.UserID, "update_user_name": supportPrincipalName(principal), "updated_at": time.Now()})
+	return repositories.SupportQuestionRepository.Updates(sqls.DB(), req.ID, map[string]any{"category_id": req.CategoryID, "title": strings.TrimSpace(req.Title), "content_type": normalizeContentType(req.ContentType), "content": strings.TrimSpace(req.Content), "tags_json": string(tags), "update_user_id": principal.UserID, "update_user_name": supportPrincipalName(principal), "updated_at": time.Now()})
 }
 
 func (s *supportService) CreateSupportUserAnswer(req request.CreateSupportAnswerRequest, principal *dto.AuthPrincipal) (*models.SupportAnswer, error) {
 	if principal == nil {
 		return nil, errorsx.Unauthorized("login is required")
 	}
-	return s.createAnswer(req.QuestionID, strings.TrimSpace(req.Content), supportAuthorType(principal), principal.UserID, supportPrincipalName(principal))
+	return s.createAnswer(req.QuestionID, normalizeContentType(req.ContentType), strings.TrimSpace(req.Content), supportAuthorType(principal), principal.UserID, supportPrincipalName(principal))
 }
 
 func (s *supportService) CreateUserAnswer(req request.CreateSupportAnswerRequest, operator *dto.AuthPrincipal) (*models.SupportAnswer, error) {
 	if operator == nil {
 		return nil, errorsx.Unauthorized("login is required")
 	}
-	return s.createAnswer(req.QuestionID, strings.TrimSpace(req.Content), supportAuthorType(operator), operator.UserID, supportPrincipalName(operator))
+	return s.createAnswer(req.QuestionID, normalizeContentType(req.ContentType), strings.TrimSpace(req.Content), supportAuthorType(operator), operator.UserID, supportPrincipalName(operator))
 }
 
-func (s *supportService) createAnswer(questionID int64, content string, authorType enums.SupportAnswerAuthorType, authorID int64, authorName string) (*models.SupportAnswer, error) {
+func (s *supportService) createAnswer(questionID int64, contentType, content string, authorType enums.SupportAnswerAuthorType, authorID int64, authorName string) (*models.SupportAnswer, error) {
 	if content == "" {
 		return nil, errorsx.InvalidParam("answer content is required")
 	}
@@ -436,7 +436,7 @@ func (s *supportService) createAnswer(questionID int64, content string, authorTy
 		return nil, errorsx.InvalidParam("question is unavailable")
 	}
 	now := time.Now()
-	answer := &models.SupportAnswer{QuestionID: questionID, AuthorType: authorType, AuthorID: authorID, Content: content, Status: enums.SupportAnswerStatusNormal, AuditFields: supportAuditFields(authorID, authorName, now)}
+	answer := &models.SupportAnswer{QuestionID: questionID, AuthorType: authorType, AuthorID: authorID, ContentType: contentType, Content: content, Status: enums.SupportAnswerStatusNormal, AuditFields: supportAuditFields(authorID, authorName, now)}
 	if err := sqls.WithTransaction(func(ctx *sqls.TxContext) error {
 		if err := repositories.SupportAnswerRepository.Create(ctx.Tx, answer); err != nil {
 			return err

@@ -50,18 +50,20 @@ type SaveSupportQuestionCategoryRequest struct {
 }
 
 type CreateSupportQuestionRequest struct {
-	CategoryID int64    `json:"categoryId"`
-	Title      string   `json:"title"`
-	Content    string   `json:"content"`
-	Tags       []string `json:"tags"`
+	CategoryID  int64    `json:"categoryId"`
+	Title       string   `json:"title"`
+	ContentType string   `json:"contentType"`
+	Content     string   `json:"content"`
+	Tags        []string `json:"tags"`
 }
 
 type UpdateSupportQuestionRequest struct {
-	ID         int64    `json:"id"`
-	CategoryID int64    `json:"categoryId"`
-	Title      string   `json:"title"`
-	Content    string   `json:"content"`
-	Tags       []string `json:"tags"`
+	ID          int64    `json:"id"`
+	CategoryID  int64    `json:"categoryId"`
+	Title       string   `json:"title"`
+	ContentType string   `json:"contentType"`
+	Content     string   `json:"content"`
+	Tags        []string `json:"tags"`
 }
 
 type ModerateSupportQuestionRequest struct {
@@ -70,13 +72,15 @@ type ModerateSupportQuestionRequest struct {
 }
 
 type CreateSupportAnswerRequest struct {
-	QuestionID int64  `json:"questionId"`
-	Content    string `json:"content"`
+	QuestionID  int64  `json:"questionId"`
+	ContentType string `json:"contentType"`
+	Content     string `json:"content"`
 }
 
 type UpdateSupportAnswerRequest struct {
-	ID      int64  `json:"id"`
-	Content string `json:"content"`
+	ID          int64  `json:"id"`
+	ContentType string `json:"contentType"`
+	Content     string `json:"content"`
 }
 
 type ModerateSupportAnswerRequest struct {

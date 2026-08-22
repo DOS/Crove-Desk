@@ -207,6 +207,53 @@ func TestUpdateHelpPageSettingsOnlyUpdatesSettingsFields(t *testing.T) {
 	}
 }
 
+func TestSupportQuestionAndAnswerContentType(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&models.SupportQuestion{}, &models.SupportAnswer{}, &models.SupportQuestionCategory{}); err != nil {
+		t.Fatalf("migrate support question models: %v", err)
+	}
+	sqls.SetDB(db)
+	principal := &dto.AuthPrincipal{UserID: 1, Username: "customer"}
+
+	question, err := SupportService.CreateQuestion(request.CreateSupportQuestionRequest{
+		CategoryID:  1,
+		Title:       "Rich text question",
+		ContentType: "html",
+		Content:     "<p>Hello</p>",
+	}, principal)
+	if err != nil {
+		t.Fatalf("create question: %v", err)
+	}
+	if question.ContentType != "html" {
+		t.Fatalf("question content type = %q, want html", question.ContentType)
+	}
+	answer, err := SupportService.CreateSupportUserAnswer(request.CreateSupportAnswerRequest{
+		QuestionID:  question.ID,
+		ContentType: "markdown",
+		Content:     "**Answer**",
+	}, principal)
+	if err != nil {
+		t.Fatalf("create answer: %v", err)
+	}
+	if answer.ContentType != "markdown" {
+		t.Fatalf("answer content type = %q, want markdown", answer.ContentType)
+	}
+	defaultQuestion, err := SupportService.CreateQuestion(request.CreateSupportQuestionRequest{
+		CategoryID: 1,
+		Title:      "Default question",
+		Content:    "plain content",
+	}, principal)
+	if err != nil {
+		t.Fatalf("create default question: %v", err)
+	}
+	if defaultQuestion.ContentType != "markdown" {
+		t.Fatalf("default question content type = %q, want markdown", defaultQuestion.ContentType)
+	}
+}
+
 func TestSupportQuestionCategorySort(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {

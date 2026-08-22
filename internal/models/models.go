@@ -1001,6 +1001,7 @@ type SupportQuestion struct {
 	CategoryID         int64                         `gorm:"type:bigint;not null;default:0;index"`
 	UserID             int64                         `gorm:"type:bigint;not null;index"`
 	Title              string                        `gorm:"type:varchar(255);not null;default:'';index"`
+	ContentType        string                        `gorm:"type:varchar(20);not null;default:'markdown'"`
 	Content            string                        `gorm:"type:text"`
 	TagsJSON           string                        `gorm:"type:text"`
 	Status             enums.SupportQuestionStatus   `gorm:"type:varchar(20);not null;default:'normal';index"`
@@ -1020,6 +1021,7 @@ type SupportAnswer struct {
 	QuestionID   int64                         `gorm:"type:bigint;not null;index"`
 	AuthorType   enums.SupportAnswerAuthorType `gorm:"type:varchar(20);not null;default:'customer';index"`
 	AuthorID     int64                         `gorm:"type:bigint;not null;index"`
+	ContentType  string                        `gorm:"type:varchar(20);not null;default:'markdown'"`
 	Content      string                        `gorm:"type:text"`
 	Status       enums.SupportAnswerStatus     `gorm:"type:varchar(20);not null;default:'normal';index"`
 	VoteCount    int64                         `gorm:"type:bigint;not null;default:0"`
