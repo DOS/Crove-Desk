@@ -51,7 +51,7 @@ storage:
 vectorDB:
   type: qdrant
   qdrant:
-    host: qdrant
+    host: desk-qdrant
     grpcPort: 6334
     apiKey: ""
     useTls: false
