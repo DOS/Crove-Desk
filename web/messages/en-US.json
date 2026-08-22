@@ -121,7 +121,7 @@
     "signIn": "Login",
     "continueWith": "Or continue with",
     "wxworkSignIn": "Sign in with WeCom",
-    "oidcSignIn": "Sign in with OIDC",
+    "oidcSignIn": "Sign in with DOS ID",
     "noAccount": "Don't have an account?",
     "signUp": "Sign up",
     "termsPrefix": "By clicking continue, you agree to our",
@@ -132,9 +132,9 @@
     "wxworkMissingTicket": "The WeCom sign-in ticket is missing.",
     "wxworkFailed": "WeCom sign-in failed.",
     "wxworkSigningIn": "Signing in with WeCom",
-    "oidcMissingTicket": "The OIDC sign-in ticket is missing.",
-    "oidcFailed": "OIDC sign-in failed.",
-    "oidcSigningIn": "Signing in with OIDC",
+    "oidcMissingTicket": "The DOS ID sign-in ticket is missing.",
+    "oidcFailed": "DOS ID sign-in failed.",
+    "oidcSigningIn": "Signing in with DOS ID",
     "checkingTicket": "Verifying your sign-in ticket and opening the dashboard."
   },
   "legal": {
