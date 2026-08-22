@@ -20,6 +20,7 @@ type Config struct {
 	WxWork          WxWorkConfig          `yaml:"wxWork"`
 	OIDC            OIDCConfig            `yaml:"oidc"`
 	CustomerSession CustomerSessionConfig `yaml:"customerSession"`
+	Webhook         WebhookConfig         `yaml:"webhook"`
 }
 
 func (c Config) LanguageOrDefault() string {
@@ -208,6 +209,10 @@ type WxWorkConfig struct {
 	EncodingAESKey string `yaml:"encodingAESKey"`
 	// Notify 为企业微信应用消息通知配置。
 	Notify WxWorkNotifyConfig `yaml:"notify"`
+}
+
+type WebhookConfig struct {
+	DOSOrgSyncSecret string `yaml:"dosOrgSyncSecret"`
 }
 
 func Load(path string) (*Config, error) {

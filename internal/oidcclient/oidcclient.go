@@ -34,13 +34,20 @@ var (
 	loginTicketStore sync.Map
 )
 
+type OrganizationClaim struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Role string `json:"role"`
+}
+
 type Profile struct {
-	Subject           string `json:"sub"`
-	Email             string `json:"email,omitempty"`
-	PreferredUsername string `json:"preferred_username,omitempty"`
-	Name              string `json:"name,omitempty"`
-	Picture           string `json:"picture,omitempty"`
-	RawProfile        string `json:"-"`
+	Subject           string              `json:"sub"`
+	Email             string              `json:"email,omitempty"`
+	PreferredUsername string              `json:"preferred_username,omitempty"`
+	Name              string              `json:"name,omitempty"`
+	Picture           string              `json:"picture,omitempty"`
+	Organizations     []OrganizationClaim `json:"organizations,omitempty"`
+	RawProfile        string              `json:"-"`
 }
 
 type statePayload struct {
@@ -238,6 +245,7 @@ func profileFromIDToken(idToken *gooidc.IDToken) (*Profile, error) {
 		PreferredUsername: firstNonEmpty(claimString(claims, "preferred_username"), claimString(claims, "user_name"), claimString(claims, "nickname")),
 		Name:              firstNonEmpty(claimString(claims, "name"), claimString(claims, "full_name")),
 		Picture:           firstNonEmpty(claimString(claims, "picture"), claimString(claims, "avatar_url")),
+		Organizations:     claimOrganizations(claims),
 		RawProfile:        string(raw),
 	}
 	if strings.TrimSpace(profile.Subject) == "" {
@@ -258,6 +266,7 @@ func profileFromUserInfo(userInfo *gooidc.UserInfo, fallback *Profile) (*Profile
 		PreferredUsername: firstNonEmpty(claimString(claims, "preferred_username"), claimString(claims, "user_name"), claimString(claims, "nickname")),
 		Name:              firstNonEmpty(claimString(claims, "name"), claimString(claims, "full_name")),
 		Picture:           firstNonEmpty(claimString(claims, "picture"), claimString(claims, "avatar_url")),
+		Organizations:     claimOrganizations(claims),
 		RawProfile:        string(raw),
 	}
 	if fallback != nil {
@@ -265,6 +274,9 @@ func profileFromUserInfo(userInfo *gooidc.UserInfo, fallback *Profile) (*Profile
 		profile.PreferredUsername = firstNonEmpty(profile.PreferredUsername, fallback.PreferredUsername)
 		profile.Name = firstNonEmpty(profile.Name, fallback.Name)
 		profile.Picture = firstNonEmpty(profile.Picture, fallback.Picture)
+		if len(profile.Organizations) == 0 {
+			profile.Organizations = fallback.Organizations
+		}
 	}
 	if profile.RawProfile == "" {
 		if fallback != nil {
@@ -275,6 +287,42 @@ func profileFromUserInfo(userInfo *gooidc.UserInfo, fallback *Profile) (*Profile
 		return nil, errorsx.UnauthorizedI18n("error.e0043")
 	}
 	return profile, nil
+}
+
+func claimOrganizations(claims map[string]any) []OrganizationClaim {
+	raw, ok := claims["organizations"]
+	if !ok || raw == nil {
+		raw, ok = claims["orgs"]
+	}
+	if !ok || raw == nil {
+		return nil
+	}
+
+	bytes, err := json.Marshal(raw)
+	if err != nil {
+		return nil
+	}
+	var orgs []OrganizationClaim
+	if err := json.Unmarshal(bytes, &orgs); err == nil && len(orgs) > 0 {
+		return orgs
+	}
+
+	var list []map[string]any
+	if err := json.Unmarshal(bytes, &list); err == nil {
+		for _, item := range list {
+			id := firstNonEmpty(claimString(item, "id"), claimString(item, "org_id"), claimString(item, "code"))
+			name := firstNonEmpty(claimString(item, "name"), claimString(item, "org_name"), id)
+			role := firstNonEmpty(claimString(item, "role"), "MEMBER")
+			if id != "" {
+				orgs = append(orgs, OrganizationClaim{
+					ID:   id,
+					Name: name,
+					Role: strings.ToUpper(role),
+				})
+			}
+		}
+	}
+	return orgs
 }
 
 func firstNonEmpty(values ...string) string {
