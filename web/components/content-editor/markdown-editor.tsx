@@ -9,7 +9,7 @@ import {
   useRef,
 } from "react"
 import { Maximize2Icon, Minimize2Icon } from "lucide-react"
-import { MdEditor, NormalToolbar, type ExposeParam } from "md-editor-rt"
+import { config, MdEditor, NormalToolbar, type ExposeParam } from "md-editor-rt"
 import { useTheme } from "next-themes"
 
 import "./markdown-editor.css"
@@ -17,6 +17,13 @@ import "./markdown-editor.css"
 import { EditorModeSwitch } from "./editor-mode-switch"
 import type { ContentMode, UploadImageHandler } from "./types"
 import { useI18n } from "@/i18n/provider"
+import { cn } from "@/lib/utils"
+
+config({
+  codeMirrorExtensions(extensions) {
+    return extensions.filter((extension) => extension.type !== "linkShortener")
+  },
+})
 
 export type MarkdownEditorRef = {
   focus: () => void
@@ -34,6 +41,7 @@ type MarkdownEditorProps = {
   disabled?: boolean
   onUploadImage?: UploadImageHandler
   height: string
+  scrollMode: "editor" | "document"
 }
 
 type MdEditorToolbars = NonNullable<ComponentProps<typeof MdEditor>["toolbars"]>
@@ -52,6 +60,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
       disabled = false,
       onUploadImage,
       height,
+      scrollMode,
     },
     ref
   ) {
@@ -128,10 +137,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
     }))
     return (
       <div
-        className="w-full rounded-lg border bg-background"
-        style={{ height }}
+        className={cn("w-full rounded-lg border bg-background", scrollMode === "document" && "flex min-h-full flex-col")}
+        style={scrollMode === "document" ? undefined : { height }}
       >
-        <div className="content-editor-markdown h-full">
+        <div className={cn("content-editor-markdown", scrollMode === "editor" && "h-full", scrollMode === "document" && "content-editor-markdown-document flex min-h-full flex-1 flex-col")}>
           <MdEditor
             ref={editorRef}
             id={editorId}
@@ -147,7 +156,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
             noHighlight
             placeholder={placeholder}
             disabled={disabled}
-            style={{ height: "100%" }}
+            style={scrollMode === "document" ? undefined : { height: "100%" }}
             onUploadImg={
               onUploadImage
                 ? async (files, callback) => {

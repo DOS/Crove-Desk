@@ -10,3 +10,11 @@
 .content-editor-toolbar:active {
   cursor: grabbing;
 }
+
+.content-editor-document .content-editor-toolbar,
+.content-editor-document .md-editor-toolbar-wrapper {
+  position: sticky;
+  top: var(--content-editor-toolbar-offset, 0px);
+  z-index: 10;
+  background: var(--background);
+}

@@ -192,6 +192,21 @@ export function DashboardCrudFieldControl<TItem>({
             className="font-mono text-xs leading-5"
             {...register(field.name)}
           />
+        ) : field.normalizeInput ? (
+          <Controller
+            control={control}
+            name={field.name}
+            render={({ field: controllerField }) => (
+              <Input
+                id={inputId}
+                type="text"
+                placeholder={field.placeholder}
+                aria-invalid={!!error}
+                value={String(controllerField.value ?? "")}
+                onChange={(event) => controllerField.onChange(field.normalizeInput!(event.target.value))}
+              />
+            )}
+          />
         ) : (
           <Input
             id={inputId}

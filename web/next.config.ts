@@ -12,7 +12,7 @@ export default function nextConfig(phase: string): NextConfig {
     output: "export",
     basePath: productionBasePath,
     assetPrefix: `${productionBasePath}/`,
-    trailingSlash: true,
+    trailingSlash: false,
     devIndicators: false,
     reactStrictMode: false,
   }
@@ -25,6 +25,18 @@ export default function nextConfig(phase: string): NextConfig {
     ...config,
     async rewrites() {
       return [
+        {
+          source: "/support/help/:slug+",
+          destination: "/support/help",
+        },
+        {
+          source: "/support/question/:id(\\d+)",
+          destination: "/support/question/detail?id=:id",
+        },
+        {
+          source: "/support/questions/:slug((?!ask$)[^/]+)",
+          destination: "/support/questions?category=:slug",
+        },
         {
           source: "/api/:path*",
           destination: `${backendBaseUrl}/api/:path*`,

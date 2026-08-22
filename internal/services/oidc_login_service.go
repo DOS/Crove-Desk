@@ -4,6 +4,7 @@ import (
 	"agent-desk/internal/models"
 	"agent-desk/internal/oidcclient"
 	"agent-desk/internal/pkg/config"
+	"agent-desk/internal/pkg/constants"
 	"agent-desk/internal/pkg/dto/response"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/errorsx"
@@ -90,7 +91,7 @@ func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authC
 			return errorsx.UnauthorizedI18n("error.e0200")
 		}
 
-		if err = repositories.UserRepository.Updates(ctx.Tx, user.ID, map[string]any{
+		userUpdates := map[string]any{
 			"nickname":         s.resolveOIDCNickname(user.Nickname, profile),
 			"avatar":           s.resolveOIDCAvatar(user.Avatar, profile),
 			"last_login_at":    time.Now(),
@@ -98,9 +99,18 @@ func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authC
 			"update_user_id":   user.ID,
 			"update_user_name": user.Username,
 			"updated_at":       time.Now(),
-		}); err != nil {
+		}
+		if (user.Email == nil || *user.Email == "") && profile.Email != "" {
+			if email := s.availableEmail(ctx.Tx, profile.Email); email != nil {
+				userUpdates["email"] = *email
+			}
+		}
+
+		if err = repositories.UserRepository.Updates(ctx.Tx, user.ID, userUpdates); err != nil {
 			return err
 		}
+
+		s.ensureDefaultOIDCRole(ctx.Tx, user)
 
 		if err = repositories.UserIdentityRepository.Updates(ctx.Tx, identity.ID, map[string]any{
 			"provider_name":    enums.GetThirdProviderLabel(enums.ThirdProviderOIDC),
@@ -135,6 +145,7 @@ func (s *oidcLoginService) createOIDCUser(ctx *sqls.TxContext, profile *oidcLogi
 		Email:        email,
 		Password:     "",
 		PasswordSalt: "",
+		UserType:     enums.UserTypeEmployee,
 		Status:       enums.StatusOk,
 		AuditFields: models.AuditFields{
 			CreatedAt:      now,
@@ -170,6 +181,7 @@ func (s *oidcLoginService) createOIDCUser(ctx *sqls.TxContext, profile *oidcLogi
 	if err := repositories.UserIdentityRepository.Create(ctx.Tx, identity); err != nil {
 		return nil, nil, err
 	}
+	s.ensureDefaultOIDCRole(ctx.Tx, user)
 	return user, identity, nil
 }
 
@@ -242,4 +254,34 @@ func normalizeOIDCUsername(value string) string {
 func shortSubjectHash(subject string) string {
 	sum := sha256.Sum256([]byte(strings.TrimSpace(subject)))
 	return hex.EncodeToString(sum[:])[:16]
+}
+
+func (s *oidcLoginService) ensureDefaultOIDCRole(tx *gorm.DB, user *models.User) {
+	if user == nil || user.ID <= 0 {
+		return
+	}
+	existingRole := repositories.UserRoleRepository.FindOne(tx, sqls.NewCnd().Eq("user_id", user.ID))
+	if existingRole != nil {
+		return
+	}
+	defaultRole := repositories.RoleRepository.GetByCode(tx, constants.RoleCodeAdmin)
+	if defaultRole == nil {
+		defaultRole = repositories.RoleRepository.GetByCode(tx, constants.RoleCodeSuperAdmin)
+	}
+	if defaultRole == nil {
+		return
+	}
+	now := time.Now()
+	_ = repositories.UserRoleRepository.Create(tx, &models.UserRole{
+		UserID: user.ID,
+		RoleID: defaultRole.ID,
+		AuditFields: models.AuditFields{
+			CreatedAt:      now,
+			CreateUserID:   user.ID,
+			CreateUserName: user.Username,
+			UpdatedAt:      now,
+			UpdateUserID:   user.ID,
+			UpdateUserName: user.Username,
+		},
+	})
 }

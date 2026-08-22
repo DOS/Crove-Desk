@@ -38,6 +38,7 @@ import { EditorModeSwitch } from "./editor-mode-switch"
 import { EditorToolbar } from "./toolbar"
 import type { ContentMode, EditorToolbarAction, UploadImageHandler } from "./types"
 import { useI18n } from "@/i18n/provider"
+import { cn } from "@/lib/utils"
 
 export type HtmlEditorRef = {
   focus: () => void
@@ -55,6 +56,7 @@ type HtmlEditorProps = {
   disabled?: boolean
   onUploadImage?: UploadImageHandler
   height: string
+  scrollMode: "editor" | "document"
 }
 
 export const HtmlEditor = forwardRef<HtmlEditorRef, HtmlEditorProps>(
@@ -71,14 +73,18 @@ export const HtmlEditor = forwardRef<HtmlEditorRef, HtmlEditorProps>(
       disabled = false,
       onUploadImage,
       height,
+      scrollMode,
     },
     ref
   ) {
     const t = useI18n()
     const imageInputRef = useRef<HTMLInputElement>(null)
     const [previewOnly, setPreviewOnly] = useState(false)
-    const proseClassName =
-      "h-full overflow-y-auto px-4 py-3 text-sm leading-7 text-foreground outline-none [&_.ProseMirror-focused]:outline-none [&_p]:m-0 [&_p]:mb-2 [&_h1]:mb-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-semibold [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:mb-1 [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-3 [&_code]:rounded-sm [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_img]:my-2 [&_img]:max-h-80 [&_img]:rounded-md [&_img]:object-contain [&_p.is-editor-empty:first-child]:before:text-muted-foreground"
+    const proseClassName = cn(
+      "px-4 py-3 text-sm leading-7 text-foreground outline-none [&_.ProseMirror-focused]:outline-none [&_p]:m-0 [&_p]:mb-2 [&_h1]:mb-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-semibold [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:mb-1 [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-3 [&_code]:rounded-sm [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_img]:my-2 [&_img]:max-h-80 [&_img]:rounded-md [&_img]:object-contain [&_p.is-editor-empty:first-child]:before:text-muted-foreground",
+      scrollMode === "editor" && "h-full overflow-y-auto",
+      scrollMode === "document" && "min-h-64 overflow-visible"
+    )
 
     const editor = useEditor({
       immediatelyRender: false,
@@ -342,7 +348,7 @@ export const HtmlEditor = forwardRef<HtmlEditorRef, HtmlEditorProps>(
     return (
       <div
         className="flex w-full flex-col rounded-lg border bg-background"
-        style={{ height }}
+        style={scrollMode === "document" ? undefined : { height }}
       >
         <input
           ref={imageInputRef}
@@ -354,14 +360,14 @@ export const HtmlEditor = forwardRef<HtmlEditorRef, HtmlEditorProps>(
           }}
         />
         <EditorToolbar actions={actions} />
-        <div className="min-h-0 flex-1 p-2">
+        <div className={cn("p-2", scrollMode === "editor" && "min-h-0 flex-1")}>
           {previewOnly ? (
             <div
               className={proseClassName}
               dangerouslySetInnerHTML={{ __html: value }}
             />
           ) : (
-            <EditorContent editor={editor} className="h-full" />
+            <EditorContent editor={editor} className={cn(scrollMode === "editor" && "h-full")} />
           )}
         </div>
       </div>
