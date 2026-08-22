@@ -36,6 +36,7 @@ func TestNewServerRegistersGinRoutes(t *testing.T) {
 		http.MethodGet + " /api/health",
 		http.MethodGet + " /api/auth/oidc_login",
 		http.MethodGet + " /api/auth/oidc_callback",
+		http.MethodGet + " /api/auth/callback/custom",
 		http.MethodPost + " /api/auth/oidc_exchange",
 		http.MethodGet + " /api/auth/profile",
 		http.MethodGet + " /api/dashboard/user/list",
