@@ -235,9 +235,9 @@ func profileFromIDToken(idToken *gooidc.IDToken) (*Profile, error) {
 	profile := &Profile{
 		Subject:           claimString(claims, "sub"),
 		Email:             claimString(claims, "email"),
-		PreferredUsername: claimString(claims, "preferred_username"),
-		Name:              claimString(claims, "name"),
-		Picture:           claimString(claims, "picture"),
+		PreferredUsername: firstNonEmpty(claimString(claims, "preferred_username"), claimString(claims, "user_name"), claimString(claims, "nickname")),
+		Name:              firstNonEmpty(claimString(claims, "name"), claimString(claims, "full_name")),
+		Picture:           firstNonEmpty(claimString(claims, "picture"), claimString(claims, "avatar_url")),
 		RawProfile:        string(raw),
 	}
 	if strings.TrimSpace(profile.Subject) == "" {
@@ -254,10 +254,10 @@ func profileFromUserInfo(userInfo *gooidc.UserInfo, fallback *Profile) (*Profile
 	raw, _ := json.Marshal(claims)
 	profile := &Profile{
 		Subject:           strings.TrimSpace(userInfo.Subject),
-		Email:             claimString(claims, "email"),
-		PreferredUsername: claimString(claims, "preferred_username"),
-		Name:              claimString(claims, "name"),
-		Picture:           claimString(claims, "picture"),
+		Email:             firstNonEmpty(claimString(claims, "email"), userInfo.Email),
+		PreferredUsername: firstNonEmpty(claimString(claims, "preferred_username"), claimString(claims, "user_name"), claimString(claims, "nickname")),
+		Name:              firstNonEmpty(claimString(claims, "name"), claimString(claims, "full_name")),
+		Picture:           firstNonEmpty(claimString(claims, "picture"), claimString(claims, "avatar_url")),
 		RawProfile:        string(raw),
 	}
 	if fallback != nil {
