@@ -952,7 +952,7 @@ type SupportHelpPage struct {
 	ViewCount                 int64                       `gorm:"type:bigint;not null;default:0"`
 	HelpfulCount              int64                       `gorm:"type:bigint;not null;default:0"`
 	UnhelpfulCount            int64                       `gorm:"type:bigint;not null;default:0"`
-	PublishedAt               *time.Time                  `gorm:"type:datetime;index"`
+	PublishedAt               *time.Time                  `gorm:"index"`
 	SyncedKnowledgeDocumentID int64                       `gorm:"type:bigint;not null;default:0;index"`
 	Remark                    string                      `gorm:"type:text"`
 	AuditFields
@@ -983,7 +983,7 @@ type SupportQuestion struct {
 	AnswerCount        int64                         `gorm:"type:bigint;not null;default:0"`
 	VoteCount          int64                         `gorm:"type:bigint;not null;default:0"`
 	ViewCount          int64                         `gorm:"type:bigint;not null;default:0"`
-	LastAnsweredAt     *time.Time                    `gorm:"type:datetime;index"`
+	LastAnsweredAt     *time.Time                    `gorm:"index"`
 	LastAnswerUserType enums.SupportAnswerAuthorType `gorm:"type:varchar(20);not null;default:''"`
 	LastAnswerUserID   int64                         `gorm:"type:bigint;not null;default:0"`
 	AuditFields
@@ -1007,8 +1007,8 @@ type SupportQuestionVote struct {
 	QuestionID int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_question_vote"`
 	UserID     int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_question_vote"`
 	VoteValue  int       `gorm:"type:int;not null;default:1"`
-	CreatedAt  time.Time `gorm:"type:datetime;not null;index"`
-	UpdatedAt  time.Time `gorm:"type:datetime;not null;index"`
+	CreatedAt  time.Time `gorm:"not null;index"`
+	UpdatedAt  time.Time `gorm:"not null;index"`
 }
 
 type SupportAnswerVote struct {
@@ -1016,8 +1016,8 @@ type SupportAnswerVote struct {
 	AnswerID  int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_answer_vote"`
 	UserID    int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_answer_vote"`
 	VoteValue int       `gorm:"type:int;not null;default:1"`
-	CreatedAt time.Time `gorm:"type:datetime;not null;index"`
-	UpdatedAt time.Time `gorm:"type:datetime;not null;index"`
+	CreatedAt time.Time `gorm:"not null;index"`
+	UpdatedAt time.Time `gorm:"not null;index"`
 }
 
 // KnowledgeRetrieveLog 检索日志表。
