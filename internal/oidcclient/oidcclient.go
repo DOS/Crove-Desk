@@ -27,6 +27,7 @@ const (
 )
 
 var (
+	oidcMu           sync.Mutex
 	oidcCfg          config.OIDCConfig
 	provider         *gooidc.Provider
 	oauthConfig      *oauth2.Config
@@ -34,13 +35,20 @@ var (
 	loginTicketStore sync.Map
 )
 
+type OrganizationClaim struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Role string `json:"role"`
+}
+
 type Profile struct {
-	Subject           string `json:"sub"`
-	Email             string `json:"email,omitempty"`
-	PreferredUsername string `json:"preferred_username,omitempty"`
-	Name              string `json:"name,omitempty"`
-	Picture           string `json:"picture,omitempty"`
-	RawProfile        string `json:"-"`
+	Subject           string              `json:"sub"`
+	Email             string              `json:"email,omitempty"`
+	PreferredUsername string              `json:"preferred_username,omitempty"`
+	Name              string              `json:"name,omitempty"`
+	Picture           string              `json:"picture,omitempty"`
+	Organizations     []OrganizationClaim `json:"organizations,omitempty"`
+	RawProfile        string              `json:"-"`
 }
 
 type statePayload struct {
@@ -55,6 +63,9 @@ type loginTicket struct {
 }
 
 func Init(ctx context.Context) error {
+	oidcMu.Lock()
+	defer oidcMu.Unlock()
+
 	provider = nil
 	oauthConfig = nil
 	idTokenVerifier = nil
@@ -78,7 +89,13 @@ func Init(ctx context.Context) error {
 		return i18nx.Errorf("error.e0040")
 	}
 
-	p, err := gooidc.NewProvider(ctx, strings.TrimSpace(cfg.Issuer))
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	connCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	p, err := gooidc.NewProvider(connCtx, strings.TrimSpace(cfg.Issuer))
 	if err != nil {
 		return err
 	}
@@ -98,11 +115,20 @@ func Init(ctx context.Context) error {
 	return nil
 }
 
+func ensureInitialized(ctx context.Context) {
+	if !Enabled() && config.Current().OIDC.Enabled {
+		_ = Init(ctx)
+	}
+}
+
 func Enabled() bool {
+	oidcMu.Lock()
+	defer oidcMu.Unlock()
 	return oidcCfg.Enabled && provider != nil && oauthConfig != nil && idTokenVerifier != nil
 }
 
 func BuildAuthCodeURL(next string) (string, error) {
+	ensureInitialized(context.Background())
 	if !Enabled() {
 		return "", errorsx.BusinessErrorI18n(1, "error.oidc.loginDisabled")
 	}
@@ -110,10 +136,13 @@ func BuildAuthCodeURL(next string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	oidcMu.Lock()
+	defer oidcMu.Unlock()
 	return oauthConfig.AuthCodeURL(state), nil
 }
 
 func ExchangeCode(ctx context.Context, code string) (*Profile, error) {
+	ensureInitialized(ctx)
 	if !Enabled() {
 		return nil, errorsx.BusinessErrorI18n(1, "error.oidc.loginDisabled")
 	}
@@ -121,7 +150,14 @@ func ExchangeCode(ctx context.Context, code string) (*Profile, error) {
 	if code == "" {
 		return nil, errorsx.InvalidParamI18n("error.e0041")
 	}
-	token, err := oauthConfig.Exchange(ctx, code)
+
+	oidcMu.Lock()
+	verifier := idTokenVerifier
+	oauthCfg := oauthConfig
+	prov := provider
+	oidcMu.Unlock()
+
+	token, err := oauthCfg.Exchange(ctx, code)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +165,7 @@ func ExchangeCode(ctx context.Context, code string) (*Profile, error) {
 	if !ok || strings.TrimSpace(rawIDToken) == "" {
 		return nil, errorsx.UnauthorizedI18n("error.e0038")
 	}
-	idToken, err := idTokenVerifier.Verify(ctx, rawIDToken)
+	idToken, err := verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +173,7 @@ func ExchangeCode(ctx context.Context, code string) (*Profile, error) {
 	if err != nil {
 		return nil, err
 	}
-	userInfo, err := provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
+	userInfo, err := prov.UserInfo(ctx, oauth2.StaticTokenSource(token))
 	if err == nil && userInfo != nil && strings.TrimSpace(userInfo.Subject) == profile.Subject {
 		if mergedProfile, mergeErr := profileFromUserInfo(userInfo, profile); mergeErr == nil {
 			profile = mergedProfile
@@ -235,9 +271,10 @@ func profileFromIDToken(idToken *gooidc.IDToken) (*Profile, error) {
 	profile := &Profile{
 		Subject:           claimString(claims, "sub"),
 		Email:             claimString(claims, "email"),
-		PreferredUsername: claimString(claims, "preferred_username"),
-		Name:              claimString(claims, "name"),
-		Picture:           claimString(claims, "picture"),
+		PreferredUsername: firstNonEmpty(claimString(claims, "preferred_username"), claimString(claims, "user_name"), claimString(claims, "nickname")),
+		Name:              firstNonEmpty(claimString(claims, "name"), claimString(claims, "full_name")),
+		Picture:           firstNonEmpty(claimString(claims, "picture"), claimString(claims, "avatar_url")),
+		Organizations:     claimOrganizations(claims),
 		RawProfile:        string(raw),
 	}
 	if strings.TrimSpace(profile.Subject) == "" {
@@ -254,10 +291,11 @@ func profileFromUserInfo(userInfo *gooidc.UserInfo, fallback *Profile) (*Profile
 	raw, _ := json.Marshal(claims)
 	profile := &Profile{
 		Subject:           strings.TrimSpace(userInfo.Subject),
-		Email:             claimString(claims, "email"),
-		PreferredUsername: claimString(claims, "preferred_username"),
-		Name:              claimString(claims, "name"),
-		Picture:           claimString(claims, "picture"),
+		Email:             firstNonEmpty(claimString(claims, "email"), userInfo.Email),
+		PreferredUsername: firstNonEmpty(claimString(claims, "preferred_username"), claimString(claims, "user_name"), claimString(claims, "nickname")),
+		Name:              firstNonEmpty(claimString(claims, "name"), claimString(claims, "full_name")),
+		Picture:           firstNonEmpty(claimString(claims, "picture"), claimString(claims, "avatar_url")),
+		Organizations:     claimOrganizations(claims),
 		RawProfile:        string(raw),
 	}
 	if fallback != nil {
@@ -265,6 +303,9 @@ func profileFromUserInfo(userInfo *gooidc.UserInfo, fallback *Profile) (*Profile
 		profile.PreferredUsername = firstNonEmpty(profile.PreferredUsername, fallback.PreferredUsername)
 		profile.Name = firstNonEmpty(profile.Name, fallback.Name)
 		profile.Picture = firstNonEmpty(profile.Picture, fallback.Picture)
+		if len(profile.Organizations) == 0 {
+			profile.Organizations = fallback.Organizations
+		}
 	}
 	if profile.RawProfile == "" {
 		if fallback != nil {
@@ -275,6 +316,42 @@ func profileFromUserInfo(userInfo *gooidc.UserInfo, fallback *Profile) (*Profile
 		return nil, errorsx.UnauthorizedI18n("error.e0043")
 	}
 	return profile, nil
+}
+
+func claimOrganizations(claims map[string]any) []OrganizationClaim {
+	raw, ok := claims["organizations"]
+	if !ok || raw == nil {
+		raw, ok = claims["orgs"]
+	}
+	if !ok || raw == nil {
+		return nil
+	}
+
+	bytes, err := json.Marshal(raw)
+	if err != nil {
+		return nil
+	}
+	var orgs []OrganizationClaim
+	if err := json.Unmarshal(bytes, &orgs); err == nil && len(orgs) > 0 {
+		return orgs
+	}
+
+	var list []map[string]any
+	if err := json.Unmarshal(bytes, &list); err == nil {
+		for _, item := range list {
+			id := firstNonEmpty(claimString(item, "id"), claimString(item, "org_id"), claimString(item, "code"))
+			name := firstNonEmpty(claimString(item, "name"), claimString(item, "org_name"), id)
+			role := firstNonEmpty(claimString(item, "role"), "MEMBER")
+			if id != "" {
+				orgs = append(orgs, OrganizationClaim{
+					ID:   id,
+					Name: name,
+					Role: strings.ToUpper(role),
+				})
+			}
+		}
+	}
+	return orgs
 }
 
 func firstNonEmpty(values ...string) string {

@@ -36,8 +36,12 @@ func TestNewServerRegistersGinRoutes(t *testing.T) {
 		http.MethodGet + " /api/health",
 		http.MethodGet + " /api/auth/oidc_login",
 		http.MethodGet + " /api/auth/oidc_callback",
+		http.MethodGet + " /api/auth/callback/custom",
 		http.MethodPost + " /api/auth/oidc_exchange",
 		http.MethodGet + " /api/auth/profile",
+		http.MethodPost + " /api/webhooks/org-sync",
+		http.MethodGet + " /api/dashboard/organization/my_list",
+		http.MethodPost + " /api/dashboard/organization/switch",
 		http.MethodGet + " /api/dashboard/user/list",
 		http.MethodGet + " /api/dashboard/user/:id",
 		http.MethodPost + " /api/dashboard/user/create",
@@ -205,6 +209,10 @@ func TestNewServerSeparatesAPIStaticAndSPA(t *testing.T) {
 	}{
 		{path: "/api/not-exists", wantStatus: http.StatusNotFound, contentType: "application/json"},
 		{path: "/dashboard/not-exists", wantStatus: http.StatusOK, contentType: "text/html"},
+		{path: "/support/help/runtime-authored-slug", wantStatus: http.StatusOK, contentType: "text/html"},
+		{path: "/support/question/12345", wantStatus: http.StatusOK, contentType: "text/html"},
+		{path: "/support/questions/product", wantStatus: http.StatusOK, contentType: "text/html"},
+		{path: "/support/questions/ask", wantStatus: http.StatusOK, contentType: "text/html"},
 	}
 
 	for _, tt := range tests {

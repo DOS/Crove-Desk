@@ -54,6 +54,7 @@ func (s *authService) setAuthPrincipal(ctx *gin.Context, user *models.User, role
 		Username:    user.Username,
 		Nickname:    user.Nickname,
 		Avatar:      user.Avatar,
+		UserType:    user.UserType,
 		Status:      user.Status,
 		Roles:       roles,
 		Permissions: permissions,
@@ -201,6 +202,7 @@ func (s *authService) CurrentProfile(ctx *gin.Context) (*response.LoginResponse,
 			Username: principal.Username,
 			Nickname: principal.Nickname,
 			Avatar:   principal.Avatar,
+			UserType: principal.UserType,
 			Status:   principal.Status,
 			Roles:    principal.Roles,
 		},
@@ -258,6 +260,7 @@ func (s *authService) issueTokens(ctx *sqls.TxContext, user *models.User, client
 			Username: user.Username,
 			Nickname: user.Nickname,
 			Avatar:   user.Avatar,
+			UserType: user.UserType,
 			Status:   user.Status,
 			Roles:    roles,
 		},
@@ -340,7 +343,7 @@ func (s *authService) loadUserPermissionCodes(tx *gorm.DB, userID int64) ([]stri
 		Joins("JOIN t_user_role AS ur ON ur.role_id = rp.role_id").
 		Where("ur.user_id = ?", userID).
 		Where("p.status = ?", enums.StatusOk)
-	if err := db.Order("p.sort_no ASC, p.id ASC").Scan(&permissionRows).Error; err != nil {
+	if err := db.Scan(&permissionRows).Error; err != nil {
 		return nil, err
 	}
 
