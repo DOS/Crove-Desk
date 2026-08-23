@@ -571,19 +571,19 @@ export function SupportQuestionDetail() {
               <QuestionMetric icon={<EyeIcon className="size-3.5" />} value={question.viewCount} label={t("supportPublic.questions.views")} />
             </div>
 
-            <section className="mt-12" aria-label={t("supportPublic.questions.answers")}>
-              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <section className="mt-10" aria-label={t("supportPublic.questions.answers")}>
+              <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-base font-semibold">{t("supportPublic.questions.answers")}</h2>
+                  <h2 className="text-lg font-semibold tracking-tight">{t("supportPublic.questions.answers")}</h2>
                   <div className="mt-1 text-sm text-muted-foreground">{t("supportPublic.answer.count", { count: answerPage.total || question.answerCount })}</div>
                 </div>
-                <div className="flex gap-1 rounded-full bg-muted p-1">
+                <div className="inline-flex w-fit gap-1 rounded-lg bg-muted p-0.5">
                   {(["default", "latest", "hot"] as const).map((sort) => (
                     <button
                       key={sort}
                       type="button"
                       className={cn(
-                        "h-7 rounded-full px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        "h-7 rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         answerSort === sort ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
                       )}
                       aria-pressed={answerSort === sort}
@@ -595,7 +595,7 @@ export function SupportQuestionDetail() {
                 </div>
               </div>
               {answers.length ? (
-                <div className="space-y-6">
+                <div className="divide-y divide-border/70">
                   {answers.map((answer) => (
                     <AnswerCard key={answer.id} answer={answer} question={question} currentUserId={currentUserId} onChanged={reload} />
                   ))}
@@ -607,8 +607,8 @@ export function SupportQuestionDetail() {
                 </div>
               ) : <EmptyState text={t("supportPublic.empty.noAnswers")} />}
               {hasMoreAnswers ? (
-                <div className="mt-5 flex justify-center">
-                  <Button variant="ghost" size="sm" disabled={answersLoading} onClick={() => loadAnswers(answerPage.page + 1, true)}>
+                <div className="mt-4 flex justify-center">
+                  <Button variant="secondary" size="sm" className="rounded-full" disabled={answersLoading} onClick={() => loadAnswers(answerPage.page + 1, true)}>
                     {answersLoading ? <LoaderCircleIcon className="animate-spin" /> : <ChevronDownIcon />}
                     {answersLoading ? t("supportPublic.loading.answers") : t("supportPublic.actions.loadMore")}
                   </Button>
@@ -616,7 +616,7 @@ export function SupportQuestionDetail() {
               ) : null}
             </section>
 
-            <section className="mt-8 rounded-lg bg-muted/35 p-4 sm:p-5" aria-labelledby="support-answer-editor-title">
+            <section className="mt-6 border-t border-border/70 pt-5" aria-labelledby="support-answer-editor-title">
               <h2 id="support-answer-editor-title" className="text-base font-semibold">{t("supportPublic.answer.title")}</h2>
               <div className="mt-3 min-w-0">
                 <ContentEditor
@@ -1524,6 +1524,7 @@ function AnswerCard({ answer, question, currentUserId, onChanged }: { answer: Su
   const canAccept = !isDeleted && currentUserId > 0 && currentUserId === question.userId && !answer.isBestAnswer && answer.parentId === 0
   const isQuestionAuthor = answer.authorId === question.userId
   const isOfficial = answer.authorType === "employee"
+  const isReply = answer.parentId > 0
 
   useEffect(() => {
     setReplies(answer.replies || [])
@@ -1583,27 +1584,39 @@ function AnswerCard({ answer, question, currentUserId, onChanged }: { answer: Su
     setRepliesExpanded(true)
   }
 
+  const actionButtonClass = "h-7 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+
   return (
-    <article id={`answer-${answer.id}`} className={cn("scroll-mt-24 rounded-lg px-1 py-2", answer.isBestAnswer && "bg-emerald-50/70 px-4 py-4 dark:bg-emerald-950/25")}>
-      <div className="flex gap-3 sm:gap-4">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+    <article
+      id={`answer-${answer.id}`}
+      className={cn(
+        "group/comment scroll-mt-24 py-4",
+        isReply && "py-2.5",
+        answer.isBestAnswer && !isDeleted && !isReply && "border-l-2 border-emerald-500 pl-3"
+      )}
+    >
+      <div className={cn("flex", isReply ? "gap-2.5" : "gap-3")}>
+        <div className={cn(
+          "flex shrink-0 items-center justify-center rounded-full font-semibold",
+          isReply ? "size-6 bg-muted text-xs text-muted-foreground" : "size-9 bg-primary text-sm text-primary-foreground"
+        )}>
           {supportAuthorInitial(authorName)}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
             <div className="min-w-0">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <span className="truncate font-medium">{authorName}</span>
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                <span className={cn("truncate font-medium", isReply ? "text-sm text-foreground/90" : "text-sm text-foreground")}>{authorName}</span>
                 {isQuestionAuthor ? <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">{t("supportPublic.answer.authorBadge")}</span> : null}
                 {isOfficial ? <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300">{t("supportPublic.answer.officialBadge")}</span> : null}
               </div>
               <div className="mt-0.5 text-xs text-muted-foreground">{formatDateTime(answer.createdAt)}</div>
             </div>
-            {!isDeleted && answer.isBestAnswer && <Badge className="bg-emerald-600 text-white"><CheckCircle2Icon /> {t("supportPublic.answer.best")}</Badge>}
+            {!isDeleted && answer.isBestAnswer && !isReply ? <Badge className="rounded-md bg-emerald-600 text-white shadow-none"><CheckCircle2Icon /> {t("supportPublic.answer.best")}</Badge> : null}
           </div>
-          <div className="mt-4">
+          <div className={cn("mt-3", isReply && "mt-2 text-sm")}>
             {isDeleted ? (
-              <div className="rounded-lg bg-muted/40 px-3 py-2 text-sm text-muted-foreground">{t("supportPublic.answer.deleted")}</div>
+              <div className="rounded-md bg-muted/70 px-3 py-2 text-sm text-muted-foreground">{t("supportPublic.answer.deleted")}</div>
             ) : editing ? (
               <div className="rounded-lg bg-muted/40 p-3">
                 <ContentEditor value={editContent} onChange={setEditContent} disabled={submitting} allowedModes={["html", "markdown"]} height={220} className="min-w-0" />
@@ -1617,40 +1630,40 @@ function AnswerCard({ answer, question, currentUserId, onChanged }: { answer: Su
             )}
           </div>
           {!isDeleted ? (
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-foreground" onClick={() => void ensureSupportLogin().then(() => voteSupportAnswer(answer.id)).then(onChanged)}>
+            <div className={cn("flex flex-wrap items-center gap-1", isReply ? "mt-3" : "mt-4")}>
+              <Button variant="ghost" size="sm" className={actionButtonClass} onClick={() => void ensureSupportLogin().then(() => voteSupportAnswer(answer.id)).then(onChanged)}>
                 <ThumbsUpIcon /> {answer.voteCount}
               </Button>
-              {answer.parentId === 0 ? (
-                <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-foreground" onClick={() => setReplying((current) => !current)}>
+              {!isReply ? (
+                <Button variant="ghost" size="sm" className={actionButtonClass} onClick={() => setReplying((current) => !current)}>
                   <CornerDownRightIcon /> {t("supportPublic.actions.reply")}
                 </Button>
               ) : null}
-              <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-foreground" onClick={() => void copyLink()}>
+              <Button variant="ghost" size="sm" className={actionButtonClass} onClick={() => void copyLink()}>
                 <CopyIcon /> {t("supportPublic.actions.copyLink")}
               </Button>
-              <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-foreground" onClick={() => void reportAnswer()}>
+              <Button variant="ghost" size="sm" className={actionButtonClass} onClick={() => void reportAnswer()}>
                 <FlagIcon /> {t("supportPublic.actions.report")}
               </Button>
               {isAuthor ? (
                 <>
-                  <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-foreground" onClick={() => setEditing(true)}>
+                  <Button variant="ghost" size="sm" className={actionButtonClass} onClick={() => setEditing(true)}>
                     <PencilIcon /> {t("supportPublic.actions.edit")}
                   </Button>
-                  <Button variant="ghost" size="sm" className="rounded-full text-destructive hover:text-destructive" onClick={() => void deleteAnswer()}>
+                  <Button variant="ghost" size="sm" className="h-7 rounded-md px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => void deleteAnswer()}>
                     <Trash2Icon /> {t("supportPublic.actions.delete")}
                   </Button>
                 </>
               ) : null}
               {canAccept ? (
-                <Button variant="ghost" size="sm" className="rounded-full text-primary" onClick={() => void ensureSupportLogin().then(() => acceptSupportAnswer(question.id, answer.id)).then(onChanged)}>
+                <Button variant="secondary" size="sm" className="h-7 rounded-md px-2.5 text-xs text-primary" onClick={() => void ensureSupportLogin().then(() => acceptSupportAnswer(question.id, answer.id)).then(onChanged)}>
                   {t("supportPublic.actions.accept")}
                 </Button>
               ) : null}
             </div>
           ) : null}
           {replying ? (
-            <div className="mt-4 rounded-lg bg-muted/35 p-3">
+            <div className="mt-3 rounded-lg bg-muted/40 p-3">
               <ContentEditor value={replyContent} onChange={setReplyContent} placeholder={t("supportPublic.answer.replyPlaceholder")} disabled={submitting} allowedModes={["html", "markdown"]} height={180} className="min-w-0" />
               <div className="mt-3 flex justify-end gap-2">
                 <Button variant="ghost" size="sm" disabled={submitting} onClick={() => setReplying(false)}>{t("supportPublic.actions.cancel")}</Button>
@@ -1659,14 +1672,14 @@ function AnswerCard({ answer, question, currentUserId, onChanged }: { answer: Su
             </div>
           ) : null}
           {replies.length ? (
-            <div className="mt-5 space-y-4">
+            <div className="mt-3 divide-y divide-border/60 border-l border-border/70 pl-3 sm:pl-4">
               {replies.map((reply) => (
                 <AnswerCard key={reply.id} answer={reply} question={question} currentUserId={currentUserId} onChanged={onChanged} />
               ))}
             </div>
           ) : null}
           {!repliesExpanded && answer.replyCount > replies.length ? (
-            <Button variant="ghost" size="sm" className="mt-3 rounded-full text-muted-foreground" onClick={() => void loadReplies()}>
+            <Button variant="ghost" size="sm" className="mt-2 h-7 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => void loadReplies()}>
               <ChevronDownIcon /> {t("supportPublic.actions.viewReplies", { count: answer.replyCount })}
             </Button>
           ) : null}
