@@ -86,7 +86,12 @@ func registerDashboardUserRoutes(group *gin.RouterGroup) {
 
 func registerDashboardOrganizationRoutes(group *gin.RouterGroup) {
 	group.GET("/my_list", dashboard.OrganizationUserList)
+	group.POST("/create", dashboard.OrganizationPostCreate)
 	group.POST("/switch", dashboard.OrganizationSwitch)
+	group.GET("/members", dashboard.OrganizationGetMembers)
+	group.POST("/add_member", dashboard.OrganizationPostAddMember)
+	group.POST("/remove_member", dashboard.OrganizationPostRemoveMember)
+	group.POST("/update", dashboard.OrganizationPostUpdate)
 }
 
 func registerDashboardCompanyRoutes(group *gin.RouterGroup) {

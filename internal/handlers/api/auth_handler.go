@@ -40,6 +40,8 @@ func PublicConfig(ctx *gin.Context) {
 	cfg := config.Current()
 	httpx.WriteJSON(ctx, &response.PublicConfigResponse{
 		Language:             cfg.LanguageOrDefault(),
+		CompanyName:          cfg.Server.CompanyName,
+		CompanyLogoURL:       cfg.Server.CompanyLogoURL,
 		PasswordLoginEnabled: cfg.Auth.IsPasswordLoginEnabled(),
 		WxWorkEnabled:        cfg.WxWork.Enabled,
 		OIDCEnabled:          cfg.OIDC.Enabled,
