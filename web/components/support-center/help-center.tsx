@@ -240,15 +240,22 @@ function SupportQuestionFrame({
   active,
   categoryRoute,
   children,
+  toc,
 }: {
   active?: number | "all"
   categoryRoute: ReturnType<typeof useSupportQuestionCategoryRoute>
   children: ReactNode
+  toc?: ReactNode
 }) {
   return (
     <main className="min-h-svh bg-background text-foreground">
       <SupportHeader section="questions" />
-      <div className="mx-auto grid max-w-[var(--support-docs-max-width)] xl:grid-cols-[var(--support-doc-nav-width)_minmax(0,1fr)] 2xl:grid-cols-[var(--support-doc-nav-wide-width)_minmax(0,1fr)]">
+      <div
+        className={cn(
+          "mx-auto grid max-w-[var(--support-docs-max-width)] xl:grid-cols-[var(--support-doc-nav-width)_minmax(0,1fr)]",
+          toc ? "2xl:grid-cols-[var(--support-doc-nav-wide-width)_minmax(0,1fr)_var(--support-doc-toc-width)]" : "2xl:grid-cols-[var(--support-doc-nav-wide-width)_minmax(0,1fr)]"
+        )}
+      >
         <SupportQuestionCategoryNav
           categories={categoryRoute.categories}
           active={active ?? categoryRoute.activeCategoryId}
@@ -260,6 +267,7 @@ function SupportQuestionFrame({
         <section className="min-w-0 bg-background">
           {children}
         </section>
+        {toc ? <div className="hidden 2xl:block">{toc}</div> : null}
       </div>
     </main>
   )
@@ -452,6 +460,9 @@ export function SupportQuestionDetail() {
   const [answers, setAnswers] = useState<SupportAnswer[]>([])
   const [content, setContent] = useState<ContentValue>({ mode: "html", raw: "" })
   const [submitting, setSubmitting] = useState(false)
+  const questionToc = question && hasArticleTocHeadings(question.content, question.contentType)
+    ? <PublicArticleToc content={question.content} contentType={question.contentType} />
+    : null
 
   const reload = () => {
     if (questionId > 0) {
@@ -479,7 +490,7 @@ export function SupportQuestionDetail() {
   }
 
   return (
-    <SupportQuestionFrame active={question?.categoryId ?? "all"} categoryRoute={categoryRoute}>
+    <SupportQuestionFrame active={question?.categoryId ?? "all"} categoryRoute={categoryRoute} toc={questionToc}>
       <div className="px-4 py-7 sm:px-6 sm:py-10 lg:px-8 2xl:px-10">
         {question ? (
           <article className="w-full max-w-6xl">
@@ -1333,15 +1344,7 @@ function ChildPageLinks({ pages, onNavigate }: { pages: SupportHelpPage[]; onNav
 function PublicArticleToc({ content, contentType = "markdown" }: { content: string; contentType?: string }) {
   const t = useI18n()
   const tocRef = useRef<HTMLElement>(null)
-  const headings = useMemo(() => contentType === "html"
-    ? Array.from(content.matchAll(/<h([23])[^>]*>([\s\S]*?)<\/h\1>/gi)).map((match, index) => {
-        const title = match[2].replace(/<[^>]+>/g, "").trim()
-        return { level: Number(match[1]), title, id: articleHeadingId(title, index) }
-      })
-    : Array.from(content.matchAll(/^(#{2,3})\s+(.+)$/gm)).map((match, index) => {
-        const title = markdownHeadingText(match[2])
-        return { level: match[1].length, title, id: articleHeadingId(title, index) }
-      }), [content, contentType])
+  const headings = useMemo(() => getArticleTocHeadings(content, contentType), [content, contentType])
   const [activeId, setActiveId] = useState("")
 
   useEffect(() => {
@@ -1417,6 +1420,22 @@ function PublicArticleToc({ content, contentType = "markdown" }: { content: stri
       </div>
     </aside>
   )
+}
+
+function hasArticleTocHeadings(content: string, contentType?: string) {
+  return getArticleTocHeadings(content, contentType).length > 0
+}
+
+function getArticleTocHeadings(content: string, contentType = "markdown") {
+  return contentType === "html"
+    ? Array.from(content.matchAll(/<h([23])[^>]*>([\s\S]*?)<\/h\1>/gi)).map((match, index) => {
+        const title = match[2].replace(/<[^>]+>/g, "").trim()
+        return { level: Number(match[1]), title, id: articleHeadingId(title, index) }
+      })
+    : Array.from(content.matchAll(/^(#{2,3})\s+(.+)$/gm)).map((match, index) => {
+        const title = markdownHeadingText(match[2])
+        return { level: match[1].length, title, id: articleHeadingId(title, index) }
+      })
 }
 
 function AnswerCard({ answer, questionId, onChanged }: { answer: SupportAnswer; questionId: number; onChanged: () => void }) {
