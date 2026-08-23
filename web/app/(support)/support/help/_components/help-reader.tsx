@@ -147,7 +147,7 @@ function HelpNavigation({
       <div className="mt-4 grid gap-0.5">
         {title.trim() ? searchResults.map((page) => (
           <SupportHelpLink key={page.id} page={page} onNavigate={onNavigate} className={cn("rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-muted", selectedPageId === page.id && "bg-primary/10 text-primary")}>
-            <span className="block truncate font-medium">{page.title}</span>
+            <span className="block line-clamp-2 font-medium leading-5">{page.title}</span>
             {page.summary ? <span className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">{page.summary}</span> : null}
           </SupportHelpLink>
         )) : rootPages.map((page) => (
@@ -340,9 +340,9 @@ function PublicHelpPageNode({
             {open ? <ChevronDownIcon className="size-4" /> : <ChevronRightIcon className="size-4" />}
           </button>
         ) : <span className="size-7 shrink-0" />}
-        <SupportHelpLink page={page} onNavigate={onNavigate} className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left" aria-current={selected ? "page" : undefined}>
+        <SupportHelpLink page={page} onNavigate={onNavigate} className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left leading-5" aria-current={selected ? "page" : undefined}>
           {hasChildren ? (open ? <FolderOpenIcon className="size-4 shrink-0" /> : <FolderIcon className="size-4 shrink-0" />) : <FileTextIcon className="size-3.5 shrink-0 opacity-70" />}
-          <span className="truncate">{page.title}</span>
+          <span className="line-clamp-2">{page.title}</span>
         </SupportHelpLink>
       </div>
       {open && hasChildren ? (
