@@ -78,7 +78,11 @@ export function ThemeToggle({
           {themeOptions.map((option) => {
             const Icon = option.icon
             return (
-              <DropdownMenuRadioItem key={option.value} value={option.value}>
+              <DropdownMenuRadioItem
+                key={option.value}
+                value={option.value}
+                className="h-8 px-2"
+              >
                 <Icon />
                 {t(option.labelKey)}
               </DropdownMenuRadioItem>

@@ -38,6 +38,8 @@ const sectionTitleKey: Record<SupportHeaderSection, string> = {
   login: "supportPublic.nav.login",
 }
 
+const supportNavItemClass = "h-8 rounded-md px-2.5 text-sm"
+
 export function SupportHeader({
   section,
   leading,
@@ -59,7 +61,7 @@ export function SupportHeader({
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80",
+        "sticky top-0 z-50 w-full border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80",
         className
       )}
     >
@@ -84,7 +86,8 @@ export function SupportHeader({
                 variant: isActive("/support") ? "secondary" : "ghost",
                 size: "sm",
               }),
-              "hidden sm:inline-flex"
+              "hidden sm:inline-flex",
+              supportNavItemClass
             )}
             href="/support"
           >
@@ -97,7 +100,8 @@ export function SupportHeader({
                 variant: isActive("/support/help") ? "secondary" : "ghost",
                 size: "sm",
               }),
-              "hidden sm:inline-flex"
+              "hidden sm:inline-flex",
+              supportNavItemClass
             )}
             href="/support/help"
           >
@@ -110,15 +114,20 @@ export function SupportHeader({
                 variant: isActive("/support/community") ? "secondary" : "ghost",
                 size: "sm",
               }),
-              "hidden sm:inline-flex"
+              "hidden sm:inline-flex",
+              supportNavItemClass
             )}
             href="/support/community/posts"
           >
             <MessageSquareTextIcon />
             {t("supportPublic.nav.community")}
           </Link>
-          <ThemeToggle variant="ghost" size="icon-sm" />
           <SupportAccountControl />
+          <ThemeToggle
+            variant="ghost"
+            size="icon-sm"
+            className="size-8 rounded-md"
+          />
         </nav>
       </div>
     </header>
@@ -143,7 +152,7 @@ function SupportAccountControl() {
       <Link
         className={cn(
           buttonVariants({ variant: "outline", size: "sm" }),
-          "rounded-md"
+          supportNavItemClass
         )}
         href="/support/login"
       >
@@ -162,12 +171,12 @@ function SupportAccountControl() {
       <DropdownMenuTrigger
         render={
           <button
-            className="inline-flex h-8 max-w-48 items-center gap-2 rounded-md px-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted hover:text-foreground aria-expanded:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex h-8 max-w-48 items-center gap-2 rounded-md px-1 py-1 text-sm font-medium text-foreground transition-colors hover:bg-muted hover:text-foreground aria-expanded:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
           />
         }
         aria-label={t("supportPublic.account.openMenu")}
       >
-        <Avatar size="sm">
+        <Avatar className="size-[30px]">
           <AvatarImage src={user.avatar} alt={displayName} />
           <AvatarFallback>{fallback}</AvatarFallback>
         </Avatar>
@@ -180,7 +189,7 @@ function SupportAccountControl() {
         <DropdownMenuGroup>
           <DropdownMenuLabel className="p-0 font-normal">
             <div className="flex items-center gap-2 px-1 py-1.5 text-left">
-              <Avatar>
+              <Avatar className="size-8">
                 <AvatarImage src={user.avatar} alt={displayName} />
                 <AvatarFallback>{fallback}</AvatarFallback>
               </Avatar>
@@ -195,6 +204,7 @@ function SupportAccountControl() {
         <DropdownMenuItem
           disabled={signingOut}
           onClick={() => void signOut()}
+          className="h-8 px-2"
           variant="destructive"
         >
           {signingOut ? (
