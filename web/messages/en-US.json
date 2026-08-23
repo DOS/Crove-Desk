@@ -2580,8 +2580,29 @@
     "account": {
       "loading": "Loading sign-in status",
       "openMenu": "Open account menu",
+      "profile": "Profile",
+      "editProfile": "Edit profile",
       "signOut": "Sign out",
       "signingOut": "Signing out..."
+    },
+    "profile": {
+      "title": "Profile",
+      "username": "Username",
+      "email": "Email",
+      "emailUnset": "Not set",
+      "edit": "Edit profile",
+      "editTitle": "Edit profile",
+      "editDescription": "Update the profile shown in the support center.",
+      "nickname": "Display name",
+      "nicknamePlaceholder": "Enter display name",
+      "nicknameRequired": "Enter a display name.",
+      "avatar": "Avatar URL",
+      "avatarPlaceholder": "https://example.com/avatar.png",
+      "avatarPreview": "Your avatar appears in the support account menu and community content.",
+      "emailPlaceholder": "Enter email",
+      "communityTitle": "My Community Content",
+      "communityDescription": "Review posts you published in the support center.",
+      "noPosts": "You have not published any community posts yet"
     },
     "actions": {
       "search": "Search",
@@ -2643,6 +2664,7 @@
     "toast": {
       "feedbackSaved": "Thanks for the feedback",
       "codeCopied": "Code copied",
+      "profileUpdated": "Profile updated",
       "postCreated": "Post published",
       "commentCreated": "Comment published",
       "replyCreated": "Reply published",

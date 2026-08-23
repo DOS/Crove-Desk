@@ -8,6 +8,8 @@ import {
   LoaderCircleIcon,
   LogOutIcon,
   MessageSquareTextIcon,
+  PencilIcon,
+  UserRoundIcon,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -207,6 +209,15 @@ function SupportAccountControl() {
             </div>
           </DropdownMenuLabel>
         </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem render={<Link href="/support/profile" />} className="h-8 px-2">
+          <UserRoundIcon />
+          {t("supportPublic.account.profile")}
+        </DropdownMenuItem>
+        <DropdownMenuItem render={<Link href="/support/profile/edit" />} className="h-8 px-2">
+          <PencilIcon />
+          {t("supportPublic.account.editProfile")}
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           disabled={signingOut}

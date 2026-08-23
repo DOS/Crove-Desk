@@ -6,6 +6,12 @@ export type LoginRequest = {
   password: string
 }
 
+export type UpdateProfileRequest = {
+  avatar: string
+  email?: string
+  nickname: string
+}
+
 export async function loginWithPassword(payload: LoginRequest) {
   const data = await request<AuthSession>("/api/auth/login", {
     method: "POST",
@@ -38,6 +44,15 @@ export async function exchangeOIDCTicket(ticket: string) {
 
 export async function fetchProfile() {
   return request<AuthSession>("/api/auth/profile")
+}
+
+export async function updateProfile(payload: UpdateProfileRequest) {
+  const data = await request<AuthSession>("/api/auth/profile/update", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+  writeSession(data)
+  return data
 }
 
 export async function logout() {

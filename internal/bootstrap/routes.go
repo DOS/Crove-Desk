@@ -12,6 +12,7 @@ func registerApiAuthRoutes(group *gin.RouterGroup) {
 	group.POST("/login", api.Login)
 	group.POST("/logout", api.Logout)
 	group.GET("/profile", api.Profile)
+	group.POST("/profile/update", api.UpdateProfile)
 	group.GET("/wxwork_callback", api.WxWorkCallback)
 	group.POST("/wxwork_exchange", api.WxWorkExchange)
 	group.GET("/wxwork_login", api.WxWorkLogin)

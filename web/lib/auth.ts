@@ -3,6 +3,7 @@ export type AuthUser = {
   username: string
   nickname: string
   avatar: string
+  email?: string
   userType: string
   status: number
   roles: string[]

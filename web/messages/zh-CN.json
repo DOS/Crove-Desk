@@ -2579,8 +2579,29 @@
     "account": {
       "loading": "正在加载登录状态",
       "openMenu": "打开账号菜单",
+      "profile": "个人中心",
+      "editProfile": "编辑资料",
       "signOut": "退出登录",
       "signingOut": "正在退出..."
+    },
+    "profile": {
+      "title": "个人中心",
+      "username": "用户名",
+      "email": "邮箱",
+      "emailUnset": "未设置",
+      "edit": "编辑资料",
+      "editTitle": "编辑资料",
+      "editDescription": "更新你在支持中心展示的个人资料。",
+      "nickname": "显示名称",
+      "nicknamePlaceholder": "请输入显示名称",
+      "nicknameRequired": "请输入显示名称",
+      "avatar": "头像地址",
+      "avatarPlaceholder": "https://example.com/avatar.png",
+      "avatarPreview": "头像会显示在支持中心账号菜单和社区内容中。",
+      "emailPlaceholder": "请输入邮箱",
+      "communityTitle": "我的社区内容",
+      "communityDescription": "查看你在支持中心发布的帖子。",
+      "noPosts": "你还没有发布社区帖子"
     },
     "actions": {
       "search": "搜索",
@@ -2642,6 +2663,7 @@
     "toast": {
       "feedbackSaved": "感谢反馈",
       "codeCopied": "代码已复制",
+      "profileUpdated": "资料已更新",
       "postCreated": "帖子已发布",
       "commentCreated": "评论已发布",
       "replyCreated": "回复已发布",

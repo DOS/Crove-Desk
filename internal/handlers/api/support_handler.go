@@ -103,6 +103,7 @@ func PostAnyList(ctx *gin.Context) {
 	}
 	cnd := params.NewSqlCnd(ctx,
 		params.QueryFilter{ParamName: "categoryId"},
+		params.QueryFilter{ParamName: "userId"},
 		params.QueryFilter{ParamName: "status"},
 		params.QueryFilter{ParamName: "title", Op: params.Like},
 	).Where("status NOT IN ?", []enums.PostStatus{enums.PostStatusHidden, enums.PostStatusDeleted}).Desc("id").Limit(limit + 1)

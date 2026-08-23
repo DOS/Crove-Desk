@@ -169,6 +169,20 @@ func Profile(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, ret)
 }
 
+func UpdateProfile(ctx *gin.Context) {
+	req := request.UpdateProfileRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	ret, err := services.AuthService.UpdateProfile(ctx, req)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, ret)
+}
+
 func wxWorkErrorMessage(message string) string {
 	return loginErrorMessage(message)
 }
