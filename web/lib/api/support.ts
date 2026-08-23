@@ -61,6 +61,7 @@ export type SupportQuestion = {
 export type SupportAnswer = {
   id: number
   questionId: number
+  parentId: number
   authorType: string
   authorId: number
   authorName: string
@@ -68,7 +69,10 @@ export type SupportAnswer = {
   content: string
   status: string
   voteCount: number
+  replyCount: number
+  reportCount: number
   isBestAnswer: boolean
+  replies: SupportAnswer[]
   createdAt: string
   updatedAt: string
 }
@@ -152,10 +156,43 @@ export function createSupportQuestion(payload: {
   })
 }
 
-export function createSupportAnswer(payload: { questionId: number; contentType: string; content: string }) {
+export function fetchSupportAnswers(query: {
+  questionId: number
+  parentId?: number
+  sort?: string
+  page?: number
+  limit?: number
+}) {
+  return request<PageResult<SupportAnswer>>(`/api/support/answer/list${toQueryString(query)}`, {
+    skipAuth: true,
+  })
+}
+
+export function createSupportAnswer(payload: { questionId: number; parentId?: number; contentType: string; content: string }) {
   return request<SupportAnswer>("/api/support/answer/create", {
     method: "POST",
     body: JSON.stringify(payload),
+  })
+}
+
+export function updateSupportAnswer(payload: { id: number; contentType: string; content: string }) {
+  return request<void>("/api/support/answer/update", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteSupportAnswer(id: number) {
+  return request<void>("/api/support/answer/delete", {
+    method: "POST",
+    body: JSON.stringify({ id }),
+  })
+}
+
+export function reportSupportAnswer(id: number, reason = "") {
+  return request<void>("/api/support/answer/report", {
+    method: "POST",
+    body: JSON.stringify({ id, reason }),
   })
 }
 

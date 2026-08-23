@@ -14,6 +14,7 @@ var (
 	SupportAnswerRepository           = &supportAnswerRepository{}
 	SupportQuestionVoteRepository     = &supportQuestionVoteRepository{}
 	SupportAnswerVoteRepository       = &supportAnswerVoteRepository{}
+	SupportAnswerReportRepository     = &supportAnswerReportRepository{}
 )
 
 type supportHelpPageRepository struct{}
@@ -166,6 +167,10 @@ func (r *supportAnswerRepository) Updates(db *gorm.DB, id int64, columns map[str
 	return db.Model(&models.SupportAnswer{}).Where("id = ?", id).Updates(columns).Error
 }
 
+func (r *supportAnswerRepository) UpdateColumn(db *gorm.DB, id int64, column string, value any) error {
+	return db.Model(&models.SupportAnswer{}).Where("id = ?", id).UpdateColumn(column, value).Error
+}
+
 type supportQuestionVoteRepository struct{}
 
 func (r *supportQuestionVoteRepository) Get(db *gorm.DB, questionID, userID int64) *models.SupportQuestionVote {
@@ -200,4 +205,18 @@ func (r *supportAnswerVoteRepository) Create(db *gorm.DB, item *models.SupportAn
 
 func (r *supportAnswerVoteRepository) Delete(db *gorm.DB, answerID, userID int64) error {
 	return db.Delete(&models.SupportAnswerVote{}, "answer_id = ? AND user_id = ?", answerID, userID).Error
+}
+
+type supportAnswerReportRepository struct{}
+
+func (r *supportAnswerReportRepository) Get(db *gorm.DB, answerID, userID int64) *models.SupportAnswerReport {
+	ret := &models.SupportAnswerReport{}
+	if err := db.First(ret, "answer_id = ? AND user_id = ?", answerID, userID).Error; err != nil {
+		return nil
+	}
+	return ret
+}
+
+func (r *supportAnswerReportRepository) Create(db *gorm.DB, item *models.SupportAnswerReport) error {
+	return db.Create(item).Error
 }

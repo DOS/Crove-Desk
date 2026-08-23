@@ -116,8 +116,12 @@ func SupportQuestionGetBy(ctx *gin.Context) {
 		return
 	}
 	_ = repositories.SupportQuestionRepository.UpdateColumn(sqls.DB(), question.ID, "view_count", gorm.Expr("view_count + ?", 1))
-	answers := repositories.SupportAnswerRepository.Find(sqls.DB(), sqls.NewCnd().Eq("question_id", id).Eq("status", enums.SupportAnswerStatusNormal).Desc("is_best_answer").Asc("id"))
-	httpx.WriteJSON(ctx, response.SupportQuestionDetailResponse{Question: *builders.BuildSupportQuestion(question, supportQuestionCategoryName(question.CategoryID), supportUser(question.UserID)), Answers: buildSupportAnswerList(answers)})
+	answers, err := services.SupportService.ListQuestionAnswers(id, 0, "default", 1, 20)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, response.SupportQuestionDetailResponse{Question: *builders.BuildSupportQuestion(question, supportQuestionCategoryName(question.CategoryID), supportUser(question.UserID)), Answers: buildSupportAnswerListWithReplies(answers.Answers, answers.Replies)})
 }
 
 func SupportQuestionPostCreate(ctx *gin.Context) {
@@ -200,6 +204,62 @@ func SupportAnswerPostCreate(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, builders.BuildSupportAnswer(item, supportPrincipalDisplayName(principal.UserID)))
 }
 
+func SupportAnswerAnyList(ctx *gin.Context) {
+	questionID, _ := params.GetInt64(ctx, "questionId")
+	parentID, _ := params.GetInt64(ctx, "parentId")
+	page, _ := params.GetInt(ctx, "page")
+	limit, _ := params.GetInt(ctx, "limit")
+	sort, _ := params.Get(ctx, "sort")
+	result, err := services.SupportService.ListQuestionAnswers(questionID, parentID, sort, page, limit)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, &web.PageResult{Results: buildSupportAnswerListWithReplies(result.Answers, result.Replies), Page: result.Paging})
+}
+
+func SupportAnswerPostUpdate(ctx *gin.Context) {
+	principal, err := services.SupportService.RequireSupportUser(ctx)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.UpdateSupportAnswerRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, services.SupportService.UpdateAnswer(req, principal))
+}
+
+func SupportAnswerPostDelete(ctx *gin.Context) {
+	principal, err := services.SupportService.RequireSupportUser(ctx)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.SupportVoteRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, services.SupportService.DeleteAnswer(req.ID, principal))
+}
+
+func SupportAnswerPostReport(ctx *gin.Context) {
+	principal, err := services.SupportService.RequireSupportUser(ctx)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.ReportSupportAnswerRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, services.SupportService.ReportAnswer(req, principal))
+}
+
 func SupportAnswerPostVote(ctx *gin.Context) {
 	principal, err := services.SupportService.RequireSupportUser(ctx)
 	if err != nil {
@@ -235,9 +295,16 @@ func buildSupportQuestionList(list []models.SupportQuestion) []response.SupportQ
 }
 
 func buildSupportAnswerList(list []models.SupportAnswer) []response.SupportAnswerResponse {
+	return buildSupportAnswerListWithReplies(list, nil)
+}
+
+func buildSupportAnswerListWithReplies(list []models.SupportAnswer, replies map[int64][]models.SupportAnswer) []response.SupportAnswerResponse {
 	results := make([]response.SupportAnswerResponse, 0, len(list))
 	for _, item := range list {
 		if resp := builders.BuildSupportAnswer(&item, supportAnswerAuthorName(item)); resp != nil {
+			if len(replies[item.ID]) > 0 {
+				resp.Replies = buildSupportAnswerListWithReplies(replies[item.ID], nil)
+			}
 			results = append(results, *resp)
 		}
 	}

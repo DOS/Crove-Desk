@@ -80,6 +80,7 @@ type SupportQuestionResponse struct {
 type SupportAnswerResponse struct {
 	ID           int64                         `json:"id"`
 	QuestionID   int64                         `json:"questionId"`
+	ParentID     int64                         `json:"parentId"`
 	AuthorType   enums.SupportAnswerAuthorType `json:"authorType"`
 	AuthorID     int64                         `json:"authorId"`
 	AuthorName   string                        `json:"authorName"`
@@ -87,7 +88,10 @@ type SupportAnswerResponse struct {
 	Content      string                        `json:"content"`
 	Status       enums.SupportAnswerStatus     `json:"status"`
 	VoteCount    int64                         `json:"voteCount"`
+	ReplyCount   int64                         `json:"replyCount"`
+	ReportCount  int64                         `json:"reportCount"`
 	IsBestAnswer bool                          `json:"isBestAnswer"`
+	Replies      []SupportAnswerResponse       `json:"replies"`
 	CreatedAt    string                        `json:"createdAt"`
 	UpdatedAt    string                        `json:"updatedAt"`
 }

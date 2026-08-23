@@ -129,17 +129,27 @@ func BuildSupportAnswer(item *models.SupportAnswer, authorName string) *response
 	if item == nil {
 		return nil
 	}
+	contentType := item.ContentType
+	content := item.Content
+	if item.Status == enums.SupportAnswerStatusDeleted {
+		contentType = "markdown"
+		content = ""
+	}
 	return &response.SupportAnswerResponse{
 		ID:           item.ID,
 		QuestionID:   item.QuestionID,
+		ParentID:     item.ParentID,
 		AuthorType:   item.AuthorType,
 		AuthorID:     item.AuthorID,
 		AuthorName:   authorName,
-		ContentType:  item.ContentType,
-		Content:      item.Content,
+		ContentType:  contentType,
+		Content:      content,
 		Status:       item.Status,
 		VoteCount:    item.VoteCount,
+		ReplyCount:   item.ReplyCount,
+		ReportCount:  item.ReportCount,
 		IsBestAnswer: item.IsBestAnswer,
+		Replies:      []response.SupportAnswerResponse{},
 		CreatedAt:    formatSupportTime(&item.CreatedAt),
 		UpdatedAt:    formatSupportTime(&item.UpdatedAt),
 	}

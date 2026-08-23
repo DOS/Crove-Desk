@@ -30,6 +30,12 @@ var SupportService = &supportService{}
 
 type supportService struct{}
 
+type SupportAnswerListResult struct {
+	Answers []models.SupportAnswer
+	Replies map[int64][]models.SupportAnswer
+	Paging  *sqls.Paging
+}
+
 func (s *supportService) RegisterUser(req request.SupportCustomerRegisterRequest, authCfg config.AuthConfig, clientIP, userAgent string) (*response.LoginResponse, error) {
 	name := strings.TrimSpace(req.Name)
 	email := normalizeSupportEmail(req.Email)
@@ -417,17 +423,17 @@ func (s *supportService) CreateSupportUserAnswer(req request.CreateSupportAnswer
 	if principal == nil {
 		return nil, errorsx.Unauthorized("login is required")
 	}
-	return s.createAnswer(req.QuestionID, normalizeContentType(req.ContentType), strings.TrimSpace(req.Content), supportAuthorType(principal), principal.UserID, supportPrincipalName(principal))
+	return s.createAnswer(req.QuestionID, req.ParentID, normalizeContentType(req.ContentType), strings.TrimSpace(req.Content), supportAuthorType(principal), principal.UserID, supportPrincipalName(principal))
 }
 
 func (s *supportService) CreateUserAnswer(req request.CreateSupportAnswerRequest, operator *dto.AuthPrincipal) (*models.SupportAnswer, error) {
 	if operator == nil {
 		return nil, errorsx.Unauthorized("login is required")
 	}
-	return s.createAnswer(req.QuestionID, normalizeContentType(req.ContentType), strings.TrimSpace(req.Content), supportAuthorType(operator), operator.UserID, supportPrincipalName(operator))
+	return s.createAnswer(req.QuestionID, req.ParentID, normalizeContentType(req.ContentType), strings.TrimSpace(req.Content), supportAuthorType(operator), operator.UserID, supportPrincipalName(operator))
 }
 
-func (s *supportService) createAnswer(questionID int64, contentType, content string, authorType enums.SupportAnswerAuthorType, authorID int64, authorName string) (*models.SupportAnswer, error) {
+func (s *supportService) createAnswer(questionID, parentID int64, contentType, content string, authorType enums.SupportAnswerAuthorType, authorID int64, authorName string) (*models.SupportAnswer, error) {
 	if content == "" {
 		return nil, errorsx.InvalidParam("answer content is required")
 	}
@@ -435,11 +441,23 @@ func (s *supportService) createAnswer(questionID int64, contentType, content str
 	if question == nil || question.Status == enums.SupportQuestionStatusDeleted || question.Status == enums.SupportQuestionStatusClosed {
 		return nil, errorsx.InvalidParam("question is unavailable")
 	}
+	var parent *models.SupportAnswer
+	if parentID > 0 {
+		parent = repositories.SupportAnswerRepository.Get(sqls.DB(), parentID)
+		if parent == nil || parent.QuestionID != questionID || parent.ParentID != 0 || parent.Status != enums.SupportAnswerStatusNormal {
+			return nil, errorsx.InvalidParam("parent answer is unavailable")
+		}
+	}
 	now := time.Now()
-	answer := &models.SupportAnswer{QuestionID: questionID, AuthorType: authorType, AuthorID: authorID, ContentType: contentType, Content: content, Status: enums.SupportAnswerStatusNormal, AuditFields: supportAuditFields(authorID, authorName, now)}
+	answer := &models.SupportAnswer{QuestionID: questionID, ParentID: parentID, AuthorType: authorType, AuthorID: authorID, ContentType: contentType, Content: content, Status: enums.SupportAnswerStatusNormal, AuditFields: supportAuditFields(authorID, authorName, now)}
 	if err := sqls.WithTransaction(func(ctx *sqls.TxContext) error {
 		if err := repositories.SupportAnswerRepository.Create(ctx.Tx, answer); err != nil {
 			return err
+		}
+		if parent != nil {
+			if err := repositories.SupportAnswerRepository.UpdateColumn(ctx.Tx, parent.ID, "reply_count", gorm.Expr("reply_count + ?", 1)); err != nil {
+				return err
+			}
 		}
 		return repositories.SupportQuestionRepository.Updates(ctx.Tx, questionID, map[string]any{"answer_count": gorm.Expr("answer_count + ?", 1), "last_answered_at": now, "last_answer_user_type": authorType, "last_answer_user_id": authorID, "updated_at": now})
 	}); err != nil {
@@ -448,11 +466,119 @@ func (s *supportService) createAnswer(questionID int64, contentType, content str
 	return answer, nil
 }
 
+func (s *supportService) ListQuestionAnswers(questionID, parentID int64, sort string, page, limit int) (*SupportAnswerListResult, error) {
+	question := repositories.SupportQuestionRepository.Get(sqls.DB(), questionID)
+	if question == nil || question.Status == enums.SupportQuestionStatusHidden || question.Status == enums.SupportQuestionStatusDeleted {
+		return nil, errorsx.InvalidParam("question not found")
+	}
+	if parentID > 0 {
+		parent := repositories.SupportAnswerRepository.Get(sqls.DB(), parentID)
+		if parent == nil || parent.QuestionID != questionID || parent.Status == enums.SupportAnswerStatusHidden {
+			return nil, errorsx.InvalidParam("parent answer not found")
+		}
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+	cnd := sqls.NewCnd().Eq("question_id", questionID).Eq("parent_id", parentID).Where("status IN ?", []enums.SupportAnswerStatus{enums.SupportAnswerStatusNormal, enums.SupportAnswerStatusDeleted}).Page(page, limit)
+	if parentID > 0 {
+		cnd.Asc("id")
+	} else {
+		switch sort {
+		case "latest":
+			cnd.Desc("id")
+		case "hot":
+			cnd.Desc("vote_count").Desc("reply_count").Desc("id")
+		default:
+			cnd.Desc("is_best_answer").Asc("id")
+		}
+	}
+	answers, paging := repositories.SupportAnswerRepository.FindPageByCnd(sqls.DB(), cnd)
+	result := &SupportAnswerListResult{Answers: answers, Replies: map[int64][]models.SupportAnswer{}, Paging: paging}
+	if parentID > 0 || len(answers) == 0 {
+		return result, nil
+	}
+	for _, answer := range answers {
+		if answer.ReplyCount <= 0 {
+			continue
+		}
+		result.Replies[answer.ID] = repositories.SupportAnswerRepository.Find(sqls.DB(), sqls.NewCnd().Eq("question_id", questionID).Eq("parent_id", answer.ID).Where("status IN ?", []enums.SupportAnswerStatus{enums.SupportAnswerStatusNormal, enums.SupportAnswerStatusDeleted}).Asc("id").Page(1, 2))
+	}
+	return result, nil
+}
+
+func (s *supportService) UpdateAnswer(req request.UpdateSupportAnswerRequest, principal *dto.AuthPrincipal) error {
+	answer := repositories.SupportAnswerRepository.Get(sqls.DB(), req.ID)
+	if answer == nil || answer.Status != enums.SupportAnswerStatusNormal {
+		return errorsx.InvalidParam("answer not found")
+	}
+	if principal == nil || answer.AuthorID != principal.UserID {
+		return errorsx.Forbidden("only the answer author can update it")
+	}
+	content := strings.TrimSpace(req.Content)
+	if content == "" {
+		return errorsx.InvalidParam("answer content is required")
+	}
+	return repositories.SupportAnswerRepository.Updates(sqls.DB(), answer.ID, map[string]any{"content_type": normalizeContentType(req.ContentType), "content": content, "update_user_id": principal.UserID, "update_user_name": supportPrincipalName(principal), "updated_at": time.Now()})
+}
+
+func (s *supportService) DeleteAnswer(answerID int64, principal *dto.AuthPrincipal) error {
+	answer := repositories.SupportAnswerRepository.Get(sqls.DB(), answerID)
+	if answer == nil || answer.Status == enums.SupportAnswerStatusDeleted {
+		return errorsx.InvalidParam("answer not found")
+	}
+	if principal == nil || answer.AuthorID != principal.UserID {
+		return errorsx.Forbidden("only the answer author can delete it")
+	}
+	now := time.Now()
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		if err := repositories.SupportAnswerRepository.Updates(ctx.Tx, answer.ID, map[string]any{"status": enums.SupportAnswerStatusDeleted, "is_best_answer": false, "updated_at": now, "update_user_id": principal.UserID, "update_user_name": supportPrincipalName(principal)}); err != nil {
+			return err
+		}
+		columns := map[string]any{"updated_at": now}
+		if answer.IsBestAnswer {
+			columns["best_answer_id"] = int64(0)
+			columns["status"] = enums.SupportQuestionStatusNormal
+		}
+		return repositories.SupportQuestionRepository.Updates(ctx.Tx, answer.QuestionID, columns)
+	})
+}
+
+func (s *supportService) ReportAnswer(req request.ReportSupportAnswerRequest, principal *dto.AuthPrincipal) error {
+	if principal == nil {
+		return errorsx.Unauthorized("login is required")
+	}
+	answer := repositories.SupportAnswerRepository.Get(sqls.DB(), req.ID)
+	if answer == nil || answer.Status != enums.SupportAnswerStatusNormal {
+		return errorsx.InvalidParam("answer not found")
+	}
+	if existing := repositories.SupportAnswerReportRepository.Get(sqls.DB(), answer.ID, principal.UserID); existing != nil {
+		return nil
+	}
+	now := time.Now()
+	reason := strings.TrimSpace(req.Reason)
+	if len([]rune(reason)) > 255 {
+		reason = string([]rune(reason)[:255])
+	}
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		if err := repositories.SupportAnswerReportRepository.Create(ctx.Tx, &models.SupportAnswerReport{AnswerID: answer.ID, UserID: principal.UserID, Reason: reason, CreatedAt: now}); err != nil {
+			return err
+		}
+		return repositories.SupportAnswerRepository.UpdateColumn(ctx.Tx, answer.ID, "report_count", gorm.Expr("report_count + ?", 1))
+	})
+}
+
 func (s *supportService) AcceptAnswer(req request.SupportAcceptAnswerRequest, principal *dto.AuthPrincipal, operator *dto.AuthPrincipal) error {
 	question := repositories.SupportQuestionRepository.Get(sqls.DB(), req.QuestionID)
 	answer := repositories.SupportAnswerRepository.Get(sqls.DB(), req.AnswerID)
 	if question == nil || answer == nil || answer.QuestionID != question.ID {
 		return errorsx.InvalidParam("question or answer not found")
+	}
+	if answer.ParentID != 0 || answer.Status != enums.SupportAnswerStatusNormal {
+		return errorsx.InvalidParam("only top-level normal answers can be accepted")
 	}
 	if operator == nil {
 		if principal == nil || question.UserID != principal.UserID {

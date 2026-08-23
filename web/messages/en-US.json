@@ -2547,6 +2547,17 @@
     "answer": {
       "title": "Submit Answer",
       "placeholder": "Write your answer",
+      "replyPlaceholder": "Write your reply",
+      "count": "{count} comments",
+      "authorBadge": "Author",
+      "officialBadge": "Official",
+      "deleted": "This comment has been deleted.",
+      "deleteConfirm": "This comment will no longer be shown after deletion. Delete it?",
+      "sort": {
+        "default": "Default",
+        "latest": "Newest",
+        "hot": "Popular"
+      },
       "best": "Best Answer"
     },
     "login": {
@@ -2578,9 +2589,18 @@
       "askQuestion": "Ask Question",
       "publishQuestion": "Publish Question",
       "publishAnswer": "Publish Answer",
+      "publishReply": "Publish Reply",
       "publishing": "Publishing...",
       "processing": "Processing...",
       "accept": "Accept",
+      "reply": "Reply",
+      "edit": "Edit",
+      "delete": "Delete",
+      "report": "Report",
+      "copyLink": "Copy link",
+      "cancel": "Cancel",
+      "save": "Save",
+      "viewReplies": "View all {count} replies",
       "retry": "Retry",
       "loadMore": "Load more",
       "viewDiscussion": "View discussion",
@@ -2614,12 +2634,18 @@
       "page": "Loading page...",
       "question": "Loading question...",
       "questions": "Loading questions...",
+      "answers": "Loading comments...",
       "session": "Checking sign-in status..."
     },
     "toast": {
       "feedbackSaved": "Thanks for the feedback",
       "codeCopied": "Code copied",
       "answerCreated": "Answer published",
+      "replyCreated": "Reply published",
+      "answerUpdated": "Comment updated",
+      "answerDeleted": "Comment deleted",
+      "answerReported": "Report received",
+      "linkCopied": "Link copied",
       "questionCreated": "Question published",
       "loggedIn": "Logged in"
     },

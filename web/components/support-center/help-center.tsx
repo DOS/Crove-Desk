@@ -7,11 +7,16 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   CircleHelpIcon,
+  CopyIcon,
+  CornerDownRightIcon,
+  FlagIcon,
   EyeIcon,
+  PencilIcon,
   FileTextIcon,
   FolderIcon,
   FolderOpenIcon,
   HeadphonesIcon,
+  Trash2Icon,
   LoaderCircleIcon,
   MenuIcon,
   MessageCircleMoreIcon,
@@ -49,6 +54,8 @@ import {
   acceptSupportAnswer,
   createSupportAnswer,
   createSupportQuestion,
+  deleteSupportAnswer,
+  fetchSupportAnswers,
   fetchSupportHelpNavigation,
   fetchSupportHelpPages,
   fetchSupportMe,
@@ -56,8 +63,10 @@ import {
   fetchSupportQuestionCategories,
   fetchSupportQuestions,
   loginSupportCustomer,
+  reportSupportAnswer,
   registerSupportCustomer,
   submitSupportHelpPageFeedback,
+  updateSupportAnswer,
   voteSupportAnswer,
   voteSupportQuestion,
   type SupportAnswer,
@@ -69,6 +78,8 @@ import { readSession } from "@/lib/auth"
 import { articleHeadingId, markdownHeadingText } from "@/lib/support-article"
 import { cn, formatDateTime } from "@/lib/utils"
 import type { ContentValue } from "@/components/content-editor"
+
+type SupportAnswerSort = "default" | "latest" | "hot"
 
 export function SupportHelpCenter() {
   const t = useI18n()
@@ -459,21 +470,49 @@ export function SupportQuestionDetail() {
   const [question, setQuestion] = useState<SupportQuestion | null>(null)
   const [answers, setAnswers] = useState<SupportAnswer[]>([])
   const [content, setContent] = useState<ContentValue>({ mode: "html", raw: "" })
+  const [answerSort, setAnswerSort] = useState<SupportAnswerSort>("default")
+  const [answerPage, setAnswerPage] = useState({ page: 1, limit: 20, total: 0 })
+  const [answersLoading, setAnswersLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const questionToc = question && hasArticleTocHeadings(question.content, question.contentType)
     ? <PublicArticleToc content={question.content} contentType={question.contentType} />
     : null
+  const currentUserId = readSession()?.user.id ?? 0
 
-  const reload = () => {
+  const loadAnswers = useCallback((page = 1, append = false) => {
     if (questionId > 0) {
-      void fetchSupportQuestion(questionId).then((detail) => {
-        setQuestion(detail.question)
-        setAnswers(detail.answers)
-      })
+      setAnswersLoading(true)
+      void fetchSupportAnswers({ questionId, sort: answerSort, page, limit: answerPage.limit })
+        .then((result) => {
+          setAnswers((current) => append ? [...current, ...result.results] : result.results)
+          setAnswerPage(result.page)
+        })
+        .finally(() => setAnswersLoading(false))
     }
-  }
+  }, [answerPage.limit, answerSort, questionId])
 
-  useEffect(reload, [questionId])
+  const reload = useCallback(() => {
+    if (questionId <= 0) return
+    void Promise.all([
+      fetchSupportQuestion(questionId),
+      fetchSupportAnswers({ questionId, sort: answerSort, page: 1, limit: answerPage.limit }),
+    ]).then(([detail, answerResult]) => {
+      setQuestion(detail.question)
+      setAnswers(answerResult.results)
+      setAnswerPage(answerResult.page)
+    })
+  }, [answerPage.limit, answerSort, questionId])
+
+  useEffect(() => {
+    if (questionId <= 0) return
+    void fetchSupportQuestion(questionId).then((detail) => {
+      setQuestion(detail.question)
+    })
+  }, [questionId])
+
+  useEffect(() => {
+    loadAnswers(1)
+  }, [loadAnswers])
 
   const submitAnswer = async () => {
     if (!question || submitting) return
@@ -488,6 +527,7 @@ export function SupportQuestionDetail() {
       setSubmitting(false)
     }
   }
+  const hasMoreAnswers = answers.length < answerPage.total
 
   return (
     <SupportQuestionFrame active={question?.categoryId ?? "all"} categoryRoute={categoryRoute} toc={questionToc}>
@@ -532,17 +572,48 @@ export function SupportQuestionDetail() {
             </div>
 
             <section className="mt-12" aria-label={t("supportPublic.questions.answers")}>
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="text-base font-semibold">{t("supportPublic.questions.answers")}</h2>
-                <span className="text-sm text-muted-foreground">{question.answerCount}</span>
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-base font-semibold">{t("supportPublic.questions.answers")}</h2>
+                  <div className="mt-1 text-sm text-muted-foreground">{t("supportPublic.answer.count", { count: answerPage.total || question.answerCount })}</div>
+                </div>
+                <div className="flex gap-1 rounded-full bg-muted p-1">
+                  {(["default", "latest", "hot"] as const).map((sort) => (
+                    <button
+                      key={sort}
+                      type="button"
+                      className={cn(
+                        "h-7 rounded-full px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        answerSort === sort ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                      )}
+                      aria-pressed={answerSort === sort}
+                      onClick={() => setAnswerSort(sort)}
+                    >
+                      {t(`supportPublic.answer.sort.${sort}`)}
+                    </button>
+                  ))}
+                </div>
               </div>
               {answers.length ? (
                 <div className="space-y-6">
                   {answers.map((answer) => (
-                    <AnswerCard key={answer.id} answer={answer} questionId={question.id} onChanged={reload} />
+                    <AnswerCard key={answer.id} answer={answer} question={question} currentUserId={currentUserId} onChanged={reload} />
                   ))}
                 </div>
+              ) : answersLoading ? (
+                <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+                  <LoaderCircleIcon className="size-4 animate-spin" />
+                  {t("supportPublic.loading.answers")}
+                </div>
               ) : <EmptyState text={t("supportPublic.empty.noAnswers")} />}
+              {hasMoreAnswers ? (
+                <div className="mt-5 flex justify-center">
+                  <Button variant="ghost" size="sm" disabled={answersLoading} onClick={() => loadAnswers(answerPage.page + 1, true)}>
+                    {answersLoading ? <LoaderCircleIcon className="animate-spin" /> : <ChevronDownIcon />}
+                    {answersLoading ? t("supportPublic.loading.answers") : t("supportPublic.actions.loadMore")}
+                  </Button>
+                </div>
+              ) : null}
             </section>
 
             <section className="mt-8 rounded-lg bg-muted/35 p-4 sm:p-5" aria-labelledby="support-answer-editor-title">
@@ -1438,11 +1509,82 @@ function getArticleTocHeadings(content: string, contentType = "markdown") {
       })
 }
 
-function AnswerCard({ answer, questionId, onChanged }: { answer: SupportAnswer; questionId: number; onChanged: () => void }) {
+function AnswerCard({ answer, question, currentUserId, onChanged }: { answer: SupportAnswer; question: SupportQuestion; currentUserId: number; onChanged: () => void }) {
   const t = useI18n()
   const authorName = answer.authorName || t("supportPublic.common.user")
+  const [replying, setReplying] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [replyContent, setReplyContent] = useState<ContentValue>({ mode: "html", raw: "" })
+  const [editContent, setEditContent] = useState<ContentValue>({ mode: answer.contentType === "markdown" ? "markdown" : "html", raw: answer.content })
+  const [submitting, setSubmitting] = useState(false)
+  const [replies, setReplies] = useState(answer.replies || [])
+  const [repliesExpanded, setRepliesExpanded] = useState((answer.replies || []).length >= answer.replyCount)
+  const isDeleted = answer.status === "deleted"
+  const isAuthor = !isDeleted && currentUserId > 0 && answer.authorId === currentUserId
+  const canAccept = !isDeleted && currentUserId > 0 && currentUserId === question.userId && !answer.isBestAnswer && answer.parentId === 0
+  const isQuestionAuthor = answer.authorId === question.userId
+  const isOfficial = answer.authorType === "employee"
+
+  useEffect(() => {
+    setReplies(answer.replies || [])
+    setRepliesExpanded((answer.replies || []).length >= answer.replyCount)
+  }, [answer.id, answer.replyCount, answer.replies])
+
+  const submitReply = async () => {
+    if (submitting || !replyContent.raw.trim()) return
+    setSubmitting(true)
+    try {
+      await ensureSupportLogin()
+      await createSupportAnswer({ questionId: question.id, parentId: answer.id, contentType: replyContent.mode, content: replyContent.raw })
+      setReplyContent({ mode: "html", raw: "" })
+      setReplying(false)
+      toast.success(t("supportPublic.toast.replyCreated"))
+      onChanged()
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const submitEdit = async () => {
+    if (submitting || !editContent.raw.trim()) return
+    setSubmitting(true)
+    try {
+      await updateSupportAnswer({ id: answer.id, contentType: editContent.mode, content: editContent.raw })
+      setEditing(false)
+      toast.success(t("supportPublic.toast.answerUpdated"))
+      onChanged()
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const deleteAnswer = async () => {
+    if (!window.confirm(t("supportPublic.answer.deleteConfirm"))) return
+    await deleteSupportAnswer(answer.id)
+    toast.success(t("supportPublic.toast.answerDeleted"))
+    onChanged()
+  }
+
+  const reportAnswer = async () => {
+    await ensureSupportLogin()
+    await reportSupportAnswer(answer.id)
+    toast.success(t("supportPublic.toast.answerReported"))
+  }
+
+  const copyLink = async () => {
+    const url = `${window.location.origin}${supportQuestionHref(question.id)}#answer-${answer.id}`
+    await navigator.clipboard.writeText(url)
+    toast.success(t("supportPublic.toast.linkCopied"))
+  }
+
+  const loadReplies = async () => {
+    const result = await fetchSupportAnswers({ questionId: question.id, parentId: answer.id, page: 1, limit: 50 })
+    setReplies(result.results)
+    setRepliesExpanded(true)
+  }
+
   return (
-    <article className={cn("rounded-lg px-1 py-2", answer.isBestAnswer && "bg-emerald-50/70 px-4 py-4 dark:bg-emerald-950/25")}>
+    <article id={`answer-${answer.id}`} className={cn("scroll-mt-24 rounded-lg px-1 py-2", answer.isBestAnswer && "bg-emerald-50/70 px-4 py-4 dark:bg-emerald-950/25")}>
       <div className="flex gap-3 sm:gap-4">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
           {supportAuthorInitial(authorName)}
@@ -1450,24 +1592,84 @@ function AnswerCard({ answer, questionId, onChanged }: { answer: SupportAnswer; 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="min-w-0">
-              <div className="truncate font-medium">{authorName}</div>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <span className="truncate font-medium">{authorName}</span>
+                {isQuestionAuthor ? <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">{t("supportPublic.answer.authorBadge")}</span> : null}
+                {isOfficial ? <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300">{t("supportPublic.answer.officialBadge")}</span> : null}
+              </div>
               <div className="mt-0.5 text-xs text-muted-foreground">{formatDateTime(answer.createdAt)}</div>
             </div>
-            {answer.isBestAnswer && <Badge className="bg-emerald-600 text-white"><CheckCircle2Icon /> {t("supportPublic.answer.best")}</Badge>}
+            {!isDeleted && answer.isBestAnswer && <Badge className="bg-emerald-600 text-white"><CheckCircle2Icon /> {t("supportPublic.answer.best")}</Badge>}
           </div>
           <div className="mt-4">
-            <SupportQuestionArticleContent id={`support-answer-${answer.id}`} content={answer.content} contentType={answer.contentType} />
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-foreground" onClick={() => void ensureSupportLogin().then(() => voteSupportAnswer(answer.id)).then(onChanged)}>
-              <ThumbsUpIcon /> {answer.voteCount}
-            </Button>
-            {!answer.isBestAnswer && (
-              <Button variant="ghost" size="sm" className="rounded-full text-primary" onClick={() => void ensureSupportLogin().then(() => acceptSupportAnswer(questionId, answer.id)).then(onChanged)}>
-                {t("supportPublic.actions.accept")}
-              </Button>
+            {isDeleted ? (
+              <div className="rounded-lg bg-muted/40 px-3 py-2 text-sm text-muted-foreground">{t("supportPublic.answer.deleted")}</div>
+            ) : editing ? (
+              <div className="rounded-lg bg-muted/40 p-3">
+                <ContentEditor value={editContent} onChange={setEditContent} disabled={submitting} allowedModes={["html", "markdown"]} height={220} className="min-w-0" />
+                <div className="mt-3 flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" disabled={submitting} onClick={() => setEditing(false)}>{t("supportPublic.actions.cancel")}</Button>
+                  <Button size="sm" disabled={submitting || !editContent.raw.trim()} onClick={() => void submitEdit()}>{t("supportPublic.actions.save")}</Button>
+                </div>
+              </div>
+            ) : (
+              <SupportQuestionArticleContent id={`support-answer-content-${answer.id}`} content={answer.content} contentType={answer.contentType} />
             )}
           </div>
+          {!isDeleted ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-foreground" onClick={() => void ensureSupportLogin().then(() => voteSupportAnswer(answer.id)).then(onChanged)}>
+                <ThumbsUpIcon /> {answer.voteCount}
+              </Button>
+              {answer.parentId === 0 ? (
+                <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-foreground" onClick={() => setReplying((current) => !current)}>
+                  <CornerDownRightIcon /> {t("supportPublic.actions.reply")}
+                </Button>
+              ) : null}
+              <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-foreground" onClick={() => void copyLink()}>
+                <CopyIcon /> {t("supportPublic.actions.copyLink")}
+              </Button>
+              <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-foreground" onClick={() => void reportAnswer()}>
+                <FlagIcon /> {t("supportPublic.actions.report")}
+              </Button>
+              {isAuthor ? (
+                <>
+                  <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-foreground" onClick={() => setEditing(true)}>
+                    <PencilIcon /> {t("supportPublic.actions.edit")}
+                  </Button>
+                  <Button variant="ghost" size="sm" className="rounded-full text-destructive hover:text-destructive" onClick={() => void deleteAnswer()}>
+                    <Trash2Icon /> {t("supportPublic.actions.delete")}
+                  </Button>
+                </>
+              ) : null}
+              {canAccept ? (
+                <Button variant="ghost" size="sm" className="rounded-full text-primary" onClick={() => void ensureSupportLogin().then(() => acceptSupportAnswer(question.id, answer.id)).then(onChanged)}>
+                  {t("supportPublic.actions.accept")}
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+          {replying ? (
+            <div className="mt-4 rounded-lg bg-muted/35 p-3">
+              <ContentEditor value={replyContent} onChange={setReplyContent} placeholder={t("supportPublic.answer.replyPlaceholder")} disabled={submitting} allowedModes={["html", "markdown"]} height={180} className="min-w-0" />
+              <div className="mt-3 flex justify-end gap-2">
+                <Button variant="ghost" size="sm" disabled={submitting} onClick={() => setReplying(false)}>{t("supportPublic.actions.cancel")}</Button>
+                <Button size="sm" disabled={submitting || !replyContent.raw.trim()} onClick={() => void submitReply()}>{t("supportPublic.actions.publishReply")}</Button>
+              </div>
+            </div>
+          ) : null}
+          {replies.length ? (
+            <div className="mt-5 space-y-4">
+              {replies.map((reply) => (
+                <AnswerCard key={reply.id} answer={reply} question={question} currentUserId={currentUserId} onChanged={onChanged} />
+              ))}
+            </div>
+          ) : null}
+          {!repliesExpanded && answer.replyCount > replies.length ? (
+            <Button variant="ghost" size="sm" className="mt-3 rounded-full text-muted-foreground" onClick={() => void loadReplies()}>
+              <ChevronDownIcon /> {t("supportPublic.actions.viewReplies", { count: answer.replyCount })}
+            </Button>
+          ) : null}
         </div>
       </div>
     </article>

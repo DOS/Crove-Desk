@@ -73,6 +73,7 @@ type ModerateSupportQuestionRequest struct {
 
 type CreateSupportAnswerRequest struct {
 	QuestionID  int64  `json:"questionId"`
+	ParentID    int64  `json:"parentId"`
 	ContentType string `json:"contentType"`
 	Content     string `json:"content"`
 }
@@ -90,6 +91,11 @@ type ModerateSupportAnswerRequest struct {
 
 type SupportVoteRequest struct {
 	ID int64 `json:"id"`
+}
+
+type ReportSupportAnswerRequest struct {
+	ID     int64  `json:"id"`
+	Reason string `json:"reason"`
 }
 
 type SupportAcceptAnswerRequest struct {

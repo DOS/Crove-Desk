@@ -63,6 +63,7 @@ var Models = []any{
 	&SupportAnswer{},
 	&SupportQuestionVote{},
 	&SupportAnswerVote{},
+	&SupportAnswerReport{},
 	&SkillDefinition{},
 	&AgentRevision{},
 	&AgentRun{},
@@ -1019,12 +1020,15 @@ type SupportQuestion struct {
 type SupportAnswer struct {
 	ID           int64                         `gorm:"primaryKey;autoIncrement"`
 	QuestionID   int64                         `gorm:"type:bigint;not null;index"`
+	ParentID     int64                         `gorm:"type:bigint;not null;default:0;index"`
 	AuthorType   enums.SupportAnswerAuthorType `gorm:"type:varchar(20);not null;default:'customer';index"`
 	AuthorID     int64                         `gorm:"type:bigint;not null;index"`
 	ContentType  string                        `gorm:"type:varchar(20);not null;default:'markdown'"`
 	Content      string                        `gorm:"type:text"`
 	Status       enums.SupportAnswerStatus     `gorm:"type:varchar(20);not null;default:'normal';index"`
 	VoteCount    int64                         `gorm:"type:bigint;not null;default:0"`
+	ReplyCount   int64                         `gorm:"type:bigint;not null;default:0"`
+	ReportCount  int64                         `gorm:"type:bigint;not null;default:0"`
 	IsBestAnswer bool                          `gorm:"not null;default:false;index"`
 	AuditFields
 }
@@ -1045,6 +1049,14 @@ type SupportAnswerVote struct {
 	VoteValue int       `gorm:"type:int;not null;default:1"`
 	CreatedAt time.Time `gorm:"not null;index"`
 	UpdatedAt time.Time `gorm:"not null;index"`
+}
+
+type SupportAnswerReport struct {
+	ID        int64     `gorm:"primaryKey;autoIncrement"`
+	AnswerID  int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_answer_report"`
+	UserID    int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_answer_report"`
+	Reason    string    `gorm:"type:varchar(255);not null;default:''"`
+	CreatedAt time.Time `gorm:"type:datetime;not null;index"`
 }
 
 // KnowledgeRetrieveLog 检索日志表。

@@ -63,7 +63,11 @@ func registerApiSupportRoutes(group *gin.RouterGroup) {
 	group.POST("/question/update", api.SupportQuestionPostUpdate)
 	group.POST("/question/accept_answer", api.SupportQuestionPostAcceptAnswer)
 	group.POST("/question/vote", api.SupportQuestionPostVote)
+	group.Any("/answer/list", api.SupportAnswerAnyList)
 	group.POST("/answer/create", api.SupportAnswerPostCreate)
+	group.POST("/answer/update", api.SupportAnswerPostUpdate)
+	group.POST("/answer/delete", api.SupportAnswerPostDelete)
+	group.POST("/answer/report", api.SupportAnswerPostReport)
 	group.POST("/answer/vote", api.SupportAnswerPostVote)
 }
 

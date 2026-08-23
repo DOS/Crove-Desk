@@ -254,6 +254,83 @@ func TestSupportQuestionAndAnswerContentType(t *testing.T) {
 	}
 }
 
+func TestSupportAnswerDiscussionWorkflow(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&models.SupportQuestion{}, &models.SupportAnswer{}, &models.SupportAnswerVote{}, &models.SupportAnswerReport{}); err != nil {
+		t.Fatalf("migrate support answer models: %v", err)
+	}
+	sqls.SetDB(db)
+	owner := &dto.AuthPrincipal{UserID: 1, Username: "owner"}
+	commenter := &dto.AuthPrincipal{UserID: 2, Username: "commenter"}
+
+	question, err := SupportService.CreateQuestion(request.CreateSupportQuestionRequest{
+		CategoryID: 1,
+		Title:      "Discussion question",
+		Content:    "question body",
+	}, owner)
+	if err != nil {
+		t.Fatalf("create question: %v", err)
+	}
+	answer, err := SupportService.CreateSupportUserAnswer(request.CreateSupportAnswerRequest{
+		QuestionID: question.ID,
+		Content:    "top level answer",
+	}, commenter)
+	if err != nil {
+		t.Fatalf("create answer: %v", err)
+	}
+	reply, err := SupportService.CreateSupportUserAnswer(request.CreateSupportAnswerRequest{
+		QuestionID: question.ID,
+		ParentID:   answer.ID,
+		Content:    "reply",
+	}, owner)
+	if err != nil {
+		t.Fatalf("create reply: %v", err)
+	}
+	if reply.ParentID != answer.ID {
+		t.Fatalf("reply parent id = %d, want %d", reply.ParentID, answer.ID)
+	}
+	list, err := SupportService.ListQuestionAnswers(question.ID, 0, "default", 1, 20)
+	if err != nil {
+		t.Fatalf("list answers: %v", err)
+	}
+	if len(list.Answers) != 1 || len(list.Replies[answer.ID]) != 1 {
+		t.Fatalf("expected top-level answer with one preview reply, got %#v replies=%#v", list.Answers, list.Replies)
+	}
+	if list.Paging.Total != 1 {
+		t.Fatalf("top-level paging total = %d, want 1", list.Paging.Total)
+	}
+	if err := SupportService.UpdateAnswer(request.UpdateSupportAnswerRequest{ID: answer.ID, ContentType: "markdown", Content: "updated"}, commenter); err != nil {
+		t.Fatalf("update own answer: %v", err)
+	}
+	if err := SupportService.ReportAnswer(request.ReportSupportAnswerRequest{ID: answer.ID, Reason: "spam"}, owner); err != nil {
+		t.Fatalf("report answer: %v", err)
+	}
+	if err := SupportService.ReportAnswer(request.ReportSupportAnswerRequest{ID: answer.ID, Reason: "spam again"}, owner); err != nil {
+		t.Fatalf("report answer twice: %v", err)
+	}
+	updated := repositories.SupportAnswerRepository.Get(sqls.DB(), answer.ID)
+	if updated.Content != "updated" || updated.ReportCount != 1 || updated.ReplyCount != 1 {
+		t.Fatalf("unexpected updated answer: %#v", updated)
+	}
+	if err := SupportService.DeleteAnswer(reply.ID, owner); err != nil {
+		t.Fatalf("delete reply: %v", err)
+	}
+	updated = repositories.SupportAnswerRepository.Get(sqls.DB(), answer.ID)
+	if updated.ReplyCount != 1 {
+		t.Fatalf("reply count after soft delete = %d, want 1", updated.ReplyCount)
+	}
+	replies, err := SupportService.ListQuestionAnswers(question.ID, answer.ID, "default", 1, 20)
+	if err != nil {
+		t.Fatalf("list replies after delete: %v", err)
+	}
+	if len(replies.Answers) != 1 || replies.Answers[0].Status != enums.SupportAnswerStatusDeleted {
+		t.Fatalf("expected deleted reply placeholder, got %#v", replies.Answers)
+	}
+}
+
 func TestSupportQuestionCategorySort(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {

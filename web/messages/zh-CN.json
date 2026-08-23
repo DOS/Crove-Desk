@@ -2547,6 +2547,17 @@
     "answer": {
       "title": "提交回答",
       "placeholder": "写下你的回答",
+      "replyPlaceholder": "写下你的回复",
+      "count": "{count} 条评论",
+      "authorBadge": "作者",
+      "officialBadge": "官方",
+      "deleted": "该评论已删除",
+      "deleteConfirm": "删除后该评论将不再展示，确定删除吗？",
+      "sort": {
+        "default": "默认",
+        "latest": "最新",
+        "hot": "热门"
+      },
       "best": "最佳答案"
     },
     "login": {
@@ -2578,9 +2589,18 @@
       "askQuestion": "我要提问",
       "publishQuestion": "发布问题",
       "publishAnswer": "发布回答",
+      "publishReply": "发布回复",
       "publishing": "发布中...",
       "processing": "处理中...",
       "accept": "采纳",
+      "reply": "回复",
+      "edit": "编辑",
+      "delete": "删除",
+      "report": "举报",
+      "copyLink": "复制链接",
+      "cancel": "取消",
+      "save": "保存",
+      "viewReplies": "查看全部 {count} 条回复",
       "retry": "重试",
       "loadMore": "加载更多",
       "viewDiscussion": "查看讨论",
@@ -2614,12 +2634,18 @@
       "page": "正在加载页面...",
       "question": "正在加载问题...",
       "questions": "正在加载问题...",
+      "answers": "正在加载评论...",
       "session": "正在检查登录状态..."
     },
     "toast": {
       "feedbackSaved": "感谢反馈",
       "codeCopied": "代码已复制",
       "answerCreated": "回答已发布",
+      "replyCreated": "回复已发布",
+      "answerUpdated": "评论已更新",
+      "answerDeleted": "评论已删除",
+      "answerReported": "已收到举报",
+      "linkCopied": "链接已复制",
       "questionCreated": "问题已发布",
       "loggedIn": "已登录"
     },
