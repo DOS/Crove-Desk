@@ -564,7 +564,7 @@ export function SupportQuestionDetail() {
             </div>
 
             <div className="mt-8 flex flex-wrap items-center gap-2">
-              <Button variant="secondary" size="sm" className="rounded-full" onClick={() => void ensureSupportLogin().then(() => voteSupportQuestion(question.id)).then(reload)}>
+              <Button variant="secondary" size="sm" className="rounded-md" onClick={() => void ensureSupportLogin().then(() => voteSupportQuestion(question.id)).then(reload)}>
                 <ThumbsUpIcon /> {question.voteCount}
               </Button>
               <QuestionMetric icon={<MessageCircleMoreIcon className="size-3.5" />} value={question.answerCount} label={t("supportPublic.questions.answers")} />
@@ -577,7 +577,7 @@ export function SupportQuestionDetail() {
                   <h2 className="text-lg font-semibold tracking-tight">{t("supportPublic.questions.answers")}</h2>
                   <div className="mt-1 text-sm text-muted-foreground">{t("supportPublic.answer.count", { count: answerPage.total || question.answerCount })}</div>
                 </div>
-                <div className="inline-flex w-fit gap-1 rounded-lg bg-muted p-0.5">
+                <div className="inline-flex w-fit gap-1 rounded-md bg-muted p-0.5">
                   {(["default", "latest", "hot"] as const).map((sort) => (
                     <button
                       key={sort}
@@ -608,7 +608,7 @@ export function SupportQuestionDetail() {
               ) : <EmptyState text={t("supportPublic.empty.noAnswers")} />}
               {hasMoreAnswers ? (
                 <div className="mt-4 flex justify-center">
-                  <Button variant="secondary" size="sm" className="rounded-full" disabled={answersLoading} onClick={() => loadAnswers(answerPage.page + 1, true)}>
+                  <Button variant="secondary" size="sm" className="rounded-md" disabled={answersLoading} onClick={() => loadAnswers(answerPage.page + 1, true)}>
                     {answersLoading ? <LoaderCircleIcon className="animate-spin" /> : <ChevronDownIcon />}
                     {answersLoading ? t("supportPublic.loading.answers") : t("supportPublic.actions.loadMore")}
                   </Button>
@@ -793,7 +793,7 @@ export function SupportAskQuestion() {
 
           <Input id="support-question-tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder={t("supportPublic.ask.tagsPlaceholder")} className="rounded-md bg-card" disabled={submitting} aria-label={t("supportPublic.ask.tags")} />
 
-          {formError ? <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{formError}</div> : null}
+          {formError ? <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{formError}</div> : null}
 
           <div className="flex justify-end pt-1">
             <Button type="submit" disabled={submitting || categoriesLoading || categoriesFailed}>
@@ -939,7 +939,7 @@ function HelpNavigation({
       <SupportSearchInput value={title} onChange={onTitleChange} placeholder={t("supportPublic.help.searchPlaceholder")} compact />
       <div className="mt-4 grid gap-0.5">
         {title.trim() ? searchResults.map((page) => (
-          <SupportHelpLink key={page.id} page={page} onNavigate={onNavigate} className={cn("rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-muted", selectedPageId === page.id && "bg-primary/10 text-primary")}>
+          <SupportHelpLink key={page.id} page={page} onNavigate={onNavigate} className={cn("rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-muted", selectedPageId === page.id && "bg-primary/10 text-primary")}>
             <span className="block truncate font-medium">{page.title}</span>
             {page.summary ? <span className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">{page.summary}</span> : null}
           </SupportHelpLink>
@@ -1214,7 +1214,7 @@ function QuestionCard({ item }: { item: SupportQuestion }) {
 
 function QuestionMetric({ icon, value, label, className }: { icon: ReactNode; value: number; label: string; className?: string }) {
   return (
-    <span className={cn("inline-flex h-7 items-center gap-1 rounded-full bg-muted px-2.5 text-xs text-muted-foreground", className)} title={label} aria-label={`${label}: ${value}`}>
+    <span className={cn("inline-flex h-7 items-center gap-1 rounded-md bg-muted px-2.5 text-xs text-muted-foreground", className)} title={label} aria-label={`${label}: ${value}`}>
       {icon}
       {value}
     </span>
@@ -1395,7 +1395,7 @@ function ChildPageLinks({ pages, onNavigate }: { pages: SupportHelpPage[]; onNav
             onNavigate={onNavigate}
             className="group flex min-w-0 items-start gap-3 rounded-xl border border-border/70 bg-card p-4 shadow-xs transition-[border-color,background-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/[0.025] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-muted/60 text-muted-foreground transition-colors group-hover:border-primary/20 group-hover:bg-primary/10 group-hover:text-primary">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/60 text-muted-foreground transition-colors group-hover:border-primary/20 group-hover:bg-primary/10 group-hover:text-primary">
               <FileTextIcon className="size-4" aria-hidden="true" />
             </span>
             <span className="min-w-0 flex-1">
@@ -1616,7 +1616,7 @@ function AnswerCard({ answer, question, currentUserId, onChanged }: { answer: Su
             {isDeleted ? (
               <div className="rounded-md bg-muted/70 px-3 py-2 text-sm text-muted-foreground">{t("supportPublic.answer.deleted")}</div>
             ) : editing ? (
-              <div className="rounded-lg bg-muted/40 p-3">
+              <div className="rounded-md bg-muted/40 p-3">
                 <ContentEditor value={editContent} onChange={setEditContent} disabled={submitting} allowedModes={["html", "markdown"]} height={220} className="min-w-0" />
                 <div className="mt-3 flex justify-end gap-2">
                   <Button variant="ghost" size="sm" disabled={submitting} onClick={() => setEditing(false)}>{t("supportPublic.actions.cancel")}</Button>
@@ -1661,7 +1661,7 @@ function AnswerCard({ answer, question, currentUserId, onChanged }: { answer: Su
             </div>
           ) : null}
           {replying ? (
-            <div className="mt-3 rounded-lg bg-muted/40 p-3">
+            <div className="mt-3 rounded-md bg-muted/40 p-3">
               <ContentEditor value={replyContent} onChange={setReplyContent} placeholder={t("supportPublic.answer.replyPlaceholder")} disabled={submitting} allowedModes={["html", "markdown"]} height={180} className="min-w-0" />
               <div className="mt-3 flex justify-end gap-2">
                 <Button variant="ghost" size="sm" disabled={submitting} onClick={() => setReplying(false)}>{t("supportPublic.actions.cancel")}</Button>
