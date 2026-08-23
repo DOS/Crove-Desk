@@ -16,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mlogclub/simple/sqls"
 	"github.com/mlogclub/simple/web"
+	"github.com/spf13/cast"
 	"gorm.io/gorm"
 )
 
@@ -95,14 +96,29 @@ func CategoryAnyList(ctx *gin.Context) {
 }
 
 func PostAnyList(ctx *gin.Context) {
-	cnd := params.NewPagedSqlCnd(ctx,
+	cursor, _ := params.GetInt64(ctx, "cursor")
+	limit, _ := params.GetInt(ctx, "limit")
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+	cnd := params.NewSqlCnd(ctx,
 		params.QueryFilter{ParamName: "categoryId"},
 		params.QueryFilter{ParamName: "status"},
 		params.QueryFilter{ParamName: "title", Op: params.Like},
-	).Where("status NOT IN ?", []enums.PostStatus{enums.PostStatusHidden, enums.PostStatusDeleted}).Desc("id")
-	list, paging := repositories.PostRepository.FindPageByCnd(sqls.DB(), cnd)
-	results := buildPostList(list)
-	httpx.WriteJSON(ctx, &web.PageResult{Results: results, Page: paging})
+	).Where("status NOT IN ?", []enums.PostStatus{enums.PostStatusHidden, enums.PostStatusDeleted}).Desc("id").Limit(limit + 1)
+	if cursor > 0 {
+		cnd.Lt("id", cursor)
+	}
+	list := repositories.PostRepository.Find(sqls.DB(), cnd)
+	hasMore := len(list) > limit
+	if hasMore {
+		list = list[:limit]
+	}
+	nextCursor := ""
+	if hasMore && len(list) > 0 {
+		nextCursor = cast.ToString(list[len(list)-1].ID)
+	}
+	httpx.WriteJSON(ctx, httpx.CursorData(buildPostList(list), nextCursor, hasMore))
 }
 
 func PostGetBy(ctx *gin.Context) {

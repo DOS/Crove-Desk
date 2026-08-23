@@ -119,6 +119,11 @@ func (r *supportPostRepository) Get(db *gorm.DB, id int64) *models.Post {
 	return ret
 }
 
+func (r *supportPostRepository) Find(db *gorm.DB, cnd *sqls.Cnd) (list []models.Post) {
+	cnd.Find(db, &list)
+	return
+}
+
 func (r *supportPostRepository) FindPageByCnd(db *gorm.DB, cnd *sqls.Cnd) (list []models.Post, paging *sqls.Paging) {
 	cnd.Find(db, &list)
 	paging = &sqls.Paging{Page: cnd.Paging.Page, Limit: cnd.Paging.Limit, Total: cnd.Count(db, &models.Post{})}

@@ -2603,6 +2603,7 @@
       "viewReplies": "查看全部 {count} 条回复",
       "retry": "重试",
       "loadMore": "加载更多",
+      "noMore": "没有更多了",
       "viewDiscussion": "查看讨论"
     },
     "status": {

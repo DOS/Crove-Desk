@@ -1,11 +1,11 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useState } from "react"
 import Link from "next/link"
-import { ChevronDownIcon, LoaderCircleIcon } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 
-import { Button, buttonVariants } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
+import { LoadMore } from "@/components/load-more"
 import { CommunityFrame } from "@/app/(support)/support/_components/community-frame"
 import { SupportEmptyState as EmptyState } from "@/app/(support)/support/_components/support-ui"
 import { newPostHref, fetchPosts, type Post } from "@/lib/api/support-community"
@@ -18,59 +18,30 @@ export function PostList() {
   const t = useI18n()
   const searchParams = useSearchParams()
   const categoryRoute = useCommunityCategoryRoute()
-  const requestSeq = useRef(0)
-  const [posts, setPosts] = useState<Post[]>([])
-  const [postsLoading, setPostsLoading] = useState(true)
-  const [postsFailed, setPostsFailed] = useState(false)
-  const [postPage, setPostPage] = useState({ page: 1, limit: 20, total: 0 })
   const title = searchParams.get("title") || ""
   const [status, setStatus] = useState(searchParams.get("status") || "all")
 
-  const loadPosts = useCallback((page = 1, append = false) => {
-    if (categoryRoute.categorySlug && !categoryRoute.activeCategory) {
-      setPosts([])
-      setPostPage((current) => ({ ...current, page: 1, total: 0 }))
-      setPostsLoading(categoryRoute.categoriesLoading)
-      setPostsFailed(!categoryRoute.categoriesLoading)
-      return
-    }
-    const seq = requestSeq.current + 1
-    requestSeq.current = seq
-    setPostsLoading(true)
-    setPostsFailed(false)
-    void fetchPosts({
+  const resetKey = [
+    categoryRoute.activeCategoryId,
+    categoryRoute.categorySlug,
+    status,
+    title,
+  ].join(":")
+  const loadPosts = useCallback(({ cursor }: { cursor: string; force: boolean }) => {
+    return fetchPosts({
       categoryId: categoryRoute.activeCategoryId === "all" ? undefined : categoryRoute.activeCategoryId,
       status: status === "all" ? undefined : status,
       title,
-      page,
-      limit: postPage.limit,
+      cursor,
+      limit: 20,
     })
-      .then((result) => {
-        if (seq !== requestSeq.current) return
-        setPosts((current) => append ? [...current, ...result.results] : result.results)
-        setPostPage(result.page)
-      })
-      .catch(() => {
-        if (seq !== requestSeq.current) return
-        if (!append) setPosts([])
-        setPostsFailed(true)
-      })
-      .finally(() => {
-        if (seq === requestSeq.current) setPostsLoading(false)
-      })
-  }, [categoryRoute.activeCategory, categoryRoute.activeCategoryId, categoryRoute.categoriesLoading, categoryRoute.categorySlug, postPage.limit, status, title])
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => loadPosts(1), 180)
-    return () => window.clearTimeout(timer)
-  }, [loadPosts])
-
-  const hasMorePosts = posts.length < postPage.total
+  }, [categoryRoute.activeCategoryId, status, title])
   const statusOptions = [
     { value: "all", label: t("supportPublic.status.all") },
     { value: "normal", label: t("supportPublic.status.normal") },
     { value: "resolved", label: t("supportPublic.status.resolved") },
   ]
+  const categoryUnavailable = Boolean(categoryRoute.categorySlug && !categoryRoute.categoriesLoading && !categoryRoute.activeCategory)
 
   return (
     <CommunityFrame categoryRoute={categoryRoute}>
@@ -98,24 +69,23 @@ export function PostList() {
         </div>
       </div>
       <div className="px-5 py-3 sm:px-6 md:px-8 lg:px-10 2xl:px-12">
-        {posts.length ? posts.map((item) => <PostCard key={item.id} item={item} />) : null}
-        {postsLoading && !posts.length ? <PostListLoading /> : null}
-        {!postsLoading && postsFailed ? (
-          <div className="rounded-md border border-destructive/25 bg-destructive/5 p-4 text-sm text-destructive">
-            <div>{t("supportPublic.empty.postsFailed")}</div>
-            <Button variant="destructive" size="sm" className="mt-3" onClick={() => loadPosts(1)}>
-              {t("supportPublic.actions.retry")}
-            </Button>
-          </div>
-        ) : null}
-        {!postsLoading && !postsFailed && !posts.length ? <EmptyState text={t("supportPublic.empty.noPostsMatched")} /> : null}
-        {hasMorePosts ? (
-          <div className="flex justify-center py-2">
-            <Button variant="ghost" size="sm" disabled={postsLoading} onClick={() => loadPosts(postPage.page + 1, true)}>
-              {postsLoading ? <LoaderCircleIcon className="animate-spin" /> : <ChevronDownIcon />}
-              {postsLoading ? t("supportPublic.loading.posts") : t("supportPublic.actions.loadMore")}
-            </Button>
-          </div>
+        {categoryRoute.categoriesLoading && categoryRoute.categorySlug ? <PostListLoading /> : null}
+        {categoryUnavailable ? <EmptyState text={t("supportPublic.empty.noPostsMatched")} /> : null}
+        {!categoryRoute.categoriesLoading && !categoryUnavailable ? (
+          <LoadMore<Post>
+            resetKey={resetKey}
+            initialHasMore
+            initialLoad
+            labels={{
+              loadMore: t("supportPublic.actions.loadMore"),
+              noMore: t("supportPublic.actions.noMore"),
+              loading: t("supportPublic.loading.posts"),
+              error: t("supportPublic.empty.postsFailed"),
+            }}
+            loadPage={loadPosts}
+            renderItems={(items) => items.map((item) => <PostCard key={item.id} item={item} />)}
+            renderEmpty={() => <EmptyState text={t("supportPublic.empty.noPostsMatched")} />}
+          />
         ) : null}
       </div>
     </CommunityFrame>

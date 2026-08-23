@@ -1,5 +1,6 @@
 import { type PageResult } from "@/lib/api/admin"
 import { request } from "@/lib/api/client"
+import type { PageData } from "@/lib/api/types"
 
 export type Category = {
   id: number
@@ -79,7 +80,7 @@ export function fetchCategories() {
 }
 
 export function fetchPosts(query?: Record<string, string | number | undefined>) {
-  return request<PageResult<Post>>(`/api/support/community/posts/list${toQueryString(query)}`, {
+  return request<PageData<Post>>(`/api/support/community/posts/list${toQueryString(query)}`, {
     skipAuth: true,
   })
 }

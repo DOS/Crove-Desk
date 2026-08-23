@@ -2604,6 +2604,7 @@
       "viewReplies": "View all {count} replies",
       "retry": "Retry",
       "loadMore": "Load more",
+      "noMore": "No more",
       "viewDiscussion": "View discussion"
     },
     "status": {
