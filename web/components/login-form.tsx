@@ -163,7 +163,7 @@ export function LoginForm({
               <div className="flex flex-col items-center gap-2 text-center">
                 <h1 className="text-2xl font-bold">{t("auth.welcome")}</h1>
                 <p className="text-balance text-muted-foreground">
-                  {t("auth.loginDescription", { brand: t("app.brand") })}
+                  {t("auth.loginDescription", { brand: publicConfig?.companyName || t("app.brand") })}
                 </p>
               </div>
               {isPasswordLoginEnabled ? (
