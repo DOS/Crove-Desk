@@ -37,6 +37,7 @@ type UserResponse struct {
 	Avatar      string         `json:"avatar"`
 	Mobile      string         `json:"mobile,omitempty"`
 	Email       string         `json:"email,omitempty"`
+	UserType    enums.UserType `json:"userType"`
 	Status      enums.Status   `json:"status"`
 	LastLoginAt string         `json:"lastLoginAt,omitempty"`
 	LastLoginIP string         `json:"lastLoginIp,omitempty"`

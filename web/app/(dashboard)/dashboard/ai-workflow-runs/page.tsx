@@ -10,7 +10,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { ConversationDetailDialog } from "@/app/dashboard/conversation-monitor/_components/detail"
+import { ConversationDetailDialog } from "@/app/(dashboard)/dashboard/conversation-monitor/_components/detail"
 import { DashboardListPage } from "@/components/dashboard/list"
 import { JsonTreeViewer } from "@/components/json-tree-viewer"
 import { ProjectDialog } from "@/components/project-dialog"

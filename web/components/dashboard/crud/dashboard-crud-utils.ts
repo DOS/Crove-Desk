@@ -70,6 +70,7 @@ export type DashboardCrudFormField<TItem = unknown> = {
   required?: boolean
   requiredMessage?: string
   trim?: boolean
+  normalizeInput?: (value: string) => string
   valueType?: "string" | "number" | "boolean"
   min?: number
   max?: number

@@ -380,6 +380,8 @@ func setupAuthServiceTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("open sqlite db: %v", err)
 	}
 	if err := db.AutoMigrate(
+		&models.Organization{},
+		&models.OrganizationMember{},
 		&models.User{},
 		&models.UserIdentity{},
 		&models.Role{},

@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -41,25 +42,9 @@ func NewServer() (*gin.Engine, error) {
 
 	addRouter(app)
 
-	notFoundPrefixes := []string{"/api/"}
-	if baseURL := strings.TrimRight(cfg.Storage.Local.BaseURL, "/"); baseURL != "" {
-		notFoundPrefixes = append(notFoundPrefixes, baseURL+"/")
-	}
+	handleSpa(app)
+
 	app.StaticFS(cfg.Storage.Local.BaseURL, ginx.StaticFiles(cfg.Storage.Local.Root))
-	ginx.HandleSPA(app, ginx.SPAOptions{
-		Root:         "./web/out",
-		EmbeddedFS:   webspa.SPA,
-		EmbeddedRoot: "out",
-		DirOptions: ginx.DirOptions{
-			ShowList:  false,
-			SPA:       true,
-			IndexName: "index.html",
-		},
-		NotFoundPrefixes: notFoundPrefixes,
-		NotFoundHandler: func(ctx *gin.Context) {
-			httpx.WriteHttpStatusJSON(ctx, http.StatusNotFound, web.JsonErrorCode(http.StatusNotFound, i18nx.T(ctx, "error.notFound")))
-		},
-	})
 
 	return app, nil
 }
@@ -163,6 +148,8 @@ func addRouter(app *gin.Engine) {
 	registerApiCustomerRoutes(apiGroup.Group("/customer"))
 	registerApiConversationRoutes(apiGroup.Group("/conversation", middleware.ExternalUserMiddleware))
 	registerApiMessageRoutes(apiGroup.Group("/message", middleware.ExternalUserMiddleware))
+	registerApiSupportRoutes(apiGroup.Group("/support"))
+	registerApiWebhookRoutes(apiGroup.Group("/webhooks"))
 
 	wsGroup := app.Group("/api/ws")
 	wsGroup.GET("/dashboard", middleware.AuthMiddleware, services.WsService.HandleDashboardWS)
@@ -172,6 +159,7 @@ func addRouter(app *gin.Engine) {
 	dashboardGroup := app.Group("/api/dashboard", middleware.AuthMiddleware)
 	registerDashboardDashboardRoutes(dashboardGroup.Group("/dashboard"))
 	registerDashboardUserRoutes(dashboardGroup.Group("/user"))
+	registerDashboardOrganizationRoutes(dashboardGroup.Group("/organization"))
 	registerDashboardCompanyRoutes(dashboardGroup.Group("/company"))
 	registerDashboardCustomerRoutes(dashboardGroup.Group("/customer"))
 	registerDashboardCustomerContactRoutes(dashboardGroup.Group("/customer-contact"))
@@ -198,9 +186,92 @@ func addRouter(app *gin.Engine) {
 	registerDashboardKnowledgeFAQRoutes(dashboardGroup.Group("/knowledge-faq"))
 	registerDashboardKnowledgeRetrieveRoutes(dashboardGroup.Group("/knowledge-retrieve"))
 	registerDashboardKnowledgeRetrieveLogRoutes(dashboardGroup.Group("/knowledge-retrieve-log"))
+	registerDashboardSupportHelpPageRoutes(dashboardGroup.Group("/support-help-page"))
+	registerDashboardSupportQuestionCategoryRoutes(dashboardGroup.Group("/support-question-category"))
+	registerDashboardSupportQuestionRoutes(dashboardGroup.Group("/support-question"))
 	registerDashboardSkillDefinitionRoutes(dashboardGroup.Group("/skill-definition"))
 	registerDashboardMCPRoutes(dashboardGroup.Group("/mcp"))
 
 	thirdGroup := app.Group("/api/third")
 	registerThirdWechatRoutes(thirdGroup.Group("/wechat"))
+}
+
+type spaShellRewrite struct {
+	Route     string
+	ShellPath string
+	Match     func(*gin.Context) bool
+}
+
+func handleSpa(app *gin.Engine) {
+	cfg := config.Current()
+
+	spaHandler := ginx.HandleSPA(app, ginx.SPAOptions{
+		Root:         "./web/out",
+		EmbeddedFS:   webspa.SPA,
+		EmbeddedRoot: "out",
+		DirOptions: ginx.DirOptions{
+			ShowList:  false,
+			SPA:       true,
+			IndexName: "index.html",
+		},
+		NotFoundPrefixes: func() []string {
+			notFoundPrefixes := []string{"/api/"}
+			if baseURL := strings.TrimRight(cfg.Storage.Local.BaseURL, "/"); baseURL != "" {
+				notFoundPrefixes = append(notFoundPrefixes, baseURL+"/")
+			}
+			return notFoundPrefixes
+		}(),
+		NotFoundHandler: func(ctx *gin.Context) {
+			httpx.WriteHttpStatusJSON(ctx, http.StatusNotFound, web.JsonErrorCode(http.StatusNotFound, i18nx.T(ctx, "error.notFound")))
+		},
+	})
+
+	// SPA rewrites
+	registerSPAShellRewrites(app, spaHandler)
+}
+
+func registerSPAShellRewrites(app *gin.Engine, spaHandler gin.HandlerFunc) {
+	rewrites := []spaShellRewrite{
+		{
+			// Runtime-authored help pages cannot be enumerated by static export.
+			Route:     "/support/help/*slug",
+			ShellPath: "/support/help.html",
+		},
+		{
+			// Keep the public RESTful URL and serve the exported detail shell for IDs.
+			Route:     "/support/question/:id",
+			ShellPath: "/support/question/detail.html",
+			Match: func(ctx *gin.Context) bool {
+				value, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
+				return err == nil && value > 0
+			},
+		},
+		{
+			Route:     "/support/questions/ask",
+			ShellPath: "/support/questions/ask.html",
+		},
+		{
+			// FAQ category pages are runtime-authored through category slugs.
+			Route:     "/support/questions/:slug",
+			ShellPath: "/support/questions.html",
+			Match: func(ctx *gin.Context) bool {
+				slug := ctx.Param("slug")
+				return slug != "" && slug != "ask" && slug != "detail"
+			},
+		},
+	}
+	for _, rewrite := range rewrites {
+		handler := newSPAShellRewriteHandler(spaHandler, rewrite)
+		app.GET(rewrite.Route, handler)
+		app.HEAD(rewrite.Route, handler)
+	}
+}
+
+func newSPAShellRewriteHandler(spaHandler gin.HandlerFunc, rewrite spaShellRewrite) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		if rewrite.Match == nil || rewrite.Match(ctx) {
+			ctx.Request.URL.Path = rewrite.ShellPath
+		}
+		spaHandler(ctx)
+	}
 }

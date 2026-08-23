@@ -4,6 +4,7 @@ import (
 	"agent-desk/internal/models"
 	"agent-desk/internal/oidcclient"
 	"agent-desk/internal/pkg/config"
+	"agent-desk/internal/pkg/constants"
 	"agent-desk/internal/pkg/dto/response"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/errorsx"
@@ -90,7 +91,7 @@ func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authC
 			return errorsx.UnauthorizedI18n("error.e0200")
 		}
 
-		if err = repositories.UserRepository.Updates(ctx.Tx, user.ID, map[string]any{
+		userUpdates := map[string]any{
 			"nickname":         s.resolveOIDCNickname(user.Nickname, profile),
 			"avatar":           s.resolveOIDCAvatar(user.Avatar, profile),
 			"last_login_at":    time.Now(),
@@ -98,9 +99,19 @@ func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authC
 			"update_user_id":   user.ID,
 			"update_user_name": user.Username,
 			"updated_at":       time.Now(),
-		}); err != nil {
+		}
+		if (user.Email == nil || *user.Email == "") && profile.Email != "" {
+			if email := s.availableEmail(ctx.Tx, profile.Email); email != nil {
+				userUpdates["email"] = *email
+			}
+		}
+
+		if err = repositories.UserRepository.Updates(ctx.Tx, user.ID, userUpdates); err != nil {
 			return err
 		}
+
+		s.ensureDefaultOIDCRole(ctx.Tx, user)
+		s.syncOIDCUserOrganizations(ctx.Tx, user, profile)
 
 		if err = repositories.UserIdentityRepository.Updates(ctx.Tx, identity.ID, map[string]any{
 			"provider_name":    enums.GetThirdProviderLabel(enums.ThirdProviderOIDC),
@@ -135,6 +146,7 @@ func (s *oidcLoginService) createOIDCUser(ctx *sqls.TxContext, profile *oidcLogi
 		Email:        email,
 		Password:     "",
 		PasswordSalt: "",
+		UserType:     enums.UserTypeEmployee,
 		Status:       enums.StatusOk,
 		AuditFields: models.AuditFields{
 			CreatedAt:      now,
@@ -170,6 +182,7 @@ func (s *oidcLoginService) createOIDCUser(ctx *sqls.TxContext, profile *oidcLogi
 	if err := repositories.UserIdentityRepository.Create(ctx.Tx, identity); err != nil {
 		return nil, nil, err
 	}
+	s.ensureDefaultOIDCRole(ctx.Tx, user)
 	return user, identity, nil
 }
 
@@ -242,4 +255,161 @@ func normalizeOIDCUsername(value string) string {
 func shortSubjectHash(subject string) string {
 	sum := sha256.Sum256([]byte(strings.TrimSpace(subject)))
 	return hex.EncodeToString(sum[:])[:16]
+}
+
+func (s *oidcLoginService) ensureDefaultOIDCRole(tx *gorm.DB, user *models.User) {
+	if user == nil || user.ID <= 0 {
+		return
+	}
+	existingRole := repositories.UserRoleRepository.FindOne(tx, sqls.NewCnd().Eq("user_id", user.ID))
+	if existingRole != nil {
+		return
+	}
+	defaultRole := repositories.RoleRepository.GetByCode(tx, constants.RoleCodeAdmin)
+	if defaultRole == nil {
+		defaultRole = repositories.RoleRepository.GetByCode(tx, constants.RoleCodeSuperAdmin)
+	}
+	if defaultRole == nil {
+		return
+	}
+	now := time.Now()
+	_ = repositories.UserRoleRepository.Create(tx, &models.UserRole{
+		UserID: user.ID,
+		RoleID: defaultRole.ID,
+		AuditFields: models.AuditFields{
+			CreatedAt:      now,
+			CreateUserID:   user.ID,
+			CreateUserName: user.Username,
+			UpdatedAt:      now,
+			UpdateUserID:   user.ID,
+			UpdateUserName: user.Username,
+		},
+	})
+}
+
+func (s *oidcLoginService) syncOIDCUserOrganizations(tx *gorm.DB, user *models.User, profile *oidcLoginProfile) {
+	if user == nil || user.ID <= 0 {
+		return
+	}
+	now := time.Now()
+	var activeOrgID int64 = user.ActiveOrgID
+
+	if len(profile.Organizations) > 0 {
+		for _, orgClaim := range profile.Organizations {
+			orgCode := strings.TrimSpace(orgClaim.ID)
+			if orgCode == "" {
+				continue
+			}
+			orgName := strings.TrimSpace(orgClaim.Name)
+			if orgName == "" {
+				orgName = orgCode
+			}
+			role := strings.ToUpper(strings.TrimSpace(orgClaim.Role))
+			if role == "" {
+				role = "MEMBER"
+			}
+
+			org := repositories.OrganizationRepository.GetByCode(tx, orgCode)
+			if org == nil {
+				org = &models.Organization{
+					Code:   orgCode,
+					Name:   orgName,
+					Plan:   "free",
+					Status: enums.StatusOk,
+					AuditFields: models.AuditFields{
+						CreatedAt:      now,
+						CreateUserID:   user.ID,
+						CreateUserName: user.Username,
+						UpdatedAt:      now,
+						UpdateUserID:   user.ID,
+						UpdateUserName: user.Username,
+					},
+				}
+				if err := repositories.OrganizationRepository.Create(tx, org); err != nil {
+					continue
+				}
+			} else if orgName != "" && org.Name != orgName {
+				_ = repositories.OrganizationRepository.UpdateColumn(tx, org.ID, "name", orgName)
+			}
+
+			member := repositories.OrganizationMemberRepository.GetByOrgAndUser(tx, org.ID, user.ID)
+			if member == nil {
+				member = &models.OrganizationMember{
+					OrganizationID: org.ID,
+					UserID:         user.ID,
+					Role:           role,
+					Status:         enums.StatusOk,
+					AuditFields: models.AuditFields{
+						CreatedAt:      now,
+						CreateUserID:   user.ID,
+						CreateUserName: user.Username,
+						UpdatedAt:      now,
+						UpdateUserID:   user.ID,
+						UpdateUserName: user.Username,
+					},
+				}
+				_ = repositories.OrganizationMemberRepository.Create(tx, member)
+			} else if member.Role != role || member.Status != enums.StatusOk {
+				_ = repositories.OrganizationMemberRepository.Updates(tx, member.ID, map[string]any{
+					"role":             role,
+					"status":           enums.StatusOk,
+					"update_user_id":   user.ID,
+					"update_user_name": user.Username,
+					"updated_at":       now,
+				})
+			}
+
+			if activeOrgID == 0 {
+				activeOrgID = org.ID
+			}
+		}
+	} else {
+		existingMemberships := repositories.OrganizationMemberRepository.Find(tx, sqls.NewCnd().Eq("user_id", user.ID).Eq("status", enums.StatusOk))
+		if len(existingMemberships) == 0 {
+			defaultOrgCode := "org_" + shortSubjectHash(profile.Subject)
+			defaultOrgName := s.resolveOIDCNickname(user.Nickname, profile) + "'s Workspace"
+			org := repositories.OrganizationRepository.GetByCode(tx, defaultOrgCode)
+			if org == nil {
+				org = &models.Organization{
+					Code:   defaultOrgCode,
+					Name:   defaultOrgName,
+					Plan:   "free",
+					Status: enums.StatusOk,
+					AuditFields: models.AuditFields{
+						CreatedAt:      now,
+						CreateUserID:   user.ID,
+						CreateUserName: user.Username,
+						UpdatedAt:      now,
+						UpdateUserID:   user.ID,
+						UpdateUserName: user.Username,
+					},
+				}
+				_ = repositories.OrganizationRepository.Create(tx, org)
+			}
+			if org.ID > 0 {
+				_ = repositories.OrganizationMemberRepository.Create(tx, &models.OrganizationMember{
+					OrganizationID: org.ID,
+					UserID:         user.ID,
+					Role:           "OWNER",
+					Status:         enums.StatusOk,
+					AuditFields: models.AuditFields{
+						CreatedAt:      now,
+						CreateUserID:   user.ID,
+						CreateUserName: user.Username,
+						UpdatedAt:      now,
+						UpdateUserID:   user.ID,
+						UpdateUserName: user.Username,
+					},
+				})
+				activeOrgID = org.ID
+			}
+		} else if activeOrgID == 0 {
+			activeOrgID = existingMemberships[0].OrganizationID
+		}
+	}
+
+	if activeOrgID > 0 && user.ActiveOrgID != activeOrgID {
+		user.ActiveOrgID = activeOrgID
+		_ = repositories.UserRepository.UpdateColumn(tx, user.ID, "active_org_id", activeOrgID)
+	}
 }

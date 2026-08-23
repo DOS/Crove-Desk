@@ -29,6 +29,7 @@ func BuildUserResponse(item *models.User, options UserBuildOptions) *response.Us
 		Username:    item.Username,
 		Nickname:    item.Nickname,
 		Avatar:      item.Avatar,
+		UserType:    item.UserType,
 		Status:      item.Status,
 		LastLoginAt: utils.FormatTimePtr(item.LastLoginAt),
 		LastLoginIP: item.LastLoginIP,

@@ -122,6 +122,7 @@ func (s *userService) CreateUser(req request.CreateUserRequest, operator *dto.Au
 		Avatar:       strings.TrimSpace(req.Avatar),
 		Mobile:       mobile,
 		Email:        email,
+		UserType:     enums.UserTypeEmployee,
 		Status:       enums.StatusOk,
 		Remark:       strings.TrimSpace(req.Remark),
 		PasswordSalt: "",
