@@ -2550,7 +2550,6 @@
       "replyPlaceholder": "写下你的回复",
       "count": "{count} 条评论",
       "authorBadge": "作者",
-      "officialBadge": "官方",
       "deleted": "该评论已删除",
       "deleteConfirm": "删除后该评论将不再展示，确定删除吗？",
       "sort": {

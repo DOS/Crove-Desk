@@ -1523,7 +1523,6 @@ function AnswerCard({ answer, question, currentUserId, onChanged }: { answer: Su
   const isAuthor = !isDeleted && currentUserId > 0 && answer.authorId === currentUserId
   const canAccept = !isDeleted && currentUserId > 0 && currentUserId === question.userId && !answer.isBestAnswer && answer.parentId === 0
   const isQuestionAuthor = answer.authorId === question.userId
-  const isOfficial = answer.authorType === "employee"
   const isReply = answer.parentId > 0
 
   useEffect(() => {
@@ -1608,7 +1607,6 @@ function AnswerCard({ answer, question, currentUserId, onChanged }: { answer: Su
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 <span className={cn("truncate font-medium", isReply ? "text-sm text-foreground/90" : "text-sm text-foreground")}>{authorName}</span>
                 {isQuestionAuthor ? <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">{t("supportPublic.answer.authorBadge")}</span> : null}
-                {isOfficial ? <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300">{t("supportPublic.answer.officialBadge")}</span> : null}
               </div>
               <div className="mt-0.5 text-xs text-muted-foreground">{formatDateTime(answer.createdAt)}</div>
             </div>

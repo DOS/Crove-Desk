@@ -2550,7 +2550,6 @@
       "replyPlaceholder": "Write your reply",
       "count": "{count} comments",
       "authorBadge": "Author",
-      "officialBadge": "Official",
       "deleted": "This comment has been deleted.",
       "deleteConfirm": "This comment will no longer be shown after deletion. Delete it?",
       "sort": {
