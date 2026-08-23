@@ -14,17 +14,17 @@ func TestWebhookDOSOrgSync_OrgEvents(t *testing.T) {
 	svc := newWebhookSyncService()
 
 	// 1. Test org.created
-	err := svc.HandleDOSOrgSync(request.DOSOrgSyncWebhookRequest{
+	err := svc.HandleOrgSync(request.OrgSyncWebhookRequest{
 		Event:     "org.created",
 		Timestamp: time.Now().Format(time.RFC3339),
-		Data: request.DOSOrgSyncEventData{
+		Data: request.OrgSyncEventData{
 			OrgID:   "org_tingee_001",
 			OrgName: "Tingee Corporation",
 			Plan:    "pro",
 		},
 	})
 	if err != nil {
-		t.Fatalf("HandleDOSOrgSync org.created failed: %v", err)
+		t.Fatalf("HandleOrgSync org.created failed: %v", err)
 	}
 
 	org := repositories.OrganizationRepository.GetByCode(db, "org_tingee_001")
@@ -33,17 +33,17 @@ func TestWebhookDOSOrgSync_OrgEvents(t *testing.T) {
 	}
 
 	// 2. Test org.updated
-	err = svc.HandleDOSOrgSync(request.DOSOrgSyncWebhookRequest{
+	err = svc.HandleOrgSync(request.OrgSyncWebhookRequest{
 		Event:     "org.updated",
 		Timestamp: time.Now().Format(time.RFC3339),
-		Data: request.DOSOrgSyncEventData{
+		Data: request.OrgSyncEventData{
 			OrgID:   "org_tingee_001",
 			OrgName: "Tingee Global Corp",
 			Plan:    "enterprise",
 		},
 	})
 	if err != nil {
-		t.Fatalf("HandleDOSOrgSync org.updated failed: %v", err)
+		t.Fatalf("HandleOrgSync org.updated failed: %v", err)
 	}
 
 	org = repositories.OrganizationRepository.GetByCode(db, "org_tingee_001")
@@ -52,15 +52,15 @@ func TestWebhookDOSOrgSync_OrgEvents(t *testing.T) {
 	}
 
 	// 3. Test org.deleted
-	err = svc.HandleDOSOrgSync(request.DOSOrgSyncWebhookRequest{
+	err = svc.HandleOrgSync(request.OrgSyncWebhookRequest{
 		Event:     "org.deleted",
 		Timestamp: time.Now().Format(time.RFC3339),
-		Data: request.DOSOrgSyncEventData{
+		Data: request.OrgSyncEventData{
 			OrgID: "org_tingee_001",
 		},
 	})
 	if err != nil {
-		t.Fatalf("HandleDOSOrgSync org.deleted failed: %v", err)
+		t.Fatalf("HandleOrgSync org.deleted failed: %v", err)
 	}
 
 	org = repositories.OrganizationRepository.GetByCode(db, "org_tingee_001")
@@ -74,10 +74,10 @@ func TestWebhookDOSOrgSync_MemberEvents(t *testing.T) {
 	svc := newWebhookSyncService()
 
 	// 1. Test org.member_added
-	err := svc.HandleDOSOrgSync(request.DOSOrgSyncWebhookRequest{
+	err := svc.HandleOrgSync(request.OrgSyncWebhookRequest{
 		Event:     "org.member_added",
 		Timestamp: time.Now().Format(time.RFC3339),
-		Data: request.DOSOrgSyncEventData{
+		Data: request.OrgSyncEventData{
 			OrgID:     "org_tingee_002",
 			OrgName:   "Tingee R&D",
 			UserID:    "usr_dos_001",
@@ -87,7 +87,7 @@ func TestWebhookDOSOrgSync_MemberEvents(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("HandleDOSOrgSync org.member_added failed: %v", err)
+		t.Fatalf("HandleOrgSync org.member_added failed: %v", err)
 	}
 
 	org := repositories.OrganizationRepository.GetByCode(db, "org_tingee_002")
@@ -110,17 +110,17 @@ func TestWebhookDOSOrgSync_MemberEvents(t *testing.T) {
 	}
 
 	// 2. Test org.member_removed
-	err = svc.HandleDOSOrgSync(request.DOSOrgSyncWebhookRequest{
+	err = svc.HandleOrgSync(request.OrgSyncWebhookRequest{
 		Event:     "org.member_removed",
 		Timestamp: time.Now().Format(time.RFC3339),
-		Data: request.DOSOrgSyncEventData{
+		Data: request.OrgSyncEventData{
 			OrgID:     "org_tingee_002",
 			UserID:    "usr_dos_001",
 			UserEmail: "member@tingee.com",
 		},
 	})
 	if err != nil {
-		t.Fatalf("HandleDOSOrgSync org.member_removed failed: %v", err)
+		t.Fatalf("HandleOrgSync org.member_removed failed: %v", err)
 	}
 
 	member = repositories.OrganizationMemberRepository.GetByOrgAndUser(db, org.ID, user.ID)
@@ -174,5 +174,78 @@ func TestOrganizationService_SwitchAndList(t *testing.T) {
 	updatedUser := repositories.UserRepository.Get(db, user.ID)
 	if updatedUser.ActiveOrgID != org2.ID {
 		t.Fatalf("expected active_org_id %d, got %d", org2.ID, updatedUser.ActiveOrgID)
+	}
+}
+
+func TestOrganizationService_CreateAndManageMembers(t *testing.T) {
+	db := setupAuthServiceTestDB(t)
+	owner := createAuthTestUser(t, db, "owner_user", "secret")
+	memberUser := createAuthTestUser(t, db, "member_user", "secret")
+	email := "member_user@example.com"
+	_ = repositories.UserRepository.UpdateColumn(db, memberUser.ID, "email", email)
+
+	// 1. Create Organization
+	created, err := OrganizationService.CreateOrganization(owner.ID, request.OrganizationCreateRequest{
+		Name: "Acme Support Org",
+		Code: "acme-support",
+	})
+	if err != nil {
+		t.Fatalf("CreateOrganization failed: %v", err)
+	}
+	if created == nil || created.Name != "Acme Support Org" || created.Role != "OWNER" {
+		t.Fatalf("unexpected created org: %+v", created)
+	}
+
+	updatedOwner := repositories.UserRepository.Get(db, owner.ID)
+	if updatedOwner.ActiveOrgID != created.ID {
+		t.Fatalf("expected owner active_org_id = %d, got %d", created.ID, updatedOwner.ActiveOrgID)
+	}
+
+	// 2. Get Members
+	members, err := OrganizationService.GetOrganizationMembers(owner.ID, created.ID)
+	if err != nil {
+		t.Fatalf("GetOrganizationMembers failed: %v", err)
+	}
+	if len(members) != 1 || members[0].UserID != owner.ID || members[0].Role != "OWNER" {
+		t.Fatalf("unexpected members: %+v", members)
+	}
+
+	// 3. Add Member by email
+	added, err := OrganizationService.AddMember(owner.ID, created.ID, request.OrganizationAddMemberRequest{
+		EmailOrUsername: "member_user@example.com",
+		Role:            "ADMIN",
+	})
+	if err != nil {
+		t.Fatalf("AddMember failed: %v", err)
+	}
+	if added == nil || added.UserID != memberUser.ID || added.Role != "ADMIN" {
+		t.Fatalf("unexpected added member: %+v", added)
+	}
+
+	members, _ = OrganizationService.GetOrganizationMembers(owner.ID, created.ID)
+	if len(members) != 2 {
+		t.Fatalf("expected 2 members, got %d", len(members))
+	}
+
+	// 4. Update Organization
+	updatedOrg, err := OrganizationService.UpdateOrganization(owner.ID, created.ID, request.OrganizationUpdateRequest{
+		Name: "Acme Global Support",
+	})
+	if err != nil {
+		t.Fatalf("UpdateOrganization failed: %v", err)
+	}
+	if updatedOrg.Name != "Acme Global Support" {
+		t.Fatalf("expected name to be Acme Global Support, got %s", updatedOrg.Name)
+	}
+
+	// 5. Remove Member
+	err = OrganizationService.RemoveMember(owner.ID, created.ID, memberUser.ID)
+	if err != nil {
+		t.Fatalf("RemoveMember failed: %v", err)
+	}
+
+	members, _ = OrganizationService.GetOrganizationMembers(owner.ID, created.ID)
+	if len(members) != 1 {
+		t.Fatalf("expected 1 member after removal, got %d", len(members))
 	}
 }
