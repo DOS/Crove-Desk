@@ -76,9 +76,17 @@ type LoggerConfig struct {
 }
 
 type AuthConfig struct {
-	TokenTTLHours        int `yaml:"tokenTTLHours"`
-	MaxFailedAttempts    int `yaml:"maxFailedAttempts"`
-	CredentialLockMinute int `yaml:"credentialLockMinute"`
+	PasswordLoginEnabled *bool `yaml:"passwordLoginEnabled"`
+	TokenTTLHours        int   `yaml:"tokenTTLHours"`
+	MaxFailedAttempts    int   `yaml:"maxFailedAttempts"`
+	CredentialLockMinute int   `yaml:"credentialLockMinute"`
+}
+
+func (a AuthConfig) IsPasswordLoginEnabled() bool {
+	if a.PasswordLoginEnabled == nil {
+		return true
+	}
+	return *a.PasswordLoginEnabled
 }
 
 type CustomerSessionConfig struct {

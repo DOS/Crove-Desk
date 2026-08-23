@@ -50,6 +50,7 @@ export function LoginForm({
     nextPath && nextPath.startsWith("/") ? nextPath : "/dashboard"
   const enabledProviderCount =
     Number(publicConfig?.wxworkEnabled) + Number(publicConfig?.oidcEnabled)
+  const isPasswordLoginEnabled = publicConfig?.passwordLoginEnabled !== false
 
   useEffect(() => {
     if (session) {
@@ -97,6 +98,9 @@ export function LoginForm({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!isPasswordLoginEnabled) {
+      return
+    }
     const formData = new FormData(event.currentTarget)
     const username = formData.get("username")?.toString().trim() ?? ""
     const password = formData.get("password")?.toString() ?? ""
@@ -162,49 +166,55 @@ export function LoginForm({
                   {t("auth.loginDescription", { brand: t("app.brand") })}
                 </p>
               </div>
-              <Field>
-                <FieldLabel htmlFor="username">{t("auth.username")}</FieldLabel>
-                <Input
-                  id="username"
-                  name="username"
-                  placeholder={t("auth.usernamePlaceholder")}
-                  autoComplete="username"
-                  required
-                />
-              </Field>
-              <Field>
-                <div className="flex items-center">
-                  <FieldLabel htmlFor="password">{t("auth.password")}</FieldLabel>
-                  <a
-                    href="#"
-                    className="ml-auto text-sm underline-offset-2 hover:underline"
-                  >
-                    {t("auth.forgotPassword")}
-                  </a>
-                </div>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder={t("auth.passwordPlaceholder")}
-                  autoComplete="current-password"
-                  required
-                />
-              </Field>
-              <Field>
-                <Button type="submit" disabled={isPending}>
-                  {isPending ? t("auth.signingIn") : t("auth.signIn")}
-                </Button>
-              </Field>
+              {isPasswordLoginEnabled ? (
+                <>
+                  <Field>
+                    <FieldLabel htmlFor="username">{t("auth.username")}</FieldLabel>
+                    <Input
+                      id="username"
+                      name="username"
+                      placeholder={t("auth.usernamePlaceholder")}
+                      autoComplete="username"
+                      required
+                    />
+                  </Field>
+                  <Field>
+                    <div className="flex items-center">
+                      <FieldLabel htmlFor="password">{t("auth.password")}</FieldLabel>
+                      <a
+                        href="#"
+                        className="ml-auto text-sm underline-offset-2 hover:underline"
+                      >
+                        {t("auth.forgotPassword")}
+                      </a>
+                    </div>
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      placeholder={t("auth.passwordPlaceholder")}
+                      autoComplete="current-password"
+                      required
+                    />
+                  </Field>
+                  <Field>
+                    <Button type="submit" disabled={isPending}>
+                      {isPending ? t("auth.signingIn") : t("auth.signIn")}
+                    </Button>
+                  </Field>
+                </>
+              ) : null}
               {enabledProviderCount > 0 ? (
                 <>
-                  <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                    {t("auth.continueWith")}
-                  </FieldSeparator>
+                  {isPasswordLoginEnabled ? (
+                    <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
+                      {t("auth.continueWith")}
+                    </FieldSeparator>
+                  ) : null}
                   <Field
                     className={cn(
                       "grid gap-4",
-                      enabledProviderCount === 1 ? "grid-cols-1" : "grid-cols-2"
+                      enabledProviderCount === 1 || !isPasswordLoginEnabled ? "grid-cols-1" : "grid-cols-2"
                     )}
                   >
                     {publicConfig.wxworkEnabled ? (
@@ -218,14 +228,14 @@ export function LoginForm({
                             : "/api/auth/wxwork_qr_login"
                           window.location.href = `${path}?next=${encodeURIComponent(redirectPath)}`
                         }}
-                        >
-                          <Image
-                            src="/images/wxwork.svg"
-                            alt=""
+                      >
+                        <Image
+                          src="/images/wxwork.svg"
+                          alt=""
                           width={16}
-                            height={16}
-                            className="size-4 shrink-0"
-                          />
+                          height={16}
+                          className="size-4 shrink-0"
+                        />
                         <span>{t("auth.wxworkSignIn")}</span>
                       </Button>
                     ) : null}
