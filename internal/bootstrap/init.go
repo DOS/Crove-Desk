@@ -47,8 +47,7 @@ func Init(configPath string) error {
 
 	wxwork.Init()
 	if err := oidcclient.Init(context.Background()); err != nil {
-		slog.Error("init oidc failed", "error", err)
-		return err
+		slog.Warn("init oidc at startup failed (will retry lazily on request)", "error", err)
 	}
 	return nil
 }

@@ -8,6 +8,8 @@ import (
 // Models 注册所有需要迁移和代码生成的模型。
 var Models = []any{
 	&Migration{},
+	&Organization{},
+	&OrganizationMember{},
 	&User{},
 	&UserIdentity{},
 	&Company{},
@@ -162,6 +164,28 @@ type AuditFields struct {
 	UpdateUserName string    `gorm:"type:varchar(100);not null;default:''"` // UpdateUserName 记录最后更新人名称；系统任务写system。
 }
 
+// Organization 组织 / 工作区（Tenant / Workspace）。
+type Organization struct {
+	ID     int64        `gorm:"primaryKey;autoIncrement"`
+	Code   string       `gorm:"type:varchar(100);not null;uniqueIndex:uk_org_code"` // 组织唯一编码 / Slug，如 org_dos_123456
+	Name   string       `gorm:"type:varchar(200);not null;default:''"`              // 组织名称
+	Logo   string       `gorm:"type:varchar(255);not null;default:''"`              // 组织 Logo URL
+	Plan   string       `gorm:"type:varchar(50);not null;default:'free'"`           // 订阅计划（free, pro, enterprise）
+	Status enums.Status `gorm:"type:int;not null;default:0;index"`                  // 组织状态
+	Remark string       `gorm:"type:text"`                                          // 备注
+	AuditFields
+}
+
+// OrganizationMember 组织成员关联表。
+type OrganizationMember struct {
+	ID             int64        `gorm:"primaryKey;autoIncrement"`
+	OrganizationID int64        `gorm:"type:bigint;not null;index;uniqueIndex:uk_org_member"` // 组织 ID
+	UserID         int64        `gorm:"type:bigint;not null;index;uniqueIndex:uk_org_member"` // 用户 ID
+	Role           string       `gorm:"type:varchar(50);not null;default:'MEMBER';index"`     // 角色：OWNER | ADMIN | MEMBER
+	Status         enums.Status `gorm:"type:int;not null;default:0;index"`                    // 成员状态
+	AuditFields
+}
+
 // User 后台用户账号。
 type User struct {
 	ID           int64          `gorm:"primaryKey;autoIncrement"`
@@ -173,6 +197,7 @@ type User struct {
 	Password     string         `gorm:"type:varchar(255);not null;default:''"`
 	PasswordSalt string         `gorm:"type:varchar(64);not null;default:''"`
 	UserType     enums.UserType `gorm:"column:user_type;type:varchar(20);not null;default:'user';index"`
+	ActiveOrgID  int64          `gorm:"column:active_org_id;type:bigint;not null;default:0;index"`
 	Status       enums.Status   `gorm:"type:int;not null;default:0;index"`
 	LastLoginAt  *time.Time
 	LastLoginIP  string     `gorm:"type:varchar(64);not null;default:''"`

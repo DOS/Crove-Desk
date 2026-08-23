@@ -26,6 +26,10 @@ func registerApiChannelRoutes(group *gin.RouterGroup) {
 	group.Any("/config", api.ChannelAnyConfig)
 }
 
+func registerApiWebhookRoutes(group *gin.RouterGroup) {
+	group.POST("/dos-org-sync", api.DOSOrgSyncWebhook)
+}
+
 func registerApiCustomerRoutes(group *gin.RouterGroup) {
 	group.POST("/session_exchange", api.CustomerPostSession_exchange)
 }
@@ -77,6 +81,11 @@ func registerDashboardUserRoutes(group *gin.RouterGroup) {
 	group.POST("/reset_password", dashboard.UserPostReset_password)
 	group.POST("/update", dashboard.UserPostUpdate)
 	group.POST("/update_status", dashboard.UserPostUpdate_status)
+}
+
+func registerDashboardOrganizationRoutes(group *gin.RouterGroup) {
+	group.GET("/my_list", dashboard.OrganizationUserList)
+	group.POST("/switch", dashboard.OrganizationSwitch)
 }
 
 func registerDashboardCompanyRoutes(group *gin.RouterGroup) {

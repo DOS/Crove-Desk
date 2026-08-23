@@ -149,6 +149,7 @@ func addRouter(app *gin.Engine) {
 	registerApiConversationRoutes(apiGroup.Group("/conversation", middleware.ExternalUserMiddleware))
 	registerApiMessageRoutes(apiGroup.Group("/message", middleware.ExternalUserMiddleware))
 	registerApiSupportRoutes(apiGroup.Group("/support"))
+	registerApiWebhookRoutes(apiGroup.Group("/webhooks"))
 
 	wsGroup := app.Group("/api/ws")
 	wsGroup.GET("/dashboard", middleware.AuthMiddleware, services.WsService.HandleDashboardWS)
@@ -158,6 +159,7 @@ func addRouter(app *gin.Engine) {
 	dashboardGroup := app.Group("/api/dashboard", middleware.AuthMiddleware)
 	registerDashboardDashboardRoutes(dashboardGroup.Group("/dashboard"))
 	registerDashboardUserRoutes(dashboardGroup.Group("/user"))
+	registerDashboardOrganizationRoutes(dashboardGroup.Group("/organization"))
 	registerDashboardCompanyRoutes(dashboardGroup.Group("/company"))
 	registerDashboardCustomerRoutes(dashboardGroup.Group("/customer"))
 	registerDashboardCustomerContactRoutes(dashboardGroup.Group("/customer-contact"))
