@@ -1,6 +1,6 @@
 import { type ReactNode } from "react"
 
-import { SupportHeader, type SupportHeaderSection } from "@/components/support-center/support-header"
+import { SupportHeader, type SupportHeaderSection } from "@/app/(support)/support/_components/support-header"
 import { cn } from "@/lib/utils"
 
 export function SupportPageShell({ children, section = "home" }: { children: ReactNode; section?: SupportHeaderSection }) {

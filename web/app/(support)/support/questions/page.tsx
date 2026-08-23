@@ -1,4 +1,4 @@
-import { SupportQuestionList } from "@/components/support-center/help-center"
+import { SupportQuestionList } from "./_components/question-list"
 
 export default function SupportQuestionsPage() {
   return <SupportQuestionList />

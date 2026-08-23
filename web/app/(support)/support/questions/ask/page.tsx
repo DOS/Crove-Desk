@@ -1,4 +1,4 @@
-import { SupportAskQuestion } from "@/components/support-center/help-center"
+import { SupportAskQuestion } from "./_components/ask-question"
 
 export default function SupportAskQuestionPage() {
   return <SupportAskQuestion />

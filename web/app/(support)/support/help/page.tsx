@@ -1,4 +1,4 @@
-import { SupportHelpList } from "@/components/support-center/help-center"
+import { SupportHelpList } from "./_components/help-reader"
 
 export default function SupportHelpPage() {
   return <SupportHelpList />

@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 
 import { ImageLightboxProvider } from "@/components/image-lightbox"
 import { ConfirmProvider } from "@/components/confirm-provider"
-import { SupportAuthProvider } from "@/components/support-center/support-auth-provider"
+import { SupportAuthProvider } from "@/app/(support)/support/_components/support-auth-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"

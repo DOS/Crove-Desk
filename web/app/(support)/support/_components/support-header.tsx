@@ -8,7 +8,7 @@ import { type ReactNode } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { buttonVariants } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { useSupportAuth } from "@/components/support-center/support-auth-provider"
+import { useSupportAuth } from "@/app/(support)/support/_components/support-auth-provider"
 import { useI18n } from "@/i18n/provider"
 import { cn } from "@/lib/utils"
 

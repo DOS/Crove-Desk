@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 
-import { flattenSupportHelpNavigation } from "@/components/support-center/support-help-navigation"
+import { flattenSupportHelpNavigation } from "@/app/(support)/support/_components/support-help-navigation"
 import { fetchSupportHelpNavigation, fetchSupportHelpPage, type SupportHelpPage } from "@/lib/api/support"
 
 export function useSupportHelpReader(activePath: string, onDefaultPage: (page: SupportHelpPage) => void) {
@@ -42,8 +42,10 @@ export function useSupportHelpReader(activePath: string, onDefaultPage: (page: S
     if (!pages.length) return
     const activePage = pages.find((item) => item.helpPath === activePath)
     if (!activePage) {
-      setPage(null)
-      setFailed(Boolean(activePath))
+      void Promise.resolve().then(() => {
+        setPage(null)
+        setFailed(Boolean(activePath))
+      })
       return
     }
     const requestId = ++detailRequestId.current
