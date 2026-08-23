@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ArrowRightIcon, ChevronDownIcon, ChevronRightIcon, FileTextIcon, FolderIcon, FolderOpenIcon, MenuIcon, ThumbsDownIcon, ThumbsUpIcon, XIcon } from "lucide-react"
+import { ArrowRightIcon, ChevronDownIcon, ChevronRightIcon, FileTextIcon, FolderIcon, FolderOpenIcon, ThumbsDownIcon, ThumbsUpIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { useImageLightboxOptional } from "@/components/image-lightbox"
@@ -34,12 +34,10 @@ function SupportHelpReader() {
   const [query, setQuery] = useState("")
   const [searchResults, setSearchResults] = useState<SupportHelpPage[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
-  const [navigationOpen, setNavigationOpen] = useState(false)
   const { activePath, navigate, replace } = useSupportHelpRoute(pathname)
   const { page, pages, expanded, setExpanded, navigationLoading, pageLoading, failed } = useSupportHelpReaderData(activePath, replace)
   const navigateToHelpPage = useCallback<HelpPageNavigationHandler>((event, targetPage) => {
     navigate(event, targetPage)
-    if (event.defaultPrevented) setNavigationOpen(false)
   }, [navigate])
 
   useEffect(() => {
@@ -78,8 +76,6 @@ function SupportHelpReader() {
 
   return (
     <SupportDocsFrame
-      navigationOpen={navigationOpen}
-      onNavigationOpenChange={setNavigationOpen}
       navigation={<HelpNavigation pages={visiblePages} rootPages={visiblePages.filter((item) => !item.parentId)} searchResults={searchResults.map((item) => pages.find((candidate) => candidate.id === item.id) || item).filter((item) => Boolean(item.helpPath))} title={query} expanded={expanded} selectedPageId={page?.id ?? 0} loading={navigationLoading || searchLoading} failed={failed} onTitleChange={(value) => { setQuery(value); setSearchResults([]); setSearchLoading(Boolean(value.trim())) }} onExpandedChange={setExpanded} onNavigate={navigateToHelpPage} />}
       toc={<PublicArticleToc articleId="support-help-page-detail-preview" content={page?.content ?? ""} contentType={page?.contentType} />}
     >
@@ -94,21 +90,20 @@ function SupportDocsFrame({
   children,
   navigation,
   toc,
-  navigationOpen,
-  onNavigationOpenChange,
 }: {
   children: ReactNode
   navigation: ReactNode
   toc: ReactNode
-  navigationOpen: boolean
-  onNavigationOpenChange: (open: boolean) => void
 }) {
   const t = useI18n()
   return (
     <main className="min-h-svh bg-background text-foreground">
       <SupportHeader
         section="help"
-        leading={navigation ? <Button variant="ghost" size="icon" className="xl:hidden" onClick={() => onNavigationOpenChange(true)} aria-label={t("supportPublic.a11y.openNavigation")}><MenuIcon /></Button> : null}
+        mobileNavigation={navigation ? {
+          title: t("supportPublic.help.navigation"),
+          content: navigation,
+        } : undefined}
       />
 
       <div className="support-docs-grid mx-auto max-w-[var(--support-docs-max-width)]">
@@ -116,19 +111,6 @@ function SupportDocsFrame({
         <div className="min-w-0 px-5 py-9 sm:px-6 sm:py-12 md:px-8 lg:px-10 2xl:px-12">{children}</div>
         {toc ? <div className="hidden 2xl:block">{toc}</div> : null}
       </div>
-
-      {navigationOpen ? (
-        <div className="fixed inset-0 z-50 xl:hidden">
-          <button className="absolute inset-0 bg-black/45" aria-label={t("supportPublic.a11y.closeNavigation")} onClick={() => onNavigationOpenChange(false)} />
-          <aside className="relative h-full w-[min(88vw,360px)] overflow-y-auto border-r bg-background shadow-xl">
-            <div className="flex h-14 items-center justify-between border-b px-4">
-              <span className="font-semibold">{t("supportPublic.help.navigation")}</span>
-              <Button variant="ghost" size="icon" onClick={() => onNavigationOpenChange(false)} aria-label={t("supportPublic.a11y.closeNavigation")}><XIcon /></Button>
-            </div>
-            {navigation}
-          </aside>
-        </div>
-      ) : null}
     </main>
   )
 }

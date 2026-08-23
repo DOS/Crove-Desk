@@ -3,8 +3,9 @@
 import { type ReactNode } from "react"
 
 import { SupportHeader } from "@/app/(support)/support/_components/support-header"
-import { CommunityCategoryNav } from "@/app/(support)/support/_components/community-category-nav"
+import { CommunityCategoryMenuContent, CommunityCategoryNav } from "@/app/(support)/support/_components/community-category-nav"
 import { useCommunityCategoryRoute } from "@/app/(support)/support/_components/support-community-route"
+import { useI18n } from "@/i18n/provider"
 import { cn } from "@/lib/utils"
 
 export function CommunityFrame({
@@ -18,9 +19,27 @@ export function CommunityFrame({
   children: ReactNode
   toc?: ReactNode
 }) {
+  const t = useI18n()
+  const categoryNavigation = (
+    <CommunityCategoryMenuContent
+      categories={categoryRoute.categories}
+      active={active ?? categoryRoute.activeCategoryId}
+      loading={categoryRoute.categoriesLoading}
+      failed={categoryRoute.categoriesFailed}
+      onChange={categoryRoute.changeCategory}
+      onRetry={categoryRoute.loadCategories}
+    />
+  )
+
   return (
     <main className="min-h-svh bg-background text-foreground">
-      <SupportHeader section="community" />
+      <SupportHeader
+        section="community"
+        mobileNavigation={{
+          title: t("supportPublic.posts.categoryNavigation"),
+          content: <div className="grid gap-0.5">{categoryNavigation}</div>,
+        }}
+      />
       <div
         className={cn(
           "mx-auto grid max-w-[var(--support-docs-max-width)] xl:grid-cols-[var(--support-doc-nav-width)_minmax(0,1fr)]",

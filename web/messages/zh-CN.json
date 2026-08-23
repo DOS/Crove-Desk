@@ -2470,7 +2470,9 @@
       "home": "首页",
       "help": "帮助",
       "community": "社区",
-      "login": "登录"
+      "login": "登录",
+      "menu": "菜单",
+      "siteNavigation": "站点导航"
     },
     "home": {
       "badge": "支持中心",
@@ -2650,6 +2652,8 @@
       "loggedIn": "已登录"
     },
     "a11y": {
+      "openMenu": "打开菜单",
+      "closeMenu": "关闭菜单",
       "openNavigation": "打开文档导航",
       "closeNavigation": "关闭文档导航",
       "collapse": "折叠子页面",

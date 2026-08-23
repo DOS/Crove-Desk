@@ -13,6 +13,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { type ReactNode } from "react"
 
+import { useSupportAuth } from "@/app/(support)/support/_components/support-auth-provider"
+import { SupportMobileMenu } from "@/app/(support)/support/_components/support-mobile-menu"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { buttonVariants } from "@/components/ui/button"
@@ -25,7 +27,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useSupportAuth } from "@/app/(support)/support/_components/support-auth-provider"
 import { useI18n } from "@/i18n/provider"
 import { cn } from "@/lib/utils"
 
@@ -43,10 +44,15 @@ const supportNavItemClass = "h-8 rounded-md px-2.5 text-sm"
 export function SupportHeader({
   section,
   leading,
+  mobileNavigation,
   className,
 }: {
   section: SupportHeaderSection
   leading?: ReactNode
+  mobileNavigation?: {
+    title: string
+    content: ReactNode
+  }
   className?: string
 }) {
   const t = useI18n()
@@ -66,6 +72,7 @@ export function SupportHeader({
       )}
     >
       <div className="mx-auto flex h-14 max-w-[var(--support-docs-max-width)] items-center gap-3 px-4 sm:px-6 md:px-8 xl:px-6">
+        <SupportMobileMenu section={section} secondary={mobileNavigation} />
         {leading}
         <Link
           href="/support"

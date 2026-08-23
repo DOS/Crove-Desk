@@ -2471,7 +2471,9 @@
       "home": "Home",
       "help": "Help",
       "community": "Community",
-      "login": "Log In"
+      "login": "Log In",
+      "menu": "Menu",
+      "siteNavigation": "Site navigation"
     },
     "home": {
       "badge": "Support Center",
@@ -2651,6 +2653,8 @@
       "loggedIn": "Logged in"
     },
     "a11y": {
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu",
       "openNavigation": "Open documentation navigation",
       "closeNavigation": "Close documentation navigation",
       "collapse": "Collapse child pages",
