@@ -4,7 +4,6 @@ import { useSyncExternalStore } from "react"
 import { LaptopIcon, MoonIcon, SunIcon } from "lucide-react"
 import { useTheme } from "next-themes"
 
-import { useI18n } from "@/i18n/provider"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -13,20 +12,32 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useI18n } from "@/i18n/provider"
+import { cn } from "@/lib/utils"
 
 type ThemeMode = "light" | "dark" | "system"
+type ThemeToggleButtonVariant = "outline" | "ghost"
+type ThemeToggleButtonSize = "sm" | "icon-sm"
 
 const themeOptions: Array<{
   value: ThemeMode
   labelKey: string
   icon: typeof SunIcon
 }> = [
-  { value: "light", labelKey: "theme.light", icon: SunIcon },
-  { value: "dark", labelKey: "theme.dark", icon: MoonIcon },
   { value: "system", labelKey: "theme.system", icon: LaptopIcon },
+  { value: "dark", labelKey: "theme.dark", icon: MoonIcon },
+  { value: "light", labelKey: "theme.light", icon: SunIcon },
 ]
 
-export function ThemeToggle() {
+export function ThemeToggle({
+  variant = "outline",
+  size = "sm",
+  className,
+}: {
+  variant?: ThemeToggleButtonVariant
+  size?: ThemeToggleButtonSize
+  className?: string
+}) {
   const t = useI18n()
   const { theme, setTheme } = useTheme()
   const mounted = useSyncExternalStore(
@@ -35,14 +46,26 @@ export function ThemeToggle() {
     () => false
   )
 
-  const activeTheme = mounted ? ((theme as ThemeMode | undefined) ?? "system") : "system"
+  const activeTheme = mounted
+    ? ((theme as ThemeMode | undefined) ?? "system")
+    : "system"
   const ActiveIcon =
-    themeOptions.find((option) => option.value === activeTheme)?.icon ?? LaptopIcon
+    themeOptions.find((option) => option.value === activeTheme)?.icon ??
+    LaptopIcon
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger
-        render={<Button variant="outline" size="sm" />}
+        render={
+          <Button
+            variant={variant}
+            size={size}
+            className={cn(
+              "rounded-md text-muted-foreground hover:text-foreground",
+              className
+            )}
+          />
+        }
         aria-label={t("theme.toggle")}
       >
         <ActiveIcon />
