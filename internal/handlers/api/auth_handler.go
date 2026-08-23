@@ -7,6 +7,7 @@ import (
 	"agent-desk/internal/pkg/httpx"
 	"agent-desk/internal/pkg/httpx/params"
 	"agent-desk/internal/services"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -97,16 +98,34 @@ func OIDCLogin(ctx *gin.Context) {
 }
 
 func OIDCCallback(ctx *gin.Context) {
+	if oauthErr := ctx.Query("error"); oauthErr != "" {
+		desc := ctx.Query("error_description")
+		slog.Warn("oidc callback returned oauth error", "error", oauthErr, "description", desc)
+		errMsg := oauthErr
+		if desc != "" {
+			errMsg += ": " + desc
+		}
+		ctx.Redirect(http.StatusFound, "/dashboard/login?oidcError="+url.QueryEscape(errMsg))
+		return
+	}
+
+	code := ctx.Query("code")
+	state := ctx.Query("state")
+	if strings.TrimSpace(code) == "" {
+		slog.Warn("oidc callback missing code", "rawQuery", ctx.Request.URL.RawQuery)
+	}
+
 	cfg := config.Current()
 	ticket, next, err := services.OIDCLoginService.LoginByOIDC(
 		ctx.Request.Context(),
-		ctx.Query("code"),
-		ctx.Query("state"),
+		code,
+		state,
 		cfg.Auth,
 		ctx.ClientIP(),
 		ctx.GetHeader("User-Agent"),
 	)
 	if err != nil {
+		slog.Error("oidc callback login failed", "error", err)
 		ctx.Redirect(http.StatusFound, "/dashboard/login?oidcError="+url.QueryEscape(loginErrorMessage(err.Error())))
 		return
 	}

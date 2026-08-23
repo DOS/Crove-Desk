@@ -54,6 +54,7 @@ type Profile struct {
 type statePayload struct {
 	Next      string `json:"next"`
 	Nonce     string `json:"nonce"`
+	Verifier  string `json:"verifier,omitempty"`
 	ExpiredAt int64  `json:"expiredAt"`
 }
 
@@ -132,16 +133,29 @@ func BuildAuthCodeURL(next string) (string, error) {
 	if !Enabled() {
 		return "", errorsx.BusinessErrorI18n(1, "error.oidc.loginDisabled")
 	}
-	state, err := CreateState(next)
+
+	rawVerifier := make([]byte, 32)
+	if _, err := rand.Read(rawVerifier); err != nil {
+		return "", err
+	}
+	verifier := base64.RawURLEncoding.EncodeToString(rawVerifier)
+	h := sha256.Sum256([]byte(verifier))
+	challenge := base64.RawURLEncoding.EncodeToString(h[:])
+
+	state, err := CreateState(next, verifier)
 	if err != nil {
 		return "", err
 	}
 	oidcMu.Lock()
 	defer oidcMu.Unlock()
-	return oauthConfig.AuthCodeURL(state), nil
+	return oauthConfig.AuthCodeURL(
+		state,
+		oauth2.SetAuthURLParam("code_challenge", challenge),
+		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+	), nil
 }
 
-func ExchangeCode(ctx context.Context, code string) (*Profile, error) {
+func ExchangeCode(ctx context.Context, code string, verifier string) (*Profile, error) {
 	ensureInitialized(ctx)
 	if !Enabled() {
 		return nil, errorsx.BusinessErrorI18n(1, "error.oidc.loginDisabled")
@@ -152,12 +166,17 @@ func ExchangeCode(ctx context.Context, code string) (*Profile, error) {
 	}
 
 	oidcMu.Lock()
-	verifier := idTokenVerifier
+	idVerifier := idTokenVerifier
 	oauthCfg := oauthConfig
 	prov := provider
 	oidcMu.Unlock()
 
-	token, err := oauthCfg.Exchange(ctx, code)
+	var opts []oauth2.AuthCodeOption
+	if strings.TrimSpace(verifier) != "" {
+		opts = append(opts, oauth2.SetAuthURLParam("code_verifier", strings.TrimSpace(verifier)))
+	}
+
+	token, err := oauthCfg.Exchange(ctx, code, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +184,7 @@ func ExchangeCode(ctx context.Context, code string) (*Profile, error) {
 	if !ok || strings.TrimSpace(rawIDToken) == "" {
 		return nil, errorsx.UnauthorizedI18n("error.e0038")
 	}
-	idToken, err := verifier.Verify(ctx, rawIDToken)
+	idToken, err := idVerifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +201,7 @@ func ExchangeCode(ctx context.Context, code string) (*Profile, error) {
 	return profile, nil
 }
 
-func CreateState(next string) (string, error) {
+func CreateState(next string, verifier ...string) (string, error) {
 	secret := stateSecret()
 	if secret == "" {
 		return "", errorsx.BusinessErrorI18n(2, "error.oidc.stateSecretMissing")
@@ -191,9 +210,14 @@ func CreateState(next string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	v := ""
+	if len(verifier) > 0 {
+		v = verifier[0]
+	}
 	payload := statePayload{
 		Next:      sanitizeNextPath(next),
 		Nonce:     nonce,
+		Verifier:  v,
 		ExpiredAt: time.Now().Add(StateTTL).Unix(),
 	}
 	body, err := json.Marshal(payload)
@@ -204,30 +228,30 @@ func CreateState(next string) (string, error) {
 	return encoded + "." + signState(encoded, secret), nil
 }
 
-func ParseState(state string) (string, error) {
+func ParseState(state string) (string, string, error) {
 	secret := stateSecret()
 	if secret == "" {
-		return "", errorsx.UnauthorizedI18n("error.e0046")
+		return "", "", errorsx.UnauthorizedI18n("error.e0046")
 	}
 	parts := strings.Split(strings.TrimSpace(state), ".")
 	if len(parts) != 2 {
-		return "", errorsx.UnauthorizedI18n("error.e0046")
+		return "", "", errorsx.UnauthorizedI18n("error.e0046")
 	}
 	if !hmac.Equal([]byte(parts[1]), []byte(signState(parts[0], secret))) {
-		return "", errorsx.UnauthorizedI18n("error.e0046")
+		return "", "", errorsx.UnauthorizedI18n("error.e0046")
 	}
 	body, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
-		return "", errorsx.UnauthorizedI18n("error.e0046")
+		return "", "", errorsx.UnauthorizedI18n("error.e0046")
 	}
 	payload := statePayload{}
 	if err = json.Unmarshal(body, &payload); err != nil {
-		return "", errorsx.UnauthorizedI18n("error.e0046")
+		return "", "", errorsx.UnauthorizedI18n("error.e0046")
 	}
 	if payload.ExpiredAt <= time.Now().Unix() {
-		return "", errorsx.UnauthorizedI18n("error.e0046")
+		return "", "", errorsx.UnauthorizedI18n("error.e0046")
 	}
-	return sanitizeNextPath(payload.Next), nil
+	return sanitizeNextPath(payload.Next), payload.Verifier, nil
 }
 
 func IssueLoginTicket(loginResp *response.LoginResponse) (string, error) {
