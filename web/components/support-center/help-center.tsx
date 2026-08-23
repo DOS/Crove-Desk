@@ -127,7 +127,7 @@ export function SupportHelpCenter() {
               hero
             />
             <Link
-              className={cn(buttonVariants({ size: "lg" }), "h-13 rounded-2xl px-6 shadow-sm")}
+              className={cn(buttonVariants({ size: "lg" }), "h-13 rounded-md px-6 shadow-sm")}
               href={`/support/questions${query ? `?title=${encodeURIComponent(query)}` : ""}`}
             >
               {t("supportPublic.actions.search")}
@@ -839,7 +839,7 @@ export function SupportLoginPage() {
   return (
     <SupportPageShell section="login">
       <SupportPageContent className="py-10 sm:py-12">
-        <div className="mx-auto max-w-md rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+        <div className="mx-auto max-w-md rounded-md border bg-card p-5 shadow-sm sm:p-6">
           <div className="grid gap-4">
             {mode === "register" && (
               <LabeledField label={t("supportPublic.login.name")}>
@@ -1084,7 +1084,7 @@ function helpPageBreadcrumbs(pages: SupportHelpPage[], page: SupportHelpPage) {
 
 function ArticlePager({ page, direction, onNavigate }: { page: SupportHelpPage; direction: "previous" | "next"; onNavigate: HelpPageNavigationHandler }) {
   const t = useI18n()
-  return <SupportHelpLink page={page} onNavigate={onNavigate} className={cn("group rounded-xl border px-4 py-3 transition-colors hover:border-primary/40 hover:bg-muted/50", direction === "next" && "text-right")}>
+  return <SupportHelpLink page={page} onNavigate={onNavigate} className={cn("group rounded-md border px-4 py-3 transition-colors hover:border-primary/40 hover:bg-muted/50", direction === "next" && "text-right")}>
     <span className="text-xs text-muted-foreground">{t(`supportPublic.help.${direction}`)}</span>
     <span className="mt-1 flex items-center justify-between gap-3 text-sm font-medium text-primary">{direction === "previous" ? <ChevronRightIcon className="size-4 rotate-180" /> : null}<span className={cn("truncate", direction === "next" && "ml-auto")}>{page.title}</span>{direction === "next" ? <ChevronRightIcon className="size-4" /> : null}</span>
   </SupportHelpLink>
@@ -1112,10 +1112,10 @@ function SupportEntryCard({
   return (
     <Link
       href={href}
-      className="group rounded-2xl border border-border bg-card p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="group rounded-md border border-border bg-card p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <div className="flex items-start justify-between gap-4">
-        <span className={cn("grid size-10 place-items-center rounded-xl [&_svg]:size-5", accentClass)}>{icon}</span>
+        <span className={cn("grid size-10 place-items-center rounded-md [&_svg]:size-5", accentClass)}>{icon}</span>
         <ArrowRightIcon className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
       </div>
       <h3 className="mt-5 font-medium">{title}</h3>
@@ -1126,7 +1126,7 @@ function SupportEntryCard({
 
 function QuickLink({ href, label }: { href: string; label: string }) {
   return (
-    <Link href={href} className="flex items-center justify-between rounded-xl border border-white/10 px-3 py-2.5 text-sm text-slate-200 transition hover:border-sky-300/40 hover:bg-white/10 hover:text-white">
+    <Link href={href} className="flex items-center justify-between rounded-md border border-white/10 px-3 py-2.5 text-sm text-slate-200 transition hover:border-sky-300/40 hover:bg-white/10 hover:text-white">
       <span>{label}</span>
       <ArrowRightIcon className="size-4" />
     </Link>
@@ -1136,7 +1136,7 @@ function QuickLink({ href, label }: { href: string; label: string }) {
 function PublicSection({ title, href, children }: { title: string; href: string; children: ReactNode }) {
   const t = useI18n()
   return (
-    <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+    <section className="rounded-md border border-border bg-card p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-semibold">{title}</h2>
         <Link className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "text-muted-foreground hover:text-primary")} href={href}>
@@ -1393,7 +1393,7 @@ function ChildPageLinks({ pages, onNavigate }: { pages: SupportHelpPage[]; onNav
             key={page.id}
             page={page}
             onNavigate={onNavigate}
-            className="group flex min-w-0 items-start gap-3 rounded-xl border border-border/70 bg-card p-4 shadow-xs transition-[border-color,background-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/[0.025] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="group flex min-w-0 items-start gap-3 rounded-md border border-border/70 bg-card p-4 shadow-xs transition-[border-color,background-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary/[0.025] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/60 text-muted-foreground transition-colors group-hover:border-primary/20 group-hover:bg-primary/10 group-hover:text-primary">
               <FileTextIcon className="size-4" aria-hidden="true" />

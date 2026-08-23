@@ -27,7 +27,7 @@ export function SupportSearchInput({
         onChange={(event) => onChange(event.target.value)}
         className={cn(
           "bg-card",
-          hero && "h-13 rounded-2xl border-white bg-white pl-12 pr-4 text-base shadow-[0_12px_30px_rgba(36,117,252,.12)] focus-visible:ring-primary/25 dark:border-border dark:bg-card",
+          hero && "h-13 rounded-md border-white bg-white pl-12 pr-4 text-base shadow-[0_12px_30px_rgba(36,117,252,.12)] focus-visible:ring-primary/25 dark:border-border dark:bg-card",
           compact && "h-9 pl-9",
           !hero && !compact && "h-11 pl-9"
         )}
@@ -47,7 +47,7 @@ export function SupportFormField({ label, children }: { label: string; children:
 }
 
 export function SupportEmptyState({ text, compact = false }: { text: string; compact?: boolean }) {
-  return <div className={cn("rounded-2xl border border-dashed bg-card p-8 text-center text-sm text-muted-foreground", compact && "border-0 p-5")}>{text}</div>
+  return <div className={cn("rounded-md border border-dashed bg-card p-8 text-center text-sm text-muted-foreground", compact && "border-0 p-5")}>{text}</div>
 }
 
 export function SupportQuestionStatusBadge({ status }: { status: string }) {
@@ -59,7 +59,7 @@ export function SupportQuestionStatusBadge({ status }: { status: string }) {
 
 export function SupportInfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border bg-card p-4 shadow-sm">
+    <div className="rounded-md border bg-card p-4 shadow-sm">
       <div className="text-2xl font-semibold">{value}</div>
       <div className="mt-1 text-sm text-muted-foreground">{label}</div>
     </div>
