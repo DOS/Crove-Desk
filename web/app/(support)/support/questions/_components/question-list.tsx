@@ -97,7 +97,7 @@ export function SupportQuestionList() {
           </div>
         </div>
       </div>
-      <div className="grid gap-2 px-5 py-3 sm:px-6 md:px-8 lg:px-10 2xl:px-12">
+      <div className="px-5 py-3 sm:px-6 md:px-8 lg:px-10 2xl:px-12">
         {questions.length ? questions.map((item) => <QuestionCard key={item.id} item={item} />) : null}
         {questionsLoading && !questions.length ? <QuestionListLoading /> : null}
         {!questionsLoading && questionsFailed ? (
