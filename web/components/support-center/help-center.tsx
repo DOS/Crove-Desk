@@ -571,7 +571,7 @@ export function SupportQuestionDetail() {
               <QuestionMetric icon={<EyeIcon className="size-3.5" />} value={question.viewCount} label={t("supportPublic.questions.views")} />
             </div>
 
-            <section className="mt-10" aria-label={t("supportPublic.questions.answers")}>
+            <section className="mt-8 border-t border-border/70 pt-6" aria-label={t("supportPublic.questions.answers")}>
               <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold tracking-tight">{t("supportPublic.questions.answers")}</h2>
