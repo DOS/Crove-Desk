@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 
 import { AuthProvider } from "@/components/auth-provider"
+import { ApiErrorProvider } from "@/components/api-error-provider"
 import { ConfirmProvider } from "@/components/confirm-provider"
 import { ImageLightboxProvider } from "@/components/image-lightbox"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -9,7 +10,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
 import { AppI18nProvider } from "@/i18n/provider"
 
-import "@/app/globals.css"
+import "./dashboard.css"
 import "md-editor-rt/lib/style.css"
 import "@/styles/main.scss"
 
@@ -37,7 +38,7 @@ export const metadata: Metadata = {
   description: "AI Customer Service Admin",
 }
 
-export default function RootLayout({
+export default function DashboardRootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
@@ -54,7 +55,7 @@ export default function RootLayout({
               <ConfirmProvider>
                 <ImageLightboxProvider>
                   <TooltipProvider>
-                    {children}
+                    <ApiErrorProvider>{children}</ApiErrorProvider>
                     <Toaster position="top-center" richColors />
                   </TooltipProvider>
                 </ImageLightboxProvider>

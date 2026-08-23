@@ -1,9 +1,11 @@
 import {
   BotMessageSquareIcon,
+  BookOpenIcon,
   BrainCircuitIcon,
   Building2Icon,
   CalendarClockIcon,
   FileTextIcon,
+  CircleHelpIcon,
   GlobeIcon,
   KeyRoundIcon,
   LayoutDashboardIcon,
@@ -133,6 +135,30 @@ export const dashboardNavSections: DashboardNavSectionConfig[] = [
         url: "/dashboard/companies",
         icon: <Building2Icon />,
         requiredPermission: "company.view",
+      },
+    ],
+  },
+  {
+    titleKey: "nav.supportCenter",
+    icon: <CircleHelpIcon />,
+    items: [
+      {
+        titleKey: "nav.supportHelp",
+        url: "/dashboard/support/help",
+        icon: <BookOpenIcon />,
+        requiredPermission: "supportHelpPage.view",
+      },
+      {
+        titleKey: "nav.supportFaq",
+        url: "/dashboard/support/faq",
+        icon: <CircleHelpIcon />,
+        requiredPermission: "supportQuestion.view",
+      },
+      {
+        titleKey: "nav.supportFaqCategories",
+        url: "/dashboard/support/faq-categories",
+        icon: <TagsIcon />,
+        requiredPermission: "supportQuestion.view",
       },
     ],
   },

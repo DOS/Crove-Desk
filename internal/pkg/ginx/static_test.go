@@ -113,3 +113,54 @@ func TestHandleSPAKeepsNotFoundPrefixes(t *testing.T) {
 		}
 	}
 }
+
+func TestDirHandlerWithNextExportPages(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "index.html"), []byte("<html>home</html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "dashboard.html"), []byte("<html>dashboard</html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dashboardDir := filepath.Join(root, "dashboard")
+	if err := os.MkdirAll(dashboardDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dashboardDir, "login.html"), []byte("<html>login</html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := DirHandler(http.Dir(root), DirOptions{
+		ShowList:  false,
+		SPA:       true,
+		IndexName: "index.html",
+	})
+
+	tests := []struct {
+		path       string
+		wantStatus int
+		wantBody   string
+	}{
+		{path: "/", wantStatus: http.StatusOK, wantBody: "<html>home</html>"},
+		{path: "/dashboard", wantStatus: http.StatusOK, wantBody: "<html>dashboard</html>"},
+		{path: "/dashboard/", wantStatus: http.StatusOK, wantBody: "<html>dashboard</html>"},
+		{path: "/dashboard/login", wantStatus: http.StatusOK, wantBody: "<html>login</html>"},
+		{path: "/dashboard/login/", wantStatus: http.StatusOK, wantBody: "<html>login</html>"},
+		{path: "/other-spa-route", wantStatus: http.StatusOK, wantBody: "<html>home</html>"},
+	}
+
+	for _, tt := range tests {
+		rec := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rec)
+		ctx.Request = httptest.NewRequest(http.MethodGet, tt.path, nil)
+
+		handler(ctx)
+
+		if rec.Code != tt.wantStatus {
+			t.Fatalf("%s status=%d want %d", tt.path, rec.Code, tt.wantStatus)
+		}
+		if tt.wantBody != "" && strings.TrimSpace(rec.Body.String()) != tt.wantBody {
+			t.Fatalf("%s body=%q want %q", tt.path, strings.TrimSpace(rec.Body.String()), tt.wantBody)
+		}
+	}
+}

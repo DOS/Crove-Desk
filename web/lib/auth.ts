@@ -3,6 +3,7 @@ export type AuthUser = {
   username: string
   nickname: string
   avatar: string
+  userType: string
   status: number
   roles: string[]
 }
@@ -17,6 +18,7 @@ export type AuthSession = {
 
 const SESSION_STORAGE_KEY = "agent-desk-session"
 export const AUTH_SESSION_EXPIRED_EVENT = "agent-desk-auth-expired"
+export const AUTH_SESSION_CHANGED_EVENT = "agent-desk-auth-changed"
 
 function hasWindow() {
   return typeof window !== "undefined"
@@ -45,6 +47,7 @@ export function writeSession(session: AuthSession) {
     return
   }
   window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
+  window.dispatchEvent(new Event(AUTH_SESSION_CHANGED_EVENT))
 }
 
 export function clearSession() {
@@ -52,6 +55,7 @@ export function clearSession() {
     return
   }
   window.localStorage.removeItem(SESSION_STORAGE_KEY)
+  window.dispatchEvent(new Event(AUTH_SESSION_CHANGED_EVENT))
 }
 
 export function expireSession() {
