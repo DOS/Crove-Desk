@@ -13,19 +13,19 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  acceptSupportCommentAdmin,
-  createSupportCommentAdmin,
-  deleteSupportCategoryAdmin,
-  fetchSupportPostAdmin,
-  fetchSupportPostCategoriesAllAdmin,
-  fetchSupportPostCategoriesAdmin,
-  fetchSupportPostsAdmin,
-  moderateSupportPostAdmin,
-  saveSupportCategoryAdmin,
-  updateSupportCategorySortAdmin,
-  type AdminSupportCategory,
-  type AdminSupportPost,
-  type AdminSupportPostDetail,
+  acceptCommunityCommentAdmin,
+  createCommunityCommentAdmin,
+  deleteCommunityCategoryAdmin,
+  fetchCommunityPostAdmin,
+  fetchCommunityCategoriesAllAdmin,
+  fetchCommunityCategoriesAdmin,
+  fetchCommunityPostsAdmin,
+  moderateCommunityPostAdmin,
+  saveCommunityCategoryAdmin,
+  updateCommunityCategorySortAdmin,
+  type AdminCategory,
+  type AdminPost,
+  type AdminPostDetail,
 } from "@/lib/api/admin"
 import { useI18n } from "@/i18n/provider"
 import { formatDateTime } from "@/lib/utils"
@@ -41,7 +41,7 @@ const postStatusOptions = [
 ]
 
 type CategoryPayload = Pick<
-  AdminSupportCategory,
+  AdminCategory,
   "name" | "slug" | "description" | "status" | "remark"
 >
 
@@ -69,7 +69,7 @@ export function DashboardSupportCommunityCategoryAdmin() {
   }
 
   return (
-    <DashboardCrudPage<AdminSupportCategory, CategoryPayload>
+    <DashboardCrudPage<AdminCategory, CategoryPayload>
       filters={[
         { name: "name", label: t("supportCommunityCategory.name"), placeholder: t("supportCommunityCategory.searchName"), defaultValue: "", trim: true, className: "w-full sm:w-72" },
         { name: "status", label: t("supportCommunityCategory.allStatuses"), placeholder: t("supportCommunityCategory.allStatuses"), type: "select", defaultValue: "all", allValue: "all", valueType: "number", options: categoryStatusOptions, className: "w-full sm:w-36" },
@@ -79,15 +79,15 @@ export function DashboardSupportCommunityCategoryAdmin() {
         { key: "slug", label: "Slug", className: "w-48", render: (item) => <span className="font-mono text-sm">{item.slug}</span> },
         { key: "status", label: t("supportCommunityCategory.status"), className: "w-28", render: (item) => <Badge variant={item.status === 0 ? "default" : "outline"}>{item.status === 0 ? t("supportCommunityCategory.enabled") : t("supportCommunityCategory.disabled")}</Badge> },
       ]}
-      fetchList={fetchSupportPostCategoriesAdmin}
+      fetchList={fetchCommunityCategoriesAdmin}
       getItemId={(item) => item.id}
-      createItem={(payload) => saveSupportCategoryAdmin(payload)}
-      updateItem={(item, payload) => saveSupportCategoryAdmin({ id: item.id, ...payload })}
-      deleteItem={(item) => deleteSupportCategoryAdmin(item.id)}
+      createItem={(payload) => saveCommunityCategoryAdmin(payload)}
+      updateItem={(item, payload) => saveCommunityCategoryAdmin({ id: item.id, ...payload })}
+      deleteItem={(item) => deleteCommunityCategoryAdmin(item.id)}
       deleteConfirm={(item) => ({ title: t("supportCommunityCategory.confirmDeleteTitle"), description: t("supportCommunityCategory.confirmDeleteDescription", { name: item.name }), confirmText: t("supportCommunityCategory.delete"), variant: "destructive" })}
       sort={{
         enabled: true,
-        onReorder: (items) => updateSupportCategorySortAdmin(items.map((item) => item.id)),
+        onReorder: (items) => updateCommunityCategorySortAdmin(items.map((item) => item.id)),
         successMessage: t("supportCommunityCategory.sortUpdated"),
         errorMessage: t("supportCommunityCategory.sortUpdateFailed"),
         handleLabel: t("supportCommunityCategory.dragSort", { name: "" }),
@@ -112,40 +112,40 @@ export function DashboardSupportCommunityCategoryAdmin() {
 
 export function DashboardSupportCommunityAdmin() {
   const t = useI18n()
-  const [categories, setCategories] = useState<AdminSupportCategory[]>([])
-  const [posts, setPosts] = useState<AdminSupportPost[]>([])
+  const [categories, setCategories] = useState<AdminCategory[]>([])
+  const [posts, setPosts] = useState<AdminPost[]>([])
   const [categoryId, setCategoryId] = useState<number | "all">("all")
   const [status, setStatus] = useState("all")
-  const [detail, setDetail] = useState<AdminSupportPostDetail | null>(null)
+  const [detail, setDetail] = useState<AdminPostDetail | null>(null)
   const [loading, setLoading] = useState(false)
   const [comment, setComment] = useState("")
 
   const reloadPosts = useCallback(async () => {
     setLoading(true)
     try {
-      const page = await fetchSupportPostsAdmin({ categoryId: categoryId === "all" ? undefined : categoryId, status: status === "all" ? undefined : status, limit: 50 })
+      const page = await fetchCommunityPostsAdmin({ categoryId: categoryId === "all" ? undefined : categoryId, status: status === "all" ? undefined : status, limit: 50 })
       setPosts(page.results)
     } finally {
       setLoading(false)
     }
   }, [categoryId, status])
 
-  useEffect(() => { void fetchSupportPostCategoriesAllAdmin().then(setCategories) }, [])
+  useEffect(() => { void fetchCommunityCategoriesAllAdmin().then(setCategories) }, [])
   useEffect(() => { void reloadPosts() }, [reloadPosts])
 
-  const openPost = async (id: number) => setDetail(await fetchSupportPostAdmin(id))
-  const refreshDetail = async () => { if (detail) setDetail(await fetchSupportPostAdmin(detail.post.id)) }
+  const openPost = async (id: number) => setDetail(await fetchCommunityPostAdmin(id))
+  const refreshDetail = async () => { if (detail) setDetail(await fetchCommunityPostAdmin(detail.post.id)) }
 
   const moderate = async (nextStatus: string) => {
     if (!detail) return
-    await moderateSupportPostAdmin(detail.post.id, nextStatus)
+    await moderateCommunityPostAdmin(detail.post.id, nextStatus)
     toast.success(t("supportCommunityAdmin.postStatusUpdated"))
     await Promise.all([refreshDetail(), reloadPosts()])
   }
 
   const reply = async () => {
     if (!detail || !comment.trim()) return
-    await createSupportCommentAdmin(detail.post.id, comment.trim())
+    await createCommunityCommentAdmin(detail.post.id, comment.trim())
     setComment("")
     toast.success("评论已发布")
     await Promise.all([refreshDetail(), reloadPosts()])
@@ -192,7 +192,7 @@ export function DashboardSupportCommunityAdmin() {
             <div className="flex flex-wrap items-center gap-2"><Badge variant={detail.post.status === "resolved" ? "default" : "outline"}>{postStatusLabel(detail.post.status)}</Badge><span className="text-sm text-muted-foreground">{detail.post.reactionCount} 赞 · {detail.post.viewCount} 浏览</span></div>
             <p className="whitespace-pre-wrap text-sm leading-7">{detail.post.content}</p>
             <div className="flex flex-wrap gap-2 border-y py-3"><Button variant="outline" onClick={() => void moderate("normal")}>恢复正常</Button><Button variant="outline" onClick={() => void moderate("closed")}>关闭帖子</Button><Button variant="destructive" onClick={() => void moderate("hidden")}>隐藏帖子</Button></div>
-            <Card><CardHeader><CardTitle className="text-base">评论（{detail.comments.length}）</CardTitle></CardHeader><CardContent className="grid gap-3">{detail.comments.map((item) => <div key={item.id} className="rounded-md border p-3"><div className="flex items-center justify-between gap-3"><span className="text-sm font-medium">{item.authorName || item.authorType}</span>{item.isAccepted ? <Badge>已采纳</Badge> : <Button size="sm" variant="outline" onClick={() => void acceptSupportCommentAdmin(detail.post.id, item.id).then(refreshDetail)}>设为采纳</Button>}</div><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{item.content}</p></div>)}</CardContent></Card>
+            <Card><CardHeader><CardTitle className="text-base">评论（{detail.comments.length}）</CardTitle></CardHeader><CardContent className="grid gap-3">{detail.comments.map((item) => <div key={item.id} className="rounded-md border p-3"><div className="flex items-center justify-between gap-3"><span className="text-sm font-medium">{item.authorName || item.authorType}</span>{item.isAccepted ? <Badge>已采纳</Badge> : <Button size="sm" variant="outline" onClick={() => void acceptCommunityCommentAdmin(detail.post.id, item.id).then(refreshDetail)}>设为采纳</Button>}</div><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{item.content}</p></div>)}</CardContent></Card>
             <div className="grid gap-2"><Textarea value={comment} onChange={(event) => setComment(event.target.value)} rows={5} placeholder="输入客服评论" /><div className="flex justify-end"><Button onClick={() => void reply()} disabled={!comment.trim()}>发布评论</Button></div></div>
           </div>
         ) : null}

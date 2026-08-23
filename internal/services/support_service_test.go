@@ -131,7 +131,7 @@ func TestSupportSlugAllowsLettersNumbersAndHyphens(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&models.SupportHelpPage{}, &models.SupportCategory{}); err != nil {
+	if err := db.AutoMigrate(&models.SupportHelpPage{}, &models.Category{}); err != nil {
 		t.Fatalf("migrate support models: %v", err)
 	}
 	sqls.SetDB(db)
@@ -146,7 +146,7 @@ func TestSupportSlugAllowsLettersNumbersAndHyphens(t *testing.T) {
 	if page.Slug != "release-2026-08" {
 		t.Fatalf("unexpected saved slug: %q", page.Slug)
 	}
-	category, err := SupportService.SaveCategory(request.SaveSupportCategoryRequest{
+	category, err := SupportService.SaveCategory(request.SaveCategoryRequest{
 		Name: "Release notes", Slug: "release-2026-08",
 	}, operator)
 	if err != nil {
@@ -207,18 +207,18 @@ func TestUpdateHelpPageSettingsOnlyUpdatesSettingsFields(t *testing.T) {
 	}
 }
 
-func TestSupportPostAndCommentContentType(t *testing.T) {
+func TestPostAndCommentContentType(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&models.SupportPost{}, &models.SupportComment{}, &models.SupportCategory{}); err != nil {
+	if err := db.AutoMigrate(&models.Post{}, &models.Comment{}, &models.Category{}); err != nil {
 		t.Fatalf("migrate support post models: %v", err)
 	}
 	sqls.SetDB(db)
 	principal := &dto.AuthPrincipal{UserID: 1, Username: "customer"}
 
-	post, err := SupportService.CreatePost(request.CreateSupportPostRequest{
+	post, err := SupportService.CreatePost(request.CreatePostRequest{
 		CategoryID:  1,
 		Title:       "Rich text post",
 		ContentType: "html",
@@ -230,7 +230,7 @@ func TestSupportPostAndCommentContentType(t *testing.T) {
 	if post.ContentType != "html" {
 		t.Fatalf("post content type = %q, want html", post.ContentType)
 	}
-	comment, err := SupportService.CreateSupportUserComment(request.CreateSupportCommentRequest{
+	comment, err := SupportService.CreateCustomerComment(request.CreateCommentRequest{
 		PostID:      post.ID,
 		ContentType: "markdown",
 		Content:     "**Comment**",
@@ -241,7 +241,7 @@ func TestSupportPostAndCommentContentType(t *testing.T) {
 	if comment.ContentType != "markdown" {
 		t.Fatalf("comment content type = %q, want markdown", comment.ContentType)
 	}
-	defaultPost, err := SupportService.CreatePost(request.CreateSupportPostRequest{
+	defaultPost, err := SupportService.CreatePost(request.CreatePostRequest{
 		CategoryID: 1,
 		Title:      "Default post",
 		Content:    "plain content",
@@ -254,19 +254,19 @@ func TestSupportPostAndCommentContentType(t *testing.T) {
 	}
 }
 
-func TestSupportCommentDiscussionWorkflow(t *testing.T) {
+func TestCommentDiscussionWorkflow(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&models.SupportPost{}, &models.SupportComment{}, &models.SupportReaction{}, &models.SupportCommentReport{}); err != nil {
+	if err := db.AutoMigrate(&models.Post{}, &models.Comment{}, &models.Reaction{}, &models.CommentReport{}); err != nil {
 		t.Fatalf("migrate support comment models: %v", err)
 	}
 	sqls.SetDB(db)
 	owner := &dto.AuthPrincipal{UserID: 1, Username: "owner"}
 	commenter := &dto.AuthPrincipal{UserID: 2, Username: "commenter"}
 
-	post, err := SupportService.CreatePost(request.CreateSupportPostRequest{
+	post, err := SupportService.CreatePost(request.CreatePostRequest{
 		CategoryID: 1,
 		Title:      "Discussion post",
 		Content:    "post body",
@@ -274,14 +274,14 @@ func TestSupportCommentDiscussionWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create post: %v", err)
 	}
-	comment, err := SupportService.CreateSupportUserComment(request.CreateSupportCommentRequest{
+	comment, err := SupportService.CreateCustomerComment(request.CreateCommentRequest{
 		PostID:  post.ID,
 		Content: "top level comment",
 	}, commenter)
 	if err != nil {
 		t.Fatalf("create comment: %v", err)
 	}
-	reply, err := SupportService.CreateSupportUserComment(request.CreateSupportCommentRequest{
+	reply, err := SupportService.CreateCustomerComment(request.CreateCommentRequest{
 		PostID:   post.ID,
 		ParentID: comment.ID,
 		Content:  "reply",
@@ -302,23 +302,23 @@ func TestSupportCommentDiscussionWorkflow(t *testing.T) {
 	if list.Paging.Total != 1 {
 		t.Fatalf("top-level paging total = %d, want 1", list.Paging.Total)
 	}
-	if err := SupportService.UpdateComment(request.UpdateSupportCommentRequest{ID: comment.ID, ContentType: "markdown", Content: "updated"}, commenter); err != nil {
+	if err := SupportService.UpdateComment(request.UpdateCommentRequest{ID: comment.ID, ContentType: "markdown", Content: "updated"}, commenter); err != nil {
 		t.Fatalf("update own comment: %v", err)
 	}
-	if err := SupportService.ReportComment(request.ReportSupportCommentRequest{ID: comment.ID, Reason: "spam"}, owner); err != nil {
+	if err := SupportService.ReportComment(request.ReportCommentRequest{ID: comment.ID, Reason: "spam"}, owner); err != nil {
 		t.Fatalf("report comment: %v", err)
 	}
-	if err := SupportService.ReportComment(request.ReportSupportCommentRequest{ID: comment.ID, Reason: "spam again"}, owner); err != nil {
+	if err := SupportService.ReportComment(request.ReportCommentRequest{ID: comment.ID, Reason: "spam again"}, owner); err != nil {
 		t.Fatalf("report comment twice: %v", err)
 	}
-	updated := repositories.SupportCommentRepository.Get(sqls.DB(), comment.ID)
+	updated := repositories.CommentRepository.Get(sqls.DB(), comment.ID)
 	if updated.Content != "updated" || updated.ReportCount != 1 || updated.ReplyCount != 1 {
 		t.Fatalf("unexpected updated comment: %#v", updated)
 	}
 	if err := SupportService.DeleteComment(reply.ID, owner); err != nil {
 		t.Fatalf("delete reply: %v", err)
 	}
-	updated = repositories.SupportCommentRepository.Get(sqls.DB(), comment.ID)
+	updated = repositories.CommentRepository.Get(sqls.DB(), comment.ID)
 	if updated.ReplyCount != 1 {
 		t.Fatalf("reply count after soft delete = %d, want 1", updated.ReplyCount)
 	}
@@ -326,21 +326,21 @@ func TestSupportCommentDiscussionWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list replies after delete: %v", err)
 	}
-	if len(replies.Comments) != 1 || replies.Comments[0].Status != enums.SupportCommentStatusDeleted {
+	if len(replies.Comments) != 1 || replies.Comments[0].Status != enums.CommentStatusDeleted {
 		t.Fatalf("expected deleted reply placeholder, got %#v", replies.Comments)
 	}
 }
 
-func TestSupportCategorySort(t *testing.T) {
+func TestCategorySort(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+strings.ReplaceAll(t.Name(), "/", "_")+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&models.SupportCategory{}); err != nil {
+	if err := db.AutoMigrate(&models.Category{}); err != nil {
 		t.Fatalf("migrate category: %v", err)
 	}
 	sqls.SetDB(db)
-	categories := []*models.SupportCategory{
+	categories := []*models.Category{
 		{Name: "First", Slug: "first", SortNo: 0, Status: enums.StatusOk},
 		{Name: "Second", Slug: "second", SortNo: 1, Status: enums.StatusOk},
 		{Name: "Third", Slug: "third", SortNo: 2, Status: enums.StatusOk},
@@ -353,7 +353,7 @@ func TestSupportCategorySort(t *testing.T) {
 	if err := SupportService.UpdateCategorySort([]int64{categories[2].ID, categories[0].ID, categories[1].ID}); err != nil {
 		t.Fatalf("sort categories: %v", err)
 	}
-	sorted := repositories.SupportCategoryRepository.Find(sqls.DB(), sqls.NewCnd().Asc("sort_no"))
+	sorted := repositories.CategoryRepository.Find(sqls.DB(), sqls.NewCnd().Asc("sort_no"))
 	if len(sorted) != 3 || sorted[0].ID != categories[2].ID || sorted[1].ID != categories[0].ID || sorted[2].ID != categories[1].ID {
 		t.Fatalf("unexpected sorted categories: %#v", sorted)
 	}

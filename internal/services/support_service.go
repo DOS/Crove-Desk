@@ -30,9 +30,9 @@ var SupportService = &supportService{}
 
 type supportService struct{}
 
-type SupportCommentListResult struct {
-	Comments []models.SupportComment
-	Replies  map[int64][]models.SupportComment
+type CommentListResult struct {
+	Comments []models.Comment
+	Replies  map[int64][]models.Comment
 	Paging   *sqls.Paging
 }
 
@@ -334,7 +334,7 @@ func (s *supportService) DeleteHelpPage(id int64) error {
 	return repositories.SupportHelpPageRepository.Delete(sqls.DB(), id)
 }
 
-func (s *supportService) SaveCategory(req request.SaveSupportCategoryRequest, operator *dto.AuthPrincipal) (*models.SupportCategory, error) {
+func (s *supportService) SaveCategory(req request.SaveCategoryRequest, operator *dto.AuthPrincipal) (*models.Category, error) {
 	name, slug := strings.TrimSpace(req.Name), normalizeSupportSlug(req.Slug)
 	if name == "" || slug == "" {
 		return nil, errorsx.InvalidParam("name and slug are required")
@@ -344,19 +344,19 @@ func (s *supportService) SaveCategory(req request.SaveSupportCategoryRequest, op
 	}
 	now := time.Now()
 	if req.ID > 0 {
-		if repositories.SupportCategoryRepository.Get(sqls.DB(), req.ID) == nil {
+		if repositories.CategoryRepository.Get(sqls.DB(), req.ID) == nil {
 			return nil, errorsx.InvalidParam("category not found")
 		}
-		if err := repositories.SupportCategoryRepository.Updates(sqls.DB(), req.ID, map[string]any{"name": name, "slug": slug, "description": strings.TrimSpace(req.Description), "status": req.Status, "remark": strings.TrimSpace(req.Remark), "update_user_id": operator.UserID, "update_user_name": operator.Username, "updated_at": now}); err != nil {
+		if err := repositories.CategoryRepository.Updates(sqls.DB(), req.ID, map[string]any{"name": name, "slug": slug, "description": strings.TrimSpace(req.Description), "status": req.Status, "remark": strings.TrimSpace(req.Remark), "update_user_id": operator.UserID, "update_user_name": operator.Username, "updated_at": now}); err != nil {
 			return nil, err
 		}
-		return repositories.SupportCategoryRepository.Get(sqls.DB(), req.ID), nil
+		return repositories.CategoryRepository.Get(sqls.DB(), req.ID), nil
 	}
-	item := &models.SupportCategory{Name: name, Slug: slug, Description: strings.TrimSpace(req.Description), Status: req.Status, Remark: strings.TrimSpace(req.Remark), AuditFields: auditFieldsFromOperator(operator, now)}
+	item := &models.Category{Name: name, Slug: slug, Description: strings.TrimSpace(req.Description), Status: req.Status, Remark: strings.TrimSpace(req.Remark), AuditFields: auditFieldsFromOperator(operator, now)}
 	if item.Status == 0 {
 		item.Status = enums.StatusOk
 	}
-	if err := repositories.SupportCategoryRepository.Create(sqls.DB(), item); err != nil {
+	if err := repositories.CategoryRepository.Create(sqls.DB(), item); err != nil {
 		return nil, err
 	}
 	return item, nil
@@ -365,7 +365,7 @@ func (s *supportService) SaveCategory(req request.SaveSupportCategoryRequest, op
 func (s *supportService) UpdateCategorySort(ids []int64) error {
 	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
 		for i, id := range ids {
-			if err := repositories.SupportCategoryRepository.UpdateColumn(ctx.Tx, id, "sort_no", i); err != nil {
+			if err := repositories.CategoryRepository.UpdateColumn(ctx.Tx, id, "sort_no", i); err != nil {
 				return err
 			}
 		}
@@ -374,20 +374,20 @@ func (s *supportService) UpdateCategorySort(ids []int64) error {
 }
 
 func (s *supportService) DeleteCategory(id int64) error {
-	if repositories.SupportCategoryRepository.Get(sqls.DB(), id) == nil {
+	if repositories.CategoryRepository.Get(sqls.DB(), id) == nil {
 		return errorsx.InvalidParam("category not found")
 	}
-	_, paging := repositories.SupportPostRepository.FindPageByCnd(
+	_, paging := repositories.PostRepository.FindPageByCnd(
 		sqls.DB(),
 		sqls.NewCnd().Eq("category_id", id).Page(1, 1),
 	)
 	if paging.Total > 0 {
 		return errorsx.InvalidParam("category is still used by posts")
 	}
-	return repositories.SupportCategoryRepository.Delete(sqls.DB(), id)
+	return repositories.CategoryRepository.Delete(sqls.DB(), id)
 }
 
-func (s *supportService) CreatePost(req request.CreateSupportPostRequest, principal *dto.AuthPrincipal) (*models.SupportPost, error) {
+func (s *supportService) CreatePost(req request.CreatePostRequest, principal *dto.AuthPrincipal) (*models.Post, error) {
 	title, content := strings.TrimSpace(req.Title), strings.TrimSpace(req.Content)
 	if principal == nil || principal.UserID <= 0 {
 		return nil, errorsx.Unauthorized("login is required")
@@ -397,83 +397,83 @@ func (s *supportService) CreatePost(req request.CreateSupportPostRequest, princi
 	}
 	tags, _ := json.Marshal(normalizeTags(req.Tags))
 	now := time.Now()
-	item := &models.SupportPost{CategoryID: req.CategoryID, UserID: principal.UserID, Title: title, ContentType: normalizeContentType(req.ContentType), Content: content, TagsJSON: string(tags), Status: enums.SupportPostStatusNormal, AuditFields: supportAuditFields(principal.UserID, supportPrincipalName(principal), now)}
-	if err := repositories.SupportPostRepository.Create(sqls.DB(), item); err != nil {
+	item := &models.Post{CategoryID: req.CategoryID, UserID: principal.UserID, Title: title, ContentType: normalizeContentType(req.ContentType), Content: content, TagsJSON: string(tags), Status: enums.PostStatusNormal, AuditFields: supportAuditFields(principal.UserID, supportPrincipalName(principal), now)}
+	if err := repositories.PostRepository.Create(sqls.DB(), item); err != nil {
 		return nil, err
 	}
 	return item, nil
 }
 
-func (s *supportService) UpdatePost(req request.UpdateSupportPostRequest, principal *dto.AuthPrincipal) error {
-	item := repositories.SupportPostRepository.Get(sqls.DB(), req.ID)
+func (s *supportService) UpdatePost(req request.UpdatePostRequest, principal *dto.AuthPrincipal) error {
+	item := repositories.PostRepository.Get(sqls.DB(), req.ID)
 	if item == nil {
 		return errorsx.InvalidParam("post not found")
 	}
 	if principal == nil || item.UserID != principal.UserID {
 		return errorsx.Forbidden("only the post owner can update it")
 	}
-	if item.Status == enums.SupportPostStatusResolved || item.Status == enums.SupportPostStatusClosed {
+	if item.Status == enums.PostStatusResolved || item.Status == enums.PostStatusClosed {
 		return errorsx.BusinessError(1, "resolved or closed post cannot be edited")
 	}
 	tags, _ := json.Marshal(normalizeTags(req.Tags))
-	return repositories.SupportPostRepository.Updates(sqls.DB(), req.ID, map[string]any{"category_id": req.CategoryID, "title": strings.TrimSpace(req.Title), "content_type": normalizeContentType(req.ContentType), "content": strings.TrimSpace(req.Content), "tags_json": string(tags), "update_user_id": principal.UserID, "update_user_name": supportPrincipalName(principal), "updated_at": time.Now()})
+	return repositories.PostRepository.Updates(sqls.DB(), req.ID, map[string]any{"category_id": req.CategoryID, "title": strings.TrimSpace(req.Title), "content_type": normalizeContentType(req.ContentType), "content": strings.TrimSpace(req.Content), "tags_json": string(tags), "update_user_id": principal.UserID, "update_user_name": supportPrincipalName(principal), "updated_at": time.Now()})
 }
 
-func (s *supportService) CreateSupportUserComment(req request.CreateSupportCommentRequest, principal *dto.AuthPrincipal) (*models.SupportComment, error) {
+func (s *supportService) CreateCustomerComment(req request.CreateCommentRequest, principal *dto.AuthPrincipal) (*models.Comment, error) {
 	if principal == nil {
 		return nil, errorsx.Unauthorized("login is required")
 	}
 	return s.createComment(req.PostID, req.ParentID, normalizeContentType(req.ContentType), strings.TrimSpace(req.Content), supportAuthorType(principal), principal.UserID, supportPrincipalName(principal))
 }
 
-func (s *supportService) CreateUserComment(req request.CreateSupportCommentRequest, operator *dto.AuthPrincipal) (*models.SupportComment, error) {
+func (s *supportService) CreateUserComment(req request.CreateCommentRequest, operator *dto.AuthPrincipal) (*models.Comment, error) {
 	if operator == nil {
 		return nil, errorsx.Unauthorized("login is required")
 	}
 	return s.createComment(req.PostID, req.ParentID, normalizeContentType(req.ContentType), strings.TrimSpace(req.Content), supportAuthorType(operator), operator.UserID, supportPrincipalName(operator))
 }
 
-func (s *supportService) createComment(postID, parentID int64, contentType, content string, authorType enums.SupportCommentAuthorType, authorID int64, authorName string) (*models.SupportComment, error) {
+func (s *supportService) createComment(postID, parentID int64, contentType, content string, authorType enums.CommentAuthorType, authorID int64, authorName string) (*models.Comment, error) {
 	if content == "" {
 		return nil, errorsx.InvalidParam("comment content is required")
 	}
-	post := repositories.SupportPostRepository.Get(sqls.DB(), postID)
-	if post == nil || post.Status == enums.SupportPostStatusDeleted || post.Status == enums.SupportPostStatusClosed {
+	post := repositories.PostRepository.Get(sqls.DB(), postID)
+	if post == nil || post.Status == enums.PostStatusDeleted || post.Status == enums.PostStatusClosed {
 		return nil, errorsx.InvalidParam("post is unavailable")
 	}
-	var parent *models.SupportComment
+	var parent *models.Comment
 	if parentID > 0 {
-		parent = repositories.SupportCommentRepository.Get(sqls.DB(), parentID)
-		if parent == nil || parent.PostID != postID || parent.ParentID != 0 || parent.Status != enums.SupportCommentStatusNormal {
+		parent = repositories.CommentRepository.Get(sqls.DB(), parentID)
+		if parent == nil || parent.PostID != postID || parent.ParentID != 0 || parent.Status != enums.CommentStatusNormal {
 			return nil, errorsx.InvalidParam("parent comment is unavailable")
 		}
 	}
 	now := time.Now()
-	comment := &models.SupportComment{PostID: postID, ParentID: parentID, AuthorType: authorType, AuthorID: authorID, ContentType: contentType, Content: content, Status: enums.SupportCommentStatusNormal, AuditFields: supportAuditFields(authorID, authorName, now)}
+	comment := &models.Comment{PostID: postID, ParentID: parentID, AuthorType: authorType, AuthorID: authorID, ContentType: contentType, Content: content, Status: enums.CommentStatusNormal, AuditFields: supportAuditFields(authorID, authorName, now)}
 	if err := sqls.WithTransaction(func(ctx *sqls.TxContext) error {
-		if err := repositories.SupportCommentRepository.Create(ctx.Tx, comment); err != nil {
+		if err := repositories.CommentRepository.Create(ctx.Tx, comment); err != nil {
 			return err
 		}
 		if parent != nil {
-			if err := repositories.SupportCommentRepository.UpdateColumn(ctx.Tx, parent.ID, "reply_count", gorm.Expr("reply_count + ?", 1)); err != nil {
+			if err := repositories.CommentRepository.UpdateColumn(ctx.Tx, parent.ID, "reply_count", gorm.Expr("reply_count + ?", 1)); err != nil {
 				return err
 			}
 		}
-		return repositories.SupportPostRepository.Updates(ctx.Tx, postID, map[string]any{"comment_count": gorm.Expr("comment_count + ?", 1), "last_commented_at": now, "last_comment_user_type": authorType, "last_comment_user_id": authorID, "updated_at": now})
+		return repositories.PostRepository.Updates(ctx.Tx, postID, map[string]any{"comment_count": gorm.Expr("comment_count + ?", 1), "last_commented_at": now, "last_comment_user_type": authorType, "last_comment_user_id": authorID, "updated_at": now})
 	}); err != nil {
 		return nil, err
 	}
 	return comment, nil
 }
 
-func (s *supportService) ListPostComments(postID, parentID int64, sort string, page, limit int) (*SupportCommentListResult, error) {
-	post := repositories.SupportPostRepository.Get(sqls.DB(), postID)
-	if post == nil || post.Status == enums.SupportPostStatusHidden || post.Status == enums.SupportPostStatusDeleted {
+func (s *supportService) ListPostComments(postID, parentID int64, sort string, page, limit int) (*CommentListResult, error) {
+	post := repositories.PostRepository.Get(sqls.DB(), postID)
+	if post == nil || post.Status == enums.PostStatusHidden || post.Status == enums.PostStatusDeleted {
 		return nil, errorsx.InvalidParam("post not found")
 	}
 	if parentID > 0 {
-		parent := repositories.SupportCommentRepository.Get(sqls.DB(), parentID)
-		if parent == nil || parent.PostID != postID || parent.Status == enums.SupportCommentStatusHidden {
+		parent := repositories.CommentRepository.Get(sqls.DB(), parentID)
+		if parent == nil || parent.PostID != postID || parent.Status == enums.CommentStatusHidden {
 			return nil, errorsx.InvalidParam("parent comment not found")
 		}
 	}
@@ -483,7 +483,7 @@ func (s *supportService) ListPostComments(postID, parentID int64, sort string, p
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
-	cnd := sqls.NewCnd().Eq("post_id", postID).Eq("parent_id", parentID).Where("status IN ?", []enums.SupportCommentStatus{enums.SupportCommentStatusNormal, enums.SupportCommentStatusDeleted}).Page(page, limit)
+	cnd := sqls.NewCnd().Eq("post_id", postID).Eq("parent_id", parentID).Where("status IN ?", []enums.CommentStatus{enums.CommentStatusNormal, enums.CommentStatusDeleted}).Page(page, limit)
 	if parentID > 0 {
 		cnd.Asc("id")
 	} else {
@@ -496,8 +496,8 @@ func (s *supportService) ListPostComments(postID, parentID int64, sort string, p
 			cnd.Desc("is_accepted").Asc("id")
 		}
 	}
-	comments, paging := repositories.SupportCommentRepository.FindPageByCnd(sqls.DB(), cnd)
-	result := &SupportCommentListResult{Comments: comments, Replies: map[int64][]models.SupportComment{}, Paging: paging}
+	comments, paging := repositories.CommentRepository.FindPageByCnd(sqls.DB(), cnd)
+	result := &CommentListResult{Comments: comments, Replies: map[int64][]models.Comment{}, Paging: paging}
 	if parentID > 0 || len(comments) == 0 {
 		return result, nil
 	}
@@ -505,14 +505,14 @@ func (s *supportService) ListPostComments(postID, parentID int64, sort string, p
 		if comment.ReplyCount <= 0 {
 			continue
 		}
-		result.Replies[comment.ID] = repositories.SupportCommentRepository.Find(sqls.DB(), sqls.NewCnd().Eq("post_id", postID).Eq("parent_id", comment.ID).Where("status IN ?", []enums.SupportCommentStatus{enums.SupportCommentStatusNormal, enums.SupportCommentStatusDeleted}).Asc("id").Page(1, 2))
+		result.Replies[comment.ID] = repositories.CommentRepository.Find(sqls.DB(), sqls.NewCnd().Eq("post_id", postID).Eq("parent_id", comment.ID).Where("status IN ?", []enums.CommentStatus{enums.CommentStatusNormal, enums.CommentStatusDeleted}).Asc("id").Page(1, 2))
 	}
 	return result, nil
 }
 
-func (s *supportService) UpdateComment(req request.UpdateSupportCommentRequest, principal *dto.AuthPrincipal) error {
-	comment := repositories.SupportCommentRepository.Get(sqls.DB(), req.ID)
-	if comment == nil || comment.Status != enums.SupportCommentStatusNormal {
+func (s *supportService) UpdateComment(req request.UpdateCommentRequest, principal *dto.AuthPrincipal) error {
+	comment := repositories.CommentRepository.Get(sqls.DB(), req.ID)
+	if comment == nil || comment.Status != enums.CommentStatusNormal {
 		return errorsx.InvalidParam("comment not found")
 	}
 	if principal == nil || comment.AuthorID != principal.UserID {
@@ -522,12 +522,12 @@ func (s *supportService) UpdateComment(req request.UpdateSupportCommentRequest, 
 	if content == "" {
 		return errorsx.InvalidParam("comment content is required")
 	}
-	return repositories.SupportCommentRepository.Updates(sqls.DB(), comment.ID, map[string]any{"content_type": normalizeContentType(req.ContentType), "content": content, "update_user_id": principal.UserID, "update_user_name": supportPrincipalName(principal), "updated_at": time.Now()})
+	return repositories.CommentRepository.Updates(sqls.DB(), comment.ID, map[string]any{"content_type": normalizeContentType(req.ContentType), "content": content, "update_user_id": principal.UserID, "update_user_name": supportPrincipalName(principal), "updated_at": time.Now()})
 }
 
 func (s *supportService) DeleteComment(commentID int64, principal *dto.AuthPrincipal) error {
-	comment := repositories.SupportCommentRepository.Get(sqls.DB(), commentID)
-	if comment == nil || comment.Status == enums.SupportCommentStatusDeleted {
+	comment := repositories.CommentRepository.Get(sqls.DB(), commentID)
+	if comment == nil || comment.Status == enums.CommentStatusDeleted {
 		return errorsx.InvalidParam("comment not found")
 	}
 	if principal == nil || comment.AuthorID != principal.UserID {
@@ -535,27 +535,27 @@ func (s *supportService) DeleteComment(commentID int64, principal *dto.AuthPrinc
 	}
 	now := time.Now()
 	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
-		if err := repositories.SupportCommentRepository.Updates(ctx.Tx, comment.ID, map[string]any{"status": enums.SupportCommentStatusDeleted, "is_accepted": false, "updated_at": now, "update_user_id": principal.UserID, "update_user_name": supportPrincipalName(principal)}); err != nil {
+		if err := repositories.CommentRepository.Updates(ctx.Tx, comment.ID, map[string]any{"status": enums.CommentStatusDeleted, "is_accepted": false, "updated_at": now, "update_user_id": principal.UserID, "update_user_name": supportPrincipalName(principal)}); err != nil {
 			return err
 		}
 		columns := map[string]any{"updated_at": now}
 		if comment.IsAccepted {
 			columns["accepted_comment_id"] = int64(0)
-			columns["status"] = enums.SupportPostStatusNormal
+			columns["status"] = enums.PostStatusNormal
 		}
-		return repositories.SupportPostRepository.Updates(ctx.Tx, comment.PostID, columns)
+		return repositories.PostRepository.Updates(ctx.Tx, comment.PostID, columns)
 	})
 }
 
-func (s *supportService) ReportComment(req request.ReportSupportCommentRequest, principal *dto.AuthPrincipal) error {
+func (s *supportService) ReportComment(req request.ReportCommentRequest, principal *dto.AuthPrincipal) error {
 	if principal == nil {
 		return errorsx.Unauthorized("login is required")
 	}
-	comment := repositories.SupportCommentRepository.Get(sqls.DB(), req.ID)
-	if comment == nil || comment.Status != enums.SupportCommentStatusNormal {
+	comment := repositories.CommentRepository.Get(sqls.DB(), req.ID)
+	if comment == nil || comment.Status != enums.CommentStatusNormal {
 		return errorsx.InvalidParam("comment not found")
 	}
-	if existing := repositories.SupportCommentReportRepository.Get(sqls.DB(), comment.ID, principal.UserID); existing != nil {
+	if existing := repositories.CommentReportRepository.Get(sqls.DB(), comment.ID, principal.UserID); existing != nil {
 		return nil
 	}
 	now := time.Now()
@@ -564,20 +564,20 @@ func (s *supportService) ReportComment(req request.ReportSupportCommentRequest, 
 		reason = string([]rune(reason)[:255])
 	}
 	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
-		if err := repositories.SupportCommentReportRepository.Create(ctx.Tx, &models.SupportCommentReport{CommentID: comment.ID, UserID: principal.UserID, Reason: reason, CreatedAt: now}); err != nil {
+		if err := repositories.CommentReportRepository.Create(ctx.Tx, &models.CommentReport{CommentID: comment.ID, UserID: principal.UserID, Reason: reason, CreatedAt: now}); err != nil {
 			return err
 		}
-		return repositories.SupportCommentRepository.UpdateColumn(ctx.Tx, comment.ID, "report_count", gorm.Expr("report_count + ?", 1))
+		return repositories.CommentRepository.UpdateColumn(ctx.Tx, comment.ID, "report_count", gorm.Expr("report_count + ?", 1))
 	})
 }
 
-func (s *supportService) AcceptComment(req request.SupportAcceptCommentRequest, principal *dto.AuthPrincipal, operator *dto.AuthPrincipal) error {
-	post := repositories.SupportPostRepository.Get(sqls.DB(), req.PostID)
-	comment := repositories.SupportCommentRepository.Get(sqls.DB(), req.CommentID)
+func (s *supportService) AcceptComment(req request.AcceptCommentRequest, principal *dto.AuthPrincipal, operator *dto.AuthPrincipal) error {
+	post := repositories.PostRepository.Get(sqls.DB(), req.PostID)
+	comment := repositories.CommentRepository.Get(sqls.DB(), req.CommentID)
 	if post == nil || comment == nil || comment.PostID != post.ID {
 		return errorsx.InvalidParam("post or comment not found")
 	}
-	if comment.ParentID != 0 || comment.Status != enums.SupportCommentStatusNormal {
+	if comment.ParentID != 0 || comment.Status != enums.CommentStatusNormal {
 		return errorsx.InvalidParam("only top-level normal comments can be accepted")
 	}
 	if operator == nil {
@@ -587,54 +587,54 @@ func (s *supportService) AcceptComment(req request.SupportAcceptCommentRequest, 
 	}
 	now := time.Now()
 	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
-		if err := ctx.Tx.Model(&models.SupportComment{}).Where("post_id = ?", post.ID).Update("is_accepted", false).Error; err != nil {
+		if err := ctx.Tx.Model(&models.Comment{}).Where("post_id = ?", post.ID).Update("is_accepted", false).Error; err != nil {
 			return err
 		}
-		if err := repositories.SupportCommentRepository.Updates(ctx.Tx, comment.ID, map[string]any{"is_accepted": true, "updated_at": now}); err != nil {
+		if err := repositories.CommentRepository.Updates(ctx.Tx, comment.ID, map[string]any{"is_accepted": true, "updated_at": now}); err != nil {
 			return err
 		}
-		return repositories.SupportPostRepository.Updates(ctx.Tx, post.ID, map[string]any{"accepted_comment_id": comment.ID, "status": enums.SupportPostStatusResolved, "updated_at": now})
+		return repositories.PostRepository.Updates(ctx.Tx, post.ID, map[string]any{"accepted_comment_id": comment.ID, "status": enums.PostStatusResolved, "updated_at": now})
 	})
 }
 
-func (s *supportService) ToggleReaction(targetType enums.SupportReactionTarget, targetID int64, reactionType enums.SupportReactionType, principal *dto.AuthPrincipal) error {
+func (s *supportService) ToggleReaction(targetType enums.ReactionTarget, targetID int64, reactionType enums.ReactionType, principal *dto.AuthPrincipal) error {
 	if principal == nil {
 		return errorsx.Unauthorized("login is required")
 	}
 	if reactionType == "" {
-		reactionType = enums.SupportReactionTypeLike
+		reactionType = enums.ReactionTypeLike
 	}
-	if reactionType != enums.SupportReactionTypeLike {
+	if reactionType != enums.ReactionTypeLike {
 		return errorsx.InvalidParam("reaction type is unsupported")
 	}
 	updateReactionCount := func(db *gorm.DB, delta int) error {
 		switch targetType {
-		case enums.SupportReactionTargetPost:
-			if repositories.SupportPostRepository.Get(sqls.DB(), targetID) == nil {
+		case enums.ReactionTargetPost:
+			if repositories.PostRepository.Get(sqls.DB(), targetID) == nil {
 				return errorsx.InvalidParam("post not found")
 			}
-			return repositories.SupportPostRepository.UpdateColumn(db, targetID, "reaction_count", gorm.Expr("reaction_count + ?", delta))
-		case enums.SupportReactionTargetComment:
-			if repositories.SupportCommentRepository.Get(sqls.DB(), targetID) == nil {
+			return repositories.PostRepository.UpdateColumn(db, targetID, "reaction_count", gorm.Expr("reaction_count + ?", delta))
+		case enums.ReactionTargetComment:
+			if repositories.CommentRepository.Get(sqls.DB(), targetID) == nil {
 				return errorsx.InvalidParam("comment not found")
 			}
-			return repositories.SupportCommentRepository.Updates(db, targetID, map[string]any{"reaction_count": gorm.Expr("reaction_count + ?", delta), "updated_at": time.Now()})
+			return repositories.CommentRepository.Updates(db, targetID, map[string]any{"reaction_count": gorm.Expr("reaction_count + ?", delta), "updated_at": time.Now()})
 		default:
 			return errorsx.InvalidParam("reaction target type is unsupported")
 		}
 	}
 	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
-		existing := repositories.SupportReactionRepository.Get(ctx.Tx, string(targetType), targetID, principal.UserID, string(reactionType))
+		existing := repositories.ReactionRepository.Get(ctx.Tx, string(targetType), targetID, principal.UserID, string(reactionType))
 		delta := 1
 		if existing != nil {
 			delta = -1
-			if err := repositories.SupportReactionRepository.Delete(ctx.Tx, string(targetType), targetID, principal.UserID, string(reactionType)); err != nil {
+			if err := repositories.ReactionRepository.Delete(ctx.Tx, string(targetType), targetID, principal.UserID, string(reactionType)); err != nil {
 				return err
 			}
 		} else {
 			now := time.Now()
-			reaction := &models.SupportReaction{TargetType: targetType, TargetID: targetID, UserID: principal.UserID, ReactionType: reactionType, CreatedAt: now, UpdatedAt: now}
-			if err := repositories.SupportReactionRepository.Create(ctx.Tx, reaction); err != nil {
+			reaction := &models.Reaction{TargetType: targetType, TargetID: targetID, UserID: principal.UserID, ReactionType: reactionType, CreatedAt: now, UpdatedAt: now}
+			if err := repositories.ReactionRepository.Create(ctx.Tx, reaction); err != nil {
 				return err
 			}
 		}
@@ -642,18 +642,18 @@ func (s *supportService) ToggleReaction(targetType enums.SupportReactionTarget, 
 	})
 }
 
-func (s *supportService) ModeratePost(req request.ModerateSupportPostRequest) error {
-	if repositories.SupportPostRepository.Get(sqls.DB(), req.ID) == nil {
+func (s *supportService) ModeratePost(req request.ModeratePostRequest) error {
+	if repositories.PostRepository.Get(sqls.DB(), req.ID) == nil {
 		return errorsx.InvalidParam("post not found")
 	}
-	return repositories.SupportPostRepository.Updates(sqls.DB(), req.ID, map[string]any{"status": req.Status, "updated_at": time.Now()})
+	return repositories.PostRepository.Updates(sqls.DB(), req.ID, map[string]any{"status": req.Status, "updated_at": time.Now()})
 }
 
-func (s *supportService) ModerateComment(req request.ModerateSupportCommentRequest) error {
-	if repositories.SupportCommentRepository.Get(sqls.DB(), req.ID) == nil {
+func (s *supportService) ModerateComment(req request.ModerateCommentRequest) error {
+	if repositories.CommentRepository.Get(sqls.DB(), req.ID) == nil {
 		return errorsx.InvalidParam("comment not found")
 	}
-	return repositories.SupportCommentRepository.Updates(sqls.DB(), req.ID, map[string]any{"status": req.Status, "updated_at": time.Now()})
+	return repositories.CommentRepository.Updates(sqls.DB(), req.ID, map[string]any{"status": req.Status, "updated_at": time.Now()})
 }
 
 func (s *supportService) FeedbackHelpPage(req request.SupportHelpPageFeedbackRequest) error {
@@ -732,9 +732,9 @@ func supportPrincipalName(principal *dto.AuthPrincipal) string {
 	return strings.TrimSpace(principal.Username)
 }
 
-func supportAuthorType(principal *dto.AuthPrincipal) enums.SupportCommentAuthorType {
+func supportAuthorType(principal *dto.AuthPrincipal) enums.CommentAuthorType {
 	if principal != nil && principal.UserType == enums.UserTypeEmployee {
-		return enums.SupportCommentAuthorTypeEmployee
+		return enums.CommentAuthorTypeEmployee
 	}
-	return enums.SupportCommentAuthorTypeUser
+	return enums.CommentAuthorTypeUser
 }

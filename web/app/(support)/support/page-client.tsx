@@ -7,7 +7,7 @@ import { ArrowRightIcon, BookOpenIcon, CircleHelpIcon, HeadphonesIcon, MessageCi
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { SupportPageContent, SupportPageShell } from "@/app/(support)/support/_components/support-page-shell"
-import { SupportEmptyState as EmptyState, SupportPostStatusBadge as PostStatusBadge, SupportSearchInput } from "@/app/(support)/support/_components/support-ui"
+import { SupportEmptyState as EmptyState, PostStatusBadge as PostStatusBadge, SupportSearchInput } from "@/app/(support)/support/_components/support-ui"
 import { flattenSupportHelpNavigation, supportHelpPageHref } from "@/app/(support)/support/_components/support-help-navigation"
 import { useI18n } from "@/i18n/provider"
 import { fetchSupportHelpNavigation, fetchSupportHelpPages, type SupportHelpPage } from "@/lib/api/support"

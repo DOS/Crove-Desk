@@ -13,7 +13,7 @@ import { PublicArticleToc, hasArticleTocHeadings } from "@/app/(support)/support
 import { CommunityFrame } from "@/app/(support)/support/_components/community-frame"
 import { PostArticleContent } from "@/app/(support)/support/_components/post-article-content"
 import { ensureSupportLogin, useCommunityCategoryRoute } from "@/app/(support)/support/_components/support-community-route"
-import { SupportEmptyState as EmptyState, SupportPostStatusBadge as PostStatusBadge } from "@/app/(support)/support/_components/support-ui"
+import { SupportEmptyState as EmptyState, PostStatusBadge as PostStatusBadge } from "@/app/(support)/support/_components/support-ui"
 import { CommentItem } from "@/app/(support)/support/community/posts/detail/_components/comment-item"
 import { PostMetric } from "@/app/(support)/support/community/posts/_components/post-ui"
 import { useI18n } from "@/i18n/provider"

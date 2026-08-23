@@ -172,8 +172,8 @@ var (
 	PermissionSupportHelpPageCreate = Permission{Name: "创建帮助中心页面", Code: "supportHelpPage.create", Type: "api", GroupName: "supportHelpPage", Method: "POST", APIPath: "/api/dashboard/support-help-page/create", SortNo: 1591}
 	PermissionSupportHelpPageUpdate = Permission{Name: "更新帮助中心页面", Code: "supportHelpPage.update", Type: "api", GroupName: "supportHelpPage", Method: "POST", APIPath: "/api/dashboard/support-help-page/update", SortNo: 1592}
 	PermissionSupportHelpPageDelete = Permission{Name: "删除帮助中心页面", Code: "supportHelpPage.delete", Type: "api", GroupName: "supportHelpPage", Method: "POST", APIPath: "/api/dashboard/support-help-page/delete", SortNo: 1593}
-	PermissionSupportPostView       = Permission{Name: "查看支持中心社区", Code: "supportCommunity.view", Type: "api", GroupName: "supportCommunity", Method: "ANY", APIPath: "/api/dashboard/support-community/posts/list", SortNo: 1594}
-	PermissionSupportPostUpdate     = Permission{Name: "管理支持中心社区", Code: "supportCommunity.update", Type: "api", GroupName: "supportCommunity", Method: "POST", APIPath: "/api/dashboard/support-community/posts/moderate", SortNo: 1595}
+	PermissionCommunityView         = Permission{Name: "查看支持中心社区", Code: "supportCommunity.view", Type: "api", GroupName: "supportCommunity", Method: "ANY", APIPath: "/api/dashboard/support-community/posts/list", SortNo: 1594}
+	PermissionCommunityUpdate       = Permission{Name: "管理支持中心社区", Code: "supportCommunity.update", Type: "api", GroupName: "supportCommunity", Method: "POST", APIPath: "/api/dashboard/support-community/posts/moderate", SortNo: 1595}
 
 	// Skill 定义相关权限
 	PermissionSkillDefinitionView   = Permission{Name: "查看技能定义", Code: "skillDefinition.view", Type: "api", GroupName: "skillDefinition", Method: "ANY", APIPath: "/api/dashboard/skill-definition/list", SortNo: 1610}
@@ -283,8 +283,8 @@ var Permissions = []Permission{
 	PermissionSupportHelpPageCreate,
 	PermissionSupportHelpPageUpdate,
 	PermissionSupportHelpPageDelete,
-	PermissionSupportPostView,
-	PermissionSupportPostUpdate,
+	PermissionCommunityView,
+	PermissionCommunityUpdate,
 	PermissionSkillDefinitionView,
 	PermissionSkillDefinitionCreate,
 	PermissionSkillDefinitionUpdate,

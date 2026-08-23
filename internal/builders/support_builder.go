@@ -61,11 +61,11 @@ func BuildSupportHelpPageNavigationTree(list []models.SupportHelpPage) []*respon
 	return roots
 }
 
-func BuildSupportCategory(item *models.SupportCategory) *response.SupportCategoryResponse {
+func BuildCategory(item *models.Category) *response.CategoryResponse {
 	if item == nil {
 		return nil
 	}
-	return &response.SupportCategoryResponse{
+	return &response.CategoryResponse{
 		ID:          item.ID,
 		Name:        item.Name,
 		Slug:        item.Slug,
@@ -78,17 +78,17 @@ func BuildSupportCategory(item *models.SupportCategory) *response.SupportCategor
 	}
 }
 
-func BuildSupportPostCategories(list []models.SupportCategory) []response.SupportCategoryResponse {
-	ret := make([]response.SupportCategoryResponse, 0, len(list))
+func BuildPostCategories(list []models.Category) []response.CategoryResponse {
+	ret := make([]response.CategoryResponse, 0, len(list))
 	for _, item := range list {
-		if resp := BuildSupportCategory(&item); resp != nil {
+		if resp := BuildCategory(&item); resp != nil {
 			ret = append(ret, *resp)
 		}
 	}
 	return ret
 }
 
-func BuildSupportPost(item *models.SupportPost, categoryName string, user *models.User) *response.SupportPostResponse {
+func BuildPost(item *models.Post, categoryName string, user *models.User) *response.PostResponse {
 	if item == nil {
 		return nil
 	}
@@ -101,7 +101,7 @@ func BuildSupportPost(item *models.SupportPost, categoryName string, user *model
 		}
 		userType = user.UserType
 	}
-	return &response.SupportPostResponse{
+	return &response.PostResponse{
 		ID:                  item.ID,
 		CategoryID:          item.CategoryID,
 		CategoryName:        categoryName,
@@ -125,17 +125,17 @@ func BuildSupportPost(item *models.SupportPost, categoryName string, user *model
 	}
 }
 
-func BuildSupportComment(item *models.SupportComment, authorName string) *response.SupportCommentResponse {
+func BuildComment(item *models.Comment, authorName string) *response.CommentResponse {
 	if item == nil {
 		return nil
 	}
 	contentType := item.ContentType
 	content := item.Content
-	if item.Status == enums.SupportCommentStatusDeleted {
+	if item.Status == enums.CommentStatusDeleted {
 		contentType = "markdown"
 		content = ""
 	}
-	return &response.SupportCommentResponse{
+	return &response.CommentResponse{
 		ID:            item.ID,
 		PostID:        item.PostID,
 		ParentID:      item.ParentID,
@@ -149,7 +149,7 @@ func BuildSupportComment(item *models.SupportComment, authorName string) *respon
 		ReplyCount:    item.ReplyCount,
 		ReportCount:   item.ReportCount,
 		IsAccepted:    item.IsAccepted,
-		Replies:       []response.SupportCommentResponse{},
+		Replies:       []response.CommentResponse{},
 		CreatedAt:     formatSupportTime(&item.CreatedAt),
 		UpdatedAt:     formatSupportTime(&item.UpdatedAt),
 	}

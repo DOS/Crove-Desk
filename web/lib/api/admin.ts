@@ -2308,7 +2308,7 @@ export function debugKnowledgeSearch(payload: KnowledgeSearchPayload) {
   })
 }
 
-export type AdminSupportCategory = {
+export type AdminCategory = {
   id: number
   name: string
   slug: string
@@ -2338,7 +2338,7 @@ export type AdminSupportHelpPage = {
   updatedAt: string
 }
 
-export type AdminSupportPost = {
+export type AdminPost = {
   id: number
   categoryId: number
   categoryName: string
@@ -2357,7 +2357,7 @@ export type AdminSupportPost = {
   updatedAt: string
 }
 
-export type AdminSupportComment = {
+export type AdminComment = {
   id: number
   postId: number
   authorType: string
@@ -2369,9 +2369,9 @@ export type AdminSupportComment = {
   createdAt: string
 }
 
-export type AdminSupportPostDetail = {
-  post: AdminSupportPost
-  comments: AdminSupportComment[]
+export type AdminPostDetail = {
+  post: AdminPost
+  comments: AdminComment[]
 }
 
 export function fetchSupportHelpPagesAdmin(query?: Record<string, string | number | undefined>) {
@@ -2421,65 +2421,65 @@ export function changeSupportHelpPageStatusAdmin(id: number, status: "draft" | "
   })
 }
 
-export function fetchSupportPostCategoriesAdmin(query?: Record<string, string | number | undefined>) {
-  return request<PageResult<AdminSupportCategory>>(`/api/dashboard/support-community/categories/list${toQueryString(query)}`)
+export function fetchCommunityCategoriesAdmin(query?: Record<string, string | number | undefined>) {
+  return request<PageResult<AdminCategory>>(`/api/dashboard/support-community/categories/list${toQueryString(query)}`)
 }
 
-export function fetchSupportPostCategoriesAllAdmin() {
-  return request<AdminSupportCategory[]>("/api/dashboard/support-community/categories/list_all")
+export function fetchCommunityCategoriesAllAdmin() {
+  return request<AdminCategory[]>("/api/dashboard/support-community/categories/list_all")
 }
 
-export function saveSupportCategoryAdmin(payload: Partial<AdminSupportCategory>) {
-  return request<AdminSupportCategory>(payload.id ? "/api/dashboard/support-community/categories/update" : "/api/dashboard/support-community/categories/create", {
+export function saveCommunityCategoryAdmin(payload: Partial<AdminCategory>) {
+  return request<AdminCategory>(payload.id ? "/api/dashboard/support-community/categories/update" : "/api/dashboard/support-community/categories/create", {
     method: "POST",
     body: JSON.stringify(payload),
   })
 }
 
-export function deleteSupportCategoryAdmin(id: number) {
+export function deleteCommunityCategoryAdmin(id: number) {
 	return request<void>("/api/dashboard/support-community/categories/delete", {
 		method: "POST",
 		body: JSON.stringify({ id }),
 	})
 }
 
-export function updateSupportCategorySortAdmin(ids: number[]) {
+export function updateCommunityCategorySortAdmin(ids: number[]) {
 	return request<void>("/api/dashboard/support-community/categories/update_sort", {
 		method: "POST",
 		body: JSON.stringify(ids),
 	})
 }
 
-export function fetchSupportPostsAdmin(query?: Record<string, string | number | undefined>) {
-  return request<PageResult<AdminSupportPost>>(`/api/dashboard/support-community/posts/list${toQueryString(query)}`)
+export function fetchCommunityPostsAdmin(query?: Record<string, string | number | undefined>) {
+  return request<PageResult<AdminPost>>(`/api/dashboard/support-community/posts/list${toQueryString(query)}`)
 }
 
-export function fetchSupportPostAdmin(id: number) {
-  return request<AdminSupportPostDetail>(`/api/dashboard/support-community/posts/${id}`)
+export function fetchCommunityPostAdmin(id: number) {
+  return request<AdminPostDetail>(`/api/dashboard/support-community/posts/${id}`)
 }
 
-export function moderateSupportPostAdmin(id: number, status: string) {
+export function moderateCommunityPostAdmin(id: number, status: string) {
   return request<void>("/api/dashboard/support-community/posts/moderate", {
     method: "POST",
     body: JSON.stringify({ id, status }),
   })
 }
 
-export function createSupportCommentAdmin(postId: number, content: string) {
-  return request<AdminSupportComment>("/api/dashboard/support-community/posts/answer/create", {
+export function createCommunityCommentAdmin(postId: number, content: string) {
+  return request<AdminComment>("/api/dashboard/support-community/posts/comment/create", {
     method: "POST",
     body: JSON.stringify({ postId, content }),
   })
 }
 
-export function moderateSupportCommentAdmin(id: number, status: string) {
+export function moderateCommunityCommentAdmin(id: number, status: string) {
   return request<void>("/api/dashboard/support-community/posts/comment/moderate", {
     method: "POST",
     body: JSON.stringify({ id, status }),
   })
 }
 
-export function acceptSupportCommentAdmin(postId: number, commentId: number) {
+export function acceptCommunityCommentAdmin(postId: number, commentId: number) {
   return request<void>("/api/dashboard/support-community/posts/accept_comment", {
     method: "POST",
     body: JSON.stringify({ postId, commentId }),

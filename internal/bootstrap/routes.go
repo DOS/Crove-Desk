@@ -50,24 +50,24 @@ func registerApiMessageRoutes(group *gin.RouterGroup) {
 }
 
 func registerApiSupportRoutes(group *gin.RouterGroup) {
-	group.POST("/auth/register", api.SupportPostRegister)
+	group.POST("/auth/register", api.SupportAuthPostRegister)
 	group.GET("/me", api.SupportGetMe)
 	group.Any("/help-page/list", api.SupportHelpPageAnyList)
 	group.GET("/help-page/navigation", api.SupportHelpPageGetNavigation)
 	group.GET("/help-page/:id", api.SupportHelpPageGetBy)
 	group.POST("/help-page/feedback", api.SupportHelpPagePostFeedback)
-	group.Any("/community/categories/list", api.SupportCategoryAnyList)
-	group.Any("/community/posts/list", api.SupportPostAnyList)
-	group.GET("/community/posts/:id", api.SupportPostGetBy)
-	group.POST("/community/posts/create", api.SupportPostPostCreate)
-	group.POST("/community/posts/update", api.SupportPostPostUpdate)
-	group.POST("/community/posts/accept_comment", api.SupportPostPostAcceptComment)
-	group.Any("/community/comments/list", api.SupportCommentAnyList)
-	group.POST("/community/comments/create", api.SupportCommentPostCreate)
-	group.POST("/community/comments/update", api.SupportCommentPostUpdate)
-	group.POST("/community/comments/delete", api.SupportCommentPostDelete)
-	group.POST("/community/comments/report", api.SupportCommentPostReport)
-	group.POST("/community/reactions/toggle", api.SupportReactionPostToggle)
+	group.Any("/community/categories/list", api.CategoryAnyList)
+	group.Any("/community/posts/list", api.PostAnyList)
+	group.GET("/community/posts/:id", api.PostGetBy)
+	group.POST("/community/posts/create", api.PostPostCreate)
+	group.POST("/community/posts/update", api.PostPostUpdate)
+	group.POST("/community/posts/accept_comment", api.PostPostAcceptComment)
+	group.Any("/community/comments/list", api.CommentAnyList)
+	group.POST("/community/comments/create", api.CommentPostCreate)
+	group.POST("/community/comments/update", api.CommentPostUpdate)
+	group.POST("/community/comments/delete", api.CommentPostDelete)
+	group.POST("/community/comments/report", api.CommentPostReport)
+	group.POST("/community/reactions/toggle", api.ReactionPostToggle)
 }
 
 func registerDashboardDashboardRoutes(group *gin.RouterGroup) {
@@ -374,22 +374,22 @@ func registerDashboardSupportHelpPageRoutes(group *gin.RouterGroup) {
 	group.POST("/change_status", dashboard.SupportHelpPagePostChange_status)
 }
 
-func registerDashboardSupportCategoryRoutes(group *gin.RouterGroup) {
-	group.POST("/create", dashboard.SupportCategoryPostCreate)
-	group.POST("/delete", dashboard.SupportCategoryPostDelete)
-	group.Any("/list", dashboard.SupportCategoryAnyList)
-	group.GET("/list_all", dashboard.SupportCategoryGetList_all)
-	group.POST("/update", dashboard.SupportCategoryPostUpdate)
-	group.POST("/update_sort", dashboard.SupportCategoryPostUpdateSort)
+func registerDashboardCommunityCategoryRoutes(group *gin.RouterGroup) {
+	group.POST("/create", dashboard.CategoryPostCreate)
+	group.POST("/delete", dashboard.CategoryPostDelete)
+	group.Any("/list", dashboard.CategoryAnyList)
+	group.GET("/list_all", dashboard.CategoryGetList_all)
+	group.POST("/update", dashboard.CategoryPostUpdate)
+	group.POST("/update_sort", dashboard.CategoryPostUpdateSort)
 }
 
-func registerDashboardSupportPostRoutes(group *gin.RouterGroup) {
-	group.GET("/:id", dashboard.SupportPostGetBy)
-	group.POST("/accept_comment", dashboard.SupportPostPostAcceptComment)
-	group.POST("/comment/create", dashboard.SupportCommentPostCreate)
-	group.POST("/comment/moderate", dashboard.SupportCommentPostModerate)
-	group.Any("/list", dashboard.SupportPostAnyList)
-	group.POST("/moderate", dashboard.SupportPostPostModerate)
+func registerDashboardCommunityPostRoutes(group *gin.RouterGroup) {
+	group.GET("/:id", dashboard.PostGetBy)
+	group.POST("/accept_comment", dashboard.PostPostAcceptComment)
+	group.POST("/comment/create", dashboard.CommentPostCreate)
+	group.POST("/comment/moderate", dashboard.CommentPostModerate)
+	group.Any("/list", dashboard.PostAnyList)
+	group.POST("/moderate", dashboard.PostPostModerate)
 }
 
 func registerDashboardSkillDefinitionRoutes(group *gin.RouterGroup) {

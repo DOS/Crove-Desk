@@ -40,7 +40,7 @@ type ChangeSupportHelpPageStatusRequest struct {
 	Status enums.SupportHelpPageStatus `json:"status"`
 }
 
-type SaveSupportCategoryRequest struct {
+type SaveCategoryRequest struct {
 	ID          int64        `json:"id"`
 	Name        string       `json:"name"`
 	Slug        string       `json:"slug"`
@@ -49,7 +49,7 @@ type SaveSupportCategoryRequest struct {
 	Remark      string       `json:"remark"`
 }
 
-type CreateSupportPostRequest struct {
+type CreatePostRequest struct {
 	CategoryID  int64    `json:"categoryId"`
 	Title       string   `json:"title"`
 	ContentType string   `json:"contentType"`
@@ -57,7 +57,7 @@ type CreateSupportPostRequest struct {
 	Tags        []string `json:"tags"`
 }
 
-type UpdateSupportPostRequest struct {
+type UpdatePostRequest struct {
 	ID          int64    `json:"id"`
 	CategoryID  int64    `json:"categoryId"`
 	Title       string   `json:"title"`
@@ -66,45 +66,45 @@ type UpdateSupportPostRequest struct {
 	Tags        []string `json:"tags"`
 }
 
-type ModerateSupportPostRequest struct {
-	ID     int64                   `json:"id"`
-	Status enums.SupportPostStatus `json:"status"`
+type ModeratePostRequest struct {
+	ID     int64            `json:"id"`
+	Status enums.PostStatus `json:"status"`
 }
 
-type CreateSupportCommentRequest struct {
+type CreateCommentRequest struct {
 	PostID      int64  `json:"postId"`
 	ParentID    int64  `json:"parentId"`
 	ContentType string `json:"contentType"`
 	Content     string `json:"content"`
 }
 
-type UpdateSupportCommentRequest struct {
+type UpdateCommentRequest struct {
 	ID          int64  `json:"id"`
 	ContentType string `json:"contentType"`
 	Content     string `json:"content"`
 }
 
-type ModerateSupportCommentRequest struct {
-	ID     int64                      `json:"id"`
-	Status enums.SupportCommentStatus `json:"status"`
+type ModerateCommentRequest struct {
+	ID     int64               `json:"id"`
+	Status enums.CommentStatus `json:"status"`
 }
 
-type SupportIDRequest struct {
+type IDRequest struct {
 	ID int64 `json:"id"`
 }
 
-type SupportReactionRequest struct {
-	TargetType   enums.SupportReactionTarget `json:"targetType"`
-	TargetID     int64                       `json:"targetId"`
-	ReactionType enums.SupportReactionType   `json:"reactionType"`
+type ReactionRequest struct {
+	TargetType   enums.ReactionTarget `json:"targetType"`
+	TargetID     int64                `json:"targetId"`
+	ReactionType enums.ReactionType   `json:"reactionType"`
 }
 
-type ReportSupportCommentRequest struct {
+type ReportCommentRequest struct {
 	ID     int64  `json:"id"`
 	Reason string `json:"reason"`
 }
 
-type SupportAcceptCommentRequest struct {
+type AcceptCommentRequest struct {
 	PostID    int64 `json:"postId"`
 	CommentID int64 `json:"commentId"`
 }

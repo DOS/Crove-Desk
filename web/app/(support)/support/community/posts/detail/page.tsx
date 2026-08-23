@@ -1,5 +1,5 @@
 import { PostDetail } from "./_components/post-detail"
 
-export default function SupportPostDetailShellPage() {
+export default function PostDetailShellPage() {
   return <PostDetail />
 }

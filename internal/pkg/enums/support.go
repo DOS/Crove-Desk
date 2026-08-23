@@ -9,43 +9,43 @@ const (
 	SupportHelpPageStatusDeleted   SupportHelpPageStatus = "deleted"
 )
 
-type SupportPostStatus string
+type PostStatus string
 
 const (
-	SupportPostStatusPending  SupportPostStatus = "pending"
-	SupportPostStatusNormal   SupportPostStatus = "normal"
-	SupportPostStatusResolved SupportPostStatus = "resolved"
-	SupportPostStatusClosed   SupportPostStatus = "closed"
-	SupportPostStatusHidden   SupportPostStatus = "hidden"
-	SupportPostStatusDeleted  SupportPostStatus = "deleted"
+	PostStatusPending  PostStatus = "pending"
+	PostStatusNormal   PostStatus = "normal"
+	PostStatusResolved PostStatus = "resolved"
+	PostStatusClosed   PostStatus = "closed"
+	PostStatusHidden   PostStatus = "hidden"
+	PostStatusDeleted  PostStatus = "deleted"
 )
 
-type SupportCommentStatus string
+type CommentStatus string
 
 const (
-	SupportCommentStatusNormal  SupportCommentStatus = "normal"
-	SupportCommentStatusHidden  SupportCommentStatus = "hidden"
-	SupportCommentStatusDeleted SupportCommentStatus = "deleted"
+	CommentStatusNormal  CommentStatus = "normal"
+	CommentStatusHidden  CommentStatus = "hidden"
+	CommentStatusDeleted CommentStatus = "deleted"
 )
 
-type SupportCommentAuthorType string
+type CommentAuthorType string
 
 const (
-	SupportCommentAuthorTypeUser     SupportCommentAuthorType = "user"
-	SupportCommentAuthorTypeEmployee SupportCommentAuthorType = "employee"
+	CommentAuthorTypeUser     CommentAuthorType = "user"
+	CommentAuthorTypeEmployee CommentAuthorType = "employee"
 )
 
-type SupportReactionTarget string
+type ReactionTarget string
 
 const (
-	SupportReactionTargetPost    SupportReactionTarget = "post"
-	SupportReactionTargetComment SupportReactionTarget = "comment"
+	ReactionTargetPost    ReactionTarget = "post"
+	ReactionTargetComment ReactionTarget = "comment"
 )
 
-type SupportReactionType string
+type ReactionType string
 
 const (
-	SupportReactionTypeLike SupportReactionType = "like"
+	ReactionTypeLike ReactionType = "like"
 )
 
 type UserType string
