@@ -27,6 +27,7 @@ func registerApiChannelRoutes(group *gin.RouterGroup) {
 }
 
 func registerApiWebhookRoutes(group *gin.RouterGroup) {
+	group.POST("/org-sync", api.OrgSyncWebhook)
 	group.POST("/dos-org-sync", api.DOSOrgSyncWebhook)
 }
 
