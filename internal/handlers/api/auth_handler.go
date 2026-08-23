@@ -4,6 +4,7 @@ import (
 	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/dto/response"
+	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/pkg/httpx"
 	"agent-desk/internal/pkg/httpx/params"
 	"agent-desk/internal/services"
@@ -17,6 +18,10 @@ import (
 
 func Login(ctx *gin.Context) {
 	cfg := config.Current()
+	if !cfg.Auth.IsPasswordLoginEnabled() {
+		httpx.WriteJSON(ctx, errorsx.ForbiddenI18n("error.auth.passwordLoginDisabled"))
+		return
+	}
 	req := request.LoginRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
@@ -34,9 +39,10 @@ func Login(ctx *gin.Context) {
 func PublicConfig(ctx *gin.Context) {
 	cfg := config.Current()
 	httpx.WriteJSON(ctx, &response.PublicConfigResponse{
-		Language:      cfg.LanguageOrDefault(),
-		WxWorkEnabled: cfg.WxWork.Enabled,
-		OIDCEnabled:   cfg.OIDC.Enabled,
+		Language:             cfg.LanguageOrDefault(),
+		PasswordLoginEnabled: cfg.Auth.IsPasswordLoginEnabled(),
+		WxWorkEnabled:        cfg.WxWork.Enabled,
+		OIDCEnabled:          cfg.OIDC.Enabled,
 	})
 }
 

@@ -24,6 +24,7 @@ logger:
   addSource: false
 
 auth:
+  passwordLoginEnabled: false
   tokenTTLHours: 12
   maxFailedAttempts: 5
   credentialLockMinute: 15

@@ -2,6 +2,7 @@ import { request } from "@/lib/api/client"
 
 export type PublicConfig = {
   language: string
+  passwordLoginEnabled?: boolean
   wxworkEnabled: boolean
   oidcEnabled: boolean
 }
