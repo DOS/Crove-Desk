@@ -43,7 +43,6 @@ import { SupportHeader } from "@/components/support-center/support-header"
 import { SupportQuestionCategoryNav } from "@/components/support-center/support-question-category-nav"
 import { useSupportAuth } from "@/components/support-center/support-auth-provider"
 import { SupportEmptyState as EmptyState, SupportFormField as LabeledField, SupportQuestionStatusBadge as QuestionStatusBadge, SupportSearchInput } from "@/components/support-center/support-ui"
-import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { useI18n } from "@/i18n/provider"
 import {
@@ -481,10 +480,10 @@ export function SupportQuestionDetail() {
 
   return (
     <SupportQuestionFrame active={question?.categoryId ?? "all"} categoryRoute={categoryRoute}>
-      <div className="px-5 py-9 sm:px-6 sm:py-12 md:px-8 lg:px-10 2xl:px-12">
+      <div className="px-4 py-7 sm:px-6 sm:py-10 lg:px-8 2xl:px-10">
         {question ? (
-          <article className="mx-auto w-full">
-            <Breadcrumb>
+          <article className="w-full max-w-6xl">
+            <Breadcrumb className="text-xs">
               <BreadcrumbList className="gap-y-1">
                 <BreadcrumbItem>
                   <Link href="/support/questions" className="transition-colors hover:text-foreground">{t("supportPublic.questions.title")}</Link>
@@ -495,46 +494,65 @@ export function SupportQuestionDetail() {
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
-            <h1 className="mt-6 text-balance text-3xl font-bold tracking-tight sm:text-4xl">{question.title}</h1>
-            <div className="my-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
-              <span>{t("supportPublic.questions.askedBy", { name: question.userName || t("supportPublic.common.user") })}</span>
-              <span>{t("supportPublic.questions.updatedAt", { date: formatDateTime(question.updatedAt || question.createdAt) })}</span>
+
+            <header className="mt-6">
+              <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">{question.title}</h1>
+            </header>
+
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <QuestionStatusBadge status={question.status} />
+              <span>{question.categoryName || t("supportPublic.common.uncategorized")}</span>
+              <span className="text-muted-foreground/40">/</span>
+              <span>{t("supportPublic.questions.askedBy", { name: question.userName || t("supportPublic.common.user") })}</span>
+              <span className="text-muted-foreground/40">/</span>
+              <span>{t("supportPublic.questions.updatedAt", { date: formatDateTime(question.updatedAt || question.createdAt) })}</span>
             </div>
-            <SupportQuestionArticleContent id={`support-question-${question.id}`} content={question.content} contentType={question.contentType} />
-            <div className="mt-8 flex flex-wrap items-center gap-2 border-t pt-5">
-              <Button variant="outline" size="sm" onClick={() => void ensureSupportLogin().then(() => voteSupportQuestion(question.id)).then(reload)}>
+
+            <div className="mt-8">
+              <SupportQuestionArticleContent id={`support-question-${question.id}`} content={question.content} contentType={question.contentType} />
+            </div>
+
+            <div className="mt-8 flex flex-wrap items-center gap-2">
+              <Button variant="secondary" size="sm" className="rounded-full" onClick={() => void ensureSupportLogin().then(() => voteSupportQuestion(question.id)).then(reload)}>
                 <ThumbsUpIcon /> {question.voteCount}
               </Button>
               <QuestionMetric icon={<MessageCircleMoreIcon className="size-3.5" />} value={question.answerCount} label={t("supportPublic.questions.answers")} />
               <QuestionMetric icon={<EyeIcon className="size-3.5" />} value={question.viewCount} label={t("supportPublic.questions.views")} />
             </div>
 
-            <section className="mt-10 space-y-3" aria-label={t("supportPublic.questions.answers")}>
-              {answers.length ? answers.map((answer) => (
-                <AnswerCard key={answer.id} answer={answer} questionId={question.id} onChanged={reload} />
-              )) : <EmptyState text={t("supportPublic.empty.noAnswers")} />}
+            <section className="mt-12" aria-label={t("supportPublic.questions.answers")}>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="text-base font-semibold">{t("supportPublic.questions.answers")}</h2>
+                <span className="text-sm text-muted-foreground">{question.answerCount}</span>
+              </div>
+              {answers.length ? (
+                <div className="space-y-6">
+                  {answers.map((answer) => (
+                    <AnswerCard key={answer.id} answer={answer} questionId={question.id} onChanged={reload} />
+                  ))}
+                </div>
+              ) : <EmptyState text={t("supportPublic.empty.noAnswers")} />}
             </section>
 
-            <Card className="mt-5 rounded-md border-border bg-card shadow-none">
-              <CardContent className="p-5">
-                <h2 className="font-semibold">{t("supportPublic.answer.title")}</h2>
-                <div className="mt-3 min-w-0">
-                  <ContentEditor
-                    value={content}
-                    onChange={setContent}
-                    placeholder={t("supportPublic.answer.placeholder")}
-                    disabled={submitting}
-                    allowedModes={["html", "markdown"]}
-                    height={260}
-                    className="min-w-0"
-                  />
-                </div>
-                <Button className="mt-3" disabled={submitting || !content.raw.trim()} onClick={() => void submitAnswer()}>
+            <section className="mt-8 rounded-lg bg-muted/35 p-4 sm:p-5" aria-labelledby="support-answer-editor-title">
+              <h2 id="support-answer-editor-title" className="text-base font-semibold">{t("supportPublic.answer.title")}</h2>
+              <div className="mt-3 min-w-0">
+                <ContentEditor
+                  value={content}
+                  onChange={setContent}
+                  placeholder={t("supportPublic.answer.placeholder")}
+                  disabled={submitting}
+                  allowedModes={["html", "markdown"]}
+                  height={260}
+                  className="min-w-0"
+                />
+              </div>
+              <div className="mt-3 flex justify-end">
+                <Button disabled={submitting || !content.raw.trim()} onClick={() => void submitAnswer()}>
                   {submitting ? t("supportPublic.actions.publishing") : t("supportPublic.actions.publishAnswer")}
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </section>
           </article>
         ) : (
           <div className="grid min-h-[60svh] place-items-center">
@@ -1114,7 +1132,7 @@ function QuestionCard({ item }: { item: SupportQuestion }) {
 
 function QuestionMetric({ icon, value, label, className }: { icon: ReactNode; value: number; label: string; className?: string }) {
   return (
-    <span className={cn("inline-flex h-7 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs text-muted-foreground", className)} title={label} aria-label={`${label}: ${value}`}>
+    <span className={cn("inline-flex h-7 items-center gap-1 rounded-full bg-muted px-2.5 text-xs text-muted-foreground", className)} title={label} aria-label={`${label}: ${value}`}>
       {icon}
       {value}
     </span>
@@ -1403,32 +1421,42 @@ function PublicArticleToc({ content, contentType = "markdown" }: { content: stri
 
 function AnswerCard({ answer, questionId, onChanged }: { answer: SupportAnswer; questionId: number; onChanged: () => void }) {
   const t = useI18n()
+  const authorName = answer.authorName || t("supportPublic.common.user")
   return (
-    <Card className={cn("rounded-md border-border bg-card shadow-none", answer.isBestAnswer && "border-emerald-300 ring-2 ring-emerald-100 dark:border-emerald-700 dark:ring-emerald-950")}>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="font-medium">{answer.authorName || t("supportPublic.common.user")}</div>
-            <div className="mt-1 text-xs text-muted-foreground">{formatDateTime(answer.createdAt)}</div>
+    <article className={cn("rounded-lg px-1 py-2", answer.isBestAnswer && "bg-emerald-50/70 px-4 py-4 dark:bg-emerald-950/25")}>
+      <div className="flex gap-3 sm:gap-4">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+          {supportAuthorInitial(authorName)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <div className="min-w-0">
+              <div className="truncate font-medium">{authorName}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">{formatDateTime(answer.createdAt)}</div>
+            </div>
+            {answer.isBestAnswer && <Badge className="bg-emerald-600 text-white"><CheckCircle2Icon /> {t("supportPublic.answer.best")}</Badge>}
           </div>
-          {answer.isBestAnswer && <Badge className="bg-emerald-600 text-white"><CheckCircle2Icon /> {t("supportPublic.answer.best")}</Badge>}
-        </div>
-        <div className="mt-4">
-          <SupportQuestionArticleContent id={`support-answer-${answer.id}`} content={answer.content} contentType={answer.contentType} />
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => void ensureSupportLogin().then(() => voteSupportAnswer(answer.id)).then(onChanged)}>
-            <ThumbsUpIcon /> {answer.voteCount}
-          </Button>
-          {!answer.isBestAnswer && (
-            <Button variant="outline" size="sm" onClick={() => void ensureSupportLogin().then(() => acceptSupportAnswer(questionId, answer.id)).then(onChanged)}>
-              {t("supportPublic.actions.accept")}
+          <div className="mt-4">
+            <SupportQuestionArticleContent id={`support-answer-${answer.id}`} content={answer.content} contentType={answer.contentType} />
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-foreground" onClick={() => void ensureSupportLogin().then(() => voteSupportAnswer(answer.id)).then(onChanged)}>
+              <ThumbsUpIcon /> {answer.voteCount}
             </Button>
-          )}
+            {!answer.isBestAnswer && (
+              <Button variant="ghost" size="sm" className="rounded-full text-primary" onClick={() => void ensureSupportLogin().then(() => acceptSupportAnswer(questionId, answer.id)).then(onChanged)}>
+                {t("supportPublic.actions.accept")}
+              </Button>
+            )}
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </article>
   )
+}
+
+function supportAuthorInitial(name: string) {
+  return name.trim().slice(0, 1).toUpperCase() || "U"
 }
 
 async function ensureSupportLogin() {
