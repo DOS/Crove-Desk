@@ -86,7 +86,7 @@ export function SupportHeader({
           </span>
         </Link>
         <nav
-          className="ml-auto flex items-center gap-1"
+          className="ml-auto hidden items-center gap-1 sm:flex"
           aria-label={t("supportPublic.home.badge")}
         >
           <Link
@@ -95,7 +95,6 @@ export function SupportHeader({
                 variant: isActive("/support") ? "secondary" : "ghost",
                 size: "sm",
               }),
-              "hidden sm:inline-flex",
               supportNavItemClass
             )}
             href="/support"
@@ -109,7 +108,6 @@ export function SupportHeader({
                 variant: isActive("/support/help") ? "secondary" : "ghost",
                 size: "sm",
               }),
-              "hidden sm:inline-flex",
               supportNavItemClass
             )}
             href="/support/help"
@@ -123,7 +121,6 @@ export function SupportHeader({
                 variant: isActive("/support/community") ? "secondary" : "ghost",
                 size: "sm",
               }),
-              "hidden sm:inline-flex",
               supportNavItemClass
             )}
             href="/support/community/posts"
@@ -131,13 +128,15 @@ export function SupportHeader({
             <MessageSquareTextIcon />
             {t("supportPublic.nav.community")}
           </Link>
+        </nav>
+        <div className="ml-auto flex items-center gap-1 sm:ml-4">
           <SupportAccountControl />
           <ThemeToggle
             variant="ghost"
             size="icon-sm"
             className="size-8 rounded-md"
           />
-        </nav>
+        </div>
       </div>
     </header>
   )
