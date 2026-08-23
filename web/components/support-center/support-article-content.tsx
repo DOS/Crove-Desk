@@ -230,9 +230,10 @@ type SupportArticleContentProps = {
   content: string
   contentType?: string
   id: string
+  articleHeadingIds?: boolean
 }
 
-export function SupportArticleContent({ content, contentType = "markdown", id }: SupportArticleContentProps) {
+export function SupportArticleContent({ content, contentType = "markdown", id, articleHeadingIds = true }: SupportArticleContentProps) {
   const t = useI18n()
   const lightbox = useImageLightboxOptional()
   const components = useMemo<Components>(() => ({
@@ -288,7 +289,7 @@ export function SupportArticleContent({ content, contentType = "markdown", id }:
   }), [lightbox, t])
 
   if (contentType === "html") {
-    return <SafeRichHTML id={id} html={content} unstyled className="typeset typeset-support-docs" />
+    return <SafeRichHTML id={id} html={content} articleHeadingIds={articleHeadingIds} unstyled className="typeset typeset-support-docs" />
   }
 
   return (
@@ -296,7 +297,7 @@ export function SupportArticleContent({ content, contentType = "markdown", id }:
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks]}
         rehypePlugins={[
-          rehypeArticleHeadingIds,
+          ...(articleHeadingIds ? [rehypeArticleHeadingIds] : []),
           [rehypeHighlight, { detect: false, plainText: ["text", "txt", "plaintext"] }],
         ]}
         skipHtml

@@ -26,7 +26,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react"
 import { toast } from "sonner"
 
 import { ContentEditor } from "@/components/content-editor"
@@ -337,7 +337,7 @@ function SupportHelpReader() {
       navigationOpen={navigationOpen}
       onNavigationOpenChange={setNavigationOpen}
       navigation={<HelpNavigation pages={visiblePages} rootPages={visiblePages.filter((item) => !item.parentId)} searchResults={searchResults.map((item) => pages.find((candidate) => candidate.id === item.id) || item).filter((item) => Boolean(item.helpPath))} title={query} expanded={expanded} selectedPageId={page?.id ?? 0} loading={navigationLoading || searchLoading} failed={failed} onTitleChange={(value) => { setQuery(value); setSearchResults([]); setSearchLoading(Boolean(value.trim())) }} onExpandedChange={setExpanded} onNavigate={navigateToHelpPage} />}
-      toc={<PublicArticleToc content={page?.content ?? ""} contentType={page?.contentType} />}
+      toc={<PublicArticleToc articleId="support-help-page-detail-preview" content={page?.content ?? ""} contentType={page?.contentType} />}
     >
       <div aria-busy={pageLoading} className={cn(page && pageLoading && "opacity-60 transition-opacity")}>
         {page ? <HelpArticle page={page} pages={pages} previewId="support-help-page-detail-preview" onNavigate={navigateToHelpPage} /> : <div className="grid min-h-[60svh] place-items-center"><EmptyState text={pageLoading ? t("supportPublic.loading.page") : failed ? t("supportPublic.empty.pageNotFound") : t("supportPublic.empty.noPages")} /></div>}
@@ -474,8 +474,9 @@ export function SupportQuestionDetail() {
   const [answerPage, setAnswerPage] = useState({ page: 1, limit: 20, total: 0 })
   const [answersLoading, setAnswersLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const questionArticleId = question ? `support-question-${question.id}` : ""
   const questionToc = question && hasArticleTocHeadings(question.content, question.contentType)
-    ? <PublicArticleToc content={question.content} contentType={question.contentType} />
+    ? <PublicArticleToc articleId={questionArticleId} content={question.content} contentType={question.contentType} />
     : null
   const currentUserId = readSession()?.user.id ?? 0
 
@@ -560,7 +561,7 @@ export function SupportQuestionDetail() {
             </div>
 
             <div className="mt-8">
-              <SupportQuestionArticleContent id={`support-question-${question.id}`} content={question.content} contentType={question.contentType} />
+              <SupportQuestionArticleContent id={questionArticleId} content={question.content} contentType={question.contentType} />
             </div>
 
             <div className="mt-8 flex flex-wrap items-center gap-2">
@@ -1259,17 +1260,17 @@ function questionCategorySlugFromPath(pathname: string) {
   return slug && slug !== "ask" && slug !== "detail" ? decodeURIComponent(slug) : ""
 }
 
-function SupportQuestionArticleContent({ content, contentType, id }: { content: string; contentType?: string; id: string }) {
+function SupportQuestionArticleContent({ content, contentType, id, articleHeadingIds = true }: { content: string; contentType?: string; id: string; articleHeadingIds?: boolean }) {
   const resolvedContentType = contentType || questionContentType(content)
-  useHtmlArticleEnhancements(id, content, resolvedContentType)
-  return <SupportArticleContent id={id} content={content} contentType={resolvedContentType} />
+  useHtmlArticleEnhancements(id, content, resolvedContentType, articleHeadingIds)
+  return <SupportArticleContent id={id} content={content} contentType={resolvedContentType} articleHeadingIds={articleHeadingIds} />
 }
 
 function questionContentType(content: string) {
   return /<\/?[a-z][\s\S]*>/i.test(content) ? "html" : "markdown"
 }
 
-function useHtmlArticleEnhancements(id: string, content: string, contentType: string) {
+function useHtmlArticleEnhancements(id: string, content: string, contentType: string, articleHeadingIds: boolean) {
   const t = useI18n()
   const lightbox = useImageLightboxOptional()
   useEffect(() => {
@@ -1277,6 +1278,12 @@ function useHtmlArticleEnhancements(id: string, content: string, contentType: st
     const container = document.getElementById(id)
     if (!container) return
     const cleanup: Array<() => void> = []
+    if (articleHeadingIds) {
+      container.querySelectorAll<HTMLElement>("h2, h3").forEach((heading, index) => {
+        heading.id = articleHeadingId(heading.textContent || "", index)
+        heading.classList.add("scroll-mt-20")
+      })
+    }
     container.querySelectorAll<HTMLPreElement>("pre").forEach((block) => {
       block.classList.add("group", "relative")
       if (block.querySelector("[data-support-copy-code]")) return
@@ -1315,7 +1322,7 @@ function useHtmlArticleEnhancements(id: string, content: string, contentType: st
       })
     })
     return () => cleanup.forEach((dispose) => dispose())
-  }, [content, contentType, id, lightbox, t])
+  }, [articleHeadingIds, content, contentType, id, lightbox, t])
 }
 
 function PublicHelpPageNode({
@@ -1412,21 +1419,22 @@ function ChildPageLinks({ pages, onNavigate }: { pages: SupportHelpPage[]; onNav
   )
 }
 
-function PublicArticleToc({ content, contentType = "markdown" }: { content: string; contentType?: string }) {
+function PublicArticleToc({ articleId, content, contentType = "markdown" }: { articleId: string; content: string; contentType?: string }) {
   const t = useI18n()
   const tocRef = useRef<HTMLElement>(null)
   const headings = useMemo(() => getArticleTocHeadings(content, contentType), [content, contentType])
   const [activeId, setActiveId] = useState("")
 
   useEffect(() => {
-    if (!headings.length) return
+    if (!headings.length || !articleId) return
     let frame = 0
+    const findHeadingElement = (headingId: string) => document.getElementById(articleId)?.querySelector<HTMLElement>(`#${CSS.escape(headingId)}`) ?? null
     const syncActiveHeading = () => {
       frame = 0
       const anchorOffset = 88
       let nextId = headings[0].id
       for (const heading of headings) {
-        const element = document.getElementById(heading.id)
+        const element = findHeadingElement(heading.id)
         if (!element || element.getBoundingClientRect().top > anchorOffset) break
         nextId = heading.id
       }
@@ -1436,22 +1444,39 @@ function PublicArticleToc({ content, contentType = "markdown" }: { content: stri
       if (frame) return
       frame = window.requestAnimationFrame(syncActiveHeading)
     }
-    const initialFrame = window.requestAnimationFrame(() => {
+    const syncHashTarget = () => {
       const hashId = decodeURIComponent(window.location.hash.slice(1))
       if (headings.some((heading) => heading.id === hashId)) {
-        document.getElementById(hashId)?.scrollIntoView()
+        findHeadingElement(hashId)?.scrollIntoView()
       }
+    }
+    const initialFrame = window.requestAnimationFrame(() => {
+      syncHashTarget()
       syncActiveHeading()
     })
+    const delayedSync = window.setTimeout(() => {
+      syncHashTarget()
+      syncActiveHeading()
+    }, 50)
     window.addEventListener("scroll", scheduleSync, { passive: true })
     window.addEventListener("resize", scheduleSync)
     return () => {
       window.cancelAnimationFrame(initialFrame)
+      window.clearTimeout(delayedSync)
       if (frame) window.cancelAnimationFrame(frame)
       window.removeEventListener("scroll", scheduleSync)
       window.removeEventListener("resize", scheduleSync)
     }
-  }, [headings])
+  }, [articleId, headings])
+
+  const scrollToHeading = (event: ReactMouseEvent<HTMLAnchorElement>, headingId: string) => {
+    const element = document.getElementById(articleId)?.querySelector<HTMLElement>(`#${CSS.escape(headingId)}`)
+    if (!element) return
+    event.preventDefault()
+    element.scrollIntoView()
+    window.history.replaceState(null, "", `#${encodeURIComponent(headingId)}`)
+    setActiveId(headingId)
+  }
 
   useEffect(() => {
     const container = tocRef.current
@@ -1479,6 +1504,7 @@ function PublicArticleToc({ content, contentType = "markdown" }: { content: stri
             href={`#${item.id}`}
             data-toc-id={item.id}
             aria-current={activeId === item.id ? "location" : undefined}
+            onClick={(event) => scrollToHeading(event, item.id)}
             className={cn(
               "block border-l py-1.5 pl-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground",
               item.level === 3 && "pl-6",
@@ -1624,7 +1650,7 @@ function AnswerCard({ answer, question, currentUserId, onChanged }: { answer: Su
                 </div>
               </div>
             ) : (
-              <SupportQuestionArticleContent id={`support-answer-content-${answer.id}`} content={answer.content} contentType={answer.contentType} />
+              <SupportQuestionArticleContent id={`support-answer-content-${answer.id}`} content={answer.content} contentType={answer.contentType} articleHeadingIds={false} />
             )}
           </div>
           {!isDeleted ? (
