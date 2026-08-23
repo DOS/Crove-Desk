@@ -37,11 +37,11 @@ func (s *oidcLoginService) BuildOIDCLoginURL(next string) (string, error) {
 }
 
 func (s *oidcLoginService) LoginByOIDC(ctx context.Context, code, state string, authCfg config.AuthConfig, clientIP, userAgent string) (string, string, error) {
-	next, err := oidcclient.ParseState(state)
+	next, verifier, err := oidcclient.ParseState(state)
 	if err != nil {
 		return "", "", err
 	}
-	profile, err := oidcclient.ExchangeCode(ctx, code)
+	profile, err := oidcclient.ExchangeCode(ctx, code, verifier)
 	if err != nil {
 		return "", "", err
 	}

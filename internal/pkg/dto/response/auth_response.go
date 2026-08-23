@@ -21,7 +21,8 @@ type LoginResponse struct {
 }
 
 type PublicConfigResponse struct {
-	Language      string `json:"language"`
-	WxWorkEnabled bool   `json:"wxworkEnabled"`
-	OIDCEnabled   bool   `json:"oidcEnabled"`
+	Language             string `json:"language"`
+	PasswordLoginEnabled bool   `json:"passwordLoginEnabled"`
+	WxWorkEnabled        bool   `json:"wxworkEnabled"`
+	OIDCEnabled          bool   `json:"oidcEnabled"`
 }

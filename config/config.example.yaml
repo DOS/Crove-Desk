@@ -15,8 +15,10 @@ db:
   # Database connection string.
   # SQLite example: file:./data/app.db?_busy_timeout=5000
   # MySQL example: user:password@tcp(127.0.0.1:3306)/cs_ai_agent_db?charset=utf8mb4&parseTime=True&multiStatements=true&loc=Local
-  # PostgreSQL example: host=127.0.0.1 user=postgres password=secret dbname=cs_ai_agent port=5432 sslmode=disable TimeZone=UTC
-  # PostgreSQL URI example: postgres://user:password@127.0.0.1:5432/cs_ai_agent?sslmode=disable
+  # PostgreSQL (Supabase Session Pooler) example:
+  #   dsn: "host=aws-1-ap-southeast-1.pooler.supabase.com user=postgres.gulptwduchsjcsbndmua password=<PASSWORD> dbname=postgres port=5432 sslmode=require search_path=desk"
+  # PostgreSQL URI example:
+  #   dsn: "postgresql://postgres.gulptwduchsjcsbndmua:<PASSWORD>@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require&search_path=desk"
   # For MySQL, keep parseTime=True so datetime fields are scanned into Go time values correctly.
   dsn: file:./data/app.db?_busy_timeout=5000
   # Maximum number of idle connections kept in the pool. Values <= 0 use the database/sql default.
@@ -34,6 +36,9 @@ logger:
   addSource: false
 
 auth:
+  # Enable username and password login. When set to false, users must sign in with SSO (e.g. OIDC or WeCom).
+  # Default is true.
+  passwordLoginEnabled: true
   # Login access token lifetime, in hours. Values <= 0 fall back to 12 hours.
   # Applies to password login, OIDC login, and WeCom login sessions.
   tokenTTLHours: 12
