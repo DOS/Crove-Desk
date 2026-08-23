@@ -56,19 +56,18 @@ func registerApiSupportRoutes(group *gin.RouterGroup) {
 	group.GET("/help-page/navigation", api.SupportHelpPageGetNavigation)
 	group.GET("/help-page/:id", api.SupportHelpPageGetBy)
 	group.POST("/help-page/feedback", api.SupportHelpPagePostFeedback)
-	group.Any("/question-category/list", api.SupportQuestionCategoryAnyList)
-	group.Any("/question/list", api.SupportQuestionAnyList)
-	group.GET("/question/:id", api.SupportQuestionGetBy)
-	group.POST("/question/create", api.SupportQuestionPostCreate)
-	group.POST("/question/update", api.SupportQuestionPostUpdate)
-	group.POST("/question/accept_answer", api.SupportQuestionPostAcceptAnswer)
-	group.POST("/question/vote", api.SupportQuestionPostVote)
-	group.Any("/answer/list", api.SupportAnswerAnyList)
-	group.POST("/answer/create", api.SupportAnswerPostCreate)
-	group.POST("/answer/update", api.SupportAnswerPostUpdate)
-	group.POST("/answer/delete", api.SupportAnswerPostDelete)
-	group.POST("/answer/report", api.SupportAnswerPostReport)
-	group.POST("/answer/vote", api.SupportAnswerPostVote)
+	group.Any("/community/categories/list", api.SupportCategoryAnyList)
+	group.Any("/community/posts/list", api.SupportPostAnyList)
+	group.GET("/community/posts/:id", api.SupportPostGetBy)
+	group.POST("/community/posts/create", api.SupportPostPostCreate)
+	group.POST("/community/posts/update", api.SupportPostPostUpdate)
+	group.POST("/community/posts/accept_comment", api.SupportPostPostAcceptComment)
+	group.Any("/community/comments/list", api.SupportCommentAnyList)
+	group.POST("/community/comments/create", api.SupportCommentPostCreate)
+	group.POST("/community/comments/update", api.SupportCommentPostUpdate)
+	group.POST("/community/comments/delete", api.SupportCommentPostDelete)
+	group.POST("/community/comments/report", api.SupportCommentPostReport)
+	group.POST("/community/reactions/toggle", api.SupportReactionPostToggle)
 }
 
 func registerDashboardDashboardRoutes(group *gin.RouterGroup) {
@@ -375,22 +374,22 @@ func registerDashboardSupportHelpPageRoutes(group *gin.RouterGroup) {
 	group.POST("/change_status", dashboard.SupportHelpPagePostChange_status)
 }
 
-func registerDashboardSupportQuestionCategoryRoutes(group *gin.RouterGroup) {
-	group.POST("/create", dashboard.SupportQuestionCategoryPostCreate)
-	group.POST("/delete", dashboard.SupportQuestionCategoryPostDelete)
-	group.Any("/list", dashboard.SupportQuestionCategoryAnyList)
-	group.GET("/list_all", dashboard.SupportQuestionCategoryGetList_all)
-	group.POST("/update", dashboard.SupportQuestionCategoryPostUpdate)
-	group.POST("/update_sort", dashboard.SupportQuestionCategoryPostUpdateSort)
+func registerDashboardSupportCategoryRoutes(group *gin.RouterGroup) {
+	group.POST("/create", dashboard.SupportCategoryPostCreate)
+	group.POST("/delete", dashboard.SupportCategoryPostDelete)
+	group.Any("/list", dashboard.SupportCategoryAnyList)
+	group.GET("/list_all", dashboard.SupportCategoryGetList_all)
+	group.POST("/update", dashboard.SupportCategoryPostUpdate)
+	group.POST("/update_sort", dashboard.SupportCategoryPostUpdateSort)
 }
 
-func registerDashboardSupportQuestionRoutes(group *gin.RouterGroup) {
-	group.GET("/:id", dashboard.SupportQuestionGetBy)
-	group.POST("/accept_answer", dashboard.SupportQuestionPostAcceptAnswer)
-	group.POST("/answer/create", dashboard.SupportAnswerPostCreate)
-	group.POST("/answer/moderate", dashboard.SupportAnswerPostModerate)
-	group.Any("/list", dashboard.SupportQuestionAnyList)
-	group.POST("/moderate", dashboard.SupportQuestionPostModerate)
+func registerDashboardSupportPostRoutes(group *gin.RouterGroup) {
+	group.GET("/:id", dashboard.SupportPostGetBy)
+	group.POST("/accept_comment", dashboard.SupportPostPostAcceptComment)
+	group.POST("/comment/create", dashboard.SupportCommentPostCreate)
+	group.POST("/comment/moderate", dashboard.SupportCommentPostModerate)
+	group.Any("/list", dashboard.SupportPostAnyList)
+	group.POST("/moderate", dashboard.SupportPostPostModerate)
 }
 
 func registerDashboardSkillDefinitionRoutes(group *gin.RouterGroup) {

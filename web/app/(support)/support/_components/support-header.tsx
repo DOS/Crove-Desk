@@ -1,6 +1,6 @@
 "use client"
 
-import { BookOpenIcon, HeadphonesIcon, HomeIcon, LoaderCircleIcon, LogOutIcon, MessageCircleQuestionIcon } from "lucide-react"
+import { BookOpenIcon, HeadphonesIcon, HomeIcon, LoaderCircleIcon, LogOutIcon, MessageSquareTextIcon } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { type ReactNode } from "react"
@@ -12,13 +12,12 @@ import { useSupportAuth } from "@/app/(support)/support/_components/support-auth
 import { useI18n } from "@/i18n/provider"
 import { cn } from "@/lib/utils"
 
-export type SupportHeaderSection = "home" | "help" | "questions" | "ask" | "login"
+export type SupportHeaderSection = "home" | "help" | "community" | "login"
 
 const sectionTitleKey: Record<SupportHeaderSection, string> = {
   home: "supportPublic.home.badge",
   help: "supportPublic.help.title",
-  questions: "supportPublic.nav.questions",
-  ask: "supportPublic.ask.title",
+  community: "supportPublic.nav.community",
   login: "supportPublic.nav.login",
 }
 
@@ -35,7 +34,6 @@ export function SupportHeader({
   const pathname = usePathname()
 
   const isActive = (href: string) => {
-    if (href === "/support/questions" && pathname.startsWith("/support/question/")) return true
     return href === "/support" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`)
   }
 
@@ -54,8 +52,8 @@ export function SupportHeader({
           <Link className={cn(buttonVariants({ variant: isActive("/support/help") ? "secondary" : "ghost", size: "sm" }), "hidden sm:inline-flex")} href="/support/help">
             <BookOpenIcon />{t("supportPublic.nav.help")}
           </Link>
-          <Link className={cn(buttonVariants({ variant: isActive("/support/questions") ? "secondary" : "ghost", size: "sm" }), "hidden sm:inline-flex")} href="/support/questions">
-            <MessageCircleQuestionIcon />{t("supportPublic.nav.questions")}
+          <Link className={cn(buttonVariants({ variant: isActive("/support/community") ? "secondary" : "ghost", size: "sm" }), "hidden sm:inline-flex")} href="/support/community/posts">
+            <MessageSquareTextIcon />{t("supportPublic.nav.community")}
           </Link>
           <SupportAccountControl />
         </nav>

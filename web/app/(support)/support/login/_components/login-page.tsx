@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { SupportPageContent, SupportPageShell } from "@/app/(support)/support/_components/support-page-shell"
 import { useSupportAuth } from "@/app/(support)/support/_components/support-auth-provider"
 import { SupportFormField as LabeledField } from "@/app/(support)/support/_components/support-ui"
-import { getSupportLoginDestination } from "@/app/(support)/support/_components/support-question-route"
+import { getSupportLoginDestination } from "@/app/(support)/support/_components/support-community-route"
 import { useI18n } from "@/i18n/provider"
 import { loginSupportCustomer, registerSupportCustomer } from "@/lib/api/support"
 

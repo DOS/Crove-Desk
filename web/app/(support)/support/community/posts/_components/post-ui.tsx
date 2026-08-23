@@ -3,35 +3,34 @@
 import { type ReactNode } from "react"
 import { EyeIcon, MessageCircleMoreIcon, ThumbsUpIcon } from "lucide-react"
 
-import { supportQuestionHref } from "@/app/(support)/support/_components/support-question-route"
 import { useI18n } from "@/i18n/provider"
-import { type SupportQuestion } from "@/lib/api/support"
+import { postHref, type Post } from "@/lib/api/support-community"
 import { cn, formatDateTime } from "@/lib/utils"
 
-export function QuestionCard({ item }: { item: SupportQuestion }) {
+export function PostCard({ item }: { item: Post }) {
   const t = useI18n()
   return (
     <article className="group border-b border-border/70 last:border-b-0">
-      <a href={supportQuestionHref(item.id)} className="block px-1 py-3 transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <a href={postHref(item.id)} className="block px-1 py-3 transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <div className="flex min-w-0 items-center gap-2">
-          <QuestionStatusPill status={item.status} />
+          <PostStatusPill status={item.status} />
           <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold leading-6 transition-colors group-hover:text-primary">{item.title}</h2>
-          {item.bestAnswerId > 0 ? <span className="hidden h-5 shrink-0 items-center rounded bg-primary/10 px-1.5 text-[11px] font-medium text-primary sm:inline-flex">{t("supportPublic.answer.best")}</span> : null}
+          {item.acceptedCommentId > 0 ? <span className="hidden h-5 shrink-0 items-center rounded bg-primary/10 px-1.5 text-[11px] font-medium text-primary sm:inline-flex">{t("supportPublic.comment.accepted")}</span> : null}
         </div>
 
-        <p className="mt-1 line-clamp-1 text-sm leading-5 text-muted-foreground">{questionExcerpt(item.content)}</p>
+        <p className="mt-1 line-clamp-1 text-sm leading-5 text-muted-foreground">{postExcerpt(item.content)}</p>
 
         <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           <span className="max-w-[10rem] truncate sm:max-w-[14rem]">{item.categoryName || t("supportPublic.common.uncategorized")}</span>
           <MetaSeparator />
-          <span className="max-w-[10rem] truncate">{t("supportPublic.questions.askedBy", { name: item.userName || t("supportPublic.common.user") })}</span>
+          <span className="max-w-[10rem] truncate">{t("supportPublic.posts.createdBy", { name: item.userName || t("supportPublic.common.user") })}</span>
           <MetaSeparator />
-          <span>{t("supportPublic.questions.updatedAt", { date: formatDateTime(item.updatedAt || item.createdAt) })}</span>
+          <span>{t("supportPublic.posts.updatedAt", { date: formatDateTime(item.updatedAt || item.createdAt) })}</span>
           <span className="hidden flex-1 sm:block" />
           <div className="flex items-center gap-1.5">
-            <QuestionMetric icon={<MessageCircleMoreIcon className="size-3.5" />} value={item.answerCount} label={t("supportPublic.questions.answers")} />
-            <QuestionMetric icon={<ThumbsUpIcon className="size-3.5" />} value={item.voteCount} label={t("supportPublic.questions.votes")} />
-            <QuestionMetric className="hidden sm:inline-flex" icon={<EyeIcon className="size-3.5" />} value={item.viewCount} label={t("supportPublic.questions.views")} />
+            <PostMetric icon={<MessageCircleMoreIcon className="size-3.5" />} value={item.commentCount} label={t("supportPublic.posts.comments")} />
+            <PostMetric icon={<ThumbsUpIcon className="size-3.5" />} value={item.reactionCount} label={t("supportPublic.posts.likes")} />
+            <PostMetric className="hidden sm:inline-flex" icon={<EyeIcon className="size-3.5" />} value={item.viewCount} label={t("supportPublic.posts.views")} />
           </div>
         </div>
       </a>
@@ -39,7 +38,7 @@ export function QuestionCard({ item }: { item: SupportQuestion }) {
   )
 }
 
-export function QuestionMetric({ icon, value, label, className }: { icon: ReactNode; value: number; label: string; className?: string }) {
+export function PostMetric({ icon, value, label, className }: { icon: ReactNode; value: number; label: string; className?: string }) {
   return (
     <span className={cn("inline-flex h-7 items-center gap-1 rounded-md bg-muted px-2.5 text-xs text-muted-foreground", className)} title={label} aria-label={`${label}: ${value}`}>
       {icon}
@@ -52,14 +51,14 @@ function MetaSeparator() {
   return <span className="text-muted-foreground/35">/</span>
 }
 
-export function QuestionStatusPill({ status }: { status: string }) {
+export function PostStatusPill({ status }: { status: string }) {
   const t = useI18n()
   if (status === "resolved") return <span className="inline-flex h-5 items-center rounded bg-emerald-50 px-1.5 text-[11px] font-medium text-emerald-700">{t("supportPublic.status.resolved")}</span>
   if (status === "closed") return <span className="inline-flex h-5 items-center rounded bg-muted px-1.5 text-[11px] font-medium text-muted-foreground">{t("supportPublic.status.closed")}</span>
   return <span className="inline-flex h-5 items-center rounded bg-amber-50 px-1.5 text-[11px] font-medium text-amber-700">{t("supportPublic.status.normal")}</span>
 }
 
-export function QuestionListLoading() {
+export function PostListLoading() {
   return (
     <div className="divide-y divide-border/70" aria-hidden="true">
       {Array.from({ length: 4 }).map((_, index) => (
@@ -73,6 +72,6 @@ export function QuestionListLoading() {
   )
 }
 
-function questionExcerpt(content: string) {
+function postExcerpt(content: string) {
   return content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
 }

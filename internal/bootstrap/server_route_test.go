@@ -278,9 +278,9 @@ func TestNewServerSeparatesAPIStaticAndSPA(t *testing.T) {
 		{path: "/api/not-exists", wantStatus: http.StatusNotFound, contentType: "application/json"},
 		{path: "/dashboard/not-exists", wantStatus: http.StatusOK, contentType: "text/html"},
 		{path: "/support/help/runtime-authored-slug", wantStatus: http.StatusOK, contentType: "text/html"},
-		{path: "/support/question/12345", wantStatus: http.StatusOK, contentType: "text/html"},
-		{path: "/support/questions/product", wantStatus: http.StatusOK, contentType: "text/html"},
-		{path: "/support/questions/ask", wantStatus: http.StatusOK, contentType: "text/html"},
+		{path: "/support/community/posts/12345", wantStatus: http.StatusOK, contentType: "text/html"},
+		{path: "/support/community/categories/product", wantStatus: http.StatusOK, contentType: "text/html"},
+		{path: "/support/community/posts/new", wantStatus: http.StatusOK, contentType: "text/html"},
 	}
 
 	for _, tt := range tests {

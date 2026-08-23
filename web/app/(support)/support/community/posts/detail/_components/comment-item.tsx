@@ -7,40 +7,40 @@ import { CheckCircle2Icon, ChevronDownIcon, CopyIcon, CornerDownRightIcon, FlagI
 import { ContentEditor } from "@/components/content-editor"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { SupportQuestionArticleContent } from "@/app/(support)/support/_components/question-article-content"
-import { ensureSupportLogin, supportQuestionHref } from "@/app/(support)/support/_components/support-question-route"
+import { PostArticleContent } from "@/app/(support)/support/_components/post-article-content"
+import { ensureSupportLogin, communityPostHref } from "@/app/(support)/support/_components/support-community-route"
 import { useI18n } from "@/i18n/provider"
-import { acceptSupportAnswer, createSupportAnswer, deleteSupportAnswer, fetchSupportAnswers, reportSupportAnswer, updateSupportAnswer, voteSupportAnswer, type SupportAnswer, type SupportQuestion } from "@/lib/api/support"
+import { acceptComment, createComment, deleteComment, fetchComments, reportComment, toggleReaction, updateComment, type Comment, type Post } from "@/lib/api/support-community"
 import { cn, formatDateTime } from "@/lib/utils"
 import type { ContentValue } from "@/components/content-editor"
 
-export function AnswerCard({ answer, question, currentUserId, onChanged }: { answer: SupportAnswer; question: SupportQuestion; currentUserId: number; onChanged: () => void }) {
+export function CommentItem({ comment, post, currentUserId, onChanged }: { comment: Comment; post: Post; currentUserId: number; onChanged: () => void }) {
   const t = useI18n()
-  const authorName = answer.authorName || t("supportPublic.common.user")
+  const authorName = comment.authorName || t("supportPublic.common.user")
   const [replying, setReplying] = useState(false)
   const [editing, setEditing] = useState(false)
   const [replyContent, setReplyContent] = useState<ContentValue>({ mode: "html", raw: "" })
-  const [editContent, setEditContent] = useState<ContentValue>({ mode: answer.contentType === "markdown" ? "markdown" : "html", raw: answer.content })
+  const [editContent, setEditContent] = useState<ContentValue>({ mode: comment.contentType === "markdown" ? "markdown" : "html", raw: comment.content })
   const [submitting, setSubmitting] = useState(false)
-  const [replies, setReplies] = useState(answer.replies || [])
-  const [repliesExpanded, setRepliesExpanded] = useState((answer.replies || []).length >= answer.replyCount)
-  const isDeleted = answer.status === "deleted"
-  const isAuthor = !isDeleted && currentUserId > 0 && answer.authorId === currentUserId
-  const canAccept = !isDeleted && currentUserId > 0 && currentUserId === question.userId && !answer.isBestAnswer && answer.parentId === 0
-  const isQuestionAuthor = answer.authorId === question.userId
-  const isReply = answer.parentId > 0
+  const [replies, setReplies] = useState(comment.replies || [])
+  const [repliesExpanded, setRepliesExpanded] = useState((comment.replies || []).length >= comment.replyCount)
+  const isDeleted = comment.status === "deleted"
+  const isAuthor = !isDeleted && currentUserId > 0 && comment.authorId === currentUserId
+  const canAccept = !isDeleted && currentUserId > 0 && currentUserId === post.userId && !comment.isAccepted && comment.parentId === 0
+  const isPostAuthor = comment.authorId === post.userId
+  const isReply = comment.parentId > 0
 
   useEffect(() => {
-    setReplies(answer.replies || [])
-    setRepliesExpanded((answer.replies || []).length >= answer.replyCount)
-  }, [answer.id, answer.replyCount, answer.replies])
+    setReplies(comment.replies || [])
+    setRepliesExpanded((comment.replies || []).length >= comment.replyCount)
+  }, [comment.id, comment.replyCount, comment.replies])
 
   const submitReply = async () => {
     if (submitting || !replyContent.raw.trim()) return
     setSubmitting(true)
     try {
       await ensureSupportLogin()
-      await createSupportAnswer({ questionId: question.id, parentId: answer.id, contentType: replyContent.mode, content: replyContent.raw })
+      await createComment({ postId: post.id, parentId: comment.id, contentType: replyContent.mode, content: replyContent.raw })
       setReplyContent({ mode: "html", raw: "" })
       setReplying(false)
       toast.success(t("supportPublic.toast.replyCreated"))
@@ -54,36 +54,36 @@ export function AnswerCard({ answer, question, currentUserId, onChanged }: { ans
     if (submitting || !editContent.raw.trim()) return
     setSubmitting(true)
     try {
-      await updateSupportAnswer({ id: answer.id, contentType: editContent.mode, content: editContent.raw })
+      await updateComment({ id: comment.id, contentType: editContent.mode, content: editContent.raw })
       setEditing(false)
-      toast.success(t("supportPublic.toast.answerUpdated"))
+      toast.success(t("supportPublic.toast.commentUpdated"))
       onChanged()
     } finally {
       setSubmitting(false)
     }
   }
 
-  const deleteAnswer = async () => {
-    if (!window.confirm(t("supportPublic.answer.deleteConfirm"))) return
-    await deleteSupportAnswer(answer.id)
-    toast.success(t("supportPublic.toast.answerDeleted"))
+  const deleteCurrentComment = async () => {
+    if (!window.confirm(t("supportPublic.comment.deleteConfirm"))) return
+    await deleteComment(comment.id)
+    toast.success(t("supportPublic.toast.commentDeleted"))
     onChanged()
   }
 
-  const reportAnswer = async () => {
+  const reportCurrentComment = async () => {
     await ensureSupportLogin()
-    await reportSupportAnswer(answer.id)
-    toast.success(t("supportPublic.toast.answerReported"))
+    await reportComment(comment.id)
+    toast.success(t("supportPublic.toast.commentReported"))
   }
 
   const copyLink = async () => {
-    const url = `${window.location.origin}${supportQuestionHref(question.id)}#answer-${answer.id}`
+    const url = `${window.location.origin}${communityPostHref(post.id)}#comment-${comment.id}`
     await navigator.clipboard.writeText(url)
     toast.success(t("supportPublic.toast.linkCopied"))
   }
 
   const loadReplies = async () => {
-    const result = await fetchSupportAnswers({ questionId: question.id, parentId: answer.id, page: 1, limit: 50 })
+    const result = await fetchComments({ postId: post.id, parentId: comment.id, page: 1, limit: 50 })
     setReplies(result.results)
     setRepliesExpanded(true)
   }
@@ -92,11 +92,11 @@ export function AnswerCard({ answer, question, currentUserId, onChanged }: { ans
 
   return (
     <article
-      id={`answer-${answer.id}`}
+      id={`comment-${comment.id}`}
       className={cn(
         "group/comment scroll-mt-24 py-4",
         isReply && "py-2.5",
-        answer.isBestAnswer && !isDeleted && !isReply && "border-l-2 border-emerald-500 pl-3"
+        comment.isAccepted && !isDeleted && !isReply && "border-l-2 border-emerald-500 pl-3"
       )}
     >
       <div className={cn("flex", isReply ? "gap-2.5" : "gap-3")}>
@@ -111,15 +111,15 @@ export function AnswerCard({ answer, question, currentUserId, onChanged }: { ans
             <div className="min-w-0">
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 <span className={cn("truncate font-medium", isReply ? "text-sm text-foreground/90" : "text-sm text-foreground")}>{authorName}</span>
-                {isQuestionAuthor ? <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">{t("supportPublic.answer.authorBadge")}</span> : null}
+                {isPostAuthor ? <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">{t("supportPublic.comment.authorBadge")}</span> : null}
               </div>
-              <div className="mt-0.5 text-xs text-muted-foreground">{formatDateTime(answer.createdAt)}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">{formatDateTime(comment.createdAt)}</div>
             </div>
-            {!isDeleted && answer.isBestAnswer && !isReply ? <Badge className="rounded-md bg-emerald-600 text-white shadow-none"><CheckCircle2Icon /> {t("supportPublic.answer.best")}</Badge> : null}
+            {!isDeleted && comment.isAccepted && !isReply ? <Badge className="rounded-md bg-emerald-600 text-white shadow-none"><CheckCircle2Icon /> {t("supportPublic.comment.accepted")}</Badge> : null}
           </div>
           <div className={cn("mt-3", isReply && "mt-2 text-sm")}>
             {isDeleted ? (
-              <div className="rounded-md bg-muted/70 px-3 py-2 text-sm text-muted-foreground">{t("supportPublic.answer.deleted")}</div>
+              <div className="rounded-md bg-muted/70 px-3 py-2 text-sm text-muted-foreground">{t("supportPublic.comment.deleted")}</div>
             ) : editing ? (
               <div className="rounded-md bg-muted/40 p-3">
                 <ContentEditor value={editContent} onChange={setEditContent} disabled={submitting} allowedModes={["html", "markdown"]} height={220} className="min-w-0" />
@@ -129,13 +129,13 @@ export function AnswerCard({ answer, question, currentUserId, onChanged }: { ans
                 </div>
               </div>
             ) : (
-              <SupportQuestionArticleContent id={`support-answer-content-${answer.id}`} content={answer.content} contentType={answer.contentType} articleHeadingIds={false} />
+              <PostArticleContent id={`support-comment-content-${comment.id}`} content={comment.content} contentType={comment.contentType} articleHeadingIds={false} />
             )}
           </div>
           {!isDeleted ? (
             <div className={cn("flex flex-wrap items-center gap-1", isReply ? "mt-3" : "mt-4")}>
-              <Button variant="ghost" size="sm" className={actionButtonClass} onClick={() => void ensureSupportLogin().then(() => voteSupportAnswer(answer.id)).then(onChanged)}>
-                <ThumbsUpIcon /> {answer.voteCount}
+              <Button variant="ghost" size="sm" className={actionButtonClass} onClick={() => void ensureSupportLogin().then(() => toggleReaction({ targetType: "comment", targetId: comment.id })).then(onChanged)}>
+                <ThumbsUpIcon /> {comment.reactionCount}
               </Button>
               {!isReply ? (
                 <Button variant="ghost" size="sm" className={actionButtonClass} onClick={() => setReplying((current) => !current)}>
@@ -145,7 +145,7 @@ export function AnswerCard({ answer, question, currentUserId, onChanged }: { ans
               <Button variant="ghost" size="sm" className={actionButtonClass} onClick={() => void copyLink()}>
                 <CopyIcon /> {t("supportPublic.actions.copyLink")}
               </Button>
-              <Button variant="ghost" size="sm" className={actionButtonClass} onClick={() => void reportAnswer()}>
+              <Button variant="ghost" size="sm" className={actionButtonClass} onClick={() => void reportCurrentComment()}>
                 <FlagIcon /> {t("supportPublic.actions.report")}
               </Button>
               {isAuthor ? (
@@ -153,13 +153,13 @@ export function AnswerCard({ answer, question, currentUserId, onChanged }: { ans
                   <Button variant="ghost" size="sm" className={actionButtonClass} onClick={() => setEditing(true)}>
                     <PencilIcon /> {t("supportPublic.actions.edit")}
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-7 rounded-md px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => void deleteAnswer()}>
+                  <Button variant="ghost" size="sm" className="h-7 rounded-md px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => void deleteCurrentComment()}>
                     <Trash2Icon /> {t("supportPublic.actions.delete")}
                   </Button>
                 </>
               ) : null}
               {canAccept ? (
-                <Button variant="secondary" size="sm" className="h-7 rounded-md px-2.5 text-xs text-primary" onClick={() => void ensureSupportLogin().then(() => acceptSupportAnswer(question.id, answer.id)).then(onChanged)}>
+                <Button variant="secondary" size="sm" className="h-7 rounded-md px-2.5 text-xs text-primary" onClick={() => void ensureSupportLogin().then(() => acceptComment(post.id, comment.id)).then(onChanged)}>
                   {t("supportPublic.actions.accept")}
                 </Button>
               ) : null}
@@ -167,7 +167,7 @@ export function AnswerCard({ answer, question, currentUserId, onChanged }: { ans
           ) : null}
           {replying ? (
             <div className="mt-3 rounded-md bg-muted/40 p-3">
-              <ContentEditor value={replyContent} onChange={setReplyContent} placeholder={t("supportPublic.answer.replyPlaceholder")} disabled={submitting} allowedModes={["html", "markdown"]} height={180} className="min-w-0" />
+              <ContentEditor value={replyContent} onChange={setReplyContent} placeholder={t("supportPublic.comment.replyPlaceholder")} disabled={submitting} allowedModes={["html", "markdown"]} height={180} className="min-w-0" />
               <div className="mt-3 flex justify-end gap-2">
                 <Button variant="ghost" size="sm" disabled={submitting} onClick={() => setReplying(false)}>{t("supportPublic.actions.cancel")}</Button>
                 <Button size="sm" disabled={submitting || !replyContent.raw.trim()} onClick={() => void submitReply()}>{t("supportPublic.actions.publishReply")}</Button>
@@ -177,13 +177,13 @@ export function AnswerCard({ answer, question, currentUserId, onChanged }: { ans
           {replies.length ? (
             <div className="mt-3 divide-y divide-border/60 border-l border-border/70 pl-3 sm:pl-4">
               {replies.map((reply) => (
-                <AnswerCard key={reply.id} answer={reply} question={question} currentUserId={currentUserId} onChanged={onChanged} />
+                <CommentItem key={reply.id} comment={reply} post={post} currentUserId={currentUserId} onChanged={onChanged} />
               ))}
             </div>
           ) : null}
-          {!repliesExpanded && answer.replyCount > replies.length ? (
+          {!repliesExpanded && comment.replyCount > replies.length ? (
             <Button variant="ghost" size="sm" className="mt-2 h-7 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => void loadReplies()}>
-              <ChevronDownIcon /> {t("supportPublic.actions.viewReplies", { count: answer.replyCount })}
+              <ChevronDownIcon /> {t("supportPublic.actions.viewReplies", { count: comment.replyCount })}
             </Button>
           ) : null}
         </div>

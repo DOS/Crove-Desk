@@ -1,16 +1,16 @@
 "use client"
 
-import { FileQuestionIcon, LayoutGridIcon, MoreHorizontalIcon } from "lucide-react"
+import { FileTextIcon, LayoutGridIcon, MoreHorizontalIcon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useI18n } from "@/i18n/provider"
-import type { SupportCategory } from "@/lib/api/support"
+import type { Category } from "@/lib/api/support-community"
 import { cn } from "@/lib/utils"
 
-type SupportQuestionCategoryNavProps = {
-  categories: SupportCategory[]
+type CommunityCategoryNavProps = {
+  categories: Category[]
   active: number | "all"
   loading?: boolean
   failed?: boolean
@@ -18,7 +18,7 @@ type SupportQuestionCategoryNavProps = {
   onRetry?: () => void
 }
 
-export function SupportQuestionCategoryNav({ categories, active, loading = false, failed = false, onChange, onRetry }: SupportQuestionCategoryNavProps) {
+export function CommunityCategoryNav({ categories, active, loading = false, failed = false, onChange, onRetry }: CommunityCategoryNavProps) {
   const t = useI18n()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const mobileScrollRef = useRef<HTMLDivElement>(null)
@@ -42,7 +42,7 @@ export function SupportQuestionCategoryNav({ categories, active, loading = false
       </button>
       {categories.map((category) => (
         <button key={category.id} type="button" data-category-id={category.id} onClick={() => choose(category.id)} className={categoryItemClassName(active === category.id, mobile)} aria-pressed={active === category.id}>
-          <FileQuestionIcon aria-hidden="true" className="size-4 shrink-0" />
+          <FileTextIcon aria-hidden="true" className="size-4 shrink-0" />
           <span className="truncate">{category.name}</span>
         </button>
       ))}
@@ -50,21 +50,21 @@ export function SupportQuestionCategoryNav({ categories, active, loading = false
   )
 
   return (
-    <aside className="min-w-0 self-start xl:sticky xl:top-14 xl:h-[calc(100svh-3.5rem)] xl:border-r" aria-label={t("supportPublic.questions.categoryNavigation")}>
+    <aside className="min-w-0 self-start xl:sticky xl:top-14 xl:h-[calc(100svh-3.5rem)] xl:border-r" aria-label={t("supportPublic.posts.categoryNavigation")}>
       <nav className="h-full overflow-hidden border-b bg-background xl:border-b-0">
         <ScrollArea className="hidden h-full xl:block">
           <div className="grid gap-0.5 px-3 py-4">
             {categoryItems()}
             {loading ? <div className="px-2.5 py-2 text-xs text-muted-foreground">{t("supportPublic.loading.categories")}</div> : null}
-            {failed ? <button type="button" className="mt-2 px-2.5 text-left text-sm text-destructive underline-offset-4 hover:underline" onClick={onRetry}>{t("supportPublic.questions.categoriesFailed")}</button> : null}
+            {failed ? <button type="button" className="mt-2 px-2.5 text-left text-sm text-destructive underline-offset-4 hover:underline" onClick={onRetry}>{t("supportPublic.posts.categoriesFailed")}</button> : null}
           </div>
         </ScrollArea>
         <div className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-1 px-5 xl:hidden">
           <div ref={mobileScrollRef} className="overflow-x-auto overscroll-x-contain [scrollbar-width:thin]"><div className="flex w-max min-w-max gap-1">{categoryItems()}</div></div>
           <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-            <DrawerTrigger asChild><button type="button" className="inline-flex h-8 items-center gap-1 rounded-md bg-muted px-2 text-xs text-muted-foreground hover:bg-muted/80" aria-label={t("supportPublic.questions.moreCategories")}><MoreHorizontalIcon aria-hidden="true" className="size-4" /><span>{t("supportPublic.questions.more")}</span></button></DrawerTrigger>
+            <DrawerTrigger asChild><button type="button" className="inline-flex h-8 items-center gap-1 rounded-md bg-muted px-2 text-xs text-muted-foreground hover:bg-muted/80" aria-label={t("supportPublic.posts.moreCategories")}><MoreHorizontalIcon aria-hidden="true" className="size-4" /><span>{t("supportPublic.posts.more")}</span></button></DrawerTrigger>
             <DrawerContent className="pb-[max(1rem,env(safe-area-inset-bottom))]">
-              <DrawerHeader><DrawerTitle>{t("supportPublic.questions.moreCategories")}</DrawerTitle></DrawerHeader>
+              <DrawerHeader><DrawerTitle>{t("supportPublic.posts.moreCategories")}</DrawerTitle></DrawerHeader>
               <ScrollArea className="max-h-[min(56vh,27.5rem)]">
                 <div className="grid grid-cols-2 gap-2 px-4 pb-4">{categoryItems(true)}</div>
               </ScrollArea>
@@ -73,7 +73,7 @@ export function SupportQuestionCategoryNav({ categories, active, loading = false
         </div>
       </nav>
       {loading ? <div className="px-5 py-2 text-xs text-muted-foreground xl:hidden">{t("supportPublic.loading.categories")}</div> : null}
-      {failed ? <button type="button" className="mt-2 px-5 text-sm text-destructive underline-offset-4 hover:underline xl:hidden" onClick={onRetry}>{t("supportPublic.questions.categoriesFailed")}</button> : null}
+      {failed ? <button type="button" className="mt-2 px-5 text-sm text-destructive underline-offset-4 hover:underline xl:hidden" onClick={onRetry}>{t("supportPublic.posts.categoriesFailed")}</button> : null}
     </aside>
   )
 }

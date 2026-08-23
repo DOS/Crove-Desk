@@ -3,24 +3,25 @@
 import { useCallback, useEffect, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
-import { fetchSupportMe, fetchSupportQuestionCategories, type SupportCategory } from "@/lib/api/support"
+import { fetchCategories, postHref, postsHref, type Category } from "@/lib/api/support-community"
+import { fetchSupportMe } from "@/lib/api/support"
 import { readSession } from "@/lib/auth"
 
-export function useSupportQuestionCategoryRoute() {
+export function useCommunityCategoryRoute() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [categories, setCategories] = useState<SupportCategory[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [categoriesFailed, setCategoriesFailed] = useState(false)
-  const categorySlug = questionCategorySlugFromPath(pathname) || searchParams.get("category") || ""
+  const categorySlug = categorySlugFromPath(pathname) || searchParams.get("category") || ""
   const activeCategory = categorySlug ? categories.find((item) => item.slug === categorySlug) : undefined
   const activeCategoryId: number | "all" = categorySlug ? activeCategory?.id ?? "all" : "all"
 
   const loadCategories = useCallback(() => {
     setCategoriesLoading(true)
     setCategoriesFailed(false)
-    void fetchSupportQuestionCategories()
+    void fetchCategories()
       .then(setCategories)
       .catch(() => {
         setCategories([])
@@ -39,11 +40,11 @@ export function useSupportQuestionCategoryRoute() {
     params.delete("category")
     const query = params.toString()
     if (value === "all") {
-      router.push(`/support/questions${query ? `?${query}` : ""}`)
+      router.push(`${postsHref()}${query ? `?${query}` : ""}`)
       return
     }
     const category = categories.find((item) => item.id === value)
-    router.push(`/support/questions/${encodeURIComponent(category?.slug || String(value))}${query ? `?${query}` : ""}`)
+    router.push(`/support/community/categories/${encodeURIComponent(category?.slug || String(value))}${query ? `?${query}` : ""}`)
   }, [categories, router, searchParams])
 
   return {
@@ -58,17 +59,16 @@ export function useSupportQuestionCategoryRoute() {
   }
 }
 
-export function supportQuestionHref(id: number) {
-  return `/support/question/${id}`
+export function communityPostHref(id: number) {
+  return postHref(id)
 }
 
-export function questionCategorySlugFromPath(pathname: string) {
+export function categorySlugFromPath(pathname: string) {
   const segments = pathname.split("/").filter(Boolean)
-  if (segments[0] !== "support" || segments[1] !== "questions" || segments.length !== 3) {
+  if (segments[0] !== "support" || segments[1] !== "community" || segments[2] !== "categories" || segments.length !== 4) {
     return ""
   }
-  const slug = segments[2]
-  return slug && slug !== "ask" && slug !== "detail" ? decodeURIComponent(slug) : ""
+  return decodeURIComponent(segments[3] || "")
 }
 
 export async function ensureSupportLogin() {
@@ -85,5 +85,5 @@ export async function ensureSupportLogin() {
 }
 
 export function getSupportLoginDestination(next: string | null) {
-  return next?.startsWith("/support/") && !next.startsWith("/support/login") ? next : "/support/questions"
+  return next?.startsWith("/support/") && !next.startsWith("/support/login") ? next : postsHref()
 }

@@ -61,11 +61,11 @@ func BuildSupportHelpPageNavigationTree(list []models.SupportHelpPage) []*respon
 	return roots
 }
 
-func BuildSupportQuestionCategory(item *models.SupportQuestionCategory) *response.SupportQuestionCategoryResponse {
+func BuildSupportCategory(item *models.SupportCategory) *response.SupportCategoryResponse {
 	if item == nil {
 		return nil
 	}
-	return &response.SupportQuestionCategoryResponse{
+	return &response.SupportCategoryResponse{
 		ID:          item.ID,
 		Name:        item.Name,
 		Slug:        item.Slug,
@@ -78,17 +78,17 @@ func BuildSupportQuestionCategory(item *models.SupportQuestionCategory) *respons
 	}
 }
 
-func BuildSupportQuestionCategories(list []models.SupportQuestionCategory) []response.SupportQuestionCategoryResponse {
-	ret := make([]response.SupportQuestionCategoryResponse, 0, len(list))
+func BuildSupportPostCategories(list []models.SupportCategory) []response.SupportCategoryResponse {
+	ret := make([]response.SupportCategoryResponse, 0, len(list))
 	for _, item := range list {
-		if resp := BuildSupportQuestionCategory(&item); resp != nil {
+		if resp := BuildSupportCategory(&item); resp != nil {
 			ret = append(ret, *resp)
 		}
 	}
 	return ret
 }
 
-func BuildSupportQuestion(item *models.SupportQuestion, categoryName string, user *models.User) *response.SupportQuestionResponse {
+func BuildSupportPost(item *models.SupportPost, categoryName string, user *models.User) *response.SupportPostResponse {
 	if item == nil {
 		return nil
 	}
@@ -101,57 +101,57 @@ func BuildSupportQuestion(item *models.SupportQuestion, categoryName string, use
 		}
 		userType = user.UserType
 	}
-	return &response.SupportQuestionResponse{
-		ID:                 item.ID,
-		CategoryID:         item.CategoryID,
-		CategoryName:       categoryName,
-		UserID:             item.UserID,
-		UserName:           userName,
-		UserType:           userType,
-		Title:              item.Title,
-		ContentType:        item.ContentType,
-		Content:            item.Content,
-		Tags:               parseSupportTags(item.TagsJSON),
-		Status:             item.Status,
-		BestAnswerID:       item.BestAnswerID,
-		AnswerCount:        item.AnswerCount,
-		VoteCount:          item.VoteCount,
-		ViewCount:          item.ViewCount,
-		LastAnsweredAt:     formatSupportTime(item.LastAnsweredAt),
-		LastAnswerUserType: item.LastAnswerUserType,
-		LastAnswerUserID:   item.LastAnswerUserID,
-		CreatedAt:          formatSupportTime(&item.CreatedAt),
-		UpdatedAt:          formatSupportTime(&item.UpdatedAt),
+	return &response.SupportPostResponse{
+		ID:                  item.ID,
+		CategoryID:          item.CategoryID,
+		CategoryName:        categoryName,
+		UserID:              item.UserID,
+		UserName:            userName,
+		UserType:            userType,
+		Title:               item.Title,
+		ContentType:         item.ContentType,
+		Content:             item.Content,
+		Tags:                parseSupportTags(item.TagsJSON),
+		Status:              item.Status,
+		AcceptedCommentID:   item.AcceptedCommentID,
+		CommentCount:        item.CommentCount,
+		ReactionCount:       item.ReactionCount,
+		ViewCount:           item.ViewCount,
+		LastCommentedAt:     formatSupportTime(item.LastCommentedAt),
+		LastCommentUserType: item.LastCommentUserType,
+		LastCommentUserID:   item.LastCommentUserID,
+		CreatedAt:           formatSupportTime(&item.CreatedAt),
+		UpdatedAt:           formatSupportTime(&item.UpdatedAt),
 	}
 }
 
-func BuildSupportAnswer(item *models.SupportAnswer, authorName string) *response.SupportAnswerResponse {
+func BuildSupportComment(item *models.SupportComment, authorName string) *response.SupportCommentResponse {
 	if item == nil {
 		return nil
 	}
 	contentType := item.ContentType
 	content := item.Content
-	if item.Status == enums.SupportAnswerStatusDeleted {
+	if item.Status == enums.SupportCommentStatusDeleted {
 		contentType = "markdown"
 		content = ""
 	}
-	return &response.SupportAnswerResponse{
-		ID:           item.ID,
-		QuestionID:   item.QuestionID,
-		ParentID:     item.ParentID,
-		AuthorType:   item.AuthorType,
-		AuthorID:     item.AuthorID,
-		AuthorName:   authorName,
-		ContentType:  contentType,
-		Content:      content,
-		Status:       item.Status,
-		VoteCount:    item.VoteCount,
-		ReplyCount:   item.ReplyCount,
-		ReportCount:  item.ReportCount,
-		IsBestAnswer: item.IsBestAnswer,
-		Replies:      []response.SupportAnswerResponse{},
-		CreatedAt:    formatSupportTime(&item.CreatedAt),
-		UpdatedAt:    formatSupportTime(&item.UpdatedAt),
+	return &response.SupportCommentResponse{
+		ID:            item.ID,
+		PostID:        item.PostID,
+		ParentID:      item.ParentID,
+		AuthorType:    item.AuthorType,
+		AuthorID:      item.AuthorID,
+		AuthorName:    authorName,
+		ContentType:   contentType,
+		Content:       content,
+		Status:        item.Status,
+		ReactionCount: item.ReactionCount,
+		ReplyCount:    item.ReplyCount,
+		ReportCount:   item.ReportCount,
+		IsAccepted:    item.IsAccepted,
+		Replies:       []response.SupportCommentResponse{},
+		CreatedAt:     formatSupportTime(&item.CreatedAt),
+		UpdatedAt:     formatSupportTime(&item.UpdatedAt),
 	}
 }
 

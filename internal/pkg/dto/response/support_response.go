@@ -42,7 +42,7 @@ type SupportHelpPageNavigationResponse struct {
 	Children []*SupportHelpPageNavigationResponse `json:"children"`
 }
 
-type SupportQuestionCategoryResponse struct {
+type SupportCategoryResponse struct {
 	ID          int64        `json:"id"`
 	Name        string       `json:"name"`
 	Slug        string       `json:"slug"`
@@ -54,49 +54,49 @@ type SupportQuestionCategoryResponse struct {
 	UpdatedAt   string       `json:"updatedAt"`
 }
 
-type SupportQuestionResponse struct {
-	ID                 int64                         `json:"id"`
-	CategoryID         int64                         `json:"categoryId"`
-	CategoryName       string                        `json:"categoryName"`
-	UserID             int64                         `json:"userId"`
-	UserName           string                        `json:"userName"`
-	UserType           enums.UserType                `json:"userType"`
-	Title              string                        `json:"title"`
-	ContentType        string                        `json:"contentType"`
-	Content            string                        `json:"content"`
-	Tags               []string                      `json:"tags"`
-	Status             enums.SupportQuestionStatus   `json:"status"`
-	BestAnswerID       int64                         `json:"bestAnswerId"`
-	AnswerCount        int64                         `json:"answerCount"`
-	VoteCount          int64                         `json:"voteCount"`
-	ViewCount          int64                         `json:"viewCount"`
-	LastAnsweredAt     string                        `json:"lastAnsweredAt"`
-	LastAnswerUserType enums.SupportAnswerAuthorType `json:"lastAnswerUserType"`
-	LastAnswerUserID   int64                         `json:"lastAnswerUserId"`
-	CreatedAt          string                        `json:"createdAt"`
-	UpdatedAt          string                        `json:"updatedAt"`
+type SupportPostResponse struct {
+	ID                  int64                          `json:"id"`
+	CategoryID          int64                          `json:"categoryId"`
+	CategoryName        string                         `json:"categoryName"`
+	UserID              int64                          `json:"userId"`
+	UserName            string                         `json:"userName"`
+	UserType            enums.UserType                 `json:"userType"`
+	Title               string                         `json:"title"`
+	ContentType         string                         `json:"contentType"`
+	Content             string                         `json:"content"`
+	Tags                []string                       `json:"tags"`
+	Status              enums.SupportPostStatus        `json:"status"`
+	AcceptedCommentID   int64                          `json:"acceptedCommentId"`
+	CommentCount        int64                          `json:"commentCount"`
+	ReactionCount       int64                          `json:"reactionCount"`
+	ViewCount           int64                          `json:"viewCount"`
+	LastCommentedAt     string                         `json:"lastCommentedAt"`
+	LastCommentUserType enums.SupportCommentAuthorType `json:"lastCommentUserType"`
+	LastCommentUserID   int64                          `json:"lastCommentUserId"`
+	CreatedAt           string                         `json:"createdAt"`
+	UpdatedAt           string                         `json:"updatedAt"`
 }
 
-type SupportAnswerResponse struct {
-	ID           int64                         `json:"id"`
-	QuestionID   int64                         `json:"questionId"`
-	ParentID     int64                         `json:"parentId"`
-	AuthorType   enums.SupportAnswerAuthorType `json:"authorType"`
-	AuthorID     int64                         `json:"authorId"`
-	AuthorName   string                        `json:"authorName"`
-	ContentType  string                        `json:"contentType"`
-	Content      string                        `json:"content"`
-	Status       enums.SupportAnswerStatus     `json:"status"`
-	VoteCount    int64                         `json:"voteCount"`
-	ReplyCount   int64                         `json:"replyCount"`
-	ReportCount  int64                         `json:"reportCount"`
-	IsBestAnswer bool                          `json:"isBestAnswer"`
-	Replies      []SupportAnswerResponse       `json:"replies"`
-	CreatedAt    string                        `json:"createdAt"`
-	UpdatedAt    string                        `json:"updatedAt"`
+type SupportCommentResponse struct {
+	ID            int64                          `json:"id"`
+	PostID        int64                          `json:"postId"`
+	ParentID      int64                          `json:"parentId"`
+	AuthorType    enums.SupportCommentAuthorType `json:"authorType"`
+	AuthorID      int64                          `json:"authorId"`
+	AuthorName    string                         `json:"authorName"`
+	ContentType   string                         `json:"contentType"`
+	Content       string                         `json:"content"`
+	Status        enums.SupportCommentStatus     `json:"status"`
+	ReactionCount int64                          `json:"reactionCount"`
+	ReplyCount    int64                          `json:"replyCount"`
+	ReportCount   int64                          `json:"reportCount"`
+	IsAccepted    bool                           `json:"isAccepted"`
+	Replies       []SupportCommentResponse       `json:"replies"`
+	CreatedAt     string                         `json:"createdAt"`
+	UpdatedAt     string                         `json:"updatedAt"`
 }
 
-type SupportQuestionDetailResponse struct {
-	Question SupportQuestionResponse `json:"question"`
-	Answers  []SupportAnswerResponse `json:"answers"`
+type SupportPostDetailResponse struct {
+	Post     SupportPostResponse      `json:"post"`
+	Comments []SupportCommentResponse `json:"comments"`
 }

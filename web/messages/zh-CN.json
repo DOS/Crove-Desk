@@ -434,7 +434,6 @@
     "claimConfirmSuffix": "”吗？认领后会话会进入我的列表。",
     "claimCurrent": "确认认领当前会话吗？",
     "customerFallbackPrefix": "客户 #",
-    "cancel": "取消",
     "claiming": "认领中...",
     "confirmClaim": "确认认领"
   },
@@ -1298,7 +1297,7 @@
     "remark": "备注",
     "remarkPlaceholder": "记录用途、费用、限制说明等"
   },
-  "supportFaqCategory": {
+  "supportCommunityCategory": {
     "allStatuses": "全部状态",
     "enabled": "启用",
     "disabled": "停用",
@@ -1306,10 +1305,10 @@
     "searchName": "搜索分类名称",
     "noDescription": "暂无说明",
     "status": "状态",
-    "confirmDeleteTitle": "删除 FAQ 分类",
-    "confirmDeleteDescription": "确定删除“{name}”吗？仍被问题使用的分类不能删除。",
+    "confirmDeleteTitle": "删除社区分类",
+    "confirmDeleteDescription": "确定删除“{name}”吗？仍被帖子使用的分类不能删除。",
     "delete": "删除",
-    "sortUpdated": "FAQ 分类排序已更新",
+    "sortUpdated": "社区分类排序已更新",
     "sortUpdateFailed": "更新排序失败",
     "dragSort": "拖拽排序 {name}",
     "create": "新建",
@@ -1325,16 +1324,16 @@
     "slugPlaceholder": "例如 account-security",
     "slugPatternMessage": "仅支持字母、数字和连字符（-）",
     "description": "分类说明",
-    "descriptionPlaceholder": "说明该分类包含的问题范围",
+    "descriptionPlaceholder": "说明该分类包含的帖子范围",
     "remark": "备注",
     "remarkPlaceholder": "仅后台可见",
-    "createTitle": "新建 FAQ 分类",
-    "editTitle": "编辑 FAQ 分类",
+    "createTitle": "新建社区分类",
+    "editTitle": "编辑社区分类",
     "refresh": "刷新",
     "new": "新建分类",
     "query": "查询",
     "loading": "正在加载分类...",
-    "empty": "暂无 FAQ 分类",
+    "empty": "暂无社区分类",
     "actions": "操作",
     "edit": "编辑",
     "processing": "处理中...",
@@ -1345,6 +1344,9 @@
     "created": "分类“{name}”已创建",
     "updated": "分类“{name}”已更新",
     "deleted": "分类“{name}”已删除"
+  },
+  "supportCommunityAdmin": {
+    "postStatusUpdated": "帖子状态已更新"
   },
   "mcp": {
     "disabled": "disabled",
@@ -1742,7 +1744,6 @@
     "searchStatus": "搜索状态",
     "emptyStatus": "未找到状态",
     "query": "查询",
-    "status": "状态",
     "updatedAt": "最近更新",
     "actions": "操作",
     "loadingRows": "正在加载 Skill...",
@@ -2468,7 +2469,7 @@
     "nav": {
       "home": "首页",
       "help": "帮助",
-      "questions": "FAQ",
+      "community": "社区",
       "login": "登录"
     },
     "home": {
@@ -2478,17 +2479,17 @@
       "searchPlaceholder": "搜索帮助页面或问题",
       "helpTitle": "帮助中心",
       "helpDescription": "官方指南、部署文档和故障排查。",
-      "questionsTitle": "FAQ 社区",
-      "questionsDescription": "浏览问题，登录后提问和回答。",
+      "postsTitle": "社区讨论",
+      "postsDescription": "浏览帖子，登录后发帖和评论。",
       "chatTitle": "在线咨询",
       "chatDescription": "仍然无法解决时进入客服会话。",
       "quickPanelTitle": "快速入口",
       "quickPanelDescription": "按当前任务继续",
-      "unsolvedQuestions": "查看未解决问题",
+      "openPosts": "查看社区帖子",
       "browseDocs": "浏览帮助文档",
-      "askQuestion": "提出一个问题",
+      "createPost": "发布一个帖子",
       "recommendedPages": "推荐页面",
-      "hotQuestions": "热门问题"
+      "hotPosts": "热门帖子"
     },
     "help": {
       "title": "帮助中心",
@@ -2510,46 +2511,46 @@
       "previous": "上一篇",
       "next": "下一篇"
     },
-    "questions": {
-      "title": "FAQ 社区",
-      "description": "登录用户可以提问、回答、点赞并采纳最佳答案。",
-      "categoryNavigation": "问题分类",
+    "posts": {
+      "title": "社区讨论",
+      "description": "登录用户可以发帖、评论、点赞并采纳有效回复。",
+      "categoryNavigation": "帖子分类",
       "moreCategories": "更多分类",
       "more": "更多",
       "categoriesFailed": "分类加载失败，点击重试",
-      "searchPlaceholder": "搜索问题标题",
-      "detailTitle": "问题详情",
-      "answers": "回答",
-      "votes": "赞同",
+      "searchPlaceholder": "搜索帖子标题",
+      "detailTitle": "帖子详情",
+      "comments": "评论",
+      "likes": "点赞",
       "views": "浏览",
-      "askedBy": "{name} 提问",
+      "createdBy": "{name} 发布",
       "updatedAt": "{date} 更新"
     },
-    "ask": {
-      "title": "提出问题",
-      "description": "登录后提交问题，社区成员和客服可参与回答。",
-      "formTitle": "发布问题",
+    "createPost": {
+      "title": "发布帖子",
+      "description": "登录后发布帖子，社区成员可以参与评论。",
+      "formTitle": "发布帖子",
       "category": "分类",
       "categoryPlaceholder": "选择分类",
       "categorySearch": "搜索分类",
       "categoryEmpty": "暂无分类",
       "categoriesFailed": "分类加载失败，点击重试",
-      "categoryRequired": "请选择问题分类",
-      "questionTitle": "问题标题",
-      "questionTitlePlaceholder": "用一句话描述问题",
-      "titleRequired": "请输入问题标题",
-      "content": "问题详情",
-      "contentPlaceholder": "详细描述你的问题、环境和已尝试的排查步骤",
-      "contentRequired": "请补充问题详情",
+      "categoryRequired": "请选择帖子分类",
+      "postTitle": "帖子标题",
+      "postTitlePlaceholder": "用一句话概括你要讨论的内容",
+      "titleRequired": "请输入帖子标题",
+      "content": "正文",
+      "contentPlaceholder": "补充背景、现象、环境和你希望大家关注的重点",
+      "contentRequired": "请补充帖子正文",
       "tags": "标签",
       "tagsPlaceholder": "标签，用英文逗号分隔"
     },
-    "answer": {
-      "title": "提交回答",
-      "placeholder": "写下你的回答",
+    "comment": {
+      "title": "发表评论",
+      "placeholder": "写下你的评论",
       "replyPlaceholder": "写下你的回复",
       "count": "{count} 条评论",
-      "authorBadge": "作者",
+      "authorBadge": "楼主",
       "deleted": "该评论已删除",
       "deleteConfirm": "删除后该评论将不再展示，确定删除吗？",
       "sort": {
@@ -2557,7 +2558,7 @@
         "latest": "最新",
         "hot": "热门"
       },
-      "best": "最佳答案"
+      "accepted": "已采纳"
     },
     "login": {
       "title": "登录支持中心",
@@ -2585,9 +2586,9 @@
       "helpful": "有帮助",
       "notHelpful": "没帮助",
       "openStandalone": "独立打开",
-      "askQuestion": "我要提问",
-      "publishQuestion": "发布问题",
-      "publishAnswer": "发布回答",
+      "createPost": "发布帖子",
+      "publishPost": "发布帖子",
+      "publishComment": "发布评论",
       "publishReply": "发布回复",
       "publishing": "发布中...",
       "processing": "处理中...",
@@ -2602,8 +2603,7 @@
       "viewReplies": "查看全部 {count} 条回复",
       "retry": "重试",
       "loadMore": "加载更多",
-      "viewDiscussion": "查看讨论",
-      "answerQuestion": "参与回答"
+      "viewDiscussion": "查看讨论"
     },
     "status": {
       "all": "全部",
@@ -2618,34 +2618,34 @@
     },
     "empty": {
       "noPages": "暂无已发布页面",
-      "noQuestions": "暂无社区问题",
+      "noPosts": "暂无社区帖子",
       "noPagesMatched": "没有找到页面",
       "pageNotFound": "文档不存在、尚未发布或已被撤回",
       "pagesFailed": "文档加载失败，请稍后重试",
-      "noQuestionsMatched": "没有找到问题",
-      "questionsFailed": "问题加载失败，请稍后重试",
-      "noAnswers": "暂无回答",
+      "noPostsMatched": "没有找到帖子",
+      "postsFailed": "帖子加载失败，请稍后重试",
+      "noComments": "暂无评论",
       "selectPage": "选择左侧页面查看内容"
     },
     "loading": {
       "categories": "正在加载分类…",
       "navigation": "正在加载文档导航...",
       "page": "正在加载页面...",
-      "question": "正在加载问题...",
-      "questions": "正在加载问题...",
-      "answers": "正在加载评论...",
+      "post": "正在加载帖子...",
+      "posts": "正在加载帖子...",
+      "comments": "正在加载评论...",
       "session": "正在检查登录状态..."
     },
     "toast": {
       "feedbackSaved": "感谢反馈",
       "codeCopied": "代码已复制",
-      "answerCreated": "回答已发布",
+      "postCreated": "帖子已发布",
+      "commentCreated": "评论已发布",
       "replyCreated": "回复已发布",
-      "answerUpdated": "评论已更新",
-      "answerDeleted": "评论已删除",
-      "answerReported": "已收到举报",
+      "commentUpdated": "评论已更新",
+      "commentDeleted": "评论已删除",
+      "commentReported": "已收到举报",
       "linkCopied": "链接已复制",
-      "questionCreated": "问题已发布",
       "loggedIn": "已登录"
     },
     "a11y": {
@@ -2675,8 +2675,8 @@
     "support": "支持中心",
     "supportCenter": "支持中心",
     "supportHelp": "帮助中心",
-    "supportFaq": "FAQ 社区",
-    "supportFaqCategories": "FAQ 分类",
+    "supportCommunity": "社区内容",
+    "supportCommunityCategories": "社区分类",
     "aiConfigs": "AI模型",
     "aiAgents": "Agent",
     "aiWorkflows": "AI流程",

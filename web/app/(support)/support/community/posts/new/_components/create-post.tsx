@@ -10,16 +10,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SupportPageContent, SupportPageShell } from "@/app/(support)/support/_components/support-page-shell"
 import { useSupportAuth } from "@/app/(support)/support/_components/support-auth-provider"
-import { ensureSupportLogin, supportQuestionHref } from "@/app/(support)/support/_components/support-question-route"
+import { ensureSupportLogin } from "@/app/(support)/support/_components/support-community-route"
 import { useI18n } from "@/i18n/provider"
-import { createSupportQuestion, fetchSupportQuestionCategories, type SupportCategory } from "@/lib/api/support"
+import { createPost, fetchCategories, postHref, type Category } from "@/lib/api/support-community"
 import type { ContentValue } from "@/components/content-editor"
 
-export function SupportAskQuestion() {
+export function CreatePost() {
   const t = useI18n()
   const router = useRouter()
   const { ready, session } = useSupportAuth()
-  const [categories, setCategories] = useState<SupportCategory[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [categoriesFailed, setCategoriesFailed] = useState(false)
   const [categoryId, setCategoryId] = useState(0)
@@ -31,14 +31,14 @@ export function SupportAskQuestion() {
 
   useEffect(() => {
     if (ready && !session) {
-      router.replace("/support/login?next=%2Fsupport%2Fquestions%2Fask")
+      router.replace("/support/login?next=%2Fsupport%2Fcommunity%2Fposts%2Fnew")
     }
   }, [ready, router, session])
 
   const loadCategories = useCallback(() => {
     setCategoriesLoading(true)
     setCategoriesFailed(false)
-    void fetchSupportQuestionCategories()
+    void fetchCategories()
       .then((items) => {
         setCategories(items)
         setCategoryId((current) => current || items[0]?.id || 0)
@@ -63,30 +63,30 @@ export function SupportAskQuestion() {
   const submit = async () => {
     if (submitting) return
     if (!categoryId) {
-      setFormError(t("supportPublic.ask.categoryRequired"))
+      setFormError(t("supportPublic.createPost.categoryRequired"))
       return
     }
     if (!title.trim()) {
-      setFormError(t("supportPublic.ask.titleRequired"))
+      setFormError(t("supportPublic.createPost.titleRequired"))
       return
     }
     if (!content.raw.trim()) {
-      setFormError(t("supportPublic.ask.contentRequired"))
+      setFormError(t("supportPublic.createPost.contentRequired"))
       return
     }
     setFormError("")
     setSubmitting(true)
     try {
       await ensureSupportLogin()
-      const question = await createSupportQuestion({
+      const post = await createPost({
         categoryId,
         title,
         contentType: content.mode,
         content: content.raw,
         tags: tags.split(",").map((item) => item.trim()).filter(Boolean),
       })
-      toast.success(t("supportPublic.toast.questionCreated"))
-      window.location.assign(supportQuestionHref(question.id))
+      toast.success(t("supportPublic.toast.postCreated"))
+      window.location.assign(postHref(post.id))
     } catch (error) {
       const message = error instanceof Error ? error.message : t("api.requestFailed")
       setFormError(message)
@@ -97,7 +97,7 @@ export function SupportAskQuestion() {
 
   if (!ready || !session) {
     return (
-      <SupportPageShell section="ask">
+      <SupportPageShell section="community">
         <SupportPageContent className="py-10 sm:py-12" width="docs">
           <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
             <LoaderCircleIcon className="size-4 animate-spin" />
@@ -109,7 +109,7 @@ export function SupportAskQuestion() {
   }
 
   return (
-    <SupportPageShell section="ask">
+    <SupportPageShell section="community">
       <SupportPageContent className="py-8 sm:py-10" width="docs">
         <form
         className="w-full rounded-md border bg-card p-4 sm:p-5"
@@ -119,12 +119,12 @@ export function SupportAskQuestion() {
         }}
       >
         <div className="mb-3 border-b pb-3">
-          <h1 className="text-lg font-medium">{t("supportPublic.ask.formTitle")}</h1>
+          <h1 className="text-lg font-medium">{t("supportPublic.createPost.formTitle")}</h1>
         </div>
 
         <div className="grid gap-3">
-          <fieldset aria-label={t("supportPublic.ask.category")}>
-            <legend className="sr-only">{t("supportPublic.ask.category")}</legend>
+          <fieldset aria-label={t("supportPublic.createPost.category")}>
+            <legend className="sr-only">{t("supportPublic.createPost.category")}</legend>
             <div className="flex flex-wrap gap-1">
               {categories.map((item) => (
                 <Button
@@ -142,17 +142,17 @@ export function SupportAskQuestion() {
               ))}
             </div>
             {categoriesLoading ? <p className="mt-2 text-xs text-muted-foreground">{t("supportPublic.loading.categories")}</p> : null}
-            {categoriesFailed ? <button type="button" className="mt-2 text-xs text-destructive underline-offset-4 hover:underline" onClick={loadCategories}>{t("supportPublic.ask.categoriesFailed")}</button> : null}
+            {categoriesFailed ? <button type="button" className="mt-2 text-xs text-destructive underline-offset-4 hover:underline" onClick={loadCategories}>{t("supportPublic.createPost.categoriesFailed")}</button> : null}
           </fieldset>
 
-          <Input id="support-question-title" value={title} onChange={(event) => { setTitle(event.target.value); setFormError("") }} placeholder={t("supportPublic.ask.questionTitlePlaceholder")} className="rounded-md bg-card" disabled={submitting} aria-label={t("supportPublic.ask.questionTitle")} />
+          <Input id="support-post-title" value={title} onChange={(event) => { setTitle(event.target.value); setFormError("") }} placeholder={t("supportPublic.createPost.postTitlePlaceholder")} className="rounded-md bg-card" disabled={submitting} aria-label={t("supportPublic.createPost.postTitle")} />
 
-          <div className="grid min-w-0 gap-2" role="group" aria-labelledby="support-question-content-label">
-            <span id="support-question-content-label" className="sr-only">{t("supportPublic.ask.content")}</span>
+          <div className="grid min-w-0 gap-2" role="group" aria-labelledby="support-post-content-label">
+            <span id="support-post-content-label" className="sr-only">{t("supportPublic.createPost.content")}</span>
             <ContentEditor
               value={content}
               onChange={handleContentChange}
-              placeholder={t("supportPublic.ask.contentPlaceholder")}
+              placeholder={t("supportPublic.createPost.contentPlaceholder")}
               disabled={submitting}
               allowedModes={["html", "markdown"]}
               height={420}
@@ -160,13 +160,13 @@ export function SupportAskQuestion() {
             />
           </div>
 
-          <Input id="support-question-tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder={t("supportPublic.ask.tagsPlaceholder")} className="rounded-md bg-card" disabled={submitting} aria-label={t("supportPublic.ask.tags")} />
+          <Input id="support-post-tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder={t("supportPublic.createPost.tagsPlaceholder")} className="rounded-md bg-card" disabled={submitting} aria-label={t("supportPublic.createPost.tags")} />
 
           {formError ? <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{formError}</div> : null}
 
           <div className="flex justify-end pt-1">
             <Button type="submit" disabled={submitting || categoriesLoading || categoriesFailed}>
-              {submitting ? t("supportPublic.actions.publishing") : t("supportPublic.actions.publishQuestion")}
+              {submitting ? t("supportPublic.actions.publishing") : t("supportPublic.actions.publishPost")}
             </Button>
           </div>
         </div>

@@ -8,13 +8,13 @@ import { SupportArticleContent } from "@/app/(support)/support/_components/suppo
 import { useI18n } from "@/i18n/provider"
 import { articleHeadingId } from "@/lib/support-article"
 
-export function SupportQuestionArticleContent({ content, contentType, id, articleHeadingIds = true }: { content: string; contentType?: string; id: string; articleHeadingIds?: boolean }) {
-  const resolvedContentType = contentType || questionContentType(content)
+export function PostArticleContent({ content, contentType, id, articleHeadingIds = true }: { content: string; contentType?: string; id: string; articleHeadingIds?: boolean }) {
+  const resolvedContentType = contentType || postContentType(content)
   useHtmlArticleEnhancements(id, content, resolvedContentType, articleHeadingIds)
   return <SupportArticleContent id={id} content={content} contentType={resolvedContentType} articleHeadingIds={articleHeadingIds} />
 }
 
-function questionContentType(content: string) {
+function postContentType(content: string) {
   return /<\/?[a-z][\s\S]*>/i.test(content) ? "html" : "markdown"
 }
 

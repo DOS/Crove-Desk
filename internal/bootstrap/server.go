@@ -187,8 +187,8 @@ func addRouter(app *gin.Engine) {
 	registerDashboardKnowledgeRetrieveRoutes(dashboardGroup.Group("/knowledge-retrieve"))
 	registerDashboardKnowledgeRetrieveLogRoutes(dashboardGroup.Group("/knowledge-retrieve-log"))
 	registerDashboardSupportHelpPageRoutes(dashboardGroup.Group("/support-help-page"))
-	registerDashboardSupportQuestionCategoryRoutes(dashboardGroup.Group("/support-question-category"))
-	registerDashboardSupportQuestionRoutes(dashboardGroup.Group("/support-question"))
+	registerDashboardSupportCategoryRoutes(dashboardGroup.Group("/support-community/categories"))
+	registerDashboardSupportPostRoutes(dashboardGroup.Group("/support-community/posts"))
 	registerDashboardSkillDefinitionRoutes(dashboardGroup.Group("/skill-definition"))
 	registerDashboardMCPRoutes(dashboardGroup.Group("/mcp"))
 
@@ -238,25 +238,25 @@ func registerSPAShellRewrites(app *gin.Engine, spaHandler gin.HandlerFunc) {
 			ShellPath: "/support/help.html",
 		},
 		{
-			// Keep the public RESTful URL and serve the exported detail shell for IDs.
-			Route:     "/support/question/:id",
-			ShellPath: "/support/question/detail.html",
+			// Keep the public RESTful URL and serve the exported post detail shell for IDs.
+			Route:     "/support/community/posts/:id",
+			ShellPath: "/support/community/posts/detail.html",
 			Match: func(ctx *gin.Context) bool {
 				value, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 				return err == nil && value > 0
 			},
 		},
 		{
-			Route:     "/support/questions/ask",
-			ShellPath: "/support/questions/ask.html",
+			Route:     "/support/community/posts/new",
+			ShellPath: "/support/community/posts/new.html",
 		},
 		{
-			// FAQ category pages are runtime-authored through category slugs.
-			Route:     "/support/questions/:slug",
-			ShellPath: "/support/questions.html",
+			// Community category pages are runtime-authored through category slugs.
+			Route:     "/support/community/categories/:slug",
+			ShellPath: "/support/community/categories.html",
 			Match: func(ctx *gin.Context) bool {
 				slug := ctx.Param("slug")
-				return slug != "" && slug != "ask" && slug != "detail"
+				return slug != ""
 			},
 		},
 	}

@@ -434,7 +434,6 @@
     "claimConfirmSuffix": "\"? It will move to your conversations.",
     "claimCurrent": "Claim the current conversation?",
     "customerFallbackPrefix": "Customer #",
-    "cancel": "Cancel",
     "claiming": "Claiming...",
     "confirmClaim": "Claim"
   },
@@ -1298,7 +1297,7 @@
     "remark": "Notes",
     "remarkPlaceholder": "Record usage, cost, or limit notes"
   },
-  "supportFaqCategory": {
+  "supportCommunityCategory": {
     "allStatuses": "All statuses",
     "enabled": "Enabled",
     "disabled": "Disabled",
@@ -1306,10 +1305,10 @@
     "searchName": "Search category names",
     "noDescription": "No description",
     "status": "Status",
-    "confirmDeleteTitle": "Delete FAQ Category?",
-    "confirmDeleteDescription": "Delete \"{name}\"? Categories used by questions cannot be deleted.",
+    "confirmDeleteTitle": "Delete community category?",
+    "confirmDeleteDescription": "Delete \"{name}\"? Categories used by posts cannot be deleted.",
     "delete": "Delete",
-    "sortUpdated": "FAQ category order updated.",
+    "sortUpdated": "Community category order updated.",
     "sortUpdateFailed": "Could not update the order.",
     "dragSort": "Drag to reorder {name}",
     "create": "Create",
@@ -1325,16 +1324,16 @@
     "slugPlaceholder": "Example: account-security",
     "slugPatternMessage": "Use letters, numbers, and hyphens (-) only.",
     "description": "Description",
-    "descriptionPlaceholder": "Describe the questions covered by this category",
+    "descriptionPlaceholder": "Describe the posts covered by this category",
     "remark": "Notes",
     "remarkPlaceholder": "Visible to dashboard users only",
-    "createTitle": "New FAQ Category",
-    "editTitle": "Edit FAQ Category",
+    "createTitle": "New community category",
+    "editTitle": "Edit community category",
     "refresh": "Refresh",
     "new": "New category",
     "query": "Search",
     "loading": "Loading categories...",
-    "empty": "No FAQ categories yet",
+    "empty": "No community categories yet",
     "actions": "Actions",
     "edit": "Edit",
     "processing": "Processing...",
@@ -1345,6 +1344,9 @@
     "created": "Category created: {name}",
     "updated": "Category updated: {name}",
     "deleted": "Category deleted: {name}"
+  },
+  "supportCommunityAdmin": {
+    "postStatusUpdated": "Post status updated."
   },
   "mcp": {
     "disabled": "disabled",
@@ -2468,7 +2470,7 @@
     "nav": {
       "home": "Home",
       "help": "Help",
-      "questions": "FAQ",
+      "community": "Community",
       "login": "Log In"
     },
     "home": {
@@ -2478,17 +2480,17 @@
       "searchPlaceholder": "Search help pages or questions",
       "helpTitle": "Help Center",
       "helpDescription": "Official guides, deployment notes, and troubleshooting.",
-      "questionsTitle": "FAQ Community",
-      "questionsDescription": "Browse questions, then log in to ask or answer.",
+      "postsTitle": "Community Discussions",
+      "postsDescription": "Browse posts, then log in to publish and comment.",
       "chatTitle": "Live Support",
       "chatDescription": "Open a support conversation when self-service is not enough.",
       "quickPanelTitle": "Quick Links",
       "quickPanelDescription": "Continue by task",
-      "unsolvedQuestions": "View unsolved questions",
+      "openPosts": "View community posts",
       "browseDocs": "Browse help docs",
-      "askQuestion": "Ask a question",
+      "createPost": "Create a post",
       "recommendedPages": "Recommended Pages",
-      "hotQuestions": "Popular Questions"
+      "hotPosts": "Popular Posts"
     },
     "help": {
       "title": "Help Center",
@@ -2510,43 +2512,43 @@
       "previous": "Previous",
       "next": "Next"
     },
-    "questions": {
-      "title": "FAQ Community",
-      "description": "Signed-in users can ask, answer, vote, and accept best answers.",
-      "categoryNavigation": "Question categories",
+    "posts": {
+      "title": "Community Discussions",
+      "description": "Signed-in users can publish posts, comment, like, and accept useful replies.",
+      "categoryNavigation": "Post categories",
       "moreCategories": "More categories",
       "more": "More",
       "categoriesFailed": "Could not load categories. Click to retry.",
-      "searchPlaceholder": "Search question titles",
-      "detailTitle": "Question Detail",
-      "answers": "Answers",
-      "votes": "Votes",
+      "searchPlaceholder": "Search post titles",
+      "detailTitle": "Post Detail",
+      "comments": "Comments",
+      "likes": "Likes",
       "views": "Views",
-      "askedBy": "Asked by {name}",
+      "createdBy": "Posted by {name}",
       "updatedAt": "Updated {date}"
     },
-    "ask": {
-      "title": "Ask a Question",
-      "description": "Sign in to submit a question. Community members and support agents can answer.",
-      "formTitle": "Publish a question",
+    "createPost": {
+      "title": "Create Post",
+      "description": "Sign in to publish a post. Community members can join the discussion.",
+      "formTitle": "Create post",
       "category": "Category",
       "categoryPlaceholder": "Select category",
       "categorySearch": "Search categories",
       "categoryEmpty": "No categories",
       "categoriesFailed": "Could not load categories. Click to retry.",
       "categoryRequired": "Select a category",
-      "questionTitle": "Question title",
-      "questionTitlePlaceholder": "Describe the question in one sentence",
-      "titleRequired": "Enter a question title",
-      "content": "Details",
-      "contentPlaceholder": "Describe the issue, environment, and what you have already tried",
-      "contentRequired": "Add the question details",
+      "postTitle": "Post title",
+      "postTitlePlaceholder": "Summarize the topic in one sentence",
+      "titleRequired": "Enter a post title",
+      "content": "Content",
+      "contentPlaceholder": "Add background, context, environment, and the points you want people to focus on",
+      "contentRequired": "Add the post content",
       "tags": "Tags",
       "tagsPlaceholder": "Separate tags with commas"
     },
-    "answer": {
-      "title": "Submit Answer",
-      "placeholder": "Write your answer",
+    "comment": {
+      "title": "Post a comment",
+      "placeholder": "Write your comment",
       "replyPlaceholder": "Write your reply",
       "count": "{count} comments",
       "authorBadge": "Author",
@@ -2557,7 +2559,7 @@
         "latest": "Newest",
         "hot": "Popular"
       },
-      "best": "Best Answer"
+      "accepted": "Accepted"
     },
     "login": {
       "title": "Log In to Support",
@@ -2585,9 +2587,9 @@
       "helpful": "Helpful",
       "notHelpful": "Not helpful",
       "openStandalone": "Open separately",
-      "askQuestion": "Ask Question",
-      "publishQuestion": "Publish Question",
-      "publishAnswer": "Publish Answer",
+      "createPost": "Create Post",
+      "publishPost": "Publish Post",
+      "publishComment": "Publish Comment",
       "publishReply": "Publish Reply",
       "publishing": "Publishing...",
       "processing": "Processing...",
@@ -2602,8 +2604,7 @@
       "viewReplies": "View all {count} replies",
       "retry": "Retry",
       "loadMore": "Load more",
-      "viewDiscussion": "View discussion",
-      "answerQuestion": "Answer"
+      "viewDiscussion": "View discussion"
     },
     "status": {
       "all": "All",
@@ -2618,34 +2619,34 @@
     },
     "empty": {
       "noPages": "No published pages yet",
-      "noQuestions": "No community questions yet",
+      "noPosts": "No community posts yet",
       "noPagesMatched": "No pages found",
       "pageNotFound": "This page does not exist, is not published, or has been withdrawn",
       "pagesFailed": "Could not load the documentation. Try again later.",
-      "noQuestionsMatched": "No questions found",
-      "questionsFailed": "Could not load questions. Try again later.",
-      "noAnswers": "No answers yet",
+      "noPostsMatched": "No posts found",
+      "postsFailed": "Could not load posts. Try again later.",
+      "noComments": "No comments yet",
       "selectPage": "Select a page on the left"
     },
     "loading": {
       "categories": "Loading categories…",
       "navigation": "Loading documentation...",
       "page": "Loading page...",
-      "question": "Loading question...",
-      "questions": "Loading questions...",
-      "answers": "Loading comments...",
+      "post": "Loading post...",
+      "posts": "Loading posts...",
+      "comments": "Loading comments...",
       "session": "Checking sign-in status..."
     },
     "toast": {
       "feedbackSaved": "Thanks for the feedback",
       "codeCopied": "Code copied",
-      "answerCreated": "Answer published",
+      "postCreated": "Post published",
+      "commentCreated": "Comment published",
       "replyCreated": "Reply published",
-      "answerUpdated": "Comment updated",
-      "answerDeleted": "Comment deleted",
-      "answerReported": "Report received",
+      "commentUpdated": "Comment updated",
+      "commentDeleted": "Comment deleted",
+      "commentReported": "Report received",
       "linkCopied": "Link copied",
-      "questionCreated": "Question published",
       "loggedIn": "Logged in"
     },
     "a11y": {
@@ -2675,8 +2676,8 @@
     "support": "Support Center",
     "supportCenter": "Support Center",
     "supportHelp": "Help Center",
-    "supportFaq": "FAQ Community",
-    "supportFaqCategories": "FAQ Categories",
+    "supportCommunity": "Community",
+    "supportCommunityCategories": "Community Categories",
     "aiConfigs": "Model Settings",
     "aiAgents": "Agents",
     "aiWorkflows": "AI Workflows",

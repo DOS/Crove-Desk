@@ -58,12 +58,11 @@ var Models = []any{
 	&KnowledgeRetrieveHit{},
 	&KnowledgeFeedback{},
 	&SupportHelpPage{},
-	&SupportQuestionCategory{},
-	&SupportQuestion{},
-	&SupportAnswer{},
-	&SupportQuestionVote{},
-	&SupportAnswerVote{},
-	&SupportAnswerReport{},
+	&SupportCategory{},
+	&SupportPost{},
+	&SupportComment{},
+	&SupportReaction{},
+	&SupportCommentReport{},
 	&SkillDefinition{},
 	&AgentRevision{},
 	&AgentRun{},
@@ -984,8 +983,8 @@ type SupportHelpPage struct {
 	AuditFields
 }
 
-// SupportQuestionCategory groups public FAQ community questions.
-type SupportQuestionCategory struct {
+// SupportCategory groups public FAQ community posts.
+type SupportCategory struct {
 	ID          int64        `gorm:"primaryKey;autoIncrement"`
 	Name        string       `gorm:"type:varchar(100);not null;default:'';index"`
 	Slug        string       `gorm:"type:varchar(120);not null;default:'';uniqueIndex"`
@@ -996,65 +995,57 @@ type SupportQuestionCategory struct {
 	AuditFields
 }
 
-// SupportQuestion is a logged-in-customer question in the public FAQ community.
-type SupportQuestion struct {
-	ID                 int64                         `gorm:"primaryKey;autoIncrement"`
-	CategoryID         int64                         `gorm:"type:bigint;not null;default:0;index"`
-	UserID             int64                         `gorm:"type:bigint;not null;index"`
-	Title              string                        `gorm:"type:varchar(255);not null;default:'';index"`
-	ContentType        string                        `gorm:"type:varchar(20);not null;default:'markdown'"`
-	Content            string                        `gorm:"type:text"`
-	TagsJSON           string                        `gorm:"type:text"`
-	Status             enums.SupportQuestionStatus   `gorm:"type:varchar(20);not null;default:'normal';index"`
-	BestAnswerID       int64                         `gorm:"type:bigint;not null;default:0;index"`
-	AnswerCount        int64                         `gorm:"type:bigint;not null;default:0"`
-	VoteCount          int64                         `gorm:"type:bigint;not null;default:0"`
-	ViewCount          int64                         `gorm:"type:bigint;not null;default:0"`
-	LastAnsweredAt     *time.Time                    `gorm:"index"`
-	LastAnswerUserType enums.SupportAnswerAuthorType `gorm:"type:varchar(20);not null;default:''"`
-	LastAnswerUserID   int64                         `gorm:"type:bigint;not null;default:0"`
+// SupportPost is a logged-in-customer post in the public FAQ community.
+type SupportPost struct {
+	ID                  int64                          `gorm:"primaryKey;autoIncrement"`
+	CategoryID          int64                          `gorm:"type:bigint;not null;default:0;index"`
+	UserID              int64                          `gorm:"type:bigint;not null;index"`
+	Title               string                         `gorm:"type:varchar(255);not null;default:'';index"`
+	ContentType         string                         `gorm:"type:varchar(20);not null;default:'markdown'"`
+	Content             string                         `gorm:"type:text"`
+	TagsJSON            string                         `gorm:"type:text"`
+	Status              enums.SupportPostStatus        `gorm:"type:varchar(20);not null;default:'normal';index"`
+	AcceptedCommentID   int64                          `gorm:"type:bigint;not null;default:0;index"`
+	CommentCount        int64                          `gorm:"type:bigint;not null;default:0"`
+	ReactionCount       int64                          `gorm:"type:bigint;not null;default:0"`
+	ViewCount           int64                          `gorm:"type:bigint;not null;default:0"`
+	LastCommentedAt     *time.Time                     `gorm:"index"`
+	LastCommentUserType enums.SupportCommentAuthorType `gorm:"type:varchar(20);not null;default:''"`
+	LastCommentUserID   int64                          `gorm:"type:bigint;not null;default:0"`
 	AuditFields
 }
 
-// SupportAnswer is an answer from either a customer or a backend user.
-type SupportAnswer struct {
-	ID           int64                         `gorm:"primaryKey;autoIncrement"`
-	QuestionID   int64                         `gorm:"type:bigint;not null;index"`
-	ParentID     int64                         `gorm:"type:bigint;not null;default:0;index"`
-	AuthorType   enums.SupportAnswerAuthorType `gorm:"type:varchar(20);not null;default:'customer';index"`
-	AuthorID     int64                         `gorm:"type:bigint;not null;index"`
-	ContentType  string                        `gorm:"type:varchar(20);not null;default:'markdown'"`
-	Content      string                        `gorm:"type:text"`
-	Status       enums.SupportAnswerStatus     `gorm:"type:varchar(20);not null;default:'normal';index"`
-	VoteCount    int64                         `gorm:"type:bigint;not null;default:0"`
-	ReplyCount   int64                         `gorm:"type:bigint;not null;default:0"`
-	ReportCount  int64                         `gorm:"type:bigint;not null;default:0"`
-	IsBestAnswer bool                          `gorm:"not null;default:false;index"`
+// SupportComment is a comment from either a customer or a backend user.
+type SupportComment struct {
+	ID            int64                          `gorm:"primaryKey;autoIncrement"`
+	PostID        int64                          `gorm:"type:bigint;not null;index"`
+	ParentID      int64                          `gorm:"type:bigint;not null;default:0;index"`
+	AuthorType    enums.SupportCommentAuthorType `gorm:"type:varchar(20);not null;default:'customer';index"`
+	AuthorID      int64                          `gorm:"type:bigint;not null;index"`
+	ContentType   string                         `gorm:"type:varchar(20);not null;default:'markdown'"`
+	Content       string                         `gorm:"type:text"`
+	Status        enums.SupportCommentStatus     `gorm:"type:varchar(20);not null;default:'normal';index"`
+	ReactionCount int64                          `gorm:"type:bigint;not null;default:0"`
+	ReplyCount    int64                          `gorm:"type:bigint;not null;default:0"`
+	ReportCount   int64                          `gorm:"type:bigint;not null;default:0"`
+	IsAccepted    bool                           `gorm:"not null;default:false;index"`
 	AuditFields
 }
 
-type SupportQuestionVote struct {
-	ID         int64     `gorm:"primaryKey;autoIncrement"`
-	QuestionID int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_question_vote"`
-	UserID     int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_question_vote"`
-	VoteValue  int       `gorm:"type:int;not null;default:1"`
-	CreatedAt  time.Time `gorm:"not null;index"`
-	UpdatedAt  time.Time `gorm:"not null;index"`
+type SupportReaction struct {
+	ID           int64                       `gorm:"primaryKey;autoIncrement"`
+	TargetType   enums.SupportReactionTarget `gorm:"type:varchar(20);not null;index;uniqueIndex:uk_support_reaction"`
+	TargetID     int64                       `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_reaction"`
+	UserID       int64                       `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_reaction"`
+	ReactionType enums.SupportReactionType   `gorm:"type:varchar(20);not null;default:'like';uniqueIndex:uk_support_reaction"`
+	CreatedAt    time.Time                   `gorm:"not null;index"`
+	UpdatedAt    time.Time                   `gorm:"not null;index"`
 }
 
-type SupportAnswerVote struct {
+type SupportCommentReport struct {
 	ID        int64     `gorm:"primaryKey;autoIncrement"`
-	AnswerID  int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_answer_vote"`
-	UserID    int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_answer_vote"`
-	VoteValue int       `gorm:"type:int;not null;default:1"`
-	CreatedAt time.Time `gorm:"not null;index"`
-	UpdatedAt time.Time `gorm:"not null;index"`
-}
-
-type SupportAnswerReport struct {
-	ID        int64     `gorm:"primaryKey;autoIncrement"`
-	AnswerID  int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_answer_report"`
-	UserID    int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_answer_report"`
+	CommentID int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_comment_report"`
+	UserID    int64     `gorm:"type:bigint;not null;index;uniqueIndex:uk_support_comment_report"`
 	Reason    string    `gorm:"type:varchar(255);not null;default:''"`
 	CreatedAt time.Time `gorm:"type:datetime;not null;index"`
 }

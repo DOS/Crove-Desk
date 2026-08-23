@@ -157,52 +157,52 @@ func SupportHelpPagePostChange_status(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, builders.BuildSupportHelpPage(item, true))
 }
 
-func SupportQuestionCategoryAnyList(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionView); err != nil {
+func SupportCategoryAnyList(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportPostView); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	list, paging := repositories.SupportQuestionCategoryRepository.FindPageByCnd(sqls.DB(), params.NewPagedSqlCnd(ctx,
+	list, paging := repositories.SupportCategoryRepository.FindPageByCnd(sqls.DB(), params.NewPagedSqlCnd(ctx,
 		params.QueryFilter{ParamName: "status"},
 		params.QueryFilter{ParamName: "name", Op: params.Like},
 	).Asc("sort_no").Desc("id"))
-	httpx.WriteJSON(ctx, &web.PageResult{Results: builders.BuildSupportQuestionCategories(list), Page: paging})
+	httpx.WriteJSON(ctx, &web.PageResult{Results: builders.BuildSupportPostCategories(list), Page: paging})
 }
 
-func SupportQuestionCategoryGetList_all(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionView); err != nil {
+func SupportCategoryGetList_all(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportPostView); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	list := repositories.SupportQuestionCategoryRepository.Find(sqls.DB(), sqls.NewCnd().Asc("sort_no").Desc("id"))
-	httpx.WriteJSON(ctx, builders.BuildSupportQuestionCategories(list))
+	list := repositories.SupportCategoryRepository.Find(sqls.DB(), sqls.NewCnd().Asc("sort_no").Desc("id"))
+	httpx.WriteJSON(ctx, builders.BuildSupportPostCategories(list))
 }
 
-func SupportQuestionCategoryPostCreate(ctx *gin.Context) {
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionUpdate)
+func SupportCategoryPostCreate(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportPostUpdate)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.SaveSupportQuestionCategoryRequest{}
+	req := request.SaveSupportCategoryRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	item, err := services.SupportService.SaveQuestionCategory(req, operator)
+	item, err := services.SupportService.SaveCategory(req, operator)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, builders.BuildSupportQuestionCategory(item))
+	httpx.WriteJSON(ctx, builders.BuildSupportCategory(item))
 }
 
-func SupportQuestionCategoryPostUpdate(ctx *gin.Context) {
-	SupportQuestionCategoryPostCreate(ctx)
+func SupportCategoryPostUpdate(ctx *gin.Context) {
+	SupportCategoryPostCreate(ctx)
 }
 
-func SupportQuestionCategoryPostUpdateSort(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionUpdate); err != nil {
+func SupportCategoryPostUpdateSort(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportPostUpdate); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
@@ -211,15 +211,15 @@ func SupportQuestionCategoryPostUpdateSort(ctx *gin.Context) {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	if err := services.SupportService.UpdateQuestionCategorySort(ids); err != nil {
+	if err := services.SupportService.UpdateCategorySort(ids); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
 	httpx.WriteJSON(ctx, nil)
 }
 
-func SupportQuestionCategoryPostDelete(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionUpdate); err != nil {
+func SupportCategoryPostDelete(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportPostUpdate); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
@@ -228,24 +228,24 @@ func SupportQuestionCategoryPostDelete(ctx *gin.Context) {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, services.SupportService.DeleteQuestionCategory(req.ID))
+	httpx.WriteJSON(ctx, services.SupportService.DeleteCategory(req.ID))
 }
 
-func SupportQuestionAnyList(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionView); err != nil {
+func SupportPostAnyList(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportPostView); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	list, paging := repositories.SupportQuestionRepository.FindPageByCnd(sqls.DB(), params.NewPagedSqlCnd(ctx,
+	list, paging := repositories.SupportPostRepository.FindPageByCnd(sqls.DB(), params.NewPagedSqlCnd(ctx,
 		params.QueryFilter{ParamName: "categoryId"},
 		params.QueryFilter{ParamName: "status"},
 		params.QueryFilter{ParamName: "title", Op: params.Like},
 	).Desc("id"))
-	httpx.WriteJSON(ctx, &web.PageResult{Results: buildDashboardSupportQuestions(list), Page: paging})
+	httpx.WriteJSON(ctx, &web.PageResult{Results: buildDashboardSupportPosts(list), Page: paging})
 }
 
-func SupportQuestionGetBy(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionView); err != nil {
+func SupportPostGetBy(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportPostView); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
@@ -253,72 +253,72 @@ func SupportQuestionGetBy(ctx *gin.Context) {
 	if !ok {
 		return
 	}
-	question := repositories.SupportQuestionRepository.Get(sqls.DB(), id)
-	if question == nil {
+	post := repositories.SupportPostRepository.Get(sqls.DB(), id)
+	if post == nil {
 		httpx.WriteJSON(ctx, httpx.JsonErrorMsg(ctx, "error.notFound"))
 		return
 	}
-	answers := repositories.SupportAnswerRepository.Find(sqls.DB(), sqls.NewCnd().Eq("question_id", id).Desc("is_best_answer").Asc("id"))
-	httpx.WriteJSON(ctx, response.SupportQuestionDetailResponse{Question: *builders.BuildSupportQuestion(question, dashboardSupportQuestionCategoryName(question.CategoryID), dashboardSupportUser(question.UserID)), Answers: buildDashboardSupportAnswers(answers)})
+	comments := repositories.SupportCommentRepository.Find(sqls.DB(), sqls.NewCnd().Eq("post_id", id).Desc("is_accepted").Asc("id"))
+	httpx.WriteJSON(ctx, response.SupportPostDetailResponse{Post: *builders.BuildSupportPost(post, dashboardSupportCategoryName(post.CategoryID), dashboardSupportUser(post.UserID)), Comments: buildDashboardSupportComments(comments)})
 }
 
-func SupportQuestionPostModerate(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionUpdate); err != nil {
+func SupportPostPostModerate(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportPostUpdate); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.ModerateSupportQuestionRequest{}
+	req := request.ModerateSupportPostRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, services.SupportService.ModerateQuestion(req))
+	httpx.WriteJSON(ctx, services.SupportService.ModeratePost(req))
 }
 
-func SupportQuestionPostAcceptAnswer(ctx *gin.Context) {
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionUpdate)
+func SupportPostPostAcceptComment(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportPostUpdate)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.SupportAcceptAnswerRequest{}
+	req := request.SupportAcceptCommentRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, services.SupportService.AcceptAnswer(req, nil, operator))
+	httpx.WriteJSON(ctx, services.SupportService.AcceptComment(req, nil, operator))
 }
 
-func SupportAnswerPostCreate(ctx *gin.Context) {
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionUpdate)
+func SupportCommentPostCreate(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportPostUpdate)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.CreateSupportAnswerRequest{}
+	req := request.CreateSupportCommentRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	item, err := services.SupportService.CreateUserAnswer(req, operator)
+	item, err := services.SupportService.CreateUserComment(req, operator)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, builders.BuildSupportAnswer(item, operator.Nickname))
+	httpx.WriteJSON(ctx, builders.BuildSupportComment(item, operator.Nickname))
 }
 
-func SupportAnswerPostModerate(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportQuestionUpdate); err != nil {
+func SupportCommentPostModerate(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportPostUpdate); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.ModerateSupportAnswerRequest{}
+	req := request.ModerateSupportCommentRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, services.SupportService.ModerateAnswer(req))
+	httpx.WriteJSON(ctx, services.SupportService.ModerateComment(req))
 }
 
 func buildDashboardSupportHelpPages(list []models.SupportHelpPage, includeContent bool) []response.SupportHelpPageResponse {
@@ -331,28 +331,28 @@ func buildDashboardSupportHelpPages(list []models.SupportHelpPage, includeConten
 	return results
 }
 
-func buildDashboardSupportQuestions(list []models.SupportQuestion) []response.SupportQuestionResponse {
-	results := make([]response.SupportQuestionResponse, 0, len(list))
+func buildDashboardSupportPosts(list []models.SupportPost) []response.SupportPostResponse {
+	results := make([]response.SupportPostResponse, 0, len(list))
 	for _, item := range list {
-		if resp := builders.BuildSupportQuestion(&item, dashboardSupportQuestionCategoryName(item.CategoryID), dashboardSupportUser(item.UserID)); resp != nil {
+		if resp := builders.BuildSupportPost(&item, dashboardSupportCategoryName(item.CategoryID), dashboardSupportUser(item.UserID)); resp != nil {
 			results = append(results, *resp)
 		}
 	}
 	return results
 }
 
-func buildDashboardSupportAnswers(list []models.SupportAnswer) []response.SupportAnswerResponse {
-	results := make([]response.SupportAnswerResponse, 0, len(list))
+func buildDashboardSupportComments(list []models.SupportComment) []response.SupportCommentResponse {
+	results := make([]response.SupportCommentResponse, 0, len(list))
 	for _, item := range list {
-		if resp := builders.BuildSupportAnswer(&item, dashboardSupportAnswerAuthorName(item)); resp != nil {
+		if resp := builders.BuildSupportComment(&item, dashboardSupportCommentAuthorName(item)); resp != nil {
 			results = append(results, *resp)
 		}
 	}
 	return results
 }
 
-func dashboardSupportQuestionCategoryName(id int64) string {
-	item := repositories.SupportQuestionCategoryRepository.Get(sqls.DB(), id)
+func dashboardSupportCategoryName(id int64) string {
+	item := repositories.SupportCategoryRepository.Get(sqls.DB(), id)
 	if item == nil {
 		return ""
 	}
@@ -363,7 +363,7 @@ func dashboardSupportUser(id int64) *models.User {
 	return repositories.UserRepository.Get(sqls.DB(), id)
 }
 
-func dashboardSupportAnswerAuthorName(item models.SupportAnswer) string {
+func dashboardSupportCommentAuthorName(item models.SupportComment) string {
 	user := repositories.UserRepository.Get(sqls.DB(), item.AuthorID)
 	if user == nil {
 		return ""

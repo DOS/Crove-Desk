@@ -8,13 +8,12 @@ import (
 )
 
 var (
-	SupportHelpPageRepository         = &supportHelpPageRepository{}
-	SupportQuestionCategoryRepository = &supportQuestionCategoryRepository{}
-	SupportQuestionRepository         = &supportQuestionRepository{}
-	SupportAnswerRepository           = &supportAnswerRepository{}
-	SupportQuestionVoteRepository     = &supportQuestionVoteRepository{}
-	SupportAnswerVoteRepository       = &supportAnswerVoteRepository{}
-	SupportAnswerReportRepository     = &supportAnswerReportRepository{}
+	SupportHelpPageRepository      = &supportHelpPageRepository{}
+	SupportCategoryRepository      = &supportCategoryRepository{}
+	SupportPostRepository          = &supportPostRepository{}
+	SupportCommentRepository       = &supportCommentRepository{}
+	SupportReactionRepository      = &supportReactionRepository{}
+	SupportCommentReportRepository = &supportCommentReportRepository{}
 )
 
 type supportHelpPageRepository struct{}
@@ -73,150 +72,132 @@ func (r *supportHelpPageRepository) Delete(db *gorm.DB, id int64) error {
 	return db.Delete(&models.SupportHelpPage{}, "id = ?", id).Error
 }
 
-type supportQuestionCategoryRepository struct{}
+type supportCategoryRepository struct{}
 
-func (r *supportQuestionCategoryRepository) Get(db *gorm.DB, id int64) *models.SupportQuestionCategory {
-	ret := &models.SupportQuestionCategory{}
+func (r *supportCategoryRepository) Get(db *gorm.DB, id int64) *models.SupportCategory {
+	ret := &models.SupportCategory{}
 	if err := db.First(ret, "id = ?", id).Error; err != nil {
 		return nil
 	}
 	return ret
 }
 
-func (r *supportQuestionCategoryRepository) Find(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportQuestionCategory) {
+func (r *supportCategoryRepository) Find(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportCategory) {
 	cnd.Find(db, &list)
 	return
 }
 
-func (r *supportQuestionCategoryRepository) FindPageByCnd(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportQuestionCategory, paging *sqls.Paging) {
+func (r *supportCategoryRepository) FindPageByCnd(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportCategory, paging *sqls.Paging) {
 	cnd.Find(db, &list)
-	paging = &sqls.Paging{Page: cnd.Paging.Page, Limit: cnd.Paging.Limit, Total: cnd.Count(db, &models.SupportQuestionCategory{})}
+	paging = &sqls.Paging{Page: cnd.Paging.Page, Limit: cnd.Paging.Limit, Total: cnd.Count(db, &models.SupportCategory{})}
 	return
 }
 
-func (r *supportQuestionCategoryRepository) Create(db *gorm.DB, item *models.SupportQuestionCategory) error {
+func (r *supportCategoryRepository) Create(db *gorm.DB, item *models.SupportCategory) error {
 	return db.Create(item).Error
 }
 
-func (r *supportQuestionCategoryRepository) Updates(db *gorm.DB, id int64, columns map[string]any) error {
-	return db.Model(&models.SupportQuestionCategory{}).Where("id = ?", id).Updates(columns).Error
+func (r *supportCategoryRepository) Updates(db *gorm.DB, id int64, columns map[string]any) error {
+	return db.Model(&models.SupportCategory{}).Where("id = ?", id).Updates(columns).Error
 }
 
-func (r *supportQuestionCategoryRepository) UpdateColumn(db *gorm.DB, id int64, column string, value any) error {
-	return db.Model(&models.SupportQuestionCategory{}).Where("id = ?", id).UpdateColumn(column, value).Error
+func (r *supportCategoryRepository) UpdateColumn(db *gorm.DB, id int64, column string, value any) error {
+	return db.Model(&models.SupportCategory{}).Where("id = ?", id).UpdateColumn(column, value).Error
 }
 
-func (r *supportQuestionCategoryRepository) Delete(db *gorm.DB, id int64) error {
-	return db.Delete(&models.SupportQuestionCategory{}, "id = ?", id).Error
+func (r *supportCategoryRepository) Delete(db *gorm.DB, id int64) error {
+	return db.Delete(&models.SupportCategory{}, "id = ?", id).Error
 }
 
-type supportQuestionRepository struct{}
+type supportPostRepository struct{}
 
-func (r *supportQuestionRepository) Get(db *gorm.DB, id int64) *models.SupportQuestion {
-	ret := &models.SupportQuestion{}
+func (r *supportPostRepository) Get(db *gorm.DB, id int64) *models.SupportPost {
+	ret := &models.SupportPost{}
 	if err := db.First(ret, "id = ?", id).Error; err != nil {
 		return nil
 	}
 	return ret
 }
 
-func (r *supportQuestionRepository) FindPageByCnd(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportQuestion, paging *sqls.Paging) {
+func (r *supportPostRepository) FindPageByCnd(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportPost, paging *sqls.Paging) {
 	cnd.Find(db, &list)
-	paging = &sqls.Paging{Page: cnd.Paging.Page, Limit: cnd.Paging.Limit, Total: cnd.Count(db, &models.SupportQuestion{})}
+	paging = &sqls.Paging{Page: cnd.Paging.Page, Limit: cnd.Paging.Limit, Total: cnd.Count(db, &models.SupportPost{})}
 	return
 }
 
-func (r *supportQuestionRepository) Create(db *gorm.DB, item *models.SupportQuestion) error {
+func (r *supportPostRepository) Create(db *gorm.DB, item *models.SupportPost) error {
 	return db.Create(item).Error
 }
 
-func (r *supportQuestionRepository) Updates(db *gorm.DB, id int64, columns map[string]any) error {
-	return db.Model(&models.SupportQuestion{}).Where("id = ?", id).Updates(columns).Error
+func (r *supportPostRepository) Updates(db *gorm.DB, id int64, columns map[string]any) error {
+	return db.Model(&models.SupportPost{}).Where("id = ?", id).Updates(columns).Error
 }
 
-func (r *supportQuestionRepository) UpdateColumn(db *gorm.DB, id int64, column string, value any) error {
-	return db.Model(&models.SupportQuestion{}).Where("id = ?", id).UpdateColumn(column, value).Error
+func (r *supportPostRepository) UpdateColumn(db *gorm.DB, id int64, column string, value any) error {
+	return db.Model(&models.SupportPost{}).Where("id = ?", id).UpdateColumn(column, value).Error
 }
 
-type supportAnswerRepository struct{}
+type supportCommentRepository struct{}
 
-func (r *supportAnswerRepository) Get(db *gorm.DB, id int64) *models.SupportAnswer {
-	ret := &models.SupportAnswer{}
+func (r *supportCommentRepository) Get(db *gorm.DB, id int64) *models.SupportComment {
+	ret := &models.SupportComment{}
 	if err := db.First(ret, "id = ?", id).Error; err != nil {
 		return nil
 	}
 	return ret
 }
 
-func (r *supportAnswerRepository) Find(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportAnswer) {
+func (r *supportCommentRepository) Find(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportComment) {
 	cnd.Find(db, &list)
 	return
 }
 
-func (r *supportAnswerRepository) FindPageByCnd(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportAnswer, paging *sqls.Paging) {
+func (r *supportCommentRepository) FindPageByCnd(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportComment, paging *sqls.Paging) {
 	cnd.Find(db, &list)
-	paging = &sqls.Paging{Page: cnd.Paging.Page, Limit: cnd.Paging.Limit, Total: cnd.Count(db, &models.SupportAnswer{})}
+	paging = &sqls.Paging{Page: cnd.Paging.Page, Limit: cnd.Paging.Limit, Total: cnd.Count(db, &models.SupportComment{})}
 	return
 }
 
-func (r *supportAnswerRepository) Create(db *gorm.DB, item *models.SupportAnswer) error {
+func (r *supportCommentRepository) Create(db *gorm.DB, item *models.SupportComment) error {
 	return db.Create(item).Error
 }
 
-func (r *supportAnswerRepository) Updates(db *gorm.DB, id int64, columns map[string]any) error {
-	return db.Model(&models.SupportAnswer{}).Where("id = ?", id).Updates(columns).Error
+func (r *supportCommentRepository) Updates(db *gorm.DB, id int64, columns map[string]any) error {
+	return db.Model(&models.SupportComment{}).Where("id = ?", id).Updates(columns).Error
 }
 
-func (r *supportAnswerRepository) UpdateColumn(db *gorm.DB, id int64, column string, value any) error {
-	return db.Model(&models.SupportAnswer{}).Where("id = ?", id).UpdateColumn(column, value).Error
+func (r *supportCommentRepository) UpdateColumn(db *gorm.DB, id int64, column string, value any) error {
+	return db.Model(&models.SupportComment{}).Where("id = ?", id).UpdateColumn(column, value).Error
 }
 
-type supportQuestionVoteRepository struct{}
+type supportReactionRepository struct{}
 
-func (r *supportQuestionVoteRepository) Get(db *gorm.DB, questionID, userID int64) *models.SupportQuestionVote {
-	ret := &models.SupportQuestionVote{}
-	if err := db.First(ret, "question_id = ? AND user_id = ?", questionID, userID).Error; err != nil {
+func (r *supportReactionRepository) Get(db *gorm.DB, targetType string, targetID, userID int64, reactionType string) *models.SupportReaction {
+	ret := &models.SupportReaction{}
+	if err := db.First(ret, "target_type = ? AND target_id = ? AND user_id = ? AND reaction_type = ?", targetType, targetID, userID, reactionType).Error; err != nil {
 		return nil
 	}
 	return ret
 }
 
-func (r *supportQuestionVoteRepository) Create(db *gorm.DB, item *models.SupportQuestionVote) error {
+func (r *supportReactionRepository) Create(db *gorm.DB, item *models.SupportReaction) error {
 	return db.Create(item).Error
 }
 
-func (r *supportQuestionVoteRepository) Delete(db *gorm.DB, questionID, userID int64) error {
-	return db.Delete(&models.SupportQuestionVote{}, "question_id = ? AND user_id = ?", questionID, userID).Error
+func (r *supportReactionRepository) Delete(db *gorm.DB, targetType string, targetID, userID int64, reactionType string) error {
+	return db.Delete(&models.SupportReaction{}, "target_type = ? AND target_id = ? AND user_id = ? AND reaction_type = ?", targetType, targetID, userID, reactionType).Error
 }
 
-type supportAnswerVoteRepository struct{}
+type supportCommentReportRepository struct{}
 
-func (r *supportAnswerVoteRepository) Get(db *gorm.DB, answerID, userID int64) *models.SupportAnswerVote {
-	ret := &models.SupportAnswerVote{}
-	if err := db.First(ret, "answer_id = ? AND user_id = ?", answerID, userID).Error; err != nil {
+func (r *supportCommentReportRepository) Get(db *gorm.DB, commentID, userID int64) *models.SupportCommentReport {
+	ret := &models.SupportCommentReport{}
+	if err := db.First(ret, "comment_id = ? AND user_id = ?", commentID, userID).Error; err != nil {
 		return nil
 	}
 	return ret
 }
 
-func (r *supportAnswerVoteRepository) Create(db *gorm.DB, item *models.SupportAnswerVote) error {
-	return db.Create(item).Error
-}
-
-func (r *supportAnswerVoteRepository) Delete(db *gorm.DB, answerID, userID int64) error {
-	return db.Delete(&models.SupportAnswerVote{}, "answer_id = ? AND user_id = ?", answerID, userID).Error
-}
-
-type supportAnswerReportRepository struct{}
-
-func (r *supportAnswerReportRepository) Get(db *gorm.DB, answerID, userID int64) *models.SupportAnswerReport {
-	ret := &models.SupportAnswerReport{}
-	if err := db.First(ret, "answer_id = ? AND user_id = ?", answerID, userID).Error; err != nil {
-		return nil
-	}
-	return ret
-}
-
-func (r *supportAnswerReportRepository) Create(db *gorm.DB, item *models.SupportAnswerReport) error {
+func (r *supportCommentReportRepository) Create(db *gorm.DB, item *models.SupportCommentReport) error {
 	return db.Create(item).Error
 }
