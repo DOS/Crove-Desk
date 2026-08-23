@@ -34,6 +34,9 @@ logger:
   addSource: false
 
 auth:
+  # Enable username and password login. When set to false, users must sign in with SSO (e.g. OIDC or WeCom).
+  # Default is true.
+  passwordLoginEnabled: true
   # Login access token lifetime, in hours. Values <= 0 fall back to 12 hours.
   # Applies to password login, OIDC login, and WeCom login sessions.
   tokenTTLHours: 12

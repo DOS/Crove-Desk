@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -139,9 +141,10 @@ func TestNewServerExposesPublicConfig(t *testing.T) {
 	var body struct {
 		Success bool `json:"success"`
 		Data    struct {
-			Language      string `json:"language"`
-			WxWorkEnabled bool   `json:"wxworkEnabled"`
-			OIDCEnabled   bool   `json:"oidcEnabled"`
+			Language             string `json:"language"`
+			PasswordLoginEnabled bool   `json:"passwordLoginEnabled"`
+			WxWorkEnabled        bool   `json:"wxworkEnabled"`
+			OIDCEnabled          bool   `json:"oidcEnabled"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
@@ -152,6 +155,9 @@ func TestNewServerExposesPublicConfig(t *testing.T) {
 	}
 	if body.Data.Language != "zh-CN" {
 		t.Fatalf("language=%q want zh-CN", body.Data.Language)
+	}
+	if !body.Data.PasswordLoginEnabled {
+		t.Fatalf("passwordLoginEnabled=false want true")
 	}
 	if !body.Data.WxWorkEnabled {
 		t.Fatalf("wxworkEnabled=false want true")
@@ -187,7 +193,69 @@ func TestNewServerDoesNotExposeLegacyAuthOptions(t *testing.T) {
 	}
 }
 
+func TestNewServerPasswordLoginDisabled(t *testing.T) {
+	disabled := false
+	config.SetCurrent(&config.Config{
+		Auth: config.AuthConfig{
+			PasswordLoginEnabled: &disabled,
+		},
+		Storage: config.StorageConfig{
+			Local: config.LocalStorageConfig{
+				Root:    "storage",
+				BaseURL: "/storage",
+			},
+		},
+	})
+
+	app, err := NewServer()
+	if err != nil {
+		t.Fatalf("NewServer() error = %v", err)
+	}
+
+	// 1. /api/config should return passwordLoginEnabled=false
+	rec := httptest.NewRecorder()
+	app.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/config", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d want %d", rec.Code, http.StatusOK)
+	}
+	var configBody struct {
+		Data struct {
+			PasswordLoginEnabled bool `json:"passwordLoginEnabled"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &configBody); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if configBody.Data.PasswordLoginEnabled {
+		t.Fatalf("expected passwordLoginEnabled=false, got true")
+	}
+
+	// 2. /api/auth/login should be rejected
+	rec = httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"admin","password":"secret"}`))
+	req.Header.Set("Content-Type", "application/json")
+	app.ServeHTTP(rec, req)
+
+	var loginBody struct {
+		Success bool `json:"success"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &loginBody); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if loginBody.Success {
+		t.Fatalf("expected login failure when password login is disabled")
+	}
+}
+
 func TestNewServerSeparatesAPIStaticAndSPA(t *testing.T) {
+	for _, rootDir := range []string{"web/out", "../web/out", "../../web/out"} {
+		_ = os.MkdirAll(rootDir, 0o755)
+		_ = os.WriteFile(filepath.Join(rootDir, "index.html"), []byte("<html>spa</html>"), 0o644)
+		defer func(d string) {
+			_ = os.Remove(filepath.Join(d, "index.html"))
+		}(rootDir)
+	}
+
 	config.SetCurrent(&config.Config{
 		Storage: config.StorageConfig{
 			Local: config.LocalStorageConfig{
