@@ -112,7 +112,7 @@ export function WorkspaceSwitcher({
       await switchOrganization(orgId)
       setActiveOrgId(orgId)
       toast.success("Switched organization successfully")
-      window.location.reload()
+      window.location.href = "/dashboard"
     } catch {
       toast.error("Failed to switch organization")
     } finally {
@@ -279,7 +279,7 @@ export function WorkspaceSwitcher({
         onCreated={(newOrg) => {
           loadOrgs()
           setActiveOrgId(newOrg.id)
-          window.location.reload()
+          window.location.href = "/dashboard"
         }}
       />
 
