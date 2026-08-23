@@ -2,10 +2,14 @@ package config
 
 import (
 	"agent-desk/internal/pkg/enums"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/viper"
+	"github.com/subosito/gotenv"
 )
 
 type Config struct {
@@ -225,20 +229,113 @@ type WebhookConfig struct {
 }
 
 func Load(path string) (*Config, error) {
+	loadDotEnv(path)
+
 	v := viper.New()
-	v.SetConfigFile(path)
-	v.SetConfigType("yaml")
+	bindConfigDefaults(v)
+
+	if strings.TrimSpace(path) != "" {
+		v.SetConfigFile(path)
+		v.SetConfigType("yaml")
+	}
+
 	v.SetEnvPrefix("AGENT_DESK")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
+	bindEnvironmentAliases(v)
 
-	if err := v.ReadInConfig(); err != nil {
-		return nil, err
+	if strings.TrimSpace(path) != "" {
+		if err := v.ReadInConfig(); err != nil {
+			var configFileNotFoundError viper.ConfigFileNotFoundError
+			if !os.IsNotExist(err) && !errors.As(err, &configFileNotFoundError) {
+				return nil, err
+			}
+		}
 	}
 
 	cfg := &Config{}
 	if err := v.Unmarshal(cfg); err != nil {
 		return nil, err
 	}
+	normalizeLoadedConfig(cfg)
 	return cfg, nil
+}
+
+func loadDotEnv(configPath string) {
+	if envFile := os.Getenv("AGENT_DESK_ENV_FILE"); envFile != "" {
+		_ = gotenv.Load(envFile)
+		return
+	}
+	if envFile := os.Getenv("ENV_FILE"); envFile != "" {
+		_ = gotenv.Load(envFile)
+		return
+	}
+	_ = gotenv.Load(".env")
+	if configPath != "" {
+		dir := filepath.Dir(configPath)
+		if dir != "." && dir != "" {
+			_ = gotenv.Load(filepath.Join(dir, ".env"))
+		}
+	}
+}
+
+func bindConfigDefaults(v *viper.Viper) {
+	v.SetDefault("language", "zh-CN")
+	v.SetDefault("server.port", 8083)
+	v.SetDefault("server.cors.allowedOrigins", []string{})
+	v.SetDefault("db.type", "sqlite")
+	v.SetDefault("db.dsn", "file:./data/app.db?_busy_timeout=5000")
+	v.SetDefault("db.maxIdleConns", 5)
+	v.SetDefault("db.maxOpenConns", 20)
+	v.SetDefault("db.connMaxIdleTimeSeconds", 300)
+	v.SetDefault("db.connMaxLifetimeSeconds", 1800)
+	v.SetDefault("logger.level", "info")
+	v.SetDefault("logger.format", "text")
+	v.SetDefault("logger.addSource", false)
+	v.SetDefault("auth.tokenTTLHours", 12)
+	v.SetDefault("auth.maxFailedAttempts", 5)
+	v.SetDefault("auth.credentialLockMinute", 15)
+	v.SetDefault("customerSession.ttlMinutes", 120)
+	v.SetDefault("customerSession.refreshThresholdMinutes", 30)
+	v.SetDefault("storage.default", "local")
+	v.SetDefault("storage.maxUploadSizeMB", 20)
+	v.SetDefault("storage.local.root", "data/storage")
+	v.SetDefault("storage.local.baseUrl", "/storage")
+	v.SetDefault("vectorDB.type", "qdrant")
+	v.SetDefault("vectorDB.qdrant.host", "127.0.0.1")
+	v.SetDefault("vectorDB.qdrant.grpcPort", 6334)
+	v.SetDefault("mcp.enabled", true)
+}
+
+func bindEnvironmentAliases(v *viper.Viper) {
+	_ = v.BindEnv("server.port", "PORT", "SERVER_PORT", "AGENT_DESK_SERVER_PORT")
+	_ = v.BindEnv("db.type", "DATABASE_TYPE", "DB_TYPE", "AGENT_DESK_DB_TYPE")
+	_ = v.BindEnv("db.dsn", "DATABASE_URL", "DB_DSN", "AGENT_DESK_DB_DSN")
+	_ = v.BindEnv("auth.passwordLoginEnabled", "PASSWORD_LOGIN_ENABLED", "AGENT_DESK_AUTH_PASSWORDLOGINENABLED")
+	_ = v.BindEnv("auth.tokenTTLHours", "AUTH_TOKEN_TTL_HOURS", "AGENT_DESK_AUTH_TOKENTTLHOURS")
+	_ = v.BindEnv("customerSession.secret", "CUSTOMER_SESSION_SECRET", "SESSION_SECRET", "JWT_SECRET", "AGENT_DESK_CUSTOMERSESSION_SECRET")
+	_ = v.BindEnv("storage.default", "STORAGE_DEFAULT", "STORAGE_TYPE", "AGENT_DESK_STORAGE_DEFAULT")
+	_ = v.BindEnv("storage.local.root", "STORAGE_LOCAL_ROOT", "AGENT_DESK_STORAGE_LOCAL_ROOT")
+	_ = v.BindEnv("storage.local.baseUrl", "STORAGE_LOCAL_BASE_URL", "AGENT_DESK_STORAGE_LOCAL_BASEURL")
+	_ = v.BindEnv("vectorDB.type", "VECTOR_DB_TYPE", "AGENT_DESK_VECTORDB_TYPE")
+	_ = v.BindEnv("vectorDB.qdrant.host", "QDRANT_HOST", "AGENT_DESK_VECTORDB_QDRANT_HOST")
+	_ = v.BindEnv("vectorDB.qdrant.grpcPort", "QDRANT_GRPC_PORT", "QDRANT_PORT", "AGENT_DESK_VECTORDB_QDRANT_GRPCPORT")
+	_ = v.BindEnv("vectorDB.qdrant.apiKey", "QDRANT_API_KEY", "AGENT_DESK_VECTORDB_QDRANT_APIKEY")
+	_ = v.BindEnv("oidc.enabled", "OIDC_ENABLED", "AGENT_DESK_OIDC_ENABLED")
+	_ = v.BindEnv("oidc.issuer", "OIDC_ISSUER", "AGENT_DESK_OIDC_ISSUER")
+	_ = v.BindEnv("oidc.clientId", "OIDC_CLIENT_ID", "CUSTOM_OAUTH_CLIENT_ID", "AGENT_DESK_OIDC_CLIENTID")
+	_ = v.BindEnv("oidc.clientSecret", "OIDC_CLIENT_SECRET", "CUSTOM_OAUTH_CLIENT_SECRET", "AGENT_DESK_OIDC_CLIENTSECRET")
+	_ = v.BindEnv("oidc.redirectUrl", "OIDC_REDIRECT_URL", "CUSTOM_OAUTH_REDIRECT_URI", "AGENT_DESK_OIDC_REDIRECTURL")
+	_ = v.BindEnv("webhook.orgSyncSecret", "ORG_SYNC_SECRET", "WEBHOOK_SECRET", "AGENT_DESK_WEBHOOK_ORGSYNCSECRET")
+}
+
+func normalizeLoadedConfig(cfg *Config) {
+	if cfg == nil {
+		return
+	}
+	if cfg.DB.Type == "sqlite" && (strings.HasPrefix(cfg.DB.DSN, "postgres://") || strings.HasPrefix(cfg.DB.DSN, "postgresql://")) {
+		cfg.DB.Type = "postgres"
+	} else if cfg.DB.Type == "sqlite" && strings.Contains(cfg.DB.DSN, "@tcp(") {
+		cfg.DB.Type = "mysql"
+	}
 }
