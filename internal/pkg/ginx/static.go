@@ -86,6 +86,19 @@ func NewSPAHandler(root string, embeddedFS fs.FS, embeddedRoot string, options D
 	return DirHandler(http.FS(spaFS), options)
 }
 
+func tryOpenFile(fileSystem http.FileSystem, filePath string) (http.File, os.FileInfo, bool) {
+	file, err := fileSystem.Open(filePath)
+	if err != nil {
+		return nil, nil, false
+	}
+	info, err := file.Stat()
+	if err != nil || info.IsDir() {
+		_ = file.Close()
+		return nil, nil, false
+	}
+	return file, info, true
+}
+
 func DirHandler(fileSystem http.FileSystem, options DirOptions) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		name := path.Clean(ctx.Request.URL.Path)
@@ -104,25 +117,28 @@ func DirHandler(fileSystem http.FileSystem, options DirOptions) gin.HandlerFunc 
 			if info.IsDir() {
 				if options.IndexName != "" {
 					indexName := path.Join(name, options.IndexName)
-					indexFile, err := fileSystem.Open(indexName)
-					if err == nil {
+					if indexFile, indexInfo, ok := tryOpenFile(fileSystem, indexName); ok {
 						defer indexFile.Close()
-						indexInfo, statErr := indexFile.Stat()
-						if statErr != nil {
-							ctx.AbortWithStatus(http.StatusInternalServerError)
-							return
-						}
-						if !indexInfo.IsDir() {
+						serveFile(ctx, indexName, indexFile, indexInfo)
+						return
+					}
+				}
+				// Support Next.js static export where directory name matches page html (e.g. /dashboard -> /dashboard.html)
+				htmlName := strings.TrimRight(name, "/") + ".html"
+				if htmlFile, htmlInfo, ok := tryOpenFile(fileSystem, htmlName); ok {
+					defer htmlFile.Close()
+					serveFile(ctx, htmlName, htmlFile, htmlInfo)
+					return
+				}
+				if !options.ShowList {
+					if options.SPA && options.IndexName != "" {
+						indexName := "/" + options.IndexName
+						if indexFile, indexInfo, ok := tryOpenFile(fileSystem, indexName); ok {
+							defer indexFile.Close()
 							serveFile(ctx, indexName, indexFile, indexInfo)
 							return
 						}
 					}
-					if err != nil && !os.IsNotExist(err) {
-						ctx.AbortWithStatus(http.StatusInternalServerError)
-						return
-					}
-				}
-				if !options.ShowList {
 					ctx.AbortWithStatus(http.StatusNotFound)
 					return
 				}
@@ -135,25 +151,21 @@ func DirHandler(fileSystem http.FileSystem, options DirOptions) gin.HandlerFunc 
 			return
 		}
 
+		// Try name.html (for sub-routes like /dashboard/login -> /dashboard/login.html)
+		htmlName := strings.TrimRight(name, "/") + ".html"
+		if htmlFile, htmlInfo, ok := tryOpenFile(fileSystem, htmlName); ok {
+			defer htmlFile.Close()
+			serveFile(ctx, htmlName, htmlFile, htmlInfo)
+			return
+		}
+
 		if options.SPA && options.IndexName != "" {
 			indexName := "/" + options.IndexName
-			indexFile, err := fileSystem.Open(indexName)
-			if err != nil {
-				if os.IsNotExist(err) {
-					ctx.AbortWithStatus(http.StatusNotFound)
-					return
-				}
-				ctx.AbortWithStatus(http.StatusInternalServerError)
+			if indexFile, indexInfo, ok := tryOpenFile(fileSystem, indexName); ok {
+				defer indexFile.Close()
+				serveFile(ctx, indexName, indexFile, indexInfo)
 				return
 			}
-			defer indexFile.Close()
-			indexInfo, err := indexFile.Stat()
-			if err != nil {
-				ctx.AbortWithStatus(http.StatusInternalServerError)
-				return
-			}
-			serveFile(ctx, indexName, indexFile, indexInfo)
-			return
 		}
 
 		ctx.AbortWithStatus(http.StatusNotFound)

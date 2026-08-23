@@ -212,6 +212,7 @@ type WxWorkConfig struct {
 }
 
 type WebhookConfig struct {
+	OrgSyncSecret    string `yaml:"orgSyncSecret"`
 	DOSOrgSyncSecret string `yaml:"dosOrgSyncSecret"`
 }
 

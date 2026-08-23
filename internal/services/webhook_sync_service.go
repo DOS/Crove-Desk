@@ -25,7 +25,10 @@ func newWebhookSyncService() *webhookSyncService {
 type webhookSyncService struct{}
 
 func (s *webhookSyncService) VerifySignature(payload []byte, signature string) bool {
-	secret := strings.TrimSpace(config.Current().Webhook.DOSOrgSyncSecret)
+	secret := strings.TrimSpace(config.Current().Webhook.OrgSyncSecret)
+	if secret == "" {
+		secret = strings.TrimSpace(config.Current().Webhook.DOSOrgSyncSecret)
+	}
 	if secret == "" {
 		secret = strings.TrimSpace(config.Current().OIDC.ClientSecret)
 	}
@@ -48,7 +51,7 @@ func (s *webhookSyncService) VerifySignature(payload []byte, signature string) b
 	return hmac.Equal([]byte(sig), []byte(expected))
 }
 
-func (s *webhookSyncService) HandleDOSOrgSync(req request.DOSOrgSyncWebhookRequest) error {
+func (s *webhookSyncService) HandleOrgSync(req request.OrgSyncWebhookRequest) error {
 	event := strings.TrimSpace(req.Event)
 	data := req.Data
 
@@ -71,7 +74,11 @@ func (s *webhookSyncService) HandleDOSOrgSync(req request.DOSOrgSyncWebhookReque
 	}
 }
 
-func (s *webhookSyncService) handleOrgUpsert(data request.DOSOrgSyncEventData) error {
+func (s *webhookSyncService) HandleDOSOrgSync(req request.DOSOrgSyncWebhookRequest) error {
+	return s.HandleOrgSync(req)
+}
+
+func (s *webhookSyncService) handleOrgUpsert(data request.OrgSyncEventData) error {
 	now := time.Now()
 	orgCode := strings.TrimSpace(data.OrgID)
 	orgName := strings.TrimSpace(data.OrgName)
@@ -94,10 +101,10 @@ func (s *webhookSyncService) handleOrgUpsert(data request.DOSOrgSyncEventData) e
 				AuditFields: models.AuditFields{
 					CreatedAt:      now,
 					CreateUserID:   0,
-					CreateUserName: "dos-webhook",
+					CreateUserName: "webhook-sync",
 					UpdatedAt:      now,
 					UpdateUserID:   0,
-					UpdateUserName: "dos-webhook",
+					UpdateUserName: "webhook-sync",
 				},
 			}
 			return repositories.OrganizationRepository.Create(ctx.Tx, org)
@@ -107,7 +114,7 @@ func (s *webhookSyncService) handleOrgUpsert(data request.DOSOrgSyncEventData) e
 			"name":             orgName,
 			"status":           enums.StatusOk,
 			"update_user_id":   0,
-			"update_user_name": "dos-webhook",
+			"update_user_name": "webhook-sync",
 			"updated_at":       now,
 		}
 		if plan != "" {
@@ -127,7 +134,7 @@ func (s *webhookSyncService) handleOrgDelete(orgCode string) error {
 	})
 }
 
-func (s *webhookSyncService) handleMemberUpsert(data request.DOSOrgSyncEventData) error {
+func (s *webhookSyncService) handleMemberUpsert(data request.OrgSyncEventData) error {
 	now := time.Now()
 	orgCode := strings.TrimSpace(data.OrgID)
 	userSubject := strings.TrimSpace(data.UserID)
@@ -153,10 +160,10 @@ func (s *webhookSyncService) handleMemberUpsert(data request.DOSOrgSyncEventData
 				AuditFields: models.AuditFields{
 					CreatedAt:      now,
 					CreateUserID:   0,
-					CreateUserName: "dos-webhook",
+					CreateUserName: "webhook-sync",
 					UpdatedAt:      now,
 					UpdateUserID:   0,
-					UpdateUserName: "dos-webhook",
+					UpdateUserName: "webhook-sync",
 				},
 			}
 			if err := repositories.OrganizationRepository.Create(ctx.Tx, org); err != nil {
@@ -177,7 +184,7 @@ func (s *webhookSyncService) handleMemberUpsert(data request.DOSOrgSyncEventData
 		if user == nil {
 			username := userEmail
 			if username == "" {
-				username = "dos_" + userSubject
+				username = "u_" + userSubject
 			}
 			user = &models.User{
 				Username: username,
@@ -188,10 +195,10 @@ func (s *webhookSyncService) handleMemberUpsert(data request.DOSOrgSyncEventData
 				AuditFields: models.AuditFields{
 					CreatedAt:      now,
 					CreateUserID:   0,
-					CreateUserName: "dos-webhook",
+					CreateUserName: "webhook-sync",
 					UpdatedAt:      now,
 					UpdateUserID:   0,
-					UpdateUserName: "dos-webhook",
+					UpdateUserName: "webhook-sync",
 				},
 			}
 			if err := repositories.UserRepository.Create(ctx.Tx, user); err != nil {
@@ -202,7 +209,7 @@ func (s *webhookSyncService) handleMemberUpsert(data request.DOSOrgSyncEventData
 					UserID:         user.ID,
 					Provider:       enums.ThirdProviderOIDC,
 					ProviderUserID: userSubject,
-					ProviderName:   "DOS ID",
+					ProviderName:   "OIDC",
 					Status:         enums.StatusOk,
 					AuditFields: models.AuditFields{
 						CreatedAt:      now,
@@ -253,7 +260,7 @@ func (s *webhookSyncService) handleMemberUpsert(data request.DOSOrgSyncEventData
 	})
 }
 
-func (s *webhookSyncService) handleMemberRemove(data request.DOSOrgSyncEventData) error {
+func (s *webhookSyncService) handleMemberRemove(data request.OrgSyncEventData) error {
 	orgCode := strings.TrimSpace(data.OrgID)
 	userSubject := strings.TrimSpace(data.UserID)
 	userEmail := strings.TrimSpace(strings.ToLower(data.UserEmail))

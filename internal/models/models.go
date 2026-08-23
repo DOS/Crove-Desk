@@ -167,7 +167,7 @@ type AuditFields struct {
 // Organization 组织 / 工作区（Tenant / Workspace）。
 type Organization struct {
 	ID     int64        `gorm:"primaryKey;autoIncrement"`
-	Code   string       `gorm:"type:varchar(100);not null;uniqueIndex:uk_org_code"` // 组织唯一编码 / Slug，如 org_dos_123456
+	Code   string       `gorm:"type:varchar(100);not null;uniqueIndex:uk_org_code"` // 组织唯一编码 / Slug，如 org_123456
 	Name   string       `gorm:"type:varchar(200);not null;default:''"`              // 组织名称
 	Logo   string       `gorm:"type:varchar(255);not null;default:''"`              // 组织 Logo URL
 	Plan   string       `gorm:"type:varchar(50);not null;default:'free'"`           // 订阅计划（free, pro, enterprise）
