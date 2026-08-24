@@ -1369,6 +1369,7 @@
     "target": "Open In",
     "targetSelf": "Current window",
     "targetBlank": "New window",
+    "visible": "Visible",
     "enabled": "Enabled",
     "actions": "Actions",
     "titlePlaceholder": "For example: Help Center",

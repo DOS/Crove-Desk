@@ -156,16 +156,16 @@ export const dashboardNavSections: DashboardNavSectionConfig[] = [
         requiredPermission: "supportCommunity.view",
       },
       {
-        titleKey: "nav.supportConfig",
-        url: "/dashboard/support/config",
-        icon: <SettingsIcon />,
-        requiredPermission: "supportConfig.view",
-      },
-      {
         titleKey: "nav.supportCommunityCategories",
         url: "/dashboard/support/community-categories",
         icon: <TagsIcon />,
         requiredPermission: "supportCommunity.view",
+      },
+      {
+        titleKey: "nav.supportConfig",
+        url: "/dashboard/support/config",
+        icon: <SettingsIcon />,
+        requiredPermission: "supportConfig.view",
       },
     ],
   },

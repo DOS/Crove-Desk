@@ -1369,6 +1369,7 @@
     "target": "打开方式",
     "targetSelf": "当前窗口",
     "targetBlank": "新窗口",
+    "visible": "是否显示",
     "enabled": "启用",
     "actions": "操作",
     "titlePlaceholder": "例如：帮助中心",
