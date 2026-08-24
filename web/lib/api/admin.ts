@@ -2374,6 +2374,45 @@ export type AdminPostDetail = {
   comments: AdminComment[]
 }
 
+export type SupportNavigationMenuItem = {
+  id: string
+  title: string
+  url: string
+  openInNewWindow: boolean
+  visible: boolean
+  sortNo: number
+  children?: SupportNavigationMenuItem[]
+}
+
+export type DashboardSupportConfig = {
+  navigationMenu: SupportNavigationMenuItem[]
+}
+
+export function fetchSupportConfigAdmin() {
+  return request<DashboardSupportConfig>("/api/dashboard/support/config")
+}
+
+export function saveSupportConfigAdmin(payload: Partial<DashboardSupportConfig>) {
+  return request<DashboardSupportConfig>("/api/dashboard/support/config/save", {
+    method: "POST",
+    body: JSON.stringify({
+      ...payload,
+      navigationMenu: payload.navigationMenu?.map(({ id, title, url, openInNewWindow, visible, children }) => ({
+        id,
+        title,
+        url,
+        openInNewWindow,
+        visible,
+        children,
+      })),
+    }),
+  })
+}
+
+export function updateSupportNavigationMenuAdmin(items: SupportNavigationMenuItem[]) {
+  return saveSupportConfigAdmin({ navigationMenu: items })
+}
+
 export function fetchSupportHelpPagesAdmin(query?: Record<string, string | number | undefined>) {
   return request<PageResult<AdminSupportHelpPage>>(`/api/dashboard/support-help-page/list${toQueryString(query)}`)
 }

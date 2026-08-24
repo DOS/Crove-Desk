@@ -2,53 +2,29 @@
 
 import { useState, type ReactNode } from "react"
 import Link from "next/link"
-import { BookOpenIcon, HomeIcon, MenuIcon, MessageSquareTextIcon, XIcon } from "lucide-react"
+import { MenuIcon, XIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useI18n } from "@/i18n/provider"
+import type { SupportNavigationMenuItem } from "@/lib/api/support-config"
 import { cn } from "@/lib/utils"
-import { type SupportHeaderSection } from "./support-header"
 
 type SupportMobileMenuProps = {
-  section: SupportHeaderSection
+  navigationItems: SupportNavigationMenuItem[]
+  pathname: string
   secondary?: {
     title: string
     content: ReactNode
   }
 }
 
-const siteNavItems: Array<{
-  section: SupportHeaderSection
-  href: string
-  labelKey: string
-  icon: typeof HomeIcon
-}> = [
-  {
-    section: "home",
-    href: "/support",
-    labelKey: "supportPublic.nav.home",
-    icon: HomeIcon,
-  },
-  {
-    section: "help",
-    href: "/support/help",
-    labelKey: "supportPublic.nav.help",
-    icon: BookOpenIcon,
-  },
-  {
-    section: "community",
-    href: "/support/community/posts",
-    labelKey: "supportPublic.nav.community",
-    icon: MessageSquareTextIcon,
-  },
-]
-
-export function SupportMobileMenu({ section, secondary }: SupportMobileMenuProps) {
+export function SupportMobileMenu({ navigationItems, pathname, secondary }: SupportMobileMenuProps) {
   const t = useI18n()
   const [open, setOpen] = useState(false)
   const triggerClassName = secondary ? "xl:hidden" : "sm:hidden"
+  const isActive = (href: string) => href === "/support" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`)
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -89,21 +65,35 @@ export function SupportMobileMenu({ section, secondary }: SupportMobileMenuProps
               {t("supportPublic.nav.siteNavigation")}
             </div>
             <nav className="mt-2 grid gap-1" aria-label={t("supportPublic.nav.siteNavigation")}>
-              {siteNavItems.map((item) => {
-                const Icon = item.icon
-                const active = item.section === section
+              {navigationItems.map((item) => {
+                const active = isActive(item.url)
+                const external = item.openInNewWindow || /^https?:\/\//i.test(item.url)
+                const className = cn(
+                  "flex h-9 items-center rounded-md px-2.5 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  active ? "bg-primary/10 text-primary" : "text-muted-foreground"
+                )
+                if (external) {
+                  return (
+                    <a
+                      key={item.id}
+                      href={item.url}
+                      target={item.openInNewWindow ? "_blank" : undefined}
+                      rel={item.openInNewWindow ? "noreferrer" : undefined}
+                      onClick={() => setOpen(false)}
+                      className={className}
+                    >
+                      <span className="truncate">{item.title}</span>
+                    </a>
+                  )
+                }
                 return (
                   <Link
-                    key={item.section}
-                    href={item.href}
+                    key={item.id}
+                    href={item.url}
                     onClick={() => setOpen(false)}
-                    className={cn(
-                      "flex h-9 items-center gap-2 rounded-md px-2.5 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      active ? "bg-primary/10 text-primary" : "text-muted-foreground"
-                    )}
+                    className={className}
                   >
-                    <Icon className="size-4 shrink-0" />
-                    <span>{t(item.labelKey)}</span>
+                    <span className="truncate">{item.title}</span>
                   </Link>
                 )
               })}

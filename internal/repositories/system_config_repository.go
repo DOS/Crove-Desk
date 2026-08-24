@@ -39,6 +39,19 @@ func (r *systemConfigRepository) Find(db *gorm.DB, cnd *sqls.Cnd) (list []models
 	return
 }
 
+func (r *systemConfigRepository) FindByGroupCode(db *gorm.DB, groupCode string) (list []models.SystemConfig) {
+	db.Where("group_code = ?", groupCode).Find(&list)
+	return
+}
+
+func (r *systemConfigRepository) FindByGroupAndKey(db *gorm.DB, groupCode, key string) *models.SystemConfig {
+	ret := &models.SystemConfig{}
+	if err := db.Where("group_code = ? and config_key = ?", groupCode, key).Take(ret).Error; err != nil {
+		return nil
+	}
+	return ret
+}
+
 func (r *systemConfigRepository) FindOne(db *gorm.DB, cnd *sqls.Cnd) *models.SystemConfig {
 	ret := &models.SystemConfig{}
 	if err := cnd.FindOne(db, &ret); err != nil {

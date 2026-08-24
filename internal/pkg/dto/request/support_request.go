@@ -117,3 +117,12 @@ type SupportHelpPageFeedbackRequest struct {
 type DeleteByIDRequest struct {
 	ID int64 `json:"id"`
 }
+
+type SupportNavigationMenuItemRequest struct {
+	ID              string                             `json:"id"`
+	Title           string                             `json:"title"`
+	URL             string                             `json:"url"`
+	OpenInNewWindow bool                               `json:"openInNewWindow"`
+	Visible         *bool                              `json:"visible"`
+	Children        []SupportNavigationMenuItemRequest `json:"children"`
+}

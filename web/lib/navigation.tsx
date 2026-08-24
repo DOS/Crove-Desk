@@ -12,6 +12,7 @@ import {
   MessageSquareWarningIcon,
   MessageSquareCodeIcon,
   MessageSquareMoreIcon,
+  SettingsIcon,
   ShieldCheckIcon,
   TagsIcon,
   UserCogIcon,
@@ -153,6 +154,12 @@ export const dashboardNavSections: DashboardNavSectionConfig[] = [
         url: "/dashboard/support/community",
         icon: <CircleHelpIcon />,
         requiredPermission: "supportCommunity.view",
+      },
+      {
+        titleKey: "nav.supportConfig",
+        url: "/dashboard/support/config",
+        icon: <SettingsIcon />,
+        requiredPermission: "supportConfig.view",
       },
       {
         titleKey: "nav.supportCommunityCategories",

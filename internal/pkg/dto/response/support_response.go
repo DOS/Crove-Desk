@@ -2,11 +2,35 @@ package response
 
 import "agent-desk/internal/pkg/enums"
 
+type ConfigFieldError struct {
+	Path    string `json:"path"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
 type SupportUserResponse struct {
 	ID       int64          `json:"id"`
 	Name     string         `json:"name"`
 	Email    string         `json:"email"`
 	UserType enums.UserType `json:"userType"`
+}
+
+type SupportNavigationMenuItemResponse struct {
+	ID              string                              `json:"id"`
+	Title           string                              `json:"title"`
+	URL             string                              `json:"url"`
+	OpenInNewWindow bool                                `json:"openInNewWindow"`
+	Visible         bool                                `json:"visible"`
+	SortNo          int                                 `json:"sortNo"`
+	Children        []SupportNavigationMenuItemResponse `json:"children,omitempty"`
+}
+
+type PublicSupportConfigResponse struct {
+	NavigationMenu []SupportNavigationMenuItemResponse `json:"navigationMenu"`
+}
+
+type DashboardSupportConfigResponse struct {
+	NavigationMenu []SupportNavigationMenuItemResponse `json:"navigationMenu"`
 }
 
 type SupportHelpPageResponse struct {

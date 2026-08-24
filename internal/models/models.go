@@ -108,9 +108,9 @@ type Migration struct {
 // SystemConfig 运营侧系统配置项；具体有哪些 config_key 由业务代码约定，表内一行一项。
 type SystemConfig struct {
 	ID          int64        `gorm:"primaryKey;autoIncrement"`
-	ConfigKey   string       `gorm:"column:config_key;type:varchar(128);not null;uniqueIndex"`
+	ConfigKey   string       `gorm:"column:config_key;type:varchar(128);not null;uniqueIndex:uk_system_config_group_key"`
 	ConfigValue string       `gorm:"column:config_value;type:text;not null"`
-	GroupCode   string       `gorm:"column:group_code;type:varchar(64);not null;default:'';index"`
+	GroupCode   string       `gorm:"column:group_code;type:varchar(64);not null;default:'';index;uniqueIndex:uk_system_config_group_key"`
 	Title       string       `gorm:"type:varchar(200);not null;default:''"`
 	Description string       `gorm:"type:text"`
 	Status      enums.Status `gorm:"type:int;not null;default:0;index"`

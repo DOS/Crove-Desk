@@ -52,6 +52,7 @@ func registerApiMessageRoutes(group *gin.RouterGroup) {
 }
 
 func registerApiSupportRoutes(group *gin.RouterGroup) {
+	group.GET("/config", api.SupportConfigGetConfig)
 	group.POST("/auth/register", api.SupportAuthPostRegister)
 	group.GET("/me", api.SupportGetMe)
 	group.Any("/help-page/list", api.SupportHelpPageAnyList)
@@ -70,6 +71,11 @@ func registerApiSupportRoutes(group *gin.RouterGroup) {
 	group.POST("/community/comments/delete", api.CommentPostDelete)
 	group.POST("/community/comments/report", api.CommentPostReport)
 	group.POST("/community/reactions/toggle", api.ReactionPostToggle)
+}
+
+func registerDashboardSupportConfigRoutes(group *gin.RouterGroup) {
+	group.GET("", dashboard.SupportConfigGetConfig)
+	group.POST("/save", dashboard.SupportConfigPostSave)
 }
 
 func registerDashboardDashboardRoutes(group *gin.RouterGroup) {

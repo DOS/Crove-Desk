@@ -186,6 +186,7 @@ func addRouter(app *gin.Engine) {
 	registerDashboardKnowledgeFAQRoutes(dashboardGroup.Group("/knowledge-faq"))
 	registerDashboardKnowledgeRetrieveRoutes(dashboardGroup.Group("/knowledge-retrieve"))
 	registerDashboardKnowledgeRetrieveLogRoutes(dashboardGroup.Group("/knowledge-retrieve-log"))
+	registerDashboardSupportConfigRoutes(dashboardGroup.Group("/support/config"))
 	registerDashboardSupportHelpPageRoutes(dashboardGroup.Group("/support-help-page"))
 	registerDashboardCommunityCategoryRoutes(dashboardGroup.Group("/support-community/categories"))
 	registerDashboardCommunityPostRoutes(dashboardGroup.Group("/support-community/posts"))

@@ -1,18 +1,15 @@
 "use client"
 
 import {
-  BookOpenIcon,
   ChevronDownIcon,
-  HomeIcon,
   LoaderCircleIcon,
   LogOutIcon,
-  MessageSquareTextIcon,
   PencilIcon,
   UserRoundIcon,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 
 import { useSupportAuth } from "@/app/(support)/support/_components/support-auth-provider"
 import { SupportMobileMenu } from "@/app/(support)/support/_components/support-mobile-menu"
@@ -29,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useI18n } from "@/i18n/provider"
+import { fetchSupportConfig, type SupportNavigationMenuItem } from "@/lib/api/support-config"
 import { cn } from "@/lib/utils"
 
 export type SupportHeaderSection = "home" | "help" | "community" | "login"
@@ -41,6 +39,14 @@ const sectionTitleKey: Record<SupportHeaderSection, string> = {
 }
 
 const supportNavItemClass = "h-8 rounded-md px-2.5 text-sm"
+
+function defaultSupportNavigationMenu(t: ReturnType<typeof useI18n>): SupportNavigationMenuItem[] {
+  return [
+    { id: "home", title: t("supportPublic.nav.home"), url: "/support", openInNewWindow: false, visible: true, sortNo: 10 },
+    { id: "help", title: t("supportPublic.nav.help"), url: "/support/help", openInNewWindow: false, visible: true, sortNo: 20 },
+    { id: "community", title: t("supportPublic.nav.community"), url: "/support/community/posts", openInNewWindow: false, visible: true, sortNo: 30 },
+  ]
+}
 
 export function SupportHeader({
   section,
@@ -58,6 +64,26 @@ export function SupportHeader({
 }) {
   const t = useI18n()
   const pathname = usePathname()
+  const fallbackNavigation = useMemo(() => defaultSupportNavigationMenu(t), [t])
+  const [navigationItems, setNavigationItems] = useState<SupportNavigationMenuItem[]>(fallbackNavigation)
+
+  useEffect(() => {
+    let ignore = false
+    void fetchSupportConfig()
+      .then((config) => {
+        if (!ignore && config.navigationMenu.length > 0) {
+          setNavigationItems(config.navigationMenu)
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setNavigationItems(fallbackNavigation)
+        }
+      })
+    return () => {
+      ignore = true
+    }
+  }, [fallbackNavigation])
 
   const isActive = (href: string) => {
     return href === "/support"
@@ -73,7 +99,7 @@ export function SupportHeader({
       )}
     >
       <div className="mx-auto flex h-14 max-w-[var(--support-docs-max-width)] items-center gap-3 px-4 sm:px-6 md:px-8 xl:px-6">
-        <SupportMobileMenu section={section} secondary={mobileNavigation} />
+        <SupportMobileMenu navigationItems={navigationItems} pathname={pathname} secondary={mobileNavigation} />
         {leading}
         <Link
           href="/support"
@@ -88,45 +114,13 @@ export function SupportHeader({
           className="ml-auto hidden items-center gap-1 sm:flex"
           aria-label={t("supportPublic.home.badge")}
         >
-          <Link
-            className={cn(
-              buttonVariants({
-                variant: isActive("/support") ? "secondary" : "ghost",
-                size: "sm",
-              }),
-              supportNavItemClass
-            )}
-            href="/support"
-          >
-            <HomeIcon />
-            {t("supportPublic.nav.home")}
-          </Link>
-          <Link
-            className={cn(
-              buttonVariants({
-                variant: isActive("/support/help") ? "secondary" : "ghost",
-                size: "sm",
-              }),
-              supportNavItemClass
-            )}
-            href="/support/help"
-          >
-            <BookOpenIcon />
-            {t("supportPublic.nav.help")}
-          </Link>
-          <Link
-            className={cn(
-              buttonVariants({
-                variant: isActive("/support/community") ? "secondary" : "ghost",
-                size: "sm",
-              }),
-              supportNavItemClass
-            )}
-            href="/support/community/posts"
-          >
-            <MessageSquareTextIcon />
-            {t("supportPublic.nav.community")}
-          </Link>
+          {navigationItems.map((item) => (
+            <SupportNavigationLink
+              key={item.id}
+              item={item}
+              active={isActive(item.url)}
+            />
+          ))}
         </nav>
         <div className="ml-auto flex items-center gap-1 sm:ml-4">
           <SupportAccountControl />
@@ -138,6 +132,37 @@ export function SupportHeader({
         </div>
       </div>
     </header>
+  )
+}
+
+function SupportNavigationLink({ item, active }: { item: SupportNavigationMenuItem; active: boolean }) {
+  const className = cn(
+    buttonVariants({
+      variant: active ? "secondary" : "ghost",
+      size: "sm",
+    }),
+    supportNavItemClass,
+    "max-w-36"
+  )
+  const content = <span className="truncate">{item.title}</span>
+
+  if (item.openInNewWindow || /^https?:\/\//i.test(item.url)) {
+    return (
+      <a
+        className={className}
+        href={item.url}
+        target={item.openInNewWindow ? "_blank" : undefined}
+        rel={item.openInNewWindow ? "noreferrer" : undefined}
+      >
+        {content}
+      </a>
+    )
+  }
+
+  return (
+    <Link className={className} href={item.url}>
+      {content}
+    </Link>
   )
 }
 
