@@ -1,4 +1,4 @@
-import { clearSession, writeSession, type AuthSession } from "@/lib/auth"
+import { clearSession, readSession, writeSession, type AuthSession } from "@/lib/auth"
 import { request } from "@/lib/api/client"
 
 export type LoginRequest = {
@@ -55,8 +55,14 @@ export async function updateProfile(payload: UpdateProfileRequest) {
     method: "POST",
     body: JSON.stringify(payload),
   })
-  writeSession(data)
-  return data
+  const stored = readSession()
+  const nextSession: AuthSession = {
+    ...data,
+    accessToken: data.accessToken || stored?.accessToken || "",
+    expiresAt: data.expiresAt || stored?.expiresAt,
+  }
+  writeSession(nextSession)
+  return nextSession
 }
 
 export function uploadProfileAvatar(file: File) {
