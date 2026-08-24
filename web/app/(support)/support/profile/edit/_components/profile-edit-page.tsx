@@ -2,17 +2,17 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import { useSupportAuth } from "@/app/(support)/support/_components/support-auth-provider"
 import { SupportPageContent, SupportPageShell } from "@/app/(support)/support/_components/support-page-shell"
 import { SupportFormField } from "@/app/(support)/support/_components/support-ui"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ImageInput } from "@/components/image-input"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useI18n } from "@/i18n/provider"
-import { updateProfile } from "@/lib/api/auth"
+import { updateProfile, uploadProfileAvatar } from "@/lib/api/auth"
 import { cn } from "@/lib/utils"
 
 export function SupportProfileEditPage() {
@@ -37,9 +37,6 @@ export function SupportProfileEditPage() {
     setAvatar(session.user.avatar || "")
     setEmail(session.user.email || "")
   }, [session])
-
-  const displayName = nickname.trim() || session?.user.username || ""
-  const fallback = useMemo(() => displayName.slice(0, 1).toUpperCase() || "U", [displayName])
 
   const submit = async () => {
     if (submitting) return
@@ -75,21 +72,11 @@ export function SupportProfileEditPage() {
             <p className="mt-1 text-sm text-muted-foreground">{t("supportPublic.profile.editDescription")}</p>
           </div>
           <div className="grid gap-5 p-5 sm:p-6">
-            <div className="flex items-center gap-3">
-              <Avatar className="size-16">
-                <AvatarImage src={avatar} alt={displayName} />
-                <AvatarFallback>{fallback}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 text-sm text-muted-foreground">
-                <p className="truncate font-medium text-foreground">{displayName || t("supportPublic.common.user")}</p>
-                <p>{t("supportPublic.profile.avatarPreview")}</p>
-              </div>
-            </div>
+            <SupportFormField label={t("supportPublic.profile.avatar")}>
+              <ImageInput value={avatar} onChange={setAvatar} upload={uploadProfileAvatar} placeholder={t("supportPublic.profile.avatarPlaceholder")} />
+            </SupportFormField>
             <SupportFormField label={t("supportPublic.profile.nickname")}>
               <Input value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder={t("supportPublic.profile.nicknamePlaceholder")} />
-            </SupportFormField>
-            <SupportFormField label={t("supportPublic.profile.avatar")}>
-              <Input value={avatar} onChange={(event) => setAvatar(event.target.value)} placeholder={t("supportPublic.profile.avatarPlaceholder")} />
             </SupportFormField>
             <SupportFormField label={t("supportPublic.profile.email")}>
               <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("supportPublic.profile.emailPlaceholder")} />

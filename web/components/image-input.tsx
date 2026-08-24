@@ -18,6 +18,7 @@ export type ImageInputProps = {
   prefix?: string
   placeholder?: string
   className?: string
+  upload?: (file: File, prefix?: string) => Promise<{ url: string }>
 }
 
 export function ImageInput({
@@ -29,6 +30,7 @@ export function ImageInput({
   prefix,
   placeholder,
   className,
+  upload = uploadAsset,
 }: ImageInputProps) {
   const t = useI18n()
   const [uploading, setUploading] = useState(false)
@@ -66,7 +68,7 @@ export function ImageInput({
 
     setUploading(true)
     try {
-      const result = await uploadAsset(file, prefix)
+      const result = await upload(file, prefix)
       onChange?.(result.url)
       toast.success(t("upload.imageUploaded"))
     } catch (error) {

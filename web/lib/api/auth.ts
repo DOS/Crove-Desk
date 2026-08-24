@@ -12,6 +12,10 @@ export type UpdateProfileRequest = {
   nickname: string
 }
 
+export type ProfileAvatarAsset = {
+  url: string
+}
+
 export async function loginWithPassword(payload: LoginRequest) {
   const data = await request<AuthSession>("/api/auth/login", {
     method: "POST",
@@ -53,6 +57,15 @@ export async function updateProfile(payload: UpdateProfileRequest) {
   })
   writeSession(data)
   return data
+}
+
+export function uploadProfileAvatar(file: File) {
+  const formData = new FormData()
+  formData.set("file", file)
+  return request<ProfileAvatarAsset>("/api/auth/profile/avatar/upload", {
+    method: "POST",
+    body: formData,
+  })
 }
 
 export async function logout() {
