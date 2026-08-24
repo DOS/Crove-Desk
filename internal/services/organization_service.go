@@ -141,6 +141,20 @@ func (s *organizationService) CreateOrganization(userID int64, req request.Organ
 		return nil, err
 	}
 
+	userEmail := ""
+	if user.Email != nil {
+		userEmail = *user.Email
+	}
+	WebhookSyncService.DispatchOutboundOrgEvent("org.created", request.OrgSyncEventData{
+		OrgID:     createdOrg.Code,
+		OrgName:   createdOrg.Name,
+		UserID:    user.Username,
+		UserEmail: userEmail,
+		UserName:  user.Nickname,
+		Role:      "OWNER",
+		Plan:      createdOrg.Plan,
+	})
+
 	return &response.OrganizationResponse{
 		ID:        createdOrg.ID,
 		Code:      createdOrg.Code,
@@ -292,10 +306,23 @@ func (s *organizationService) AddMember(currentUserID int64, orgID int64, req re
 		return nil, err
 	}
 
+	orgCode := ""
+	if targetOrg := repositories.OrganizationRepository.Get(sqls.DB(), orgID); targetOrg != nil {
+		orgCode = targetOrg.Code
+	}
+
 	email := ""
 	if targetUser.Email != nil {
 		email = *targetUser.Email
 	}
+
+	WebhookSyncService.DispatchOutboundOrgEvent("org.member_added", request.OrgSyncEventData{
+		OrgID:     orgCode,
+		UserID:    targetUser.Username,
+		UserEmail: email,
+		UserName:  targetUser.Nickname,
+		Role:      member.Role,
+	})
 
 	return &response.OrganizationMemberResponse{
 		ID:        member.ID,
@@ -332,7 +359,7 @@ func (s *organizationService) RemoveMember(currentUserID int64, orgID int64, tar
 		}
 	}
 
-	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+	err := sqls.WithTransaction(func(ctx *sqls.TxContext) error {
 		if err := repositories.OrganizationMemberRepository.UpdateColumn(ctx.Tx, targetMember.ID, "status", enums.StatusDeleted); err != nil {
 			return err
 		}
@@ -348,6 +375,30 @@ func (s *organizationService) RemoveMember(currentUserID int64, orgID int64, tar
 		}
 		return nil
 	})
+
+	if err != nil {
+		return err
+	}
+
+	orgCode := ""
+	if targetOrg := repositories.OrganizationRepository.Get(sqls.DB(), orgID); targetOrg != nil {
+		orgCode = targetOrg.Code
+	}
+	email := ""
+	username := ""
+	if targetUser := repositories.UserRepository.Get(sqls.DB(), targetUserID); targetUser != nil {
+		username = targetUser.Username
+		if targetUser.Email != nil {
+			email = *targetUser.Email
+		}
+	}
+	WebhookSyncService.DispatchOutboundOrgEvent("org.member_removed", request.OrgSyncEventData{
+		OrgID:     orgCode,
+		UserID:    username,
+		UserEmail: email,
+	})
+
+	return nil
 }
 
 func (s *organizationService) UpdateOrganization(currentUserID int64, orgID int64, req request.OrganizationUpdateRequest) (*response.OrganizationResponse, error) {
@@ -379,6 +430,13 @@ func (s *organizationService) UpdateOrganization(currentUserID int64, orgID int6
 	}
 
 	org = repositories.OrganizationRepository.Get(sqls.DB(), orgID)
+
+	WebhookSyncService.DispatchOutboundOrgEvent("org.updated", request.OrgSyncEventData{
+		OrgID:   org.Code,
+		OrgName: org.Name,
+		Plan:    org.Plan,
+	})
+
 	return &response.OrganizationResponse{
 		ID:        org.ID,
 		Code:      org.Code,
