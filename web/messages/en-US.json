@@ -2485,14 +2485,7 @@
       "postsTitle": "Community Discussions",
       "postsDescription": "Browse posts, then log in to publish and comment.",
       "chatTitle": "Live Support",
-      "chatDescription": "Open a support conversation when self-service is not enough.",
-      "quickPanelTitle": "Quick Links",
-      "quickPanelDescription": "Continue by task",
-      "openPosts": "View community posts",
-      "browseDocs": "Browse help docs",
-      "createPost": "Create a post",
-      "recommendedPages": "Recommended Pages",
-      "hotPosts": "Popular Posts"
+      "chatDescription": "Open a support conversation when self-service is not enough."
     },
     "help": {
       "title": "Help Center",
