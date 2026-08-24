@@ -14,7 +14,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: dos/crove-desk
+  IMAGE_NAME: huabeitech/agent-desk
 
 jobs:
   build-and-push:
