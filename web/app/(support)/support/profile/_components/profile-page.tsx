@@ -45,7 +45,7 @@ export function SupportProfilePage() {
     <SupportPageShell section="community">
       <SupportPageContent width="docs" className="py-6 sm:py-8">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
-          <aside className="h-fit rounded-md border bg-card p-5 shadow-sm">
+          <aside className="h-fit rounded-md bg-card p-5">
             <div className="flex items-center gap-3">
               <Avatar className="size-14">
                 <AvatarImage src={user.avatar} alt={displayName} />
@@ -65,7 +65,7 @@ export function SupportProfilePage() {
               {t("supportPublic.profile.edit")}
             </Link>
           </aside>
-          <section className="min-w-0 rounded-md border bg-card shadow-sm">
+          <section className="min-w-0 rounded-md bg-card">
             <div className="border-b px-5 py-4">
               <h2 className="text-base font-semibold">{t("supportPublic.profile.communityTitle")}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{t("supportPublic.profile.communityDescription")}</p>

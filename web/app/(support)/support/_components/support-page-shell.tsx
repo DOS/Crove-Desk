@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils"
 
 export function SupportPageShell({ children, section = "home" }: { children: ReactNode; section?: SupportHeaderSection }) {
   return (
-    <div className="min-h-svh overflow-x-clip bg-[#f7f9fc] text-foreground dark:bg-background">
+    // <div className="min-h-svh overflow-x-clip bg-[#f7f9fc] text-foreground dark:bg-background">
+    <div className="min-h-svh overflow-x-clip bg-[#F4F6FF] text-foreground dark:bg-background">
       <SupportHeader section={section} />
       {children}
     </div>
