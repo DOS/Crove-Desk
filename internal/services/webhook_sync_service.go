@@ -7,9 +7,13 @@ import (
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/repositories"
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"log/slog"
+	"net/http"
 	"strings"
 	"time"
 
@@ -25,12 +29,16 @@ func newWebhookSyncService() *webhookSyncService {
 type webhookSyncService struct{}
 
 func (s *webhookSyncService) VerifySignature(payload []byte, signature string) bool {
-	secret := strings.TrimSpace(config.Current().Webhook.OrgSyncSecret)
+	cfg := config.GetCurrent()
+	if cfg == nil {
+		return true
+	}
+	secret := strings.TrimSpace(cfg.Webhook.OrgSyncSecret)
 	if secret == "" {
-		secret = strings.TrimSpace(config.Current().Webhook.DOSOrgSyncSecret)
+		secret = strings.TrimSpace(cfg.Webhook.DOSOrgSyncSecret)
 	}
 	if secret == "" {
-		secret = strings.TrimSpace(config.Current().OIDC.ClientSecret)
+		secret = strings.TrimSpace(cfg.OIDC.ClientSecret)
 	}
 	if secret == "" {
 		return true
@@ -76,6 +84,71 @@ func (s *webhookSyncService) HandleOrgSync(req request.OrgSyncWebhookRequest) er
 
 func (s *webhookSyncService) HandleDOSOrgSync(req request.DOSOrgSyncWebhookRequest) error {
 	return s.HandleOrgSync(req)
+}
+
+func (s *webhookSyncService) DispatchOutboundOrgEvent(event string, data request.OrgSyncEventData) {
+	cfg := config.GetCurrent()
+	if cfg == nil {
+		return
+	}
+	outboundURL := strings.TrimSpace(cfg.Webhook.OutboundURL)
+	if outboundURL == "" {
+		return
+	}
+
+	payload := request.OrgSyncWebhookRequest{
+		Event:     event,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Data:      data,
+	}
+
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		slog.Error("failed to marshal outbound org event", "event", event, "error", err)
+		return
+	}
+
+	secret := strings.TrimSpace(cfg.Webhook.OrgSyncSecret)
+	if secret == "" {
+		secret = strings.TrimSpace(cfg.Webhook.DOSOrgSyncSecret)
+	}
+	if secret == "" {
+		secret = strings.TrimSpace(cfg.OIDC.ClientSecret)
+	}
+
+	var signature string
+	if secret != "" {
+		mac := hmac.New(sha256.New, []byte(secret))
+		mac.Write(bodyBytes)
+		signature = "sha256=" + hex.EncodeToString(mac.Sum(nil))
+	}
+
+	go func() {
+		client := &http.Client{Timeout: 10 * time.Second}
+		req, err := http.NewRequest(http.MethodPost, outboundURL, bytes.NewBuffer(bodyBytes))
+		if err != nil {
+			slog.Error("failed to create outbound org sync request", "url", outboundURL, "error", err)
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		if signature != "" {
+			req.Header.Set("X-DOS-Signature", signature)
+			req.Header.Set("X-Webhook-Signature", signature)
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			slog.Error("failed to dispatch outbound org sync event", "event", event, "url", outboundURL, "error", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode >= 400 {
+			slog.Warn("outbound org sync event returned non-2xx status", "event", event, "status", resp.StatusCode)
+		} else {
+			slog.Info("outbound org sync event dispatched successfully", "event", event, "orgId", data.OrgID)
+		}
+	}()
 }
 
 func (s *webhookSyncService) handleOrgUpsert(data request.OrgSyncEventData) error {
