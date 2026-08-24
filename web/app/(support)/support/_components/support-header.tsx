@@ -3,9 +3,9 @@
 import {
   BookOpenIcon,
   ChevronDownIcon,
-  HeadphonesIcon,
   HomeIcon,
   LoaderCircleIcon,
+  LogInIcon,
   LogOutIcon,
   MessageSquareTextIcon,
   PencilIcon,
@@ -159,12 +159,13 @@ function SupportAccountControl() {
     return (
       <Link
         className={cn(
-          buttonVariants({ variant: "outline", size: "sm" }),
-          supportNavItemClass
+          buttonVariants({ size: "sm" }),
+          supportNavItemClass,
+          "hover:bg-primary/90"
         )}
         href="/support/login"
       >
-        <HeadphonesIcon />
+        <LogInIcon />
         {t("supportPublic.nav.login")}
       </Link>
     )
