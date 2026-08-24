@@ -19,7 +19,7 @@ export function PostCard({ item, compact = false }: { item: Post; compact?: bool
         )}
       >
         <div className="flex min-w-0 items-center gap-2">
-          <PostStatusPill status={item.status} />
+          {/* <PostStatusPill status={item.status} /> */}
           <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold leading-6">
             <Link
               href={postHref(item.id)}
