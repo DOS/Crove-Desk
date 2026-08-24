@@ -30,7 +30,7 @@ export function SupportProfilePage() {
   if (!ready || !session) {
     return (
       <SupportPageShell section="community">
-        <SupportPageContent className="py-8">
+        <SupportPageContent width="docs" className="py-8">
           <PostListLoading />
         </SupportPageContent>
       </SupportPageShell>
@@ -43,7 +43,7 @@ export function SupportProfilePage() {
 
   return (
     <SupportPageShell section="community">
-      <SupportPageContent className="py-6 sm:py-8">
+      <SupportPageContent width="docs" className="py-6 sm:py-8">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
           <aside className="h-fit rounded-md border bg-card p-5 shadow-sm">
             <div className="flex items-center gap-3">

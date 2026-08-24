@@ -13,5 +13,5 @@ export function SupportPageShell({ children, section = "home" }: { children: Rea
 }
 
 export function SupportPageContent({ children, className, width = "standard" }: { children?: ReactNode; className?: string; width?: "standard" | "docs" }) {
-  return <div className={cn("mx-auto px-5 sm:px-6 md:px-8 lg:px-10", width === "docs" ? "max-w-[var(--support-docs-max-width)]" : "max-w-[var(--support-shell-max-width)]", className)}>{children}</div>
+  return <div className={cn("mx-auto px-5 sm:px-6 md:px-8 lg:px-10", width === "docs" ? "max-w-(--support-docs-max-width)" : "max-w-(--support-shell-max-width)", className)}>{children}</div>
 }
