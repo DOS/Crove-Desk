@@ -2563,8 +2563,9 @@
       "accepted": "已采纳"
     },
     "login": {
-      "title": "登录支持中心",
-      "description": "登录后可以提问、回答、点赞和采纳最佳答案。",
+      "welcomeBack": "欢迎回来",
+      "account": "账号",
+      "accountPlaceholder": "请输入邮箱或用户名",
       "name": "姓名",
       "namePlaceholder": "请输入姓名",
       "email": "邮箱",
@@ -2574,7 +2575,9 @@
       "loginAction": "登录",
       "registerAction": "注册并登录",
       "switchToRegister": "没有账号，去注册",
-      "switchToLogin": "已有账号，去登录"
+      "switchToLogin": "已有账号，去登录",
+      "noMethodsTitle": "暂未开启登录方式",
+      "noMethodsDescription": "请联系管理员开启密码、企业微信或 OIDC 登录。"
     },
     "account": {
       "loading": "正在加载登录状态",

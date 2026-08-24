@@ -7,6 +7,7 @@ import (
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/dto/response"
 	"agent-desk/internal/pkg/enums"
+	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/pkg/httpx"
 	"agent-desk/internal/pkg/httpx/params"
 	"agent-desk/internal/repositories"
@@ -21,12 +22,18 @@ import (
 )
 
 func SupportAuthPostRegister(ctx *gin.Context) {
+	cfg := config.Current()
+	if !cfg.Auth.IsPasswordLoginEnabled() {
+		httpx.WriteJSON(ctx, errorsx.ForbiddenI18n("error.auth.passwordLoginDisabled"))
+		return
+	}
+
 	req := request.SupportCustomerRegisterRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	ret, err := services.SupportService.RegisterUser(req, config.Current().Auth, ctx.ClientIP(), ctx.GetHeader("User-Agent"))
+	ret, err := services.SupportService.RegisterUser(req, cfg.Auth, ctx.ClientIP(), ctx.GetHeader("User-Agent"))
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return

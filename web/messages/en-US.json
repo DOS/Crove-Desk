@@ -2564,8 +2564,9 @@
       "accepted": "Accepted"
     },
     "login": {
-      "title": "Log In to Support",
-      "description": "Log in to ask, answer, vote, and accept best answers.",
+      "welcomeBack": "Welcome back",
+      "account": "Account",
+      "accountPlaceholder": "Enter email or username",
       "name": "Name",
       "namePlaceholder": "Enter your name",
       "email": "Email",
@@ -2575,7 +2576,9 @@
       "loginAction": "Log In",
       "registerAction": "Register and Log In",
       "switchToRegister": "No account? Register",
-      "switchToLogin": "Already have an account? Log in"
+      "switchToLogin": "Already have an account? Log in",
+      "noMethodsTitle": "No sign-in methods are enabled",
+      "noMethodsDescription": "Ask an administrator to enable password, WeCom, or OIDC sign-in."
     },
     "account": {
       "loading": "Loading sign-in status",
