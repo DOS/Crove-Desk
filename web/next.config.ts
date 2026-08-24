@@ -30,10 +30,6 @@ export default function nextConfig(phase: string): NextConfig {
           destination: "/support/docs",
         },
         {
-          source: "/support/help/:slug+",
-          destination: "/support/docs",
-        },
-        {
           source: "/support/community/posts/:id(\\d+)",
           destination: "/support/community/posts/detail?id=:id",
         },

@@ -188,7 +188,6 @@ func addRouter(app *gin.Engine) {
 	registerDashboardKnowledgeRetrieveLogRoutes(dashboardGroup.Group("/knowledge-retrieve-log"))
 	registerDashboardSupportConfigRoutes(dashboardGroup.Group("/support/config"))
 	registerDashboardDocPageRoutes(dashboardGroup.Group("/doc-page"))
-	registerDashboardDocPageRoutes(dashboardGroup.Group("/support-help-page"))
 	registerDashboardCommunityCategoryRoutes(dashboardGroup.Group("/support-community/categories"))
 	registerDashboardCommunityPostRoutes(dashboardGroup.Group("/support-community/posts"))
 	registerDashboardSkillDefinitionRoutes(dashboardGroup.Group("/skill-definition"))
@@ -237,11 +236,6 @@ func registerSPAShellRewrites(app *gin.Engine, spaHandler gin.HandlerFunc) {
 		{
 			// Runtime-authored document pages cannot be enumerated by static export.
 			Route:     "/support/docs/*slug",
-			ShellPath: "/support/docs.html",
-		},
-		{
-			// Keep legacy help links readable after the public route rename.
-			Route:     "/support/help/*slug",
 			ShellPath: "/support/docs.html",
 		},
 		{

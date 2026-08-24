@@ -56,7 +56,7 @@ type DocPageResponse struct {
 }
 
 // DocPageNavigationResponse is the lightweight public document tree.
-// Content remains available only from the help-page detail endpoint.
+// Content remains available only from the doc-page detail endpoint.
 type DocPageNavigationResponse struct {
 	ID       int64                        `json:"id"`
 	ParentID int64                        `json:"parentId"`
