@@ -540,9 +540,9 @@
     "statusDescription": "This module currently has a page scaffold. It is ready for real APIs, form dialogs, and list queries.",
     "nextPhase": "Start Next Phase"
   },
-  "help": {
+  "docs": {
     "title": "Documentation Center Scaffold",
-    "description": "The help center will collect product guidance, permission rules, channel integration workflows, and FAQs.",
+    "description": "The documentation center will collect product guidance, permission rules, channel integration workflows, and FAQs.",
     "step1": "Collect project development standards and admin usage guides.",
     "step2": "Add third-party integration flows and configuration checklists.",
     "step3": "Connect Markdown or a documentation center later."

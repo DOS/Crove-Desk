@@ -3,18 +3,18 @@
 import { DashboardPlaceholder } from "@/components/dashboard-placeholder"
 import { useI18n } from "@/i18n/provider"
 
-export default function DashboardHelpPage() {
+export default function DashboardDocsPage() {
   const t = useI18n()
 
   return (
     <DashboardPlaceholder
-      eyebrow="Help"
-      title={t("help.title")}
-      description={t("help.description")}
+      eyebrow="Docs"
+      title={t("docs.title")}
+      description={t("docs.description")}
       nextSteps={[
-        t("help.step1"),
-        t("help.step2"),
-        t("help.step3"),
+        t("docs.step1"),
+        t("docs.step2"),
+        t("docs.step3"),
       ]}
     />
   )
