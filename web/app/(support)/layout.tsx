@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Inter, Geist_Mono } from "next/font/google"
 
 import { ImageLightboxProvider } from "@/components/image-lightbox"
 import { ConfirmProvider } from "@/components/confirm-provider"
@@ -12,9 +12,10 @@ import { AppI18nProvider } from "@/i18n/provider"
 import "./support.css"
 import "md-editor-rt/lib/style.css"
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin", "vietnamese"],
+  display: "swap",
 })
 
 const geistMono = Geist_Mono({
@@ -23,8 +24,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "AgentDesk Support",
-  description: "AgentDesk Support Center",
+  title: "Crove Desk Support",
+  description: "Crove Desk Support Center",
 }
 
 export default function SupportRootLayout({
@@ -35,7 +36,7 @@ export default function SupportRootLayout({
   return (
     <html lang="en-US" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} ${geistMono.variable} antialiased`}
       >
         <AppI18nProvider>
           <ThemeProvider>
