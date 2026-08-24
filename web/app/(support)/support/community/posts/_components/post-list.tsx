@@ -45,15 +45,15 @@ export function PostList() {
 
   return (
     <CommunityFrame categoryRoute={categoryRoute}>
-      <div className="px-5 pt-4 sm:px-6 md:px-8 lg:px-10 2xl:px-12">
-        <div className="flex flex-col gap-3 border-b pb-4 xl:flex-row xl:items-center xl:justify-between">
+      <div className="px-4 pt-3 sm:px-5 md:px-6 lg:px-8 2xl:px-10">
+        <div className="flex flex-col gap-2 border-b pb-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 gap-1.5 overflow-x-auto pb-1 sm:pb-0">
             {statusOptions.map((option) => (
               <button
                 key={option.value}
                 type="button"
                 className={cn(
-                  "h-8 whitespace-nowrap rounded-md px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "h-7 whitespace-nowrap rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   status === option.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
                 aria-pressed={status === option.value}
@@ -64,12 +64,12 @@ export function PostList() {
             ))}
           </div>
           <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-            <Link className={cn(buttonVariants(), "h-9 px-3")} href={newPostHref()}>{t("supportPublic.actions.createPost")}</Link>
+            <Link className={cn(buttonVariants(), "h-8 px-3 text-xs")} href={newPostHref()}>{t("supportPublic.actions.createPost")}</Link>
           </div>
         </div>
       </div>
-      <div className="px-5 py-3 sm:px-6 md:px-8 lg:px-10 2xl:px-12">
-        {categoryRoute.categoriesLoading && categoryRoute.categorySlug ? <PostListLoading /> : null}
+      <div className="px-4 py-2 sm:px-5 md:px-6 lg:px-8 2xl:px-10">
+        {categoryRoute.categoriesLoading && categoryRoute.categorySlug ? <PostListLoading compact /> : null}
         {categoryUnavailable ? <EmptyState text={t("supportPublic.empty.noPostsMatched")} /> : null}
         {!categoryRoute.categoriesLoading && !categoryUnavailable ? (
           <LoadMore<Post>
@@ -83,7 +83,7 @@ export function PostList() {
               error: t("supportPublic.empty.postsFailed"),
             }}
             loadPage={loadPosts}
-            renderItems={(items) => items.map((item) => <PostCard key={item.id} item={item} />)}
+            renderItems={(items) => items.map((item) => <PostCard key={item.id} item={item} compact />)}
             renderEmpty={() => <EmptyState text={t("supportPublic.empty.noPostsMatched")} />}
           />
         ) : null}
