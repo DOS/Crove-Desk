@@ -110,75 +110,78 @@ export function SupportLoginPage() {
 
   return (
     <SupportPageShell section="login">
-      <SupportPageContent className="py-8 sm:py-12">
-        <div className="mx-auto grid max-w-4xl overflow-hidden rounded-md bg-card lg:grid-cols-[minmax(0,1fr)_18rem]">
-          <section className="p-5 sm:p-6 lg:p-8">
-            <h1 className="mb-6 text-2xl font-semibold tracking-tight">{t("supportPublic.login.welcomeBack")}</h1>
-            {!publicConfig && !publicConfigError ? (
-              <LoginState icon={<Loader2Icon className="size-5 animate-spin" />} title={t("auth.loadingOptions")} />
-            ) : null}
-            {publicConfigError ? (
-              <LoginState icon={<TriangleAlertIcon className="size-5" />} title={t("auth.optionsLoadFailed")} description={publicConfigError} destructive />
-            ) : null}
-            {publicConfig && !hasAnyLoginMethod ? (
-              <LoginState icon={<TriangleAlertIcon className="size-5" />} title={t("supportPublic.login.noMethodsTitle")} description={t("supportPublic.login.noMethodsDescription")} />
-            ) : null}
-            {publicConfig && hasAnyLoginMethod ? (
-              <div className="grid gap-5">
-                {passwordLoginEnabled ? (
-                  <form className="grid gap-4" onSubmit={(event) => { event.preventDefault(); void submit() }}>
-                    {mode === "register" ? (
-                      <LabeledField label={t("supportPublic.login.name")}>
-                        <Input value={name} onChange={(event) => setName(event.target.value)} placeholder={t("supportPublic.login.namePlaceholder")} className="bg-card" />
-                      </LabeledField>
-                    ) : null}
-                    <LabeledField label={mode === "login" ? t("supportPublic.login.account") : t("supportPublic.login.email")}>
-                      <Input
-                        value={mode === "login" ? account : registerEmail}
-                        onChange={(event) => (mode === "login" ? setAccount(event.target.value) : setRegisterEmail(event.target.value))}
-                        placeholder={mode === "login" ? t("supportPublic.login.accountPlaceholder") : t("supportPublic.login.emailPlaceholder")}
-                        autoComplete={mode === "login" ? "username" : "email"}
-                        className="bg-card"
-                      />
+      <SupportPageContent className="flex min-h-[calc(100svh-3.5rem)] items-start justify-center py-8 sm:items-center sm:py-12">
+        <section className="w-full max-w-[440px] rounded-md bg-card px-5 py-6 sm:px-7 sm:py-8">
+          <div className="mb-6 flex flex-col items-center gap-3 text-center">
+            <Image src="/images/logo.svg" alt="" width={56} height={56} className="size-14 opacity-80" priority />
+            <h1 className="text-2xl font-semibold tracking-tight">{t("supportPublic.login.welcomeBack")}</h1>
+          </div>
+          {!publicConfig && !publicConfigError ? (
+            <LoginState icon={<Loader2Icon className="size-5 animate-spin" />} title={t("auth.loadingOptions")} />
+          ) : null}
+          {publicConfigError ? (
+            <LoginState icon={<TriangleAlertIcon className="size-5" />} title={t("auth.optionsLoadFailed")} description={publicConfigError} destructive />
+          ) : null}
+          {publicConfig && !hasAnyLoginMethod ? (
+            <LoginState icon={<TriangleAlertIcon className="size-5" />} title={t("supportPublic.login.noMethodsTitle")} description={t("supportPublic.login.noMethodsDescription")} />
+          ) : null}
+          {publicConfig && hasAnyLoginMethod ? (
+            <div className="grid gap-5">
+              {passwordLoginEnabled ? (
+                <form
+                  className="grid gap-4"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    void submit()
+                  }}
+                >
+                  {mode === "register" ? (
+                    <LabeledField label={t("supportPublic.login.name")}>
+                      <Input value={name} onChange={(event) => setName(event.target.value)} placeholder={t("supportPublic.login.namePlaceholder")} className="bg-card" />
                     </LabeledField>
-                    <LabeledField label={t("supportPublic.login.password")}>
-                      <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={t("supportPublic.login.passwordPlaceholder")} autoComplete={mode === "login" ? "current-password" : "new-password"} className="bg-card" />
-                    </LabeledField>
-                    <Button type="submit" disabled={submitting}>
-                      {submitting ? t("supportPublic.actions.processing") : mode === "login" ? t("supportPublic.login.loginAction") : t("supportPublic.login.registerAction")}
-                    </Button>
-                    <Button type="button" variant="ghost" onClick={() => setMode(mode === "login" ? "register" : "login")}>
-                      {mode === "login" ? t("supportPublic.login.switchToRegister") : t("supportPublic.login.switchToLogin")}
-                    </Button>
-                  </form>
-                ) : null}
-                {providerCount > 0 ? (
+                  ) : null}
+                  <LabeledField label={mode === "login" ? t("supportPublic.login.account") : t("supportPublic.login.email")}>
+                    <Input
+                      value={mode === "login" ? account : registerEmail}
+                      onChange={(event) => (mode === "login" ? setAccount(event.target.value) : setRegisterEmail(event.target.value))}
+                      placeholder={mode === "login" ? t("supportPublic.login.accountPlaceholder") : t("supportPublic.login.emailPlaceholder")}
+                      autoComplete={mode === "login" ? "username" : "email"}
+                      className="bg-card"
+                    />
+                  </LabeledField>
+                  <LabeledField label={t("supportPublic.login.password")}>
+                    <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={t("supportPublic.login.passwordPlaceholder")} autoComplete={mode === "login" ? "current-password" : "new-password"} className="bg-card" />
+                  </LabeledField>
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? t("supportPublic.actions.processing") : mode === "login" ? t("supportPublic.login.loginAction") : t("supportPublic.login.registerAction")}
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={() => setMode(mode === "login" ? "register" : "login")}>
+                    {mode === "login" ? t("supportPublic.login.switchToRegister") : t("supportPublic.login.switchToLogin")}
+                  </Button>
+                </form>
+              ) : null}
+              {providerCount > 0 ? (
+                <div className="grid gap-3">
+                  {passwordLoginEnabled ? <div className="flex items-center gap-3 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">{t("auth.continueWith")}</div> : null}
                   <div className="grid gap-3">
-                    {passwordLoginEnabled ? <div className="flex items-center gap-3 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">{t("auth.continueWith")}</div> : null}
-                    <div className={cn("grid gap-3", providerCount > 1 ? "sm:grid-cols-2" : "grid-cols-1")}>
-                      {publicConfig.wxworkEnabled ? (
-                        <Button type="button" variant="outline" onClick={startWxWorkLogin} aria-label={t("auth.wxworkSignIn")}>
-                          <Image src="/images/wxwork.svg" alt="" width={16} height={16} className="size-4 shrink-0" />
-                          {t("auth.wxworkSignIn")}
-                        </Button>
-                      ) : null}
-                      {publicConfig.oidcEnabled ? (
-                        <Button type="button" variant="outline" onClick={startOIDCLogin} aria-label={t("auth.oidcSignIn")}>
-                          <KeyRoundIcon className="size-4 shrink-0" />
-                          {t("auth.oidcSignIn")}
-                        </Button>
-                      ) : null}
-                    </div>
+                    {publicConfig.wxworkEnabled ? (
+                      <Button type="button" variant="outline" onClick={startWxWorkLogin} aria-label={t("auth.wxworkSignIn")}>
+                        <Image src="/images/wxwork.svg" alt="" width={16} height={16} className="size-4 shrink-0" />
+                        {t("auth.wxworkSignIn")}
+                      </Button>
+                    ) : null}
+                    {publicConfig.oidcEnabled ? (
+                      <Button type="button" variant="outline" onClick={startOIDCLogin} aria-label={t("auth.oidcSignIn")}>
+                        <KeyRoundIcon className="size-4 shrink-0" />
+                        {t("auth.oidcSignIn")}
+                      </Button>
+                    ) : null}
                   </div>
-                ) : null}
-              </div>
-            ) : null}
-          </section>
-
-          <aside className="hidden border-l bg-muted/25 lg:flex lg:items-center lg:justify-center">
-            <Image src="/images/logo.svg" alt="" width={80} height={80} className="size-20 opacity-70" />
-          </aside>
-        </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
       </SupportPageContent>
     </SupportPageShell>
   )
