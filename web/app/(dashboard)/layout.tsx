@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Inter, Geist_Mono } from "next/font/google"
 
 import { AuthProvider } from "@/components/auth-provider"
 import { ApiErrorProvider } from "@/components/api-error-provider"
@@ -14,9 +14,10 @@ import "./dashboard.css"
 import "md-editor-rt/lib/style.css"
 import "@/styles/main.scss"
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin", "vietnamese"],
+  display: "swap",
 })
 
 const geistMono = Geist_Mono({
@@ -46,7 +47,7 @@ export default function DashboardRootLayout({
   return (
     <html lang="en-US" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} ${geistMono.variable} antialiased`}
       >
         <script dangerouslySetInnerHTML={{ __html: paletteScript }} />
         <AppI18nProvider>
