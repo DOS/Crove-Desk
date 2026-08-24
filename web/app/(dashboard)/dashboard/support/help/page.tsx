@@ -1,5 +1,5 @@
-import { SupportHelpWorkbench } from "../_components/help-workbench"
+import { redirect } from "next/navigation"
 
-export default function DashboardSupportHelpPage() {
-  return <SupportHelpWorkbench />
+export default function LegacyDashboardSupportHelpPage() {
+  redirect("/dashboard/support/docs")
 }

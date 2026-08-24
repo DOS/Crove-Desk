@@ -144,10 +144,10 @@ export const dashboardNavSections: DashboardNavSectionConfig[] = [
     icon: <CircleHelpIcon />,
     items: [
       {
-        titleKey: "nav.supportHelp",
-        url: "/dashboard/support/help",
+        titleKey: "nav.supportDocs",
+        url: "/dashboard/support/docs",
         icon: <BookOpenIcon />,
-        requiredPermission: "supportHelpPage.view",
+        requiredPermission: "docPage.view",
       },
       {
         titleKey: "nav.supportCommunity",
@@ -298,7 +298,7 @@ export const dashboardSecondaryNav: DashboardNavItemConfig[] = [
   //   icon: <Settings2Icon />,
   // },
   // {
-  //   title: "Help Center",
+  //   title: "Documentation Center",
   //   url: "/help",
   //   icon: <LifeBuoyIcon />,
   // },

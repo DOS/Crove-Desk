@@ -2,40 +2,40 @@
 
 import { useCallback, useEffect, useState, type ComponentPropsWithoutRef, type MouseEvent as ReactMouseEvent } from "react"
 
-import { type SupportHelpNavigationNode, type SupportHelpPage } from "@/lib/api/support"
+import { type DocNavigationNode, type DocPage } from "@/lib/api/support"
 
-export type HelpPageNavigationHandler = (event: ReactMouseEvent<HTMLAnchorElement>, page: SupportHelpPage) => void
+export type DocPageNavigationHandler = (event: ReactMouseEvent<HTMLAnchorElement>, page: DocPage) => void
 
-export function supportHelpPageHref(page: SupportHelpPage) {
-  return page.helpPath || "/support/help/"
+export function docPageHref(page: DocPage) {
+  return page.docPath || "/support/docs/"
 }
 
-function helpPathFromPathname(pathname: string) {
+function docPathFromPathname(pathname: string) {
   const parts = pathname.split("/").filter(Boolean).map(decodeURIComponent)
-  const helpIndex = parts.findIndex((part, index) => part === "help" && parts[index - 1] === "support")
-  if (helpIndex < 0 || parts.length === helpIndex + 1) return ""
-  return `/support/help/${parts.slice(helpIndex + 1).map(encodeURIComponent).join("/")}/`
+  const docsIndex = parts.findIndex((part, index) => (part === "docs" || part === "help") && parts[index - 1] === "support")
+  if (docsIndex < 0 || parts.length === docsIndex + 1) return ""
+  return `/support/docs/${parts.slice(docsIndex + 1).map(encodeURIComponent).join("/")}/`
 }
 
-export function useSupportHelpRoute(pathname: string) {
-  const [activePath, setActivePath] = useState(() => helpPathFromPathname(pathname))
+export function useSupportDocRoute(pathname: string) {
+  const [activePath, setActivePath] = useState(() => docPathFromPathname(pathname))
 
   useEffect(() => {
-    const handlePopState = () => setActivePath(helpPathFromPathname(window.location.pathname))
+    const handlePopState = () => setActivePath(docPathFromPathname(window.location.pathname))
     window.addEventListener("popstate", handlePopState)
     return () => window.removeEventListener("popstate", handlePopState)
   }, [])
 
-  const replace = useCallback((page: SupportHelpPage) => {
-    const target = supportHelpPageHref(page)
+  const replace = useCallback((page: DocPage) => {
+    const target = docPageHref(page)
     window.history.replaceState(null, "", target)
     setActivePath(target)
   }, [])
 
-  const navigate = useCallback<HelpPageNavigationHandler>((event, page) => {
+  const navigate = useCallback<DocPageNavigationHandler>((event, page) => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     event.preventDefault()
-    const href = supportHelpPageHref(page)
+    const href = docPageHref(page)
     if (window.location.pathname !== href) {
       window.history.pushState(null, "", href)
       setActivePath(href)
@@ -46,7 +46,7 @@ export function useSupportHelpRoute(pathname: string) {
   return { activePath, navigate, replace }
 }
 
-export function flattenSupportHelpNavigation(nodes: SupportHelpNavigationNode[], parentSegments: string[] = []): SupportHelpPage[] {
+export function flattenSupportDocNavigation(nodes: DocNavigationNode[], parentSegments: string[] = []): DocPage[] {
   return nodes.flatMap((node) => [
     {
       ...node,
@@ -62,25 +62,25 @@ export function flattenSupportHelpNavigation(nodes: SupportHelpNavigationNode[],
       publishedAt: "",
       createdAt: "",
       updatedAt: "",
-      helpPath: `/support/help/${[...parentSegments, node.slug].map(encodeURIComponent).join("/")}/`,
+      docPath: `/support/docs/${[...parentSegments, node.slug].map(encodeURIComponent).join("/")}/`,
     },
-    ...flattenSupportHelpNavigation(node.children, [...parentSegments, node.slug]),
+    ...flattenSupportDocNavigation(node.children, [...parentSegments, node.slug]),
   ])
 }
 
-export function SupportHelpLink({
+export function SupportDocLink({
   page,
   onNavigate,
   onClick,
   ...props
 }: Omit<ComponentPropsWithoutRef<"a">, "href"> & {
-  page: SupportHelpPage
-  onNavigate: HelpPageNavigationHandler
+  page: DocPage
+  onNavigate: DocPageNavigationHandler
 }) {
   return (
     <a
       {...props}
-      href={supportHelpPageHref(page)}
+      href={docPageHref(page)}
       onClick={(event) => {
         onClick?.(event)
         if (!event.defaultPrevented) onNavigate(event, page)

@@ -331,7 +331,7 @@ function NavigationMenuRow({ item, disabled, canDelete, onChange, onDelete }: Na
             id={`support-nav-url-${item.id}`}
             value={item.url}
             onChange={(event) => onChange(item.id, { url: event.target.value })}
-            placeholder="/support/help"
+            placeholder="/support/docs"
             disabled={disabled}
           />
           {item.url ? (

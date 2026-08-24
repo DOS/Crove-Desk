@@ -33,37 +33,37 @@ type DashboardSupportConfigResponse struct {
 	NavigationMenu []SupportNavigationMenuItemResponse `json:"navigationMenu"`
 }
 
-type SupportHelpPageResponse struct {
-	ID                        int64                       `json:"id"`
-	ParentID                  int64                       `json:"parentId"`
-	Title                     string                      `json:"title"`
-	Slug                      string                      `json:"slug"`
-	Summary                   string                      `json:"summary"`
-	ContentType               string                      `json:"contentType"`
-	Content                   string                      `json:"content"`
-	CoverURL                  string                      `json:"coverUrl"`
-	Tags                      []string                    `json:"tags"`
-	Status                    enums.SupportHelpPageStatus `json:"status"`
-	SortNo                    int                         `json:"sortNo"`
-	ViewCount                 int64                       `json:"viewCount"`
-	HelpfulCount              int64                       `json:"helpfulCount"`
-	UnhelpfulCount            int64                       `json:"unhelpfulCount"`
-	PublishedAt               string                      `json:"publishedAt"`
-	SyncedKnowledgeDocumentID int64                       `json:"syncedKnowledgeDocumentId"`
-	Remark                    string                      `json:"remark"`
-	CreatedAt                 string                      `json:"createdAt"`
-	UpdatedAt                 string                      `json:"updatedAt"`
+type DocPageResponse struct {
+	ID                        int64               `json:"id"`
+	ParentID                  int64               `json:"parentId"`
+	Title                     string              `json:"title"`
+	Slug                      string              `json:"slug"`
+	Summary                   string              `json:"summary"`
+	ContentType               string              `json:"contentType"`
+	Content                   string              `json:"content"`
+	CoverURL                  string              `json:"coverUrl"`
+	Tags                      []string            `json:"tags"`
+	Status                    enums.DocPageStatus `json:"status"`
+	SortNo                    int                 `json:"sortNo"`
+	ViewCount                 int64               `json:"viewCount"`
+	HelpfulCount              int64               `json:"helpfulCount"`
+	UnhelpfulCount            int64               `json:"unhelpfulCount"`
+	PublishedAt               string              `json:"publishedAt"`
+	SyncedKnowledgeDocumentID int64               `json:"syncedKnowledgeDocumentId"`
+	Remark                    string              `json:"remark"`
+	CreatedAt                 string              `json:"createdAt"`
+	UpdatedAt                 string              `json:"updatedAt"`
 }
 
-// SupportHelpPageNavigationResponse is the lightweight public document tree.
+// DocPageNavigationResponse is the lightweight public document tree.
 // Content remains available only from the help-page detail endpoint.
-type SupportHelpPageNavigationResponse struct {
-	ID       int64                                `json:"id"`
-	ParentID int64                                `json:"parentId"`
-	Title    string                               `json:"title"`
-	Slug     string                               `json:"slug"`
-	SortNo   int                                  `json:"sortNo"`
-	Children []*SupportHelpPageNavigationResponse `json:"children"`
+type DocPageNavigationResponse struct {
+	ID       int64                        `json:"id"`
+	ParentID int64                        `json:"parentId"`
+	Title    string                       `json:"title"`
+	Slug     string                       `json:"slug"`
+	SortNo   int                          `json:"sortNo"`
+	Children []*DocPageNavigationResponse `json:"children"`
 }
 
 type CategoryResponse struct {

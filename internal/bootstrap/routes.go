@@ -55,10 +55,14 @@ func registerApiSupportRoutes(group *gin.RouterGroup) {
 	group.GET("/config", api.SupportConfigGetConfig)
 	group.POST("/auth/register", api.SupportAuthPostRegister)
 	group.GET("/me", api.SupportGetMe)
-	group.Any("/help-page/list", api.SupportHelpPageAnyList)
-	group.GET("/help-page/navigation", api.SupportHelpPageGetNavigation)
-	group.GET("/help-page/:id", api.SupportHelpPageGetBy)
-	group.POST("/help-page/feedback", api.SupportHelpPagePostFeedback)
+	group.Any("/doc-page/list", api.DocPageAnyList)
+	group.GET("/doc-page/navigation", api.DocPageGetNavigation)
+	group.GET("/doc-page/:id", api.DocPageGetBy)
+	group.POST("/doc-page/feedback", api.DocPagePostFeedback)
+	group.Any("/help-page/list", api.DocPageAnyList)
+	group.GET("/help-page/navigation", api.DocPageGetNavigation)
+	group.GET("/help-page/:id", api.DocPageGetBy)
+	group.POST("/help-page/feedback", api.DocPagePostFeedback)
 	group.Any("/community/categories/list", api.CategoryAnyList)
 	group.Any("/community/posts/list", api.PostAnyList)
 	group.GET("/community/posts/:id", api.PostGetBy)
@@ -370,16 +374,16 @@ func registerDashboardKnowledgeRetrieveLogRoutes(group *gin.RouterGroup) {
 	group.Any("/list", dashboard.KnowledgeRetrieveLogAnyList)
 }
 
-func registerDashboardSupportHelpPageRoutes(group *gin.RouterGroup) {
-	group.GET("/:id", dashboard.SupportHelpPageGetBy)
-	group.POST("/create", dashboard.SupportHelpPagePostCreate)
-	group.POST("/delete", dashboard.SupportHelpPagePostDelete)
-	group.Any("/list", dashboard.SupportHelpPageAnyList)
-	group.GET("/list_all", dashboard.SupportHelpPageGetList_all)
-	group.POST("/update", dashboard.SupportHelpPagePostUpdate)
-	group.POST("/update_settings", dashboard.SupportHelpPagePostUpdate_settings)
-	group.POST("/update_sort", dashboard.SupportHelpPagePostUpdate_sort)
-	group.POST("/change_status", dashboard.SupportHelpPagePostChange_status)
+func registerDashboardDocPageRoutes(group *gin.RouterGroup) {
+	group.GET("/:id", dashboard.DocPageGetBy)
+	group.POST("/create", dashboard.DocPagePostCreate)
+	group.POST("/delete", dashboard.DocPagePostDelete)
+	group.Any("/list", dashboard.DocPageAnyList)
+	group.GET("/list_all", dashboard.DocPageGetList_all)
+	group.POST("/update", dashboard.DocPagePostUpdate)
+	group.POST("/update_settings", dashboard.DocPagePostUpdate_settings)
+	group.POST("/update_sort", dashboard.DocPagePostUpdate_sort)
+	group.POST("/change_status", dashboard.DocPagePostChange_status)
 }
 
 func registerDashboardCommunityCategoryRoutes(group *gin.RouterGroup) {

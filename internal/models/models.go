@@ -57,7 +57,7 @@ var Models = []any{
 	&KnowledgeRetrieveLog{},
 	&KnowledgeRetrieveHit{},
 	&KnowledgeFeedback{},
-	&SupportHelpPage{},
+	&DocPage{},
 	&Category{},
 	&Post{},
 	&Comment{},
@@ -961,25 +961,25 @@ type KnowledgeChunk struct {
 	UpdatedAt       time.Time    `gorm:"not null;index"`
 }
 
-// SupportHelpPage is both a help-center navigation node and a content page.
-type SupportHelpPage struct {
-	ID                        int64                       `gorm:"primaryKey;autoIncrement"`
-	ParentID                  int64                       `gorm:"type:bigint;not null;default:0;index;uniqueIndex:idx_t_support_help_page_parent_slug"`
-	Title                     string                      `gorm:"type:varchar(255);not null;default:'';index"`
-	Slug                      string                      `gorm:"type:varchar(160);not null;default:'';uniqueIndex:idx_t_support_help_page_parent_slug"`
-	Summary                   string                      `gorm:"type:text"`
-	ContentType               string                      `gorm:"type:varchar(20);not null;default:'markdown'"`
-	Content                   string                      `gorm:"type:text"`
-	CoverURL                  string                      `gorm:"type:varchar(255);not null;default:''"`
-	TagsJSON                  string                      `gorm:"type:text"`
-	Status                    enums.SupportHelpPageStatus `gorm:"type:varchar(20);not null;default:'draft';index"`
-	SortNo                    int                         `gorm:"type:int;not null;default:0;index"`
-	ViewCount                 int64                       `gorm:"type:bigint;not null;default:0"`
-	HelpfulCount              int64                       `gorm:"type:bigint;not null;default:0"`
-	UnhelpfulCount            int64                       `gorm:"type:bigint;not null;default:0"`
-	PublishedAt               *time.Time                  `gorm:"index"`
-	SyncedKnowledgeDocumentID int64                       `gorm:"type:bigint;not null;default:0;index"`
-	Remark                    string                      `gorm:"type:text"`
+// DocPage is both a document-center navigation node and a content page.
+type DocPage struct {
+	ID                        int64               `gorm:"primaryKey;autoIncrement"`
+	ParentID                  int64               `gorm:"type:bigint;not null;default:0;index;uniqueIndex:idx_doc_page_parent_slug"`
+	Title                     string              `gorm:"type:varchar(255);not null;default:'';index"`
+	Slug                      string              `gorm:"type:varchar(160);not null;default:'';uniqueIndex:idx_doc_page_parent_slug"`
+	Summary                   string              `gorm:"type:text"`
+	ContentType               string              `gorm:"type:varchar(20);not null;default:'markdown'"`
+	Content                   string              `gorm:"type:text"`
+	CoverURL                  string              `gorm:"type:varchar(255);not null;default:''"`
+	TagsJSON                  string              `gorm:"type:text"`
+	Status                    enums.DocPageStatus `gorm:"type:varchar(20);not null;default:'draft';index"`
+	SortNo                    int                 `gorm:"type:int;not null;default:0;index"`
+	ViewCount                 int64               `gorm:"type:bigint;not null;default:0"`
+	HelpfulCount              int64               `gorm:"type:bigint;not null;default:0"`
+	UnhelpfulCount            int64               `gorm:"type:bigint;not null;default:0"`
+	PublishedAt               *time.Time          `gorm:"index"`
+	SyncedKnowledgeDocumentID int64               `gorm:"type:bigint;not null;default:0;index"`
+	Remark                    string              `gorm:"type:text"`
 	AuditFields
 }
 

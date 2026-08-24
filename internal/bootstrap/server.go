@@ -187,7 +187,8 @@ func addRouter(app *gin.Engine) {
 	registerDashboardKnowledgeRetrieveRoutes(dashboardGroup.Group("/knowledge-retrieve"))
 	registerDashboardKnowledgeRetrieveLogRoutes(dashboardGroup.Group("/knowledge-retrieve-log"))
 	registerDashboardSupportConfigRoutes(dashboardGroup.Group("/support/config"))
-	registerDashboardSupportHelpPageRoutes(dashboardGroup.Group("/support-help-page"))
+	registerDashboardDocPageRoutes(dashboardGroup.Group("/doc-page"))
+	registerDashboardDocPageRoutes(dashboardGroup.Group("/support-help-page"))
 	registerDashboardCommunityCategoryRoutes(dashboardGroup.Group("/support-community/categories"))
 	registerDashboardCommunityPostRoutes(dashboardGroup.Group("/support-community/posts"))
 	registerDashboardSkillDefinitionRoutes(dashboardGroup.Group("/skill-definition"))
@@ -234,9 +235,14 @@ func handleSpa(app *gin.Engine) {
 func registerSPAShellRewrites(app *gin.Engine, spaHandler gin.HandlerFunc) {
 	rewrites := []spaShellRewrite{
 		{
-			// Runtime-authored help pages cannot be enumerated by static export.
+			// Runtime-authored document pages cannot be enumerated by static export.
+			Route:     "/support/docs/*slug",
+			ShellPath: "/support/docs.html",
+		},
+		{
+			// Keep legacy help links readable after the public route rename.
 			Route:     "/support/help/*slug",
-			ShellPath: "/support/help.html",
+			ShellPath: "/support/docs.html",
 		},
 		{
 			// Keep the public RESTful URL and serve the exported post detail shell for IDs.

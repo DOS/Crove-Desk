@@ -8,36 +8,36 @@ type SupportCustomerRegisterRequest struct {
 	Password string `json:"password"`
 }
 
-type SaveSupportHelpPageRequest struct {
-	ID          int64                       `json:"id"`
-	ParentID    int64                       `json:"parentId"`
-	Title       string                      `json:"title"`
-	Slug        string                      `json:"slug"`
-	Summary     string                      `json:"summary"`
-	ContentType string                      `json:"contentType"`
-	Content     string                      `json:"content"`
-	CoverURL    string                      `json:"coverUrl"`
-	Tags        []string                    `json:"tags"`
-	Status      enums.SupportHelpPageStatus `json:"status"`
-	SortNo      int                         `json:"sortNo"`
-	Remark      string                      `json:"remark"`
+type SaveDocPageRequest struct {
+	ID          int64               `json:"id"`
+	ParentID    int64               `json:"parentId"`
+	Title       string              `json:"title"`
+	Slug        string              `json:"slug"`
+	Summary     string              `json:"summary"`
+	ContentType string              `json:"contentType"`
+	Content     string              `json:"content"`
+	CoverURL    string              `json:"coverUrl"`
+	Tags        []string            `json:"tags"`
+	Status      enums.DocPageStatus `json:"status"`
+	SortNo      int                 `json:"sortNo"`
+	Remark      string              `json:"remark"`
 }
 
-type UpdateSupportHelpPageSettingsRequest struct {
+type UpdateDocPageSettingsRequest struct {
 	ID       int64  `json:"id"`
 	ParentID int64  `json:"parentId"`
 	Slug     string `json:"slug"`
 	Summary  string `json:"summary"`
 }
 
-type SortSupportHelpPagesRequest struct {
+type SortDocPagesRequest struct {
 	ParentID int64   `json:"parentId"`
 	IDs      []int64 `json:"ids"`
 }
 
-type ChangeSupportHelpPageStatusRequest struct {
-	ID     int64                       `json:"id"`
-	Status enums.SupportHelpPageStatus `json:"status"`
+type ChangeDocPageStatusRequest struct {
+	ID     int64               `json:"id"`
+	Status enums.DocPageStatus `json:"status"`
 }
 
 type SaveCategoryRequest struct {
@@ -109,7 +109,7 @@ type AcceptCommentRequest struct {
 	CommentID int64 `json:"commentId"`
 }
 
-type SupportHelpPageFeedbackRequest struct {
+type DocPageFeedbackRequest struct {
 	ID      int64 `json:"id"`
 	Helpful bool  `json:"helpful"`
 }

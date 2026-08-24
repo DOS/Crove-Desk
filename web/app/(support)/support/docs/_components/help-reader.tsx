@@ -12,31 +12,31 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbS
 import { SupportArticleContent } from "@/app/(support)/support/_components/support-article-content"
 import { PublicArticleToc } from "@/app/(support)/support/_components/support-article-toc"
 import { SupportHeader } from "@/app/(support)/support/_components/support-header"
-import { SupportHelpLink, type HelpPageNavigationHandler, useSupportHelpRoute } from "@/app/(support)/support/_components/support-help-navigation"
+import { SupportDocLink, type DocPageNavigationHandler, useSupportDocRoute } from "@/app/(support)/support/_components/support-help-navigation"
 import { SupportEmptyState as EmptyState, SupportSearchInput } from "@/app/(support)/support/_components/support-ui"
-import { useSupportHelpReader as useSupportHelpReaderData } from "@/app/(support)/support/_components/use-support-help-reader"
+import { useSupportDocReader as useSupportDocReaderData } from "@/app/(support)/support/_components/use-support-help-reader"
 import { useI18n } from "@/i18n/provider"
-import { fetchSupportHelpPages, submitSupportHelpPageFeedback, type SupportHelpPage } from "@/lib/api/support"
+import { fetchDocPages, submitDocPageFeedback, type DocPage } from "@/lib/api/support"
 import { articleHeadingId } from "@/lib/support-article"
 import { cn, formatDateTime } from "@/lib/utils"
 
-export function SupportHelpList() {
-  return <SupportHelpReader />
+export function SupportDocsList() {
+  return <SupportDocsReader />
 }
 
-export function SupportHelpPageDetail() {
-  return <SupportHelpReader />
+export function DocPageDetail() {
+  return <SupportDocsReader />
 }
 
-function SupportHelpReader() {
+function SupportDocsReader() {
   const t = useI18n()
   const pathname = usePathname()
   const [query, setQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<SupportHelpPage[]>([])
+  const [searchResults, setSearchResults] = useState<DocPage[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
-  const { activePath, navigate, replace } = useSupportHelpRoute(pathname)
-  const { page, pages, expanded, setExpanded, navigationLoading, pageLoading, failed } = useSupportHelpReaderData(activePath, replace)
-  const navigateToHelpPage = useCallback<HelpPageNavigationHandler>((event, targetPage) => {
+  const { activePath, navigate, replace } = useSupportDocRoute(pathname)
+  const { page, pages, expanded, setExpanded, navigationLoading, pageLoading, failed } = useSupportDocReaderData(activePath, replace)
+  const navigateToDocPage = useCallback<DocPageNavigationHandler>((event, targetPage) => {
     navigate(event, targetPage)
   }, [navigate])
 
@@ -49,7 +49,7 @@ function SupportHelpReader() {
     const keyword = query.trim()
     if (!keyword) return
     const timer = window.setTimeout(() => {
-      void fetchSupportHelpPages({ keyword, limit: 50 })
+      void fetchDocPages({ keyword, limit: 50 })
         .then((result) => setSearchResults(result.results))
         .catch(() => setSearchResults([]))
         .finally(() => setSearchLoading(false))
@@ -76,11 +76,11 @@ function SupportHelpReader() {
 
   return (
     <SupportDocsFrame
-      navigation={<HelpNavigation pages={visiblePages} rootPages={visiblePages.filter((item) => !item.parentId)} searchResults={searchResults.map((item) => pages.find((candidate) => candidate.id === item.id) || item).filter((item) => Boolean(item.helpPath))} title={query} expanded={expanded} selectedPageId={page?.id ?? 0} loading={navigationLoading || searchLoading} failed={failed} onTitleChange={(value) => { setQuery(value); setSearchResults([]); setSearchLoading(Boolean(value.trim())) }} onExpandedChange={setExpanded} onNavigate={navigateToHelpPage} />}
-      toc={<PublicArticleToc articleId="support-help-page-detail-preview" content={page?.content ?? ""} contentType={page?.contentType} />}
+      navigation={<DocNavigation pages={visiblePages} rootPages={visiblePages.filter((item) => !item.parentId)} searchResults={searchResults.map((item) => pages.find((candidate) => candidate.id === item.id) || item).filter((item) => Boolean(item.docPath))} title={query} expanded={expanded} selectedPageId={page?.id ?? 0} loading={navigationLoading || searchLoading} failed={failed} onTitleChange={(value) => { setQuery(value); setSearchResults([]); setSearchLoading(Boolean(value.trim())) }} onExpandedChange={setExpanded} onNavigate={navigateToDocPage} />}
+      toc={<PublicArticleToc articleId="doc-page-detail-preview" content={page?.content ?? ""} contentType={page?.contentType} />}
     >
       <div aria-busy={pageLoading} className={cn(page && pageLoading && "opacity-60 transition-opacity")}>
-        {page ? <HelpArticle page={page} pages={pages} previewId="support-help-page-detail-preview" onNavigate={navigateToHelpPage} /> : <div className="grid min-h-[60svh] place-items-center"><EmptyState text={pageLoading ? t("supportPublic.loading.page") : failed ? t("supportPublic.empty.pageNotFound") : t("supportPublic.empty.noPages")} /></div>}
+        {page ? <DocArticle page={page} pages={pages} previewId="doc-page-detail-preview" onNavigate={navigateToDocPage} /> : <div className="grid min-h-[60svh] place-items-center"><EmptyState text={pageLoading ? t("supportPublic.loading.page") : failed ? t("supportPublic.empty.pageNotFound") : t("supportPublic.empty.noPages")} /></div>}
       </div>
     </SupportDocsFrame>
   )
@@ -115,7 +115,7 @@ function SupportDocsFrame({
   )
 }
 
-function HelpNavigation({
+function DocNavigation({
   pages,
   rootPages,
   searchResults = [],
@@ -128,9 +128,9 @@ function HelpNavigation({
   onExpandedChange,
   onNavigate,
 }: {
-  pages: SupportHelpPage[]
-  rootPages: SupportHelpPage[]
-  searchResults?: SupportHelpPage[]
+  pages: DocPage[]
+  rootPages: DocPage[]
+  searchResults?: DocPage[]
   title: string
   expanded: Set<number>
   selectedPageId: number
@@ -138,7 +138,7 @@ function HelpNavigation({
   failed: boolean
   onTitleChange: (value: string) => void
   onExpandedChange: (value: Set<number>) => void
-  onNavigate: HelpPageNavigationHandler
+  onNavigate: DocPageNavigationHandler
 }) {
   const t = useI18n()
   return (
@@ -146,12 +146,12 @@ function HelpNavigation({
       <SupportSearchInput value={title} onChange={onTitleChange} placeholder={t("supportPublic.help.searchPlaceholder")} compact />
       <div className="mt-4 grid gap-0.5">
         {title.trim() ? searchResults.map((page) => (
-          <SupportHelpLink key={page.id} page={page} onNavigate={onNavigate} className={cn("rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-muted", selectedPageId === page.id && "bg-primary/10 text-primary")}>
+          <SupportDocLink key={page.id} page={page} onNavigate={onNavigate} className={cn("rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-muted", selectedPageId === page.id && "bg-primary/10 text-primary")}>
             <span className="block line-clamp-2 font-medium leading-5">{page.title}</span>
             {page.summary ? <span className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">{page.summary}</span> : null}
-          </SupportHelpLink>
+          </SupportDocLink>
         )) : rootPages.map((page) => (
-          <PublicHelpPageNode key={page.id} page={page} depth={0} pages={pages} expanded={expanded} selectedPageId={selectedPageId} onToggle={(id) => {
+          <PublicDocPageNode key={page.id} page={page} depth={0} pages={pages} expanded={expanded} selectedPageId={selectedPageId} onToggle={(id) => {
             const next = new Set(expanded)
             if (next.has(id)) next.delete(id)
             else next.add(id)
@@ -165,11 +165,11 @@ function HelpNavigation({
   )
 }
 
-function HelpArticle({ page, pages, previewId, onNavigate }: { page: SupportHelpPage; pages: SupportHelpPage[]; previewId: string; onNavigate: HelpPageNavigationHandler }) {
+function DocArticle({ page, pages, previewId, onNavigate }: { page: DocPage; pages: DocPage[]; previewId: string; onNavigate: DocPageNavigationHandler }) {
   const t = useI18n()
   const lightbox = useImageLightboxOptional()
   const [feedbackPending, setFeedbackPending] = useState(false)
-  const breadcrumbs = helpPageBreadcrumbs(pages, page)
+  const breadcrumbs = docPageBreadcrumbs(pages, page)
   const currentIndex = pages.findIndex((item) => item.id === page.id)
   const previousPage = currentIndex > 0 ? pages[currentIndex - 1] : null
   const nextPage = currentIndex >= 0 ? pages[currentIndex + 1] : null
@@ -177,7 +177,7 @@ function HelpArticle({ page, pages, previewId, onNavigate }: { page: SupportHelp
     if (feedbackPending) return
     setFeedbackPending(true)
     try {
-      await submitSupportHelpPageFeedback(page.id, helpful)
+      await submitDocPageFeedback(page.id, helpful)
       toast.success(t("supportPublic.toast.feedbackSaved"))
     } finally {
       setFeedbackPending(false)
@@ -234,7 +234,7 @@ function HelpArticle({ page, pages, previewId, onNavigate }: { page: SupportHelp
       <Breadcrumb>
         <BreadcrumbList className="gap-y-1">
           <BreadcrumbItem>
-            <Link href="/support/help" className="transition-colors hover:text-foreground">{t("supportPublic.help.title")}</Link>
+            <Link href="/support/docs" className="transition-colors hover:text-foreground">{t("supportPublic.help.title")}</Link>
           </BreadcrumbItem>
           {breadcrumbs.map((item) => (
             <Fragment key={item.id}>
@@ -243,9 +243,9 @@ function HelpArticle({ page, pages, previewId, onNavigate }: { page: SupportHelp
                 {item.id === page.id ? (
                   <BreadcrumbPage className="truncate">{item.title}</BreadcrumbPage>
                 ) : (
-                  <SupportHelpLink page={item} onNavigate={onNavigate} className="truncate transition-colors hover:text-foreground">
+                  <SupportDocLink page={item} onNavigate={onNavigate} className="truncate transition-colors hover:text-foreground">
                     {item.title}
-                  </SupportHelpLink>
+                  </SupportDocLink>
                 )}
               </BreadcrumbItem>
             </Fragment>
@@ -274,9 +274,9 @@ function HelpArticle({ page, pages, previewId, onNavigate }: { page: SupportHelp
   )
 }
 
-function helpPageBreadcrumbs(pages: SupportHelpPage[], page: SupportHelpPage) {
+function docPageBreadcrumbs(pages: DocPage[], page: DocPage) {
   const pagesById = new Map(pages.map((item) => [item.id, item]))
-  const ancestors: SupportHelpPage[] = []
+  const ancestors: DocPage[] = []
   const visited = new Set<number>([page.id])
   let parentId = page.parentId
   while (parentId && !visited.has(parentId)) {
@@ -289,15 +289,15 @@ function helpPageBreadcrumbs(pages: SupportHelpPage[], page: SupportHelpPage) {
   return [...ancestors, page]
 }
 
-function ArticlePager({ page, direction, onNavigate }: { page: SupportHelpPage; direction: "previous" | "next"; onNavigate: HelpPageNavigationHandler }) {
+function ArticlePager({ page, direction, onNavigate }: { page: DocPage; direction: "previous" | "next"; onNavigate: DocPageNavigationHandler }) {
   const t = useI18n()
-  return <SupportHelpLink page={page} onNavigate={onNavigate} className={cn("group rounded-md border px-4 py-3 transition-colors hover:border-primary/40 hover:bg-muted/50", direction === "next" && "text-right")}>
+  return <SupportDocLink page={page} onNavigate={onNavigate} className={cn("group rounded-md border px-4 py-3 transition-colors hover:border-primary/40 hover:bg-muted/50", direction === "next" && "text-right")}>
     <span className="text-xs text-muted-foreground">{t(`supportPublic.help.${direction}`)}</span>
     <span className="mt-1 flex items-center justify-between gap-3 text-sm font-medium text-primary">{direction === "previous" ? <ChevronRightIcon className="size-4 rotate-180" /> : null}<span className={cn("truncate", direction === "next" && "ml-auto")}>{page.title}</span>{direction === "next" ? <ChevronRightIcon className="size-4" /> : null}</span>
-  </SupportHelpLink>
+  </SupportDocLink>
 }
 
-function PublicHelpPageNode({
+function PublicDocPageNode({
   page,
   depth,
   pages,
@@ -306,13 +306,13 @@ function PublicHelpPageNode({
   onToggle,
   onNavigate,
 }: {
-  page: SupportHelpPage
+  page: DocPage
   depth: number
-  pages: SupportHelpPage[]
+  pages: DocPage[]
   expanded: Set<number>
   selectedPageId: number
   onToggle: (id: number) => void
-  onNavigate: HelpPageNavigationHandler
+  onNavigate: DocPageNavigationHandler
 }) {
   const t = useI18n()
   const open = expanded.has(page.id)
@@ -340,16 +340,16 @@ function PublicHelpPageNode({
             {open ? <ChevronDownIcon className="size-4" /> : <ChevronRightIcon className="size-4" />}
           </button>
         ) : <span className="size-7 shrink-0" />}
-        <SupportHelpLink page={page} onNavigate={onNavigate} className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left leading-5" aria-current={selected ? "page" : undefined}>
+        <SupportDocLink page={page} onNavigate={onNavigate} className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left leading-5" aria-current={selected ? "page" : undefined}>
           {hasChildren ? (open ? <FolderOpenIcon className="size-4 shrink-0" /> : <FolderIcon className="size-4 shrink-0" />) : <FileTextIcon className="size-3.5 shrink-0 opacity-70" />}
           <span className="line-clamp-2">{page.title}</span>
-        </SupportHelpLink>
+        </SupportDocLink>
       </div>
       {open && hasChildren ? (
         <div className="relative before:absolute before:inset-y-1 before:w-px before:bg-border/80" style={{ marginLeft: `${depth * 16 + 17}px` }}>
           <div style={{ marginLeft: `${-(depth * 16 + 17)}px` }}>
             {children.map((child) => (
-              <PublicHelpPageNode key={child.id} page={child} depth={depth + 1} pages={pages} expanded={expanded} selectedPageId={selectedPageId} onToggle={onToggle} onNavigate={onNavigate} />
+              <PublicDocPageNode key={child.id} page={child} depth={depth + 1} pages={pages} expanded={expanded} selectedPageId={selectedPageId} onToggle={onToggle} onNavigate={onNavigate} />
             ))}
           </div>
         </div>
@@ -358,7 +358,7 @@ function PublicHelpPageNode({
   )
 }
 
-function ChildPageLinks({ pages, onNavigate }: { pages: SupportHelpPage[]; onNavigate: HelpPageNavigationHandler }) {
+function ChildPageLinks({ pages, onNavigate }: { pages: DocPage[]; onNavigate: DocPageNavigationHandler }) {
   const t = useI18n()
   if (!pages.length) return null
   return (
@@ -368,7 +368,7 @@ function ChildPageLinks({ pages, onNavigate }: { pages: SupportHelpPage[]; onNav
       </h2>
       <div className="grid gap-3 sm:grid-cols-2">
         {pages.map((page) => (
-          <SupportHelpLink
+          <SupportDocLink
             key={page.id}
             page={page}
             onNavigate={onNavigate}
@@ -384,7 +384,7 @@ function ChildPageLinks({ pages, onNavigate }: { pages: SupportHelpPage[]; onNav
               {page.summary ? <span className="mt-0.5 line-clamp-3 text-sm leading-5 text-muted-foreground">{page.summary}</span> : null}
             </span>
             <ArrowRightIcon className="mt-2 size-4 shrink-0 text-muted-foreground/60 transition-[color,transform] group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden="true" />
-          </SupportHelpLink>
+          </SupportDocLink>
         ))}
       </div>
     </section>

@@ -2,28 +2,28 @@
 
 import { useEffect, useRef, useState } from "react"
 
-import { flattenSupportHelpNavigation } from "@/app/(support)/support/_components/support-help-navigation"
-import { fetchSupportHelpNavigation, fetchSupportHelpPage, type SupportHelpPage } from "@/lib/api/support"
+import { flattenSupportDocNavigation } from "@/app/(support)/support/_components/support-help-navigation"
+import { fetchDocNavigation, fetchDocPage, type DocPage } from "@/lib/api/support"
 
-export function useSupportHelpReader(activePath: string, onDefaultPage: (page: SupportHelpPage) => void) {
-  const [page, setPage] = useState<SupportHelpPage | null>(null)
-  const [pages, setPages] = useState<SupportHelpPage[]>([])
+export function useSupportDocReader(activePath: string, onDefaultPage: (page: DocPage) => void) {
+  const [page, setPage] = useState<DocPage | null>(null)
+  const [pages, setPages] = useState<DocPage[]>([])
   const [navigationLoading, setNavigationLoading] = useState(true)
   const [loadedSlug, setLoadedSlug] = useState("")
   const [failed, setFailed] = useState(false)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const initialPath = useRef(activePath)
-  const detailCache = useRef(new Map<number, SupportHelpPage>())
+  const detailCache = useRef(new Map<number, DocPage>())
   const detailRequestId = useRef(0)
   const expandedInitialized = useRef(false)
 
   useEffect(() => {
-    void fetchSupportHelpNavigation()
+    void fetchDocNavigation()
       .then((tree) => {
         setFailed(false)
-        const navigationPages = flattenSupportHelpNavigation(tree)
+        const navigationPages = flattenSupportDocNavigation(tree)
         setPages(navigationPages)
-        const target = navigationPages.find((item) => item.helpPath === initialPath.current) || navigationPages[0]
+        const target = navigationPages.find((item) => item.docPath === initialPath.current) || navigationPages[0]
         if (!target) {
           setPage(null)
           setExpanded(new Set())
@@ -40,7 +40,7 @@ export function useSupportHelpReader(activePath: string, onDefaultPage: (page: S
 
   useEffect(() => {
     if (!pages.length) return
-    const activePage = pages.find((item) => item.helpPath === activePath)
+    const activePage = pages.find((item) => item.docPath === activePath)
     if (!activePage) {
       void Promise.resolve().then(() => {
         setPage(null)
@@ -50,15 +50,15 @@ export function useSupportHelpReader(activePath: string, onDefaultPage: (page: S
     }
     const requestId = ++detailRequestId.current
     const cached = detailCache.current.get(activePage.id)
-    const detailRequest = cached ? Promise.resolve(cached) : fetchSupportHelpPage(activePage.id)
+    const detailRequest = cached ? Promise.resolve(cached) : fetchDocPage(activePage.id)
     void detailRequest
       .then((detail) => {
         if (requestId !== detailRequestId.current) return
         detailCache.current.set(detail.id, detail)
         setFailed(false)
-        setPage({ ...detail, helpPath: activePage.helpPath })
+        setPage({ ...detail, docPath: activePage.docPath })
         setLoadedSlug(activePath)
-        const activePagePath = [...helpPageAncestorIds(pages, detail.id), detail.id]
+        const activePagePath = [...docPageAncestorIds(pages, detail.id), detail.id]
         setExpanded((current) => {
           if (!expandedInitialized.current) {
             expandedInitialized.current = true
@@ -88,7 +88,7 @@ export function useSupportHelpReader(activePath: string, onDefaultPage: (page: S
   }
 }
 
-function helpPageAncestorIds(pages: SupportHelpPage[], pageId: number) {
+function docPageAncestorIds(pages: DocPage[], pageId: number) {
   const ancestors: number[] = []
   const pagesById = new Map(pages.map((item) => [item.id, item]))
   const visited = new Set<number>()

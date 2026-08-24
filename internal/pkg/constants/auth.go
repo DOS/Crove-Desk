@@ -168,14 +168,14 @@ var (
 	PermissionKnowledgeFAQDelete      = Permission{Name: "删除知识FAQ", Code: "knowledgeFAQ.delete", Type: "api", GroupName: "knowledgeFAQ", Method: "POST", APIPath: "/api/dashboard/knowledge-faq/delete", SortNo: 1580}
 
 	// 支持中心相关权限
-	PermissionSupportHelpPageView   = Permission{Name: "查看帮助中心页面", Code: "supportHelpPage.view", Type: "api", GroupName: "supportHelpPage", Method: "ANY", APIPath: "/api/dashboard/support-help-page/list", SortNo: 1590}
-	PermissionSupportHelpPageCreate = Permission{Name: "创建帮助中心页面", Code: "supportHelpPage.create", Type: "api", GroupName: "supportHelpPage", Method: "POST", APIPath: "/api/dashboard/support-help-page/create", SortNo: 1591}
-	PermissionSupportHelpPageUpdate = Permission{Name: "更新帮助中心页面", Code: "supportHelpPage.update", Type: "api", GroupName: "supportHelpPage", Method: "POST", APIPath: "/api/dashboard/support-help-page/update", SortNo: 1592}
-	PermissionSupportHelpPageDelete = Permission{Name: "删除帮助中心页面", Code: "supportHelpPage.delete", Type: "api", GroupName: "supportHelpPage", Method: "POST", APIPath: "/api/dashboard/support-help-page/delete", SortNo: 1593}
-	PermissionCommunityView         = Permission{Name: "查看支持中心社区", Code: "supportCommunity.view", Type: "api", GroupName: "supportCommunity", Method: "ANY", APIPath: "/api/dashboard/support-community/posts/list", SortNo: 1594}
-	PermissionCommunityUpdate       = Permission{Name: "管理支持中心社区", Code: "supportCommunity.update", Type: "api", GroupName: "supportCommunity", Method: "POST", APIPath: "/api/dashboard/support-community/posts/moderate", SortNo: 1595}
-	PermissionSupportConfigView     = Permission{Name: "查看支持中心配置", Code: "supportConfig.view", Type: "api", GroupName: "supportConfig", Method: "GET", APIPath: "/api/dashboard/support/config", SortNo: 1596}
-	PermissionSupportConfigUpdate   = Permission{Name: "更新支持中心配置", Code: "supportConfig.update", Type: "api", GroupName: "supportConfig", Method: "POST", APIPath: "/api/dashboard/support/config/save", SortNo: 1597}
+	PermissionDocPageView         = Permission{Name: "查看文档中心页面", Code: "docPage.view", Type: "api", GroupName: "docPage", Method: "ANY", APIPath: "/api/dashboard/doc-page/list", SortNo: 1590}
+	PermissionDocPageCreate       = Permission{Name: "创建文档中心页面", Code: "docPage.create", Type: "api", GroupName: "docPage", Method: "POST", APIPath: "/api/dashboard/doc-page/create", SortNo: 1591}
+	PermissionDocPageUpdate       = Permission{Name: "更新文档中心页面", Code: "docPage.update", Type: "api", GroupName: "docPage", Method: "POST", APIPath: "/api/dashboard/doc-page/update", SortNo: 1592}
+	PermissionDocPageDelete       = Permission{Name: "删除文档中心页面", Code: "docPage.delete", Type: "api", GroupName: "docPage", Method: "POST", APIPath: "/api/dashboard/doc-page/delete", SortNo: 1593}
+	PermissionCommunityView       = Permission{Name: "查看支持中心社区", Code: "supportCommunity.view", Type: "api", GroupName: "supportCommunity", Method: "ANY", APIPath: "/api/dashboard/support-community/posts/list", SortNo: 1594}
+	PermissionCommunityUpdate     = Permission{Name: "管理支持中心社区", Code: "supportCommunity.update", Type: "api", GroupName: "supportCommunity", Method: "POST", APIPath: "/api/dashboard/support-community/posts/moderate", SortNo: 1595}
+	PermissionSupportConfigView   = Permission{Name: "查看支持中心配置", Code: "supportConfig.view", Type: "api", GroupName: "supportConfig", Method: "GET", APIPath: "/api/dashboard/support/config", SortNo: 1596}
+	PermissionSupportConfigUpdate = Permission{Name: "更新支持中心配置", Code: "supportConfig.update", Type: "api", GroupName: "supportConfig", Method: "POST", APIPath: "/api/dashboard/support/config/save", SortNo: 1597}
 
 	// Skill 定义相关权限
 	PermissionSkillDefinitionView   = Permission{Name: "查看技能定义", Code: "skillDefinition.view", Type: "api", GroupName: "skillDefinition", Method: "ANY", APIPath: "/api/dashboard/skill-definition/list", SortNo: 1610}
@@ -281,10 +281,10 @@ var Permissions = []Permission{
 	PermissionKnowledgeFAQCreate,
 	PermissionKnowledgeFAQUpdate,
 	PermissionKnowledgeFAQDelete,
-	PermissionSupportHelpPageView,
-	PermissionSupportHelpPageCreate,
-	PermissionSupportHelpPageUpdate,
-	PermissionSupportHelpPageDelete,
+	PermissionDocPageView,
+	PermissionDocPageCreate,
+	PermissionDocPageUpdate,
+	PermissionDocPageDelete,
 	PermissionCommunityView,
 	PermissionCommunityUpdate,
 	PermissionSupportConfigView,

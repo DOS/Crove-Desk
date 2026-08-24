@@ -43,7 +43,7 @@ const supportNavItemClass = "h-8 rounded-md px-2.5 text-sm"
 function defaultSupportNavigationMenu(t: ReturnType<typeof useI18n>): SupportNavigationMenuItem[] {
   return [
     { id: "home", title: t("supportPublic.nav.home"), url: "/support", openInNewWindow: false, visible: true, sortNo: 10 },
-    { id: "help", title: t("supportPublic.nav.help"), url: "/support/help", openInNewWindow: false, visible: true, sortNo: 20 },
+    { id: "help", title: t("supportPublic.nav.help"), url: "/support/docs", openInNewWindow: false, visible: true, sortNo: 20 },
     { id: "community", title: t("supportPublic.nav.community"), url: "/support/community/posts", openInNewWindow: false, visible: true, sortNo: 30 },
   ]
 }

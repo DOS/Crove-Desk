@@ -16,30 +16,30 @@ import (
 	"github.com/mlogclub/simple/web"
 )
 
-func SupportHelpPageAnyList(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageView); err != nil {
+func DocPageAnyList(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionDocPageView); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	list, paging := services.SupportService.FindHelpPagePage(params.NewPagedSqlCnd(ctx,
+	list, paging := services.SupportService.FindDocPagePage(params.NewPagedSqlCnd(ctx,
 		params.QueryFilter{ParamName: "parentId"},
 		params.QueryFilter{ParamName: "status"},
 		params.QueryFilter{ParamName: "title", Op: params.Like},
 	).Asc("sort_no").Desc("id"))
-	httpx.WriteJSON(ctx, &web.PageResult{Results: buildDashboardSupportHelpPages(list, false), Page: paging})
+	httpx.WriteJSON(ctx, &web.PageResult{Results: buildDashboardDocPages(list, false), Page: paging})
 }
 
-func SupportHelpPageGetList_all(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageView); err != nil {
+func DocPageGetList_all(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionDocPageView); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	list := services.SupportService.FindHelpPages(sqls.NewCnd().Asc("sort_no").Asc("id"))
-	httpx.WriteJSON(ctx, buildDashboardSupportHelpPages(list, false))
+	list := services.SupportService.FindDocPages(sqls.NewCnd().Asc("sort_no").Asc("id"))
+	httpx.WriteJSON(ctx, buildDashboardDocPages(list, false))
 }
 
-func SupportHelpPageGetBy(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageView); err != nil {
+func DocPageGetBy(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionDocPageView); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
@@ -47,73 +47,73 @@ func SupportHelpPageGetBy(ctx *gin.Context) {
 	if !ok {
 		return
 	}
-	item := services.SupportService.FindHelpPageByID(id)
+	item := services.SupportService.FindDocPageByID(id)
 	if item == nil {
 		httpx.WriteJSON(ctx, httpx.JsonErrorMsg(ctx, "error.notFound"))
 		return
 	}
-	httpx.WriteJSON(ctx, builders.BuildSupportHelpPage(item, true))
+	httpx.WriteJSON(ctx, builders.BuildDocPage(item, true))
 }
 
-func SupportHelpPagePostCreate(ctx *gin.Context) {
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageCreate)
+func DocPagePostCreate(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionDocPageCreate)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.SaveSupportHelpPageRequest{}
+	req := request.SaveDocPageRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	item, err := services.SupportService.SaveHelpPage(req, operator)
+	item, err := services.SupportService.SaveDocPage(req, operator)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, builders.BuildSupportHelpPage(item, true))
+	httpx.WriteJSON(ctx, builders.BuildDocPage(item, true))
 }
 
-func SupportHelpPagePostUpdate(ctx *gin.Context) {
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageUpdate)
+func DocPagePostUpdate(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionDocPageUpdate)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.SaveSupportHelpPageRequest{}
+	req := request.SaveDocPageRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	item, err := services.SupportService.SaveHelpPage(req, operator)
+	item, err := services.SupportService.SaveDocPage(req, operator)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, builders.BuildSupportHelpPage(item, true))
+	httpx.WriteJSON(ctx, builders.BuildDocPage(item, true))
 }
 
-func SupportHelpPagePostUpdate_settings(ctx *gin.Context) {
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageUpdate)
+func DocPagePostUpdate_settings(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionDocPageUpdate)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.UpdateSupportHelpPageSettingsRequest{}
+	req := request.UpdateDocPageSettingsRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	item, err := services.SupportService.UpdateHelpPageSettings(req, operator)
+	item, err := services.SupportService.UpdateDocPageSettings(req, operator)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, builders.BuildSupportHelpPage(item, true))
+	httpx.WriteJSON(ctx, builders.BuildDocPage(item, true))
 }
 
-func SupportHelpPagePostDelete(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageDelete); err != nil {
+func DocPagePostDelete(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionDocPageDelete); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
@@ -122,39 +122,39 @@ func SupportHelpPagePostDelete(ctx *gin.Context) {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, services.SupportService.DeleteHelpPage(req.ID))
+	httpx.WriteJSON(ctx, services.SupportService.DeleteDocPage(req.ID))
 }
 
-func SupportHelpPagePostUpdate_sort(ctx *gin.Context) {
-	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageUpdate); err != nil {
+func DocPagePostUpdate_sort(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionDocPageUpdate); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.SortSupportHelpPagesRequest{}
+	req := request.SortDocPagesRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, services.SupportService.SortHelpPages(req))
+	httpx.WriteJSON(ctx, services.SupportService.SortDocPages(req))
 }
 
-func SupportHelpPagePostChange_status(ctx *gin.Context) {
-	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionSupportHelpPageUpdate)
+func DocPagePostChange_status(ctx *gin.Context) {
+	operator, err := services.AuthService.RequirePermission(ctx, constants.PermissionDocPageUpdate)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.ChangeSupportHelpPageStatusRequest{}
+	req := request.ChangeDocPageStatusRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	item, err := services.SupportService.ChangeHelpPageStatus(req, operator)
+	item, err := services.SupportService.ChangeDocPageStatus(req, operator)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, builders.BuildSupportHelpPage(item, true))
+	httpx.WriteJSON(ctx, builders.BuildDocPage(item, true))
 }
 
 func CategoryAnyList(ctx *gin.Context) {
@@ -321,10 +321,10 @@ func CommentPostModerate(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, services.SupportService.ModerateComment(req))
 }
 
-func buildDashboardSupportHelpPages(list []models.SupportHelpPage, includeContent bool) []response.SupportHelpPageResponse {
-	results := make([]response.SupportHelpPageResponse, 0, len(list))
+func buildDashboardDocPages(list []models.DocPage, includeContent bool) []response.DocPageResponse {
+	results := make([]response.DocPageResponse, 0, len(list))
 	for _, item := range list {
-		if resp := builders.BuildSupportHelpPage(&item, includeContent); resp != nil {
+		if resp := builders.BuildDocPage(&item, includeContent); resp != nil {
 			results = append(results, *resp)
 		}
 	}

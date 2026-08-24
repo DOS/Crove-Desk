@@ -101,29 +101,29 @@ func (s *supportService) GetSupportUser(ctx *gin.Context) *dto.AuthPrincipal {
 	return nil
 }
 
-func (s *supportService) FindHelpPages(cnd *sqls.Cnd) []models.SupportHelpPage {
-	return repositories.SupportHelpPageRepository.Find(sqls.DB(), cnd)
+func (s *supportService) FindDocPages(cnd *sqls.Cnd) []models.DocPage {
+	return repositories.DocPageRepository.Find(sqls.DB(), cnd)
 }
 
-func (s *supportService) FindPublicHelpNavigation() []models.SupportHelpPage {
-	return repositories.SupportHelpPageRepository.FindNavigationItems(sqls.DB(), sqls.NewCnd().Eq("status", enums.SupportHelpPageStatusPublished).Asc("sort_no").Asc("id"))
+func (s *supportService) FindPublicDocNavigation() []models.DocPage {
+	return repositories.DocPageRepository.FindNavigationItems(sqls.DB(), sqls.NewCnd().Eq("status", enums.DocPageStatusPublished).Asc("sort_no").Asc("id"))
 }
 
-func (s *supportService) FindHelpPageByID(id int64) *models.SupportHelpPage {
-	return repositories.SupportHelpPageRepository.Get(sqls.DB(), id)
+func (s *supportService) FindDocPageByID(id int64) *models.DocPage {
+	return repositories.DocPageRepository.Get(sqls.DB(), id)
 }
 
-func (s *supportService) FindHelpPagePage(cnd *sqls.Cnd) ([]models.SupportHelpPage, *sqls.Paging) {
-	return repositories.SupportHelpPageRepository.FindPageByCnd(sqls.DB(), cnd)
+func (s *supportService) FindDocPagePage(cnd *sqls.Cnd) ([]models.DocPage, *sqls.Paging) {
+	return repositories.DocPageRepository.FindPageByCnd(sqls.DB(), cnd)
 }
 
-func (s *supportService) SortHelpPages(req request.SortSupportHelpPagesRequest) error {
-	pages := repositories.SupportHelpPageRepository.Find(
+func (s *supportService) SortDocPages(req request.SortDocPagesRequest) error {
+	pages := repositories.DocPageRepository.Find(
 		sqls.DB(),
 		sqls.NewCnd().Eq("parent_id", req.ParentID).Asc("sort_no").Asc("id"),
 	)
 	if len(req.IDs) != len(pages) {
-		return errorsx.InvalidParamI18n("error.supportHelpPage.sortScopeMismatch")
+		return errorsx.InvalidParamI18n("error.docPage.sortScopeMismatch")
 	}
 	existing := make(map[int64]struct{}, len(pages))
 	for _, page := range pages {
@@ -132,16 +132,16 @@ func (s *supportService) SortHelpPages(req request.SortSupportHelpPagesRequest) 
 	seen := make(map[int64]struct{}, len(req.IDs))
 	for _, id := range req.IDs {
 		if _, ok := existing[id]; !ok {
-			return errorsx.InvalidParamI18n("error.supportHelpPage.sortScopeMismatch")
+			return errorsx.InvalidParamI18n("error.docPage.sortScopeMismatch")
 		}
 		if _, ok := seen[id]; ok {
-			return errorsx.InvalidParamI18n("error.supportHelpPage.sortDuplicate")
+			return errorsx.InvalidParamI18n("error.docPage.sortDuplicate")
 		}
 		seen[id] = struct{}{}
 	}
 	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
 		for sortNo, id := range req.IDs {
-			if err := repositories.SupportHelpPageRepository.UpdateSort(ctx.Tx, id, sortNo); err != nil {
+			if err := repositories.DocPageRepository.UpdateSort(ctx.Tx, id, sortNo); err != nil {
 				return err
 			}
 		}
@@ -149,14 +149,14 @@ func (s *supportService) SortHelpPages(req request.SortSupportHelpPagesRequest) 
 	})
 }
 
-func (s *supportService) validateHelpPageParent(id, parentID int64) error {
+func (s *supportService) validateDocPageParent(id, parentID int64) error {
 	if parentID == 0 {
 		return nil
 	}
 	if id > 0 && id == parentID {
 		return errorsx.InvalidParam("page cannot be its own parent")
 	}
-	parent := repositories.SupportHelpPageRepository.Get(sqls.DB(), parentID)
+	parent := repositories.DocPageRepository.Get(sqls.DB(), parentID)
 	if parent == nil {
 		return errorsx.InvalidParam("parent page not found")
 	}
@@ -167,7 +167,7 @@ func (s *supportService) validateHelpPageParent(id, parentID int64) error {
 			return errorsx.InvalidParam("page hierarchy contains a cycle")
 		}
 		visited[parent.ParentID] = true
-		parent = repositories.SupportHelpPageRepository.Get(sqls.DB(), parent.ParentID)
+		parent = repositories.DocPageRepository.Get(sqls.DB(), parent.ParentID)
 		if parent == nil {
 			return errorsx.InvalidParam("parent page not found")
 		}
@@ -179,7 +179,7 @@ func (s *supportService) validateHelpPageParent(id, parentID int64) error {
 	return nil
 }
 
-func (s *supportService) SaveHelpPage(req request.SaveSupportHelpPageRequest, operator *dto.AuthPrincipal) (*models.SupportHelpPage, error) {
+func (s *supportService) SaveDocPage(req request.SaveDocPageRequest, operator *dto.AuthPrincipal) (*models.DocPage, error) {
 	title, slug := strings.TrimSpace(req.Title), normalizeSupportSlug(req.Slug)
 	if title == "" || slug == "" {
 		return nil, errorsx.InvalidParam("title and slug are required")
@@ -187,31 +187,31 @@ func (s *supportService) SaveHelpPage(req request.SaveSupportHelpPageRequest, op
 	if err := validateSupportSlug(slug); err != nil {
 		return nil, err
 	}
-	if err := s.validateHelpPageParent(req.ID, req.ParentID); err != nil {
+	if err := s.validateDocPageParent(req.ID, req.ParentID); err != nil {
 		return nil, err
 	}
-	if existing := repositories.SupportHelpPageRepository.GetByParentIDAndSlug(sqls.DB(), req.ParentID, slug); existing != nil && existing.ID != req.ID {
+	if existing := repositories.DocPageRepository.GetByParentIDAndSlug(sqls.DB(), req.ParentID, slug); existing != nil && existing.ID != req.ID {
 		return nil, errorsx.InvalidParam("page slug already exists")
 	}
-	status := normalizeHelpPageStatus(req.Status)
-	var current *models.SupportHelpPage
+	status := normalizeDocPageStatus(req.Status)
+	var current *models.DocPage
 	if req.ID > 0 {
-		current = repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ID)
+		current = repositories.DocPageRepository.Get(sqls.DB(), req.ID)
 		if current == nil {
 			return nil, errorsx.InvalidParam("page not found")
 		}
-		// Publication status is changed only by ChangeHelpPageStatus so saving
+		// Publication status is changed only by ChangeDocPageStatus so saving
 		// content cannot accidentally publish or withdraw a public document.
 		status = current.Status
 	}
-	if status == enums.SupportHelpPageStatusPublished && req.ParentID > 0 {
-		parent := repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ParentID)
-		if parent == nil || parent.Status != enums.SupportHelpPageStatusPublished {
+	if status == enums.DocPageStatusPublished && req.ParentID > 0 {
+		parent := repositories.DocPageRepository.Get(sqls.DB(), req.ParentID)
+		if parent == nil || parent.Status != enums.DocPageStatusPublished {
 			return nil, errorsx.InvalidParam("publish the parent page first")
 		}
 	}
-	if req.ID > 0 && status != enums.SupportHelpPageStatusPublished {
-		publishedChildren := repositories.SupportHelpPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", req.ID).Eq("status", enums.SupportHelpPageStatusPublished).Page(1, 1))
+	if req.ID > 0 && status != enums.DocPageStatusPublished {
+		publishedChildren := repositories.DocPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", req.ID).Eq("status", enums.DocPageStatusPublished).Page(1, 1))
 		if len(publishedChildren) > 0 {
 			return nil, errorsx.InvalidParam("unpublish child pages first")
 		}
@@ -219,7 +219,7 @@ func (s *supportService) SaveHelpPage(req request.SaveSupportHelpPageRequest, op
 	tags, _ := json.Marshal(normalizeTags(req.Tags))
 	now := time.Now()
 	publishedAt := (*time.Time)(nil)
-	if status == enums.SupportHelpPageStatusPublished && req.ID == 0 {
+	if status == enums.DocPageStatusPublished && req.ID == 0 {
 		publishedAt = &now
 	}
 	columns := map[string]any{"parent_id": req.ParentID, "title": title, "slug": slug, "summary": strings.TrimSpace(req.Summary), "content_type": normalizeContentType(req.ContentType), "content": req.Content, "cover_url": strings.TrimSpace(req.CoverURL), "tags_json": string(tags), "status": status, "sort_no": req.SortNo, "remark": strings.TrimSpace(req.Remark), "updated_at": now, "update_user_id": operator.UserID, "update_user_name": operator.Username}
@@ -227,45 +227,45 @@ func (s *supportService) SaveHelpPage(req request.SaveSupportHelpPageRequest, op
 		columns["published_at"] = publishedAt
 	}
 	if req.ID > 0 {
-		if err := repositories.SupportHelpPageRepository.Updates(sqls.DB(), req.ID, columns); err != nil {
+		if err := repositories.DocPageRepository.Updates(sqls.DB(), req.ID, columns); err != nil {
 			return nil, err
 		}
-		return repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ID), nil
+		return repositories.DocPageRepository.Get(sqls.DB(), req.ID), nil
 	}
-	item := &models.SupportHelpPage{ParentID: req.ParentID, Title: title, Slug: slug, Summary: strings.TrimSpace(req.Summary), ContentType: normalizeContentType(req.ContentType), Content: req.Content, CoverURL: strings.TrimSpace(req.CoverURL), TagsJSON: string(tags), Status: status, SortNo: req.SortNo, PublishedAt: publishedAt, Remark: strings.TrimSpace(req.Remark), AuditFields: auditFieldsFromOperator(operator, now)}
-	if err := repositories.SupportHelpPageRepository.Create(sqls.DB(), item); err != nil {
+	item := &models.DocPage{ParentID: req.ParentID, Title: title, Slug: slug, Summary: strings.TrimSpace(req.Summary), ContentType: normalizeContentType(req.ContentType), Content: req.Content, CoverURL: strings.TrimSpace(req.CoverURL), TagsJSON: string(tags), Status: status, SortNo: req.SortNo, PublishedAt: publishedAt, Remark: strings.TrimSpace(req.Remark), AuditFields: auditFieldsFromOperator(operator, now)}
+	if err := repositories.DocPageRepository.Create(sqls.DB(), item); err != nil {
 		return nil, err
 	}
 	return item, nil
 }
 
-func (s *supportService) UpdateHelpPageSettings(req request.UpdateSupportHelpPageSettingsRequest, operator *dto.AuthPrincipal) (*models.SupportHelpPage, error) {
-	item := repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ID)
+func (s *supportService) UpdateDocPageSettings(req request.UpdateDocPageSettingsRequest, operator *dto.AuthPrincipal) (*models.DocPage, error) {
+	item := repositories.DocPageRepository.Get(sqls.DB(), req.ID)
 	if item == nil {
-		return nil, errorsx.InvalidParamI18n("error.supportHelpPage.notFound")
+		return nil, errorsx.InvalidParamI18n("error.docPage.notFound")
 	}
 	slug := normalizeSupportSlug(req.Slug)
 	if slug == "" {
-		return nil, errorsx.InvalidParamI18n("error.supportHelpPage.slugRequired")
+		return nil, errorsx.InvalidParamI18n("error.docPage.slugRequired")
 	}
 	if err := validateSupportSlug(slug); err != nil {
 		return nil, err
 	}
-	if err := s.validateHelpPageParent(item.ID, req.ParentID); err != nil {
+	if err := s.validateDocPageParent(item.ID, req.ParentID); err != nil {
 		return nil, err
 	}
-	if existing := repositories.SupportHelpPageRepository.GetByParentIDAndSlug(sqls.DB(), req.ParentID, slug); existing != nil && existing.ID != item.ID {
-		return nil, errorsx.InvalidParamI18n("error.supportHelpPage.slugDuplicate")
+	if existing := repositories.DocPageRepository.GetByParentIDAndSlug(sqls.DB(), req.ParentID, slug); existing != nil && existing.ID != item.ID {
+		return nil, errorsx.InvalidParamI18n("error.docPage.slugDuplicate")
 	}
-	if item.Status == enums.SupportHelpPageStatusPublished && req.ParentID > 0 {
-		parent := repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ParentID)
-		if parent == nil || parent.Status != enums.SupportHelpPageStatusPublished {
-			return nil, errorsx.InvalidParamI18n("error.supportHelpPage.publishParentFirst")
+	if item.Status == enums.DocPageStatusPublished && req.ParentID > 0 {
+		parent := repositories.DocPageRepository.Get(sqls.DB(), req.ParentID)
+		if parent == nil || parent.Status != enums.DocPageStatusPublished {
+			return nil, errorsx.InvalidParamI18n("error.docPage.publishParentFirst")
 		}
 	}
 	sortNo := item.SortNo
 	if req.ParentID != item.ParentID {
-		sortNo = len(repositories.SupportHelpPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", req.ParentID)))
+		sortNo = len(repositories.DocPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", req.ParentID)))
 	}
 	now := time.Now()
 	columns := map[string]any{
@@ -277,34 +277,34 @@ func (s *supportService) UpdateHelpPageSettings(req request.UpdateSupportHelpPag
 		"update_user_id":   operator.UserID,
 		"update_user_name": operator.Username,
 	}
-	if err := repositories.SupportHelpPageRepository.Updates(sqls.DB(), item.ID, columns); err != nil {
+	if err := repositories.DocPageRepository.Updates(sqls.DB(), item.ID, columns); err != nil {
 		return nil, err
 	}
-	return repositories.SupportHelpPageRepository.Get(sqls.DB(), item.ID), nil
+	return repositories.DocPageRepository.Get(sqls.DB(), item.ID), nil
 }
 
-func (s *supportService) ChangeHelpPageStatus(req request.ChangeSupportHelpPageStatusRequest, operator *dto.AuthPrincipal) (*models.SupportHelpPage, error) {
-	item := repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ID)
+func (s *supportService) ChangeDocPageStatus(req request.ChangeDocPageStatusRequest, operator *dto.AuthPrincipal) (*models.DocPage, error) {
+	item := repositories.DocPageRepository.Get(sqls.DB(), req.ID)
 	if item == nil {
-		return nil, errorsx.InvalidParamI18n("error.supportHelpPage.notFound")
+		return nil, errorsx.InvalidParamI18n("error.docPage.notFound")
 	}
 	status := req.Status
-	if status != enums.SupportHelpPageStatusDraft && status != enums.SupportHelpPageStatusPublished && status != enums.SupportHelpPageStatusHidden {
-		return nil, errorsx.InvalidParamI18n("error.supportHelpPage.invalidStatus")
+	if status != enums.DocPageStatusDraft && status != enums.DocPageStatusPublished && status != enums.DocPageStatusHidden {
+		return nil, errorsx.InvalidParamI18n("error.docPage.invalidStatus")
 	}
 	if status == item.Status {
 		return item, nil
 	}
-	if status == enums.SupportHelpPageStatusPublished && item.ParentID > 0 {
-		parent := repositories.SupportHelpPageRepository.Get(sqls.DB(), item.ParentID)
-		if parent == nil || parent.Status != enums.SupportHelpPageStatusPublished {
-			return nil, errorsx.InvalidParamI18n("error.supportHelpPage.publishParentFirst")
+	if status == enums.DocPageStatusPublished && item.ParentID > 0 {
+		parent := repositories.DocPageRepository.Get(sqls.DB(), item.ParentID)
+		if parent == nil || parent.Status != enums.DocPageStatusPublished {
+			return nil, errorsx.InvalidParamI18n("error.docPage.publishParentFirst")
 		}
 	}
-	if status != enums.SupportHelpPageStatusPublished {
-		publishedChildren := repositories.SupportHelpPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", item.ID).Eq("status", enums.SupportHelpPageStatusPublished).Page(1, 1))
+	if status != enums.DocPageStatusPublished {
+		publishedChildren := repositories.DocPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", item.ID).Eq("status", enums.DocPageStatusPublished).Page(1, 1))
 		if len(publishedChildren) > 0 {
-			return nil, errorsx.InvalidParamI18n("error.supportHelpPage.unpublishChildrenFirst")
+			return nil, errorsx.InvalidParamI18n("error.docPage.unpublishChildrenFirst")
 		}
 	}
 	now := time.Now()
@@ -314,24 +314,24 @@ func (s *supportService) ChangeHelpPageStatus(req request.ChangeSupportHelpPageS
 		"update_user_id":   operator.UserID,
 		"update_user_name": operator.Username,
 	}
-	if status == enums.SupportHelpPageStatusPublished {
+	if status == enums.DocPageStatusPublished {
 		columns["published_at"] = now
 	}
-	if err := repositories.SupportHelpPageRepository.Updates(sqls.DB(), item.ID, columns); err != nil {
+	if err := repositories.DocPageRepository.Updates(sqls.DB(), item.ID, columns); err != nil {
 		return nil, err
 	}
-	return repositories.SupportHelpPageRepository.Get(sqls.DB(), item.ID), nil
+	return repositories.DocPageRepository.Get(sqls.DB(), item.ID), nil
 }
 
-func (s *supportService) DeleteHelpPage(id int64) error {
-	if repositories.SupportHelpPageRepository.Get(sqls.DB(), id) == nil {
+func (s *supportService) DeleteDocPage(id int64) error {
+	if repositories.DocPageRepository.Get(sqls.DB(), id) == nil {
 		return errorsx.InvalidParam("page not found")
 	}
-	children := repositories.SupportHelpPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", id).Page(1, 1))
+	children := repositories.DocPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", id).Page(1, 1))
 	if len(children) > 0 {
 		return errorsx.InvalidParam("page still has child pages")
 	}
-	return repositories.SupportHelpPageRepository.Delete(sqls.DB(), id)
+	return repositories.DocPageRepository.Delete(sqls.DB(), id)
 }
 
 func (s *supportService) SaveCategory(req request.SaveCategoryRequest, operator *dto.AuthPrincipal) (*models.Category, error) {
@@ -656,12 +656,12 @@ func (s *supportService) ModerateComment(req request.ModerateCommentRequest) err
 	return repositories.CommentRepository.Updates(sqls.DB(), req.ID, map[string]any{"status": req.Status, "updated_at": time.Now()})
 }
 
-func (s *supportService) FeedbackHelpPage(req request.SupportHelpPageFeedbackRequest) error {
+func (s *supportService) FeedbackDocPage(req request.DocPageFeedbackRequest) error {
 	column := "unhelpful_count"
 	if req.Helpful {
 		column = "helpful_count"
 	}
-	return repositories.SupportHelpPageRepository.UpdateColumn(sqls.DB(), req.ID, column, gorm.Expr(column+" + ?", 1))
+	return repositories.DocPageRepository.UpdateColumn(sqls.DB(), req.ID, column, gorm.Expr(column+" + ?", 1))
 }
 
 func normalizeSupportEmail(email string) string {
@@ -674,7 +674,7 @@ func normalizeSupportSlug(slug string) string {
 
 func validateSupportSlug(slug string) error {
 	if !supportSlugPattern.MatchString(slug) {
-		return errorsx.InvalidParamI18n("error.supportHelpPage.invalidSlug")
+		return errorsx.InvalidParamI18n("error.docPage.invalidSlug")
 	}
 	return nil
 }
@@ -687,9 +687,9 @@ func normalizeContentType(contentType string) string {
 	return "markdown"
 }
 
-func normalizeHelpPageStatus(status enums.SupportHelpPageStatus) enums.SupportHelpPageStatus {
+func normalizeDocPageStatus(status enums.DocPageStatus) enums.DocPageStatus {
 	if status == "" {
-		return enums.SupportHelpPageStatusDraft
+		return enums.DocPageStatusDraft
 	}
 	return status
 }

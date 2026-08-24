@@ -55,46 +55,46 @@ func SupportGetMe(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, response.SupportUserResponse{ID: principal.UserID, Name: supportPrincipalDisplayName(principal.UserID), Email: email, UserType: principal.UserType})
 }
 
-func SupportHelpPageAnyList(ctx *gin.Context) {
+func DocPageAnyList(ctx *gin.Context) {
 	cnd := params.NewPagedSqlCnd(ctx,
 		params.QueryFilter{ParamName: "parentId"},
 		params.QueryFilter{ParamName: "title", Op: params.Like},
-	).Eq("status", enums.SupportHelpPageStatusPublished).Asc("sort_no").Desc("id")
+	).Eq("status", enums.DocPageStatusPublished).Asc("sort_no").Desc("id")
 	if keyword := strings.TrimSpace(ctx.Query("keyword")); keyword != "" {
 		pattern := "%" + keyword + "%"
 		cnd.Where("(title LIKE ? OR summary LIKE ? OR content LIKE ? OR tags_json LIKE ? OR slug LIKE ?)", pattern, pattern, pattern, pattern, pattern)
 	}
-	list, paging := repositories.SupportHelpPageRepository.FindPageByCnd(sqls.DB(), cnd)
-	results := buildSupportHelpPageList(list, false)
+	list, paging := repositories.DocPageRepository.FindPageByCnd(sqls.DB(), cnd)
+	results := buildDocPageList(list, false)
 	httpx.WriteJSON(ctx, &web.PageResult{Results: results, Page: paging})
 }
 
-func SupportHelpPageGetNavigation(ctx *gin.Context) {
-	list := services.SupportService.FindPublicHelpNavigation()
-	httpx.WriteJSON(ctx, builders.BuildSupportHelpPageNavigationTree(list))
+func DocPageGetNavigation(ctx *gin.Context) {
+	list := services.SupportService.FindPublicDocNavigation()
+	httpx.WriteJSON(ctx, builders.BuildDocPageNavigationTree(list))
 }
 
-func SupportHelpPageGetBy(ctx *gin.Context) {
+func DocPageGetBy(ctx *gin.Context) {
 	id, ok := httpx.GetPathInt64(ctx, "id")
 	if !ok {
 		return
 	}
-	item := repositories.SupportHelpPageRepository.Get(sqls.DB(), id)
-	if item == nil || item.Status != enums.SupportHelpPageStatusPublished {
+	item := repositories.DocPageRepository.Get(sqls.DB(), id)
+	if item == nil || item.Status != enums.DocPageStatusPublished {
 		httpx.WriteJSON(ctx, httpx.JsonErrorMsg(ctx, "error.notFound"))
 		return
 	}
-	_ = repositories.SupportHelpPageRepository.UpdateColumn(sqls.DB(), item.ID, "view_count", gorm.Expr("view_count + ?", 1))
-	httpx.WriteJSON(ctx, builders.BuildSupportHelpPage(item, true))
+	_ = repositories.DocPageRepository.UpdateColumn(sqls.DB(), item.ID, "view_count", gorm.Expr("view_count + ?", 1))
+	httpx.WriteJSON(ctx, builders.BuildDocPage(item, true))
 }
 
-func SupportHelpPagePostFeedback(ctx *gin.Context) {
-	req := request.SupportHelpPageFeedbackRequest{}
+func DocPagePostFeedback(ctx *gin.Context) {
+	req := request.DocPageFeedbackRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, services.SupportService.FeedbackHelpPage(req))
+	httpx.WriteJSON(ctx, services.SupportService.FeedbackDocPage(req))
 }
 
 func CategoryAnyList(ctx *gin.Context) {
@@ -284,10 +284,10 @@ func ReactionPostToggle(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, services.SupportService.ToggleReaction(req.TargetType, req.TargetID, req.ReactionType, principal))
 }
 
-func buildSupportHelpPageList(list []models.SupportHelpPage, includeContent bool) []response.SupportHelpPageResponse {
-	results := make([]response.SupportHelpPageResponse, 0, len(list))
+func buildDocPageList(list []models.DocPage, includeContent bool) []response.DocPageResponse {
+	results := make([]response.DocPageResponse, 0, len(list))
 	for _, item := range list {
-		if resp := builders.BuildSupportHelpPage(&item, includeContent); resp != nil {
+		if resp := builders.BuildDocPage(&item, includeContent); resp != nil {
 			results = append(results, *resp)
 		}
 	}

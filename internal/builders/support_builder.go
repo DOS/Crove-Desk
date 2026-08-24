@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func BuildSupportHelpPage(item *models.SupportHelpPage, includeContent bool) *response.SupportHelpPageResponse {
+func BuildDocPage(item *models.DocPage, includeContent bool) *response.DocPageResponse {
 	if item == nil {
 		return nil
 	}
@@ -16,7 +16,7 @@ func BuildSupportHelpPage(item *models.SupportHelpPage, includeContent bool) *re
 	if !includeContent {
 		content = ""
 	}
-	return &response.SupportHelpPageResponse{
+	return &response.DocPageResponse{
 		ID:                        item.ID,
 		ParentID:                  item.ParentID,
 		Title:                     item.Title,
@@ -39,16 +39,16 @@ func BuildSupportHelpPage(item *models.SupportHelpPage, includeContent bool) *re
 	}
 }
 
-func BuildSupportHelpPageNavigationTree(list []models.SupportHelpPage) []*response.SupportHelpPageNavigationResponse {
-	nodes := make(map[int64]*response.SupportHelpPageNavigationResponse, len(list))
+func BuildDocPageNavigationTree(list []models.DocPage) []*response.DocPageNavigationResponse {
+	nodes := make(map[int64]*response.DocPageNavigationResponse, len(list))
 	for i := range list {
 		item := &list[i]
-		nodes[item.ID] = &response.SupportHelpPageNavigationResponse{
+		nodes[item.ID] = &response.DocPageNavigationResponse{
 			ID: item.ID, ParentID: item.ParentID, Title: item.Title, Slug: item.Slug, SortNo: item.SortNo,
-			Children: make([]*response.SupportHelpPageNavigationResponse, 0),
+			Children: make([]*response.DocPageNavigationResponse, 0),
 		}
 	}
-	roots := make([]*response.SupportHelpPageNavigationResponse, 0)
+	roots := make([]*response.DocPageNavigationResponse, 0)
 	for i := range list {
 		item := &list[i]
 		node := nodes[item.ID]

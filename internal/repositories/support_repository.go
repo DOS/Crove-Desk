@@ -8,68 +8,68 @@ import (
 )
 
 var (
-	SupportHelpPageRepository = &supportHelpPageRepository{}
-	CategoryRepository        = &supportCategoryRepository{}
-	PostRepository            = &supportPostRepository{}
-	CommentRepository         = &supportCommentRepository{}
-	ReactionRepository        = &supportReactionRepository{}
-	CommentReportRepository   = &supportCommentReportRepository{}
+	DocPageRepository       = &docPageRepository{}
+	CategoryRepository      = &supportCategoryRepository{}
+	PostRepository          = &supportPostRepository{}
+	CommentRepository       = &supportCommentRepository{}
+	ReactionRepository      = &supportReactionRepository{}
+	CommentReportRepository = &supportCommentReportRepository{}
 )
 
-type supportHelpPageRepository struct{}
+type docPageRepository struct{}
 
-func (r *supportHelpPageRepository) Get(db *gorm.DB, id int64) *models.SupportHelpPage {
-	ret := &models.SupportHelpPage{}
+func (r *docPageRepository) Get(db *gorm.DB, id int64) *models.DocPage {
+	ret := &models.DocPage{}
 	if err := db.First(ret, "id = ?", id).Error; err != nil {
 		return nil
 	}
 	return ret
 }
 
-func (r *supportHelpPageRepository) GetByParentIDAndSlug(db *gorm.DB, parentID int64, slug string) *models.SupportHelpPage {
-	ret := &models.SupportHelpPage{}
+func (r *docPageRepository) GetByParentIDAndSlug(db *gorm.DB, parentID int64, slug string) *models.DocPage {
+	ret := &models.DocPage{}
 	if err := db.First(ret, "parent_id = ? AND slug = ?", parentID, slug).Error; err != nil {
 		return nil
 	}
 	return ret
 }
 
-func (r *supportHelpPageRepository) Find(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportHelpPage) {
+func (r *docPageRepository) Find(db *gorm.DB, cnd *sqls.Cnd) (list []models.DocPage) {
 	cnd.Find(db, &list)
 	return
 }
 
 // FindNavigationItems deliberately selects only fields required to render the
 // public help navigation. Article content is fetched on demand by its detail API.
-func (r *supportHelpPageRepository) FindNavigationItems(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportHelpPage) {
+func (r *docPageRepository) FindNavigationItems(db *gorm.DB, cnd *sqls.Cnd) (list []models.DocPage) {
 	cnd.Find(db.Select("id", "parent_id", "title", "slug", "sort_no"), &list)
 	return
 }
 
-func (r *supportHelpPageRepository) FindPageByCnd(db *gorm.DB, cnd *sqls.Cnd) (list []models.SupportHelpPage, paging *sqls.Paging) {
+func (r *docPageRepository) FindPageByCnd(db *gorm.DB, cnd *sqls.Cnd) (list []models.DocPage, paging *sqls.Paging) {
 	cnd.Find(db, &list)
-	paging = &sqls.Paging{Page: cnd.Paging.Page, Limit: cnd.Paging.Limit, Total: cnd.Count(db, &models.SupportHelpPage{})}
+	paging = &sqls.Paging{Page: cnd.Paging.Page, Limit: cnd.Paging.Limit, Total: cnd.Count(db, &models.DocPage{})}
 	return
 }
 
-func (r *supportHelpPageRepository) Create(db *gorm.DB, item *models.SupportHelpPage) error {
+func (r *docPageRepository) Create(db *gorm.DB, item *models.DocPage) error {
 	return db.Create(item).Error
 }
 
-func (r *supportHelpPageRepository) Updates(db *gorm.DB, id int64, columns map[string]any) error {
-	return db.Model(&models.SupportHelpPage{}).Where("id = ?", id).Updates(columns).Error
+func (r *docPageRepository) Updates(db *gorm.DB, id int64, columns map[string]any) error {
+	return db.Model(&models.DocPage{}).Where("id = ?", id).Updates(columns).Error
 }
 
-func (r *supportHelpPageRepository) UpdateColumn(db *gorm.DB, id int64, column string, value any) error {
-	return db.Model(&models.SupportHelpPage{}).Where("id = ?", id).UpdateColumn(column, value).Error
+func (r *docPageRepository) UpdateColumn(db *gorm.DB, id int64, column string, value any) error {
+	return db.Model(&models.DocPage{}).Where("id = ?", id).UpdateColumn(column, value).Error
 }
 
-func (r *supportHelpPageRepository) UpdateSort(db *gorm.DB, id int64, sortNo int) error {
-	return db.Model(&models.SupportHelpPage{}).Where("id = ?", id).UpdateColumn("sort_no", sortNo).Error
+func (r *docPageRepository) UpdateSort(db *gorm.DB, id int64, sortNo int) error {
+	return db.Model(&models.DocPage{}).Where("id = ?", id).UpdateColumn("sort_no", sortNo).Error
 }
 
-func (r *supportHelpPageRepository) Delete(db *gorm.DB, id int64) error {
-	return db.Delete(&models.SupportHelpPage{}, "id = ?", id).Error
+func (r *docPageRepository) Delete(db *gorm.DB, id int64) error {
+	return db.Delete(&models.DocPage{}, "id = ?", id).Error
 }
 
 type supportCategoryRepository struct{}

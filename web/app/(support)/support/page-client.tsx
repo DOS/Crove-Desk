@@ -12,7 +12,7 @@ import { useI18n } from "@/i18n/provider"
 import { postsHref } from "@/lib/api/support-community"
 import { cn } from "@/lib/utils"
 
-export function SupportHelpCenter() {
+export function SupportCenterHome() {
   const t = useI18n()
   const [query, setQuery] = useState("")
 
@@ -49,7 +49,7 @@ export function SupportHelpCenter() {
       <SupportPageContent className="py-10 sm:py-14">
         <section className="grid gap-3 sm:grid-cols-3" aria-label={t("supportPublic.nav.siteNavigation")}>
           <SupportEntryCard
-            href="/support/help"
+            href="/support/docs"
             icon={<BookOpenIcon />}
             title={t("supportPublic.home.helpTitle")}
             description={t("supportPublic.home.helpDescription")}

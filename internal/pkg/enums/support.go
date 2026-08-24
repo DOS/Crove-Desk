@@ -1,12 +1,12 @@
 package enums
 
-type SupportHelpPageStatus string
+type DocPageStatus string
 
 const (
-	SupportHelpPageStatusDraft     SupportHelpPageStatus = "draft"
-	SupportHelpPageStatusPublished SupportHelpPageStatus = "published"
-	SupportHelpPageStatusHidden    SupportHelpPageStatus = "hidden"
-	SupportHelpPageStatusDeleted   SupportHelpPageStatus = "deleted"
+	DocPageStatusDraft     DocPageStatus = "draft"
+	DocPageStatusPublished DocPageStatus = "published"
+	DocPageStatusHidden    DocPageStatus = "hidden"
+	DocPageStatusDeleted   DocPageStatus = "deleted"
 )
 
 type PostStatus string

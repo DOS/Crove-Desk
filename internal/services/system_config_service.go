@@ -453,7 +453,7 @@ func configFieldError(path, code, key string) response.ConfigFieldError {
 func defaultSupportNavigationMenu() []response.SupportNavigationMenuItemResponse {
 	return []response.SupportNavigationMenuItemResponse{
 		{ID: "home", Title: "首页", URL: "/support", SortNo: 10, Visible: true},
-		{ID: "help", Title: "帮助", URL: "/support/help", SortNo: 20, Visible: true},
+		{ID: "docs", Title: "文档", URL: "/support/docs", SortNo: 20, Visible: true},
 		{ID: "community", Title: "社区", URL: "/support/community/posts", SortNo: 30, Visible: true},
 	}
 }

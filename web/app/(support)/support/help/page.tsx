@@ -1,5 +1,5 @@
-import { SupportHelpList } from "./_components/help-reader"
+import { redirect } from "next/navigation"
 
-export default function SupportHelpPage() {
-  return <SupportHelpList />
+export default function LegacySupportHelpPage() {
+  redirect("/support/docs")
 }
