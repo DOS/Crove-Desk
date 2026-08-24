@@ -69,7 +69,7 @@ export function SupportProfileEditPage() {
   return (
     <SupportPageShell section="community">
       <SupportPageContent className="py-6 sm:py-8">
-        <div className="mx-auto max-w-2xl rounded-md border bg-card shadow-sm">
+        <div className="mx-auto max-w-2xl rounded-md bg-card">
           <div className="border-b px-5 py-4 sm:px-6">
             <h1 className="text-lg font-semibold">{t("supportPublic.profile.editTitle")}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{t("supportPublic.profile.editDescription")}</p>
