@@ -171,6 +171,8 @@ This is a commercial product, not a prototype or component demo. UI work is comp
 #### Visual Quality
 
 - Follow the existing design language, spacing scale, typography, radius, color tokens, and component variants. A new feature must look native to the product rather than like a pasted template.
+- In support platform UI, if rounded corners are needed, use `rounded-md` consistently.
+- Support platform components should not add `shadow`.
 - Establish a clear hierarchy: page title/primary action, filters or context, main content, and secondary information. Do not make every region a card or every action visually prominent.
 - Prefer restrained, purposeful styling. Avoid decorative gradients, oversized hero text, excessive shadows, glass effects, emoji icons, random accent colors, and ornamental copy unless the product context explicitly calls for them.
 - Use Lucide icons consistently. Choose icons by meaning, keep icon size and stroke weight aligned with neighboring controls, and never use icons as decoration without communicative value.
