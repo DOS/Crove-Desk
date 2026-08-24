@@ -1,16 +1,16 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 
 import { buttonVariants } from "@/components/ui/button"
-import { LoadMore } from "@/components/load-more"
 import { CommunityFrame } from "@/app/(support)/support/_components/community-frame"
+import { CommunityPostList } from "@/app/(support)/support/_components/community-post-list"
 import { SupportEmptyState as EmptyState } from "@/app/(support)/support/_components/support-ui"
-import { newPostHref, fetchPosts, type Post } from "@/lib/api/support-community"
+import { newPostHref } from "@/lib/api/support-community"
 import { useCommunityCategoryRoute } from "@/app/(support)/support/_components/support-community-route"
-import { PostCard, PostListLoading } from "@/app/(support)/support/community/posts/_components/post-ui"
+import { PostListLoading } from "@/app/(support)/support/community/posts/_components/post-ui"
 import { useI18n } from "@/i18n/provider"
 import { cn } from "@/lib/utils"
 
@@ -27,15 +27,11 @@ export function PostList() {
     status,
     title,
   ].join(":")
-  const loadPosts = useCallback(({ cursor }: { cursor: string; force: boolean }) => {
-    return fetchPosts({
-      categoryId: categoryRoute.activeCategoryId === "all" ? undefined : categoryRoute.activeCategoryId,
-      status: status === "all" ? undefined : status,
-      title,
-      cursor,
-      limit: 20,
-    })
-  }, [categoryRoute.activeCategoryId, status, title])
+  const query = {
+    categoryId: categoryRoute.activeCategoryId === "all" ? undefined : categoryRoute.activeCategoryId,
+    status: status === "all" ? undefined : status,
+    title,
+  }
   const statusOptions = [
     { value: "all", label: t("supportPublic.status.all") },
     { value: "normal", label: t("supportPublic.status.normal") },
@@ -72,19 +68,10 @@ export function PostList() {
         {categoryRoute.categoriesLoading && categoryRoute.categorySlug ? <PostListLoading compact /> : null}
         {categoryUnavailable ? <EmptyState text={t("supportPublic.empty.noPostsMatched")} /> : null}
         {!categoryRoute.categoriesLoading && !categoryUnavailable ? (
-          <LoadMore<Post>
+          <CommunityPostList
             resetKey={resetKey}
-            initialHasMore
-            initialLoad
-            labels={{
-              loadMore: t("supportPublic.actions.loadMore"),
-              noMore: t("supportPublic.actions.noMore"),
-              loading: t("supportPublic.loading.posts"),
-              error: t("supportPublic.empty.postsFailed"),
-            }}
-            loadPage={loadPosts}
-            renderItems={(items) => items.map((item) => <PostCard key={item.id} item={item} compact />)}
-            renderEmpty={() => <EmptyState text={t("supportPublic.empty.noPostsMatched")} />}
+            emptyText={t("supportPublic.empty.noPostsMatched")}
+            query={query}
           />
         ) : null}
       </div>

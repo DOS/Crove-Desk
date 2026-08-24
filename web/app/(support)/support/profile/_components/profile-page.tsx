@@ -2,18 +2,16 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useCallback, useEffect, type ReactNode } from "react"
+import { useEffect, type ReactNode } from "react"
 import { MailIcon, PencilIcon, UserRoundIcon } from "lucide-react"
 
 import { useSupportAuth } from "@/app/(support)/support/_components/support-auth-provider"
+import { CommunityPostList } from "@/app/(support)/support/_components/community-post-list"
 import { SupportPageContent, SupportPageShell } from "@/app/(support)/support/_components/support-page-shell"
-import { SupportEmptyState } from "@/app/(support)/support/_components/support-ui"
-import { PostCard, PostListLoading } from "@/app/(support)/support/community/posts/_components/post-ui"
+import { PostListLoading } from "@/app/(support)/support/community/posts/_components/post-ui"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { buttonVariants } from "@/components/ui/button"
-import { LoadMore } from "@/components/load-more"
 import { useI18n } from "@/i18n/provider"
-import { fetchPosts, type Post } from "@/lib/api/support-community"
 import { cn } from "@/lib/utils"
 
 export function SupportProfilePage() {
@@ -71,7 +69,12 @@ export function SupportProfilePage() {
               <p className="mt-1 text-sm text-muted-foreground">{t("supportPublic.profile.communityDescription")}</p>
             </div>
             <div className="px-5 py-3">
-              <MyPostList userId={user.id} />
+              <CommunityPostList
+                emptyText={t("supportPublic.profile.noPosts")}
+                limit={10}
+                query={{ userId: user.id }}
+                resetKey={`profile:${user.id}`}
+              />
             </div>
           </section>
         </div>
@@ -87,29 +90,5 @@ function ProfileMeta({ icon, label, value }: { icon: ReactNode; label: string; v
       <dt className="shrink-0 text-muted-foreground">{label}</dt>
       <dd className="min-w-0 flex-1 truncate text-right font-medium">{value}</dd>
     </div>
-  )
-}
-
-function MyPostList({ userId }: { userId: number }) {
-  const t = useI18n()
-  const loadPosts = useCallback(({ cursor }: { cursor: string; force: boolean }) => {
-    return fetchPosts({ cursor, limit: 10, userId })
-  }, [userId])
-
-  return (
-    <LoadMore<Post>
-      resetKey={`profile:${userId}`}
-      initialHasMore
-      initialLoad
-      labels={{
-        loadMore: t("supportPublic.actions.loadMore"),
-        noMore: t("supportPublic.actions.noMore"),
-        loading: t("supportPublic.loading.posts"),
-        error: t("supportPublic.empty.postsFailed"),
-      }}
-      loadPage={loadPosts}
-      renderItems={(items) => items.map((item) => <PostCard key={item.id} item={item} />)}
-      renderEmpty={() => <SupportEmptyState compact text={t("supportPublic.profile.noPosts")} />}
-    />
   )
 }
