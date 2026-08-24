@@ -112,7 +112,7 @@ export function CreatePost() {
     <SupportPageShell section="community">
       <SupportPageContent className="py-8 sm:py-10" width="docs">
         <form
-        className="w-full rounded-md border bg-card p-4 sm:p-5"
+        className="w-full rounded-md bg-card p-4 sm:p-5"
         onSubmit={(event) => {
           event.preventDefault()
           void submit()

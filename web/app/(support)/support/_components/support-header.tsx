@@ -5,7 +5,6 @@ import {
   ChevronDownIcon,
   HomeIcon,
   LoaderCircleIcon,
-  LogInIcon,
   LogOutIcon,
   MessageSquareTextIcon,
   PencilIcon,
@@ -165,7 +164,6 @@ function SupportAccountControl() {
         )}
         href="/support/login"
       >
-        <LogInIcon />
         {t("supportPublic.nav.login")}
       </Link>
     )
