@@ -43,7 +43,7 @@ export function SupportHelpCenter() {
     <SupportPageShell>
       <section className="relative border-y border-sky-100 bg-[radial-gradient(circle_at_50%_-30%,#ddecff,transparent_55%)] px-5 py-12 sm:px-8 sm:py-18 dark:border-border dark:bg-[radial-gradient(circle_at_50%_-30%,rgba(36,117,252,.26),transparent_55%)]">
         <div className="relative mx-auto max-w-3xl text-center">
-          <Badge variant="secondary" className="mb-5 bg-white/70 px-3 py-1 text-primary shadow-sm dark:bg-card/80">
+          <Badge variant="secondary" className="mb-5 bg-white/70 px-3 py-1 text-primary dark:bg-card/80">
             {t("supportPublic.home.badge")}
           </Badge>
           <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-5xl">
@@ -60,7 +60,7 @@ export function SupportHelpCenter() {
               hero
             />
             <Link
-              className={cn(buttonVariants({ size: "lg" }), "h-13 rounded-md px-6 shadow-sm")}
+              className={cn(buttonVariants({ size: "lg" }), "h-13 rounded-md px-6")}
               href={`${postsHref()}${query ? `?title=${encodeURIComponent(query)}` : ""}`}
             >
               {t("supportPublic.actions.search")}
@@ -95,7 +95,7 @@ export function SupportHelpCenter() {
         </section>
 
         <section className="mt-14 grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
-          <div className="rounded-3xl bg-slate-900 p-7 text-slate-50 dark:bg-primary">
+          <div className="rounded-md bg-slate-900 p-7 text-slate-50 dark:bg-primary">
             <MessageCircleMoreIcon className="size-6 text-sky-300" />
             <p className="mt-8 text-sm font-medium text-sky-200">{t("supportPublic.home.quickPanelTitle")}</p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t("supportPublic.home.createPost")}</h2>
@@ -142,7 +142,7 @@ function SupportEntryCard({
   return (
     <Link
       href={href}
-      className="group rounded-md border border-border bg-card p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="group rounded-md bg-card p-5 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <div className="flex items-start justify-between gap-4">
         <span className={cn("grid size-10 place-items-center rounded-md [&_svg]:size-5", accentClass)}>{icon}</span>
@@ -166,7 +166,7 @@ function QuickLink({ href, label }: { href: string; label: string }) {
 function PublicSection({ title, href, children }: { title: string; href: string; children: ReactNode }) {
   const t = useI18n()
   return (
-    <section className="rounded-md border border-border bg-card p-4 shadow-sm">
+    <section className="rounded-md bg-card p-4">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-semibold">{title}</h2>
         <Link className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "text-muted-foreground hover:text-primary")} href={href}>
