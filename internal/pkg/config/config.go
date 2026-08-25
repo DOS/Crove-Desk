@@ -286,10 +286,13 @@ func loadDotEnv(configPath string) {
 		return
 	}
 	_ = gotenv.Load(".env")
+	_ = gotenv.Load("../.env")
+	_ = gotenv.Load("../../.env")
 	if configPath != "" {
 		dir := filepath.Dir(configPath)
 		if dir != "." && dir != "" {
 			_ = gotenv.Load(filepath.Join(dir, ".env"))
+			_ = gotenv.Load(filepath.Join(dir, "..", ".env"))
 		}
 	}
 }
