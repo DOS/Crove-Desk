@@ -70,3 +70,44 @@ func TestInitAI(t *testing.T) {
 		t.Errorf("Embedding Dimension = %d, want 1536", embedding.Dimension)
 	}
 }
+
+func TestInitAI_DOSAI(t *testing.T) {
+	db := setupTestDBForAI(t)
+
+	cfg := &config.Config{
+		AI: config.AIConfig{
+			Provider:           "openai",
+			BaseURL:            "https://api.dos.ai/v1",
+			APIKey:             "dos_sk_test_key",
+			LLMModel:           "dos-ai",
+			EmbeddingModel:     "qwen3-embedding-4b",
+			EmbeddingDimension: 2560,
+		},
+	}
+
+	if err := InitAI(cfg); err != nil {
+		t.Fatalf("InitAI failed: %v", err)
+	}
+
+	llm := repositories.AIConfigRepository.GetEnabled(db, enums.AIModelTypeLLM)
+	if llm == nil {
+		t.Fatalf("expected enabled LLM config, got nil")
+	}
+	if llm.BaseURL != "https://api.dos.ai/v1" {
+		t.Errorf("LLM BaseURL = %q, want https://api.dos.ai/v1", llm.BaseURL)
+	}
+	if llm.ModelName != "dos-ai" {
+		t.Errorf("LLM ModelName = %q, want dos-ai", llm.ModelName)
+	}
+
+	embedding := repositories.AIConfigRepository.GetEnabled(db, enums.AIModelTypeEmbedding)
+	if embedding == nil {
+		t.Fatalf("expected enabled Embedding config, got nil")
+	}
+	if embedding.ModelName != "qwen3-embedding-4b" {
+		t.Errorf("Embedding ModelName = %q, want qwen3-embedding-4b", embedding.ModelName)
+	}
+	if embedding.Dimension != 2560 {
+		t.Errorf("Embedding Dimension = %d, want 2560", embedding.Dimension)
+	}
+}
