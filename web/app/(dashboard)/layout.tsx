@@ -45,9 +45,9 @@ export default function DashboardRootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en-US" suppressHydrationWarning>
+    <html lang="en-US" className={`${inter.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${geistMono.variable} antialiased`}
+        className="antialiased"
       >
         <script dangerouslySetInnerHTML={{ __html: paletteScript }} />
         <AppI18nProvider>

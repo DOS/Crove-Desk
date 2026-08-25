@@ -34,9 +34,9 @@ export default function SupportRootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en-US" suppressHydrationWarning>
+    <html lang="en-US" className={`${inter.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${geistMono.variable} antialiased`}
+        className="antialiased"
       >
         <AppI18nProvider>
           <ThemeProvider>
