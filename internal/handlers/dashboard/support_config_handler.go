@@ -36,8 +36,9 @@ func SupportConfigPostSave(ctx *gin.Context) {
 	config, err := services.SystemConfigService.SaveSupportConfig(req, operator)
 	if err != nil {
 		if validationErr, ok := err.(*services.SystemConfigValidationError); ok {
-			httpx.WriteJSON(ctx, web.JsonErrorData(errorsx.CodeInvalidParam, validationErr.Message(i18nx.Locale(ctx)), gin.H{
-				"errors": validationErr.FieldErrors(),
+			locale := i18nx.Locale(ctx)
+			httpx.WriteJSON(ctx, web.JsonErrorData(errorsx.CodeInvalidParam, validationErr.Message(locale), gin.H{
+				"errors": validationErr.FieldErrorsLocale(locale),
 			}))
 			return
 		}

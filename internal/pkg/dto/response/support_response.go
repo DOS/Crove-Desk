@@ -3,9 +3,10 @@ package response
 import "agent-desk/internal/pkg/enums"
 
 type ConfigFieldError struct {
-	Path    string `json:"path"`
-	Code    string `json:"code"`
-	Message string `json:"message"`
+	Path       string `json:"path"`
+	Code       string `json:"code"`
+	MessageKey string `json:"-"`
+	Message    string `json:"message"`
 }
 
 type SupportUserResponse struct {
