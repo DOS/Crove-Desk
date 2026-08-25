@@ -85,11 +85,18 @@ func TestLoadFromDotEnvAndStandardEnvAliases(t *testing.T) {
 	tempDir := t.TempDir()
 	envPath := filepath.Join(tempDir, ".env")
 	envContent := []byte(`PORT=9090
+COMPANY_NAME=MyCompany
+COMPANY_LOGO_URL=https://cdn.example.com/logo.png
 DATABASE_URL=postgres://user:pass@localhost:5432/mydb?sslmode=disable
 PASSWORD_LOGIN_ENABLED=false
 JWT_SECRET=super-secret-key-12345
 QDRANT_HOST=10.0.0.5
 QDRANT_PORT=6334
+OPENAI_API_KEY=sk-test-openai-key
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_LLM_MODEL=gpt-4o
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_EMBEDDING_DIMENSION=1536
 OIDC_ENABLED=true
 OIDC_ISSUER=https://auth.example.com
 OIDC_CLIENT_ID=client-123
@@ -111,6 +118,12 @@ ORG_SYNC_SECRET=webhook-secret-789
 	if cfg.Server.Port != 9090 {
 		t.Fatalf("Server.Port=%d want 9090", cfg.Server.Port)
 	}
+	if cfg.Server.CompanyName != "MyCompany" {
+		t.Fatalf("Server.CompanyName=%q want MyCompany", cfg.Server.CompanyName)
+	}
+	if cfg.Server.CompanyLogoURL != "https://cdn.example.com/logo.png" {
+		t.Fatalf("Server.CompanyLogoURL=%q want https://cdn.example.com/logo.png", cfg.Server.CompanyLogoURL)
+	}
 	if cfg.DB.Type != "postgres" {
 		t.Fatalf("DB.Type=%q want postgres", cfg.DB.Type)
 	}
@@ -128,6 +141,21 @@ ORG_SYNC_SECRET=webhook-secret-789
 	}
 	if cfg.VectorDB.Qdrant.GrpcPort != 6334 {
 		t.Fatalf("Qdrant.GrpcPort=%d", cfg.VectorDB.Qdrant.GrpcPort)
+	}
+	if cfg.AI.APIKey != "sk-test-openai-key" {
+		t.Fatalf("AI.APIKey=%q", cfg.AI.APIKey)
+	}
+	if cfg.AI.BaseURL != "https://api.openai.com/v1" {
+		t.Fatalf("AI.BaseURL=%q", cfg.AI.BaseURL)
+	}
+	if cfg.AI.LLMModel != "gpt-4o" {
+		t.Fatalf("AI.LLMModel=%q", cfg.AI.LLMModel)
+	}
+	if cfg.AI.EmbeddingModel != "text-embedding-3-small" {
+		t.Fatalf("AI.EmbeddingModel=%q", cfg.AI.EmbeddingModel)
+	}
+	if cfg.AI.EmbeddingDimension != 1536 {
+		t.Fatalf("AI.EmbeddingDimension=%d", cfg.AI.EmbeddingDimension)
 	}
 	if !cfg.OIDC.Enabled {
 		t.Fatalf("expected OIDC.Enabled=true")

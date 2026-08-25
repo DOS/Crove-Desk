@@ -3,13 +3,14 @@
 import { BookOpenIcon, HeadphonesIcon, HomeIcon, LoaderCircleIcon, LogOutIcon, MessageCircleQuestionIcon } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { buttonVariants } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useSupportAuth } from "@/components/support-center/support-auth-provider"
 import { useI18n } from "@/i18n/provider"
+import { fetchPublicConfig, type PublicConfig } from "@/lib/api/config"
 import { cn } from "@/lib/utils"
 
 export type SupportHeaderSection = "home" | "help" | "questions" | "ask" | "login"
@@ -33,6 +34,21 @@ export function SupportHeader({
 }) {
   const t = useI18n()
   const pathname = usePathname()
+  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    fetchPublicConfig()
+      .then((cfg) => {
+        if (mounted) setPublicConfig(cfg)
+      })
+      .catch(() => {})
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const brandName = publicConfig?.companyName || "AGENT DESK"
 
   const isActive = (href: string) => {
     if (href === "/support/questions" && pathname.startsWith("/support/question/")) return true
@@ -44,7 +60,7 @@ export function SupportHeader({
       <div className="mx-auto flex h-14 max-w-[var(--support-docs-max-width)] items-center gap-3 px-4 sm:px-6 md:px-8 xl:px-6">
         {leading}
         <Link href="/support" className="flex shrink-0 items-center gap-2 font-semibold tracking-tight">
-          <span>AGENT DESK</span>
+          <span>{brandName}</span>
           <span className="hidden border-l pl-2 font-normal text-muted-foreground sm:inline">{t(sectionTitleKey[section])}</span>
         </Link>
         <nav className="ml-auto flex items-center gap-1" aria-label={t("supportPublic.home.badge")}>

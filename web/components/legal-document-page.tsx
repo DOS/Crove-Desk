@@ -2,9 +2,11 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { useEffect, useState } from "react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAppLocale, useI18n } from "@/i18n/provider"
+import { fetchPublicConfig, type PublicConfig } from "@/lib/api/config"
 import enUSMessages from "@/messages/en-US.json"
 import zhCNMessages from "@/messages/zh-CN.json"
 
@@ -32,6 +34,23 @@ const messages = {
 export function LegalDocumentPage({ type }: { type: LegalPageType }) {
   const t = useI18n()
   const { locale } = useAppLocale()
+  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    fetchPublicConfig()
+      .then((cfg) => {
+        if (mounted) setPublicConfig(cfg)
+      })
+      .catch(() => {})
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const brandName = publicConfig?.companyName || t("app.brand")
+  const brandLogo = publicConfig?.companyLogoUrl || "/images/logo.svg"
+
   const document = messages[locale].legal[type] as LegalDocument
   const relatedHref = type === "terms" ? "/legal/privacy" : "/legal/terms"
 
@@ -41,14 +60,14 @@ export function LegalDocumentPage({ type }: { type: LegalPageType }) {
         <header className="flex items-center gap-4">
           <div className="flex items-center gap-2 font-medium">
             <Image
-              src="/images/logo.svg"
-              alt={t("app.brand")}
+              src={brandLogo}
+              alt={brandName}
               width={32}
               height={32}
               className="size-8 object-contain"
               priority
             />
-            <span>{t("app.brand")}</span>
+            <span>{brandName}</span>
           </div>
         </header>
 

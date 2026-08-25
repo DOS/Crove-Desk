@@ -20,6 +20,7 @@ type Config struct {
 	Auth            AuthConfig            `yaml:"auth"`
 	Storage         StorageConfig         `yaml:"storage"`
 	VectorDB        VectorDBConfig        `yaml:"vectorDB"`
+	AI              AIConfig              `yaml:"ai"`
 	MCP             MCPConfig             `yaml:"mcp"`
 	WxWork          WxWorkConfig          `yaml:"wxWork"`
 	OIDC            OIDCConfig            `yaml:"oidc"`
@@ -153,6 +154,17 @@ type VectorDBConfig struct {
 	Type    string                `yaml:"type"`
 	Qdrant  QdrantVectorDBConfig  `yaml:"qdrant"`
 	LanceDB LanceDBVectorDBConfig `yaml:"lancedb"`
+}
+
+type AIConfig struct {
+	Provider           string `yaml:"provider"`
+	BaseURL            string `yaml:"baseUrl"`
+	APIKey             string `yaml:"apiKey"`
+	LLMModel           string `yaml:"llmModel"`
+	EmbeddingModel     string `yaml:"embeddingModel"`
+	EmbeddingDimension int    `yaml:"embeddingDimension"`
+	TimeoutMS          int    `yaml:"timeoutMs"`
+	MaxRetryCount      int    `yaml:"maxRetryCount"`
 }
 
 type QdrantVectorDBConfig struct {
@@ -309,6 +321,14 @@ func bindConfigDefaults(v *viper.Viper) {
 	v.SetDefault("vectorDB.type", "qdrant")
 	v.SetDefault("vectorDB.qdrant.host", "127.0.0.1")
 	v.SetDefault("vectorDB.qdrant.grpcPort", 6334)
+	v.SetDefault("ai.provider", "openai")
+	v.SetDefault("ai.baseUrl", "https://api.openai.com/v1")
+	v.SetDefault("ai.apiKey", "")
+	v.SetDefault("ai.llmModel", "gpt-4o-mini")
+	v.SetDefault("ai.embeddingModel", "text-embedding-3-small")
+	v.SetDefault("ai.embeddingDimension", 1536)
+	v.SetDefault("ai.timeoutMs", 30000)
+	v.SetDefault("ai.maxRetryCount", 1)
 	v.SetDefault("mcp.enabled", true)
 }
 
@@ -328,6 +348,14 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("vectorDB.qdrant.host", "QDRANT_HOST", "AGENT_DESK_VECTORDB_QDRANT_HOST")
 	_ = v.BindEnv("vectorDB.qdrant.grpcPort", "QDRANT_GRPC_PORT", "QDRANT_PORT", "AGENT_DESK_VECTORDB_QDRANT_GRPCPORT")
 	_ = v.BindEnv("vectorDB.qdrant.apiKey", "QDRANT_API_KEY", "AGENT_DESK_VECTORDB_QDRANT_APIKEY")
+	_ = v.BindEnv("ai.provider", "AI_PROVIDER", "OPENAI_PROVIDER", "AGENT_DESK_AI_PROVIDER")
+	_ = v.BindEnv("ai.baseUrl", "AI_BASE_URL", "OPENAI_BASE_URL", "OPENAI_API_BASE", "AGENT_DESK_AI_BASEURL")
+	_ = v.BindEnv("ai.apiKey", "AI_API_KEY", "OPENAI_API_KEY", "AGENT_DESK_AI_APIKEY")
+	_ = v.BindEnv("ai.llmModel", "AI_LLM_MODEL", "OPENAI_LLM_MODEL", "OPENAI_MODEL", "LLM_MODEL", "AGENT_DESK_AI_LLMMODEL")
+	_ = v.BindEnv("ai.embeddingModel", "AI_EMBEDDING_MODEL", "OPENAI_EMBEDDING_MODEL", "EMBEDDING_MODEL", "AGENT_DESK_AI_EMBEDDINGMODEL")
+	_ = v.BindEnv("ai.embeddingDimension", "AI_EMBEDDING_DIMENSION", "OPENAI_EMBEDDING_DIMENSION", "EMBEDDING_DIMENSION", "AGENT_DESK_AI_EMBEDDINGDIMENSION")
+	_ = v.BindEnv("ai.timeoutMs", "AI_TIMEOUT_MS", "OPENAI_TIMEOUT_MS", "AGENT_DESK_AI_TIMEOUTMS")
+	_ = v.BindEnv("ai.maxRetryCount", "AI_MAX_RETRY_COUNT", "AGENT_DESK_AI_MAXRETRYCOUNT")
 	_ = v.BindEnv("oidc.enabled", "OIDC_ENABLED", "AGENT_DESK_OIDC_ENABLED")
 	_ = v.BindEnv("oidc.issuer", "OIDC_ISSUER", "AGENT_DESK_OIDC_ISSUER")
 	_ = v.BindEnv("oidc.clientId", "OIDC_CLIENT_ID", "CUSTOM_OAUTH_CLIENT_ID", "AGENT_DESK_OIDC_CLIENTID")

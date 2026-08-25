@@ -2,6 +2,9 @@ language: zh-CN
 
 server:
   port: 8083
+  # Company branding
+  companyName: ""
+  companyLogoUrl: ""
   cors:
     # Browser CORS allowlist. In production, replace this with the actual frontend or embedded-site domains, such as https://support.example.com.
     # Leave it empty to reject cross-origin browser requests. Same-origin and non-browser calls are still supported.
@@ -95,6 +98,24 @@ vectorDB:
   # LanceDB requires building the backend with -tags lancedb and LanceDB native libraries.
   lancedb:
     path: data/lancedb
+
+ai:
+  # Provider. Default is openai (OpenAI-compatible client used for all providers).
+  provider: openai
+  # Base URL for OpenAI-compatible API (e.g. OpenAI, DeepSeek, OpenRouter, Azure, Ollama, LiteLLM, vLLM).
+  baseUrl: https://api.openai.com/v1
+  # API key for the AI service.
+  apiKey: ""
+  # Default LLM model name.
+  llmModel: gpt-4o-mini
+  # Default Embedding model name.
+  embeddingModel: text-embedding-3-small
+  # Dimension for embedding model (e.g. 1536 for text-embedding-3-small).
+  embeddingDimension: 1536
+  # Timeout in milliseconds.
+  timeoutMs: 30000
+  # Maximum retry attempts.
+  maxRetryCount: 1
 
 mcp:
   # Global switch for MCP tool integration.
