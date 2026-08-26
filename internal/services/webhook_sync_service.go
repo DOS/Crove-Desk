@@ -113,7 +113,7 @@ func (s *webhookSyncService) HandleDOSOrgSync(req request.DOSOrgSyncWebhookReque
 	return s.HandleOrgSync(req)
 }
 
-func (s *webhookSyncService) DispatchOutboundOrgEvent(event string, data request.OrgSyncEventData) {
+func (s *webhookSyncService) DispatchOutboundEvent(event string, data request.OrgSyncEventData) {
 	cfg := config.GetCurrent()
 	if cfg == nil {
 		return
@@ -131,7 +131,7 @@ func (s *webhookSyncService) DispatchOutboundOrgEvent(event string, data request
 
 	bodyBytes, err := json.Marshal(payload)
 	if err != nil {
-		slog.Error("failed to marshal outbound org event", "event", event, "error", err)
+		slog.Error("failed to marshal outbound event", "event", event, "error", err)
 		return
 	}
 
@@ -154,10 +154,11 @@ func (s *webhookSyncService) DispatchOutboundOrgEvent(event string, data request
 		client := &http.Client{Timeout: 10 * time.Second}
 		req, err := http.NewRequest(http.MethodPost, outboundURL, bytes.NewBuffer(bodyBytes))
 		if err != nil {
-			slog.Error("failed to create outbound org sync request", "url", outboundURL, "error", err)
+			slog.Error("failed to create outbound sync request", "url", outboundURL, "error", err)
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-DOS-Event", event)
 		if signature != "" {
 			req.Header.Set("X-DOS-Signature", signature)
 			req.Header.Set("X-Webhook-Signature", signature)
@@ -165,17 +166,21 @@ func (s *webhookSyncService) DispatchOutboundOrgEvent(event string, data request
 
 		resp, err := client.Do(req)
 		if err != nil {
-			slog.Error("failed to dispatch outbound org sync event", "event", event, "url", outboundURL, "error", err)
+			slog.Error("failed to dispatch outbound sync event", "event", event, "url", outboundURL, "error", err)
 			return
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode >= 400 {
-			slog.Warn("outbound org sync event returned non-2xx status", "event", event, "status", resp.StatusCode)
+			slog.Warn("outbound sync event returned non-2xx status", "event", event, "status", resp.StatusCode)
 		} else {
-			slog.Info("outbound org sync event dispatched successfully", "event", event, "orgId", data.OrgID)
+			slog.Info("outbound sync event dispatched successfully", "event", event)
 		}
 	}()
+}
+
+func (s *webhookSyncService) DispatchOutboundOrgEvent(event string, data request.OrgSyncEventData) {
+	s.DispatchOutboundEvent(event, data)
 }
 
 func (s *webhookSyncService) handleOrgUpsert(data request.OrgSyncEventData) error {
