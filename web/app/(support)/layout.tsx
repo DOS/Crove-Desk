@@ -33,9 +33,9 @@ export default function SupportRootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en-US" suppressHydrationWarning>
+    <html lang="en-US" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className="antialiased font-sans"
       >
         <AppI18nProvider>
           <ThemeProvider>

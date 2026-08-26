@@ -44,9 +44,9 @@ export default function DashboardRootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en-US" suppressHydrationWarning>
+    <html lang="en-US" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className="antialiased font-sans"
       >
         <script dangerouslySetInnerHTML={{ __html: paletteScript }} />
         <AppI18nProvider>
