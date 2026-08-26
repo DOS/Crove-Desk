@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { OptionCombobox } from "@/components/option-combobox"
+import { useI18n } from "@/i18n/provider"
 import {
   createAIWorkflow,
   fetchAIWorkflow,
@@ -59,6 +60,7 @@ export function WorkflowWorkbench({
   workflowID,
   onSaved,
 }: WorkflowWorkbenchProps) {
+  const t = useI18n()
   const [active, setActive] = useState<AIWorkflow | null>(null)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
@@ -314,27 +316,27 @@ export function WorkflowWorkbench({
               ) : (
                 <button
                   type="button"
-                  aria-label="编辑工作流名称"
+                  aria-label="Workflow Name"
                   onClick={() => beginEditing("name")}
                   className="group flex h-7 min-w-0 max-w-xl items-center gap-1.5 rounded-md px-1 text-left text-lg font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <span className="truncate">{name || "新建工作流"}</span>
+                  <span className="truncate">{name || t("aiWorkflow.createTitle")}</span>
                   <PencilIcon className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
                 </button>
               )}
               <Badge
                 variant={active?.publishedVersionId ? "secondary" : "outline"}
               >
-                {active?.publishedVersionId ? "已发布" : "草稿"}
+                {active?.publishedVersionId ? t("aiWorkflow.published") : t("aiWorkflow.draft")}
               </Badge>
               {dirty ? (
-                <span className="text-xs text-amber-600">未保存</span>
+                <span className="text-xs text-amber-600">{t("supportHelpWorkbench.unsaved")}</span>
               ) : null}
             </div>
             {editingField === "description" ? (
               <Input
                 autoFocus
-                aria-label="工作流描述"
+                aria-label="Workflow Description"
                 value={description}
                 onFocus={(event) => event.currentTarget.select()}
                 onChange={(event) => {
@@ -352,20 +354,20 @@ export function WorkflowWorkbench({
                     cancelEditing("description")
                   }
                 }}
-                placeholder="添加工作流描述"
+                placeholder="Workflow description..."
                 className="mt-0.5 h-6 max-w-2xl px-1 text-sm font-normal"
               />
             ) : (
               <button
                 type="button"
-                aria-label="编辑工作流描述"
+                aria-label="Workflow Description"
                 onClick={() => beginEditing("description")}
                 className="group mt-0.5 flex h-6 max-w-2xl items-center gap-1.5 rounded-md px-1 text-left text-sm text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <span className="truncate">
-                  {description || "添加工作流描述"}
+                  {description || t("aiWorkflow.noDescription")}
                 </span>
-                <PencilIcon className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+                <PencilIcon className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
               </button>
             )}
           </div>
@@ -373,9 +375,9 @@ export function WorkflowWorkbench({
             {!active ? (
               <OptionCombobox
                 value={selectedTemplate}
-                placeholder="选择流程模板"
-                searchPlaceholder="搜索流程模板"
-                emptyText="暂无流程模板"
+                placeholder="Template"
+                searchPlaceholder="Search template..."
+                emptyText="No templates"
                 triggerClassName="w-48"
                 options={templates.map((template) => ({
                   value: template.code,
@@ -398,13 +400,13 @@ export function WorkflowWorkbench({
               disabled={saving}
               onClick={() => void save()}
             >
-              保存
+              {t("common.save")}
             </Button>
             <Button
               disabled={saving || !active}
               onClick={() => void publish()}
             >
-              发布版本
+              {t("aiAgent.publishAgent")}
             </Button>
           </div>
           <div className="w-8 shrink-0" aria-hidden="true" />
