@@ -7,6 +7,8 @@ import (
 	"agent-desk/internal/repositories"
 	"testing"
 	"time"
+
+	"github.com/mlogclub/simple/sqls"
 )
 
 func TestWebhookDOSOrgSync_OrgEvents(t *testing.T) {
@@ -247,5 +249,82 @@ func TestOrganizationService_CreateAndManageMembers(t *testing.T) {
 	members, _ = OrganizationService.GetOrganizationMembers(owner.ID, created.ID)
 	if len(members) != 1 {
 		t.Fatalf("expected 1 member after removal, got %d", len(members))
+	}
+}
+
+func TestWebhookSync_CompanyAndCustomerEvents(t *testing.T) {
+	db := setupAuthServiceTestDB(t)
+	svc := newWebhookSyncService()
+
+	// 1. Test company.created
+	err := svc.HandleOrgSync(request.OrgSyncWebhookRequest{
+		Event:     "company.created",
+		Timestamp: time.Now().Format(time.RFC3339),
+		Data: request.OrgSyncEventData{
+			CRMCompanyID:      "comp_crm_001",
+			Name:              "MetaDOS LLC",
+			DomainName:        "metados.com",
+			Address:           "Ho Chi Minh City, Vietnam",
+			Tier:              "enterprise",
+			AccountOwnerEmail: "sales@crove.com",
+		},
+	})
+	if err != nil {
+		t.Fatalf("HandleOrgSync company.created failed: %v", err)
+	}
+
+	comp := repositories.CompanyRepository.GetByName(db, "MetaDOS LLC")
+	if comp == nil || comp.Code != "comp_crm_001" || comp.Status != enums.StatusOk {
+		t.Fatalf("unexpected created company: %+v", comp)
+	}
+
+	// 2. Test customer.created
+	err = svc.HandleOrgSync(request.OrgSyncWebhookRequest{
+		Event:     "customer.created",
+		Timestamp: time.Now().Format(time.RFC3339),
+		Data: request.OrgSyncEventData{
+			CRMPersonID:  "pers_crm_001",
+			CRMCompanyID: "comp_crm_001",
+			CompanyName:  "MetaDOS LLC",
+			Name:         "Nguyen Van A",
+			Email:        "customer_a@metados.com",
+			Phone:        "+84901234567",
+			JobTitle:     "CTO",
+		},
+	})
+	if err != nil {
+		t.Fatalf("HandleOrgSync customer.created failed: %v", err)
+	}
+
+	cust := repositories.CustomerRepository.FindOne(db, sqls.NewCnd().Eq("primary_email", "customer_a@metados.com"))
+	if cust == nil || cust.Name != "Nguyen Van A" || cust.PrimaryMobile != "+84901234567" || cust.CompanyID != comp.ID {
+		t.Fatalf("unexpected created customer: %+v", cust)
+	}
+
+	identity := repositories.CustomerIdentityRepository.FindOne(db, sqls.NewCnd().
+		Eq("external_source", enums.ExternalSourceTwentyCRM).
+		Eq("external_id", "pers_crm_001"))
+	if identity == nil || identity.CustomerID != cust.ID {
+		t.Fatalf("unexpected customer identity: %+v", identity)
+	}
+
+	// 3. Test customer.updated
+	err = svc.HandleOrgSync(request.OrgSyncWebhookRequest{
+		Event:     "customer.updated",
+		Timestamp: time.Now().Format(time.RFC3339),
+		Data: request.OrgSyncEventData{
+			CRMPersonID: "pers_crm_001",
+			Name:        "Nguyen Van A (Updated)",
+			Email:       "customer_a@metados.com",
+			JobTitle:    "VP of Engineering",
+		},
+	})
+	if err != nil {
+		t.Fatalf("HandleOrgSync customer.updated failed: %v", err)
+	}
+
+	cust = repositories.CustomerRepository.Get(db, cust.ID)
+	if cust == nil || cust.Name != "Nguyen Van A (Updated)" || cust.Remark != "VP of Engineering" {
+		t.Fatalf("unexpected updated customer: %+v", cust)
 	}
 }

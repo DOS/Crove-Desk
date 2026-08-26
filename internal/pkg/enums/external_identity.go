@@ -6,15 +6,17 @@ package enums
 type ExternalSource string
 
 const (
-	ExternalSourceGuest    ExternalSource = "guest"     // 访客
-	ExternalSourceWxWorkKF ExternalSource = "wxwork_kf" // 企业微信客服
-	ExternalSourceUser     ExternalSource = "user"      // 用户信息
+	ExternalSourceGuest     ExternalSource = "guest"      // 访客
+	ExternalSourceWxWorkKF  ExternalSource = "wxwork_kf"  // 企业微信客服
+	ExternalSourceUser      ExternalSource = "user"       // 用户信息
+	ExternalSourceTwentyCRM ExternalSource = "twenty_crm" // Twenty CRM
 )
 
 var externalSourceLabelMap = map[ExternalSource]string{
-	ExternalSourceGuest:    "访客",
-	ExternalSourceWxWorkKF: "企业微信客服",
-	ExternalSourceUser:     "用户",
+	ExternalSourceGuest:     "访客",
+	ExternalSourceWxWorkKF:  "企业微信客服",
+	ExternalSourceUser:      "用户",
+	ExternalSourceTwentyCRM: "Twenty CRM",
 }
 
 func GetExternalSourceLabel(v ExternalSource) string {

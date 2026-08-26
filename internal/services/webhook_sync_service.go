@@ -70,9 +70,6 @@ func (s *webhookSyncService) HandleOrgSync(req request.OrgSyncWebhookRequest) er
 	if orgCode == "" {
 		orgCode = strings.TrimSpace(data.Slug)
 	}
-	if orgCode == "" {
-		return errorsx.InvalidParam("org_id or id is required")
-	}
 	data.OrgID = orgCode
 
 	if data.OrgName == "" && data.Name != "" {
@@ -84,13 +81,29 @@ func (s *webhookSyncService) HandleOrgSync(req request.OrgSyncWebhookRequest) er
 
 	switch event {
 	case "org.created", "org.updated", "organization.created", "organization.updated":
+		if orgCode == "" {
+			return errorsx.InvalidParam("org_id or id is required")
+		}
 		return s.handleOrgUpsert(data)
 	case "org.deleted", "organization.deleted":
+		if orgCode == "" {
+			return errorsx.InvalidParam("org_id or id is required")
+		}
 		return s.handleOrgDelete(orgCode)
 	case "org.member_added", "org.member_updated", "organization.member.added", "organization.member.updated", "organization.member_added":
+		if orgCode == "" {
+			return errorsx.InvalidParam("org_id or id is required")
+		}
 		return s.handleMemberUpsert(data)
 	case "org.member_removed", "organization.member.removed", "organization.member_removed":
+		if orgCode == "" {
+			return errorsx.InvalidParam("org_id or id is required")
+		}
 		return s.handleMemberRemove(data)
+	case "company.created", "company.updated":
+		return s.handleCompanyUpsert(data)
+	case "customer.created", "customer.updated":
+		return s.handleCustomerUpsert(data)
 	default:
 		return nil
 	}
@@ -384,6 +397,231 @@ func (s *webhookSyncService) handleMemberRemove(data request.OrgSyncEventData) e
 				newActiveOrgID = remaining[0].OrganizationID
 			}
 			_ = repositories.UserRepository.UpdateColumn(ctx.Tx, user.ID, "active_org_id", newActiveOrgID)
+		}
+
+		return nil
+	})
+}
+
+func (s *webhookSyncService) handleCompanyUpsert(data request.OrgSyncEventData) error {
+	name := strings.TrimSpace(data.Name)
+	if name == "" {
+		name = strings.TrimSpace(data.OrgName)
+	}
+	if name == "" {
+		name = strings.TrimSpace(data.CRMCompanyID)
+	}
+	if name == "" {
+		return errorsx.InvalidParam("company name is required")
+	}
+
+	code := strings.TrimSpace(data.CRMCompanyID)
+	if code == "" {
+		code = strings.TrimSpace(data.DeskCompanyID)
+	}
+
+	remark := strings.TrimSpace(data.DomainName)
+	if data.Address != "" {
+		if remark != "" {
+			remark += " | " + data.Address
+		} else {
+			remark = data.Address
+		}
+	}
+	if data.Tier != "" {
+		if remark != "" {
+			remark += " | Tier: " + data.Tier
+		} else {
+			remark = "Tier: " + data.Tier
+		}
+	}
+
+	now := time.Now()
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		var company *models.Company
+		if code != "" {
+			company = repositories.CompanyRepository.FindOne(ctx.Tx, sqls.NewCnd().Eq("code", code))
+		}
+		if company == nil {
+			company = repositories.CompanyRepository.GetByName(ctx.Tx, name)
+		}
+
+		if company == nil {
+			company = &models.Company{
+				Name:   name,
+				Code:   code,
+				Status: enums.StatusOk,
+				Remark: remark,
+				AuditFields: models.AuditFields{
+					CreatedAt:      now,
+					CreateUserID:   0,
+					CreateUserName: "crm-sync",
+					UpdatedAt:      now,
+					UpdateUserID:   0,
+					UpdateUserName: "crm-sync",
+				},
+			}
+			return repositories.CompanyRepository.Create(ctx.Tx, company)
+		}
+
+		updates := map[string]any{
+			"name":             name,
+			"status":           enums.StatusOk,
+			"update_user_id":   0,
+			"update_user_name": "crm-sync",
+			"updated_at":       now,
+		}
+		if code != "" {
+			updates["code"] = code
+		}
+		if remark != "" {
+			updates["remark"] = remark
+		}
+		return repositories.CompanyRepository.Updates(ctx.Tx, company.ID, updates)
+	})
+}
+
+func (s *webhookSyncService) handleCustomerUpsert(data request.OrgSyncEventData) error {
+	name := strings.TrimSpace(data.Name)
+	if name == "" {
+		name = strings.TrimSpace(data.UserName)
+	}
+	email := strings.TrimSpace(strings.ToLower(data.Email))
+	if email == "" {
+		email = strings.TrimSpace(strings.ToLower(data.UserEmail))
+	}
+	phone := strings.TrimSpace(data.Phone)
+	crmPersonID := strings.TrimSpace(data.CRMPersonID)
+	crmCompanyID := strings.TrimSpace(data.CRMCompanyID)
+	companyName := strings.TrimSpace(data.CompanyName)
+
+	if name == "" && email == "" && phone == "" && crmPersonID == "" {
+		return errorsx.InvalidParam("at least one customer identifier is required")
+	}
+	if name == "" {
+		if email != "" {
+			name = email
+		} else if phone != "" {
+			name = phone
+		} else {
+			name = "Customer " + crmPersonID
+		}
+	}
+
+	now := time.Now()
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		var companyID int64 = 0
+		if crmCompanyID != "" {
+			company := repositories.CompanyRepository.FindOne(ctx.Tx, sqls.NewCnd().Eq("code", crmCompanyID))
+			if company != nil {
+				companyID = company.ID
+			}
+		}
+		if companyID == 0 && companyName != "" {
+			company := repositories.CompanyRepository.GetByName(ctx.Tx, companyName)
+			if company != nil {
+				companyID = company.ID
+			} else {
+				newComp := &models.Company{
+					Name:   companyName,
+					Code:   crmCompanyID,
+					Status: enums.StatusOk,
+					AuditFields: models.AuditFields{
+						CreatedAt:      now,
+						CreateUserID:   0,
+						CreateUserName: "crm-sync",
+						UpdatedAt:      now,
+						UpdateUserID:   0,
+						UpdateUserName: "crm-sync",
+					},
+				}
+				if err := repositories.CompanyRepository.Create(ctx.Tx, newComp); err == nil {
+					companyID = newComp.ID
+				}
+			}
+		}
+
+		var customer *models.Customer
+		if crmPersonID != "" {
+			identity := repositories.CustomerIdentityRepository.FindOne(ctx.Tx, sqls.NewCnd().
+				Eq("external_source", enums.ExternalSourceTwentyCRM).
+				Eq("external_id", crmPersonID))
+			if identity != nil {
+				customer = repositories.CustomerRepository.Get(ctx.Tx, identity.CustomerID)
+			}
+		}
+		if customer == nil && email != "" {
+			customer = repositories.CustomerRepository.FindOne(ctx.Tx, sqls.NewCnd().Eq("primary_email", email))
+		}
+		if customer == nil && phone != "" {
+			customer = repositories.CustomerRepository.FindOne(ctx.Tx, sqls.NewCnd().Eq("primary_mobile", phone))
+		}
+
+		if customer == nil {
+			customer = &models.Customer{
+				Name:          name,
+				PrimaryEmail:  email,
+				PrimaryMobile: phone,
+				CompanyID:     companyID,
+				Status:        enums.StatusOk,
+				Remark:        data.JobTitle,
+				AuditFields: models.AuditFields{
+					CreatedAt:      now,
+					CreateUserID:   0,
+					CreateUserName: "crm-sync",
+					UpdatedAt:      now,
+					UpdateUserID:   0,
+					UpdateUserName: "crm-sync",
+				},
+			}
+			if err := repositories.CustomerRepository.Create(ctx.Tx, customer); err != nil {
+				return err
+			}
+		} else {
+			updates := map[string]any{
+				"name":             name,
+				"status":           enums.StatusOk,
+				"update_user_id":   0,
+				"update_user_name": "crm-sync",
+				"updated_at":       now,
+			}
+			if email != "" {
+				updates["primary_email"] = email
+			}
+			if phone != "" {
+				updates["primary_mobile"] = phone
+			}
+			if companyID > 0 {
+				updates["company_id"] = companyID
+			}
+			if data.JobTitle != "" {
+				updates["remark"] = data.JobTitle
+			}
+			if err := repositories.CustomerRepository.Updates(ctx.Tx, customer.ID, updates); err != nil {
+				return err
+			}
+		}
+
+		if crmPersonID != "" {
+			identity := repositories.CustomerIdentityRepository.FindOne(ctx.Tx, sqls.NewCnd().
+				Eq("external_source", enums.ExternalSourceTwentyCRM).
+				Eq("external_id", crmPersonID))
+			if identity == nil {
+				_ = repositories.CustomerIdentityRepository.Create(ctx.Tx, &models.CustomerIdentity{
+					CustomerID:     customer.ID,
+					ExternalSource: enums.ExternalSourceTwentyCRM,
+					ExternalID:     crmPersonID,
+					Status:         enums.StatusOk,
+					AuditFields: models.AuditFields{
+						CreatedAt:      now,
+						CreateUserID:   0,
+						CreateUserName: "crm-sync",
+						UpdatedAt:      now,
+						UpdateUserID:   0,
+						UpdateUserName: "crm-sync",
+					},
+				})
+			}
 		}
 
 		return nil

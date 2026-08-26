@@ -1,6 +1,7 @@
 package request
 
 type OrgSyncEventData struct {
+	// Organization fields
 	OrgID        string `json:"org_id"`
 	ID           string `json:"id,omitempty"`
 	OrgName      string `json:"org_name"`
@@ -12,6 +13,24 @@ type OrgSyncEventData struct {
 	UserName     string `json:"user_name"`
 	Role         string `json:"role"`
 	Plan         string `json:"plan"`
+
+	// Company fields
+	CRMCompanyID      string `json:"crm_company_id,omitempty"`
+	DeskCompanyID     string `json:"desk_company_id,omitempty"`
+	DomainName        string `json:"domain_name,omitempty"`
+	Address           string `json:"address,omitempty"`
+	Tier              string `json:"tier,omitempty"`
+	AccountOwnerEmail string `json:"account_owner_email,omitempty"`
+
+	// Customer fields
+	CRMPersonID    string `json:"crm_person_id,omitempty"`
+	DeskCustomerID string `json:"desk_customer_id,omitempty"`
+	Email          string `json:"email,omitempty"`
+	Phone          string `json:"phone,omitempty"`
+	AvatarURL      string `json:"avatar_url,omitempty"`
+	JobTitle       string `json:"job_title,omitempty"`
+	CompanyName    string `json:"company_name,omitempty"`
+	Source         string `json:"source,omitempty"`
 }
 
 type OrgSyncWebhookRequest struct {
