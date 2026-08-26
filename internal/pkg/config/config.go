@@ -366,6 +366,7 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("oidc.redirectUrl", "OIDC_REDIRECT_URL", "CUSTOM_OAUTH_REDIRECT_URI", "AGENT_DESK_OIDC_REDIRECTURL")
 	_ = v.BindEnv("webhook.orgSyncSecret", "ORG_SYNC_SECRET", "WEBHOOK_SECRET", "AGENT_DESK_WEBHOOK_ORGSYNCSECRET")
 	_ = v.BindEnv("webhook.outboundUrl", "ORG_SYNC_OUTBOUND_URL", "DOS_ORG_SYNC_URL", "WEBHOOK_OUTBOUND_URL", "AGENT_DESK_WEBHOOK_OUTBOUNDURL")
+	_ = v.BindEnv("mcp.enabled", "MCP_ENABLED", "AGENT_DESK_MCP_ENABLED")
 }
 
 func normalizeLoadedConfig(cfg *Config) {
@@ -376,5 +377,41 @@ func normalizeLoadedConfig(cfg *Config) {
 		cfg.DB.Type = "postgres"
 	} else if cfg.DB.Type == "sqlite" && strings.Contains(cfg.DB.DSN, "@tcp(") {
 		cfg.DB.Type = "mysql"
+	}
+
+	if cfg.MCP.Servers == nil {
+		cfg.MCP.Servers = make(map[string]MCPServerConfig)
+	}
+	if _, ok := cfg.MCP.Servers["system"]; !ok {
+		port := cfg.Server.Port
+		if port <= 0 {
+			port = 8083
+		}
+		cfg.MCP.Servers["system"] = MCPServerConfig{
+			Enabled:   true,
+			Endpoint:  fmt.Sprintf("http://127.0.0.1:%d/api/mcp", port),
+			TimeoutMS: 15000,
+		}
+	}
+
+	crmEndpoint := strings.TrimSpace(os.Getenv("MCP_CRM_ENDPOINT"))
+	if crmEndpoint == "" {
+		crmEndpoint = strings.TrimSpace(os.Getenv("TWENTY_CRM_MCP_ENDPOINT"))
+	}
+	if crmEndpoint != "" {
+		apiKey := strings.TrimSpace(os.Getenv("MCP_CRM_API_KEY"))
+		if apiKey == "" {
+			apiKey = strings.TrimSpace(os.Getenv("TWENTY_CRM_API_KEY"))
+		}
+		headers := map[string]string{}
+		if apiKey != "" {
+			headers["Authorization"] = "Bearer " + apiKey
+		}
+		cfg.MCP.Servers["twenty_crm"] = MCPServerConfig{
+			Enabled:   true,
+			Endpoint:  crmEndpoint,
+			TimeoutMS: 15000,
+			Headers:   headers,
+		}
 	}
 }

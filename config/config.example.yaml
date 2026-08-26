@@ -132,6 +132,13 @@ mcp:
       timeoutMs: 15000
       # Extra HTTP headers sent to this MCP server on every request, for example Authorization or tenant headers.
       headers: {}
+    twenty_crm:
+      # Crove CRM (Twenty CRM) MCP Server for querying companies, contacts, opportunities, and tasks.
+      enabled: true
+      endpoint: "https://crm.crove.com/api/mcp"
+      timeoutMs: 15000
+      headers:
+        # Authorization: "Bearer <YOUR_CRM_API_KEY>"
 
 oidc:
   # Whether to enable OIDC login. This system acts as the OIDC client.
