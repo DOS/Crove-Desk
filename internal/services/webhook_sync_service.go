@@ -65,17 +65,31 @@ func (s *webhookSyncService) HandleOrgSync(req request.OrgSyncWebhookRequest) er
 
 	orgCode := strings.TrimSpace(data.OrgID)
 	if orgCode == "" {
-		return errorsx.InvalidParam("org_id is required")
+		orgCode = strings.TrimSpace(data.ID)
+	}
+	if orgCode == "" {
+		orgCode = strings.TrimSpace(data.Slug)
+	}
+	if orgCode == "" {
+		return errorsx.InvalidParam("org_id or id is required")
+	}
+	data.OrgID = orgCode
+
+	if data.OrgName == "" && data.Name != "" {
+		data.OrgName = data.Name
+	}
+	if data.UserEmail == "" && data.BillingEmail != "" {
+		data.UserEmail = data.BillingEmail
 	}
 
 	switch event {
-	case "org.created", "org.updated":
+	case "org.created", "org.updated", "organization.created", "organization.updated":
 		return s.handleOrgUpsert(data)
-	case "org.deleted":
+	case "org.deleted", "organization.deleted":
 		return s.handleOrgDelete(orgCode)
-	case "org.member_added", "org.member_updated":
+	case "org.member_added", "org.member_updated", "organization.member.added", "organization.member.updated", "organization.member_added":
 		return s.handleMemberUpsert(data)
-	case "org.member_removed":
+	case "org.member_removed", "organization.member.removed", "organization.member_removed":
 		return s.handleMemberRemove(data)
 	default:
 		return nil

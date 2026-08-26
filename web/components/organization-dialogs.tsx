@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import { useI18n } from "@/i18n/provider"
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,7 @@ export function CreateOrganizationDialog({
   onOpenChange: (open: boolean) => void
   onCreated: (org: OrganizationItem) => void
 }) {
+  const t = useI18n()
   const [name, setName] = useState("")
   const [code, setCode] = useState("")
   const [isPending, setIsPending] = useState(false)
@@ -41,7 +43,7 @@ export function CreateOrganizationDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) {
-      toast.error("Organization name is required")
+      toast.error(t("organization.nameRequired"))
       return
     }
     setIsPending(true)
@@ -50,13 +52,13 @@ export function CreateOrganizationDialog({
         name: name.trim(),
         code: code.trim() || undefined,
       })
-      toast.success(`Organization "${org.name}" created successfully`)
+      toast.success(t("organization.created", { name: org.name }))
       setName("")
       setCode("")
       onOpenChange(false)
       onCreated(org)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create organization")
+      toast.error(err instanceof Error ? err.message : t("organization.createFailed"))
     } finally {
       setIsPending(false)
     }
@@ -69,32 +71,32 @@ export function CreateOrganizationDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Building2Icon className="size-5 text-primary" />
-              Create Organization
+              {t("organization.createTitle")}
             </DialogTitle>
             <DialogDescription>
-              Create a new organization / workspace for your team.
+              {t("organization.createDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <FieldGroup className="py-4">
             <Field>
-              <FieldLabel htmlFor="org-name">Organization Name</FieldLabel>
+              <FieldLabel htmlFor="org-name">{t("organization.name")}</FieldLabel>
               <Input
                 id="org-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Acme Corp"
+                placeholder={t("organization.namePlaceholder")}
                 required
                 autoFocus
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="org-code">Slug / Code (Optional)</FieldLabel>
+              <FieldLabel htmlFor="org-code">{t("organization.code")}</FieldLabel>
               <Input
                 id="org-code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="e.g. acme-corp"
+                placeholder={t("organization.codePlaceholder")}
               />
             </Field>
           </FieldGroup>
@@ -106,16 +108,16 @@ export function CreateOrganizationDialog({
               onClick={() => onOpenChange(false)}
               disabled={isPending}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isPending || !name.trim()}>
               {isPending ? (
                 <>
                   <Loader2Icon className="mr-2 size-4 animate-spin" />
-                  Creating...
+                  {t("organization.creating")}
                 </>
               ) : (
-                "Create Organization"
+                t("organization.create")
               )}
             </Button>
           </DialogFooter>
@@ -136,6 +138,7 @@ export function ManageOrganizationDialog({
   organization: OrganizationItem | null
   onUpdated?: () => void
 }) {
+  const t = useI18n()
   const [members, setMembers] = useState<OrganizationMemberItem[]>([])
   const [loadingMembers, setLoadingMembers] = useState(false)
   const [emailOrUsername, setEmailOrUsername] = useState("")
@@ -167,7 +170,7 @@ export function ManageOrganizationDialog({
     setIsUpdatingName(true)
     try {
       await updateOrganization({ name: orgName.trim() })
-      toast.success("Organization name updated")
+      toast.success(t("organization.updated"))
       onUpdated?.()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update name")
@@ -190,7 +193,7 @@ export function ManageOrganizationDialog({
         return [...filtered, added]
       })
       setEmailOrUsername("")
-      toast.success(`Member added successfully`)
+      toast.success(t("organization.memberAdded"))
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to add member")
     } finally {
@@ -199,11 +202,11 @@ export function ManageOrganizationDialog({
   }
 
   const handleRemoveMember = async (userId: number, username: string) => {
-    if (!confirm(`Are you sure you want to remove ${username}?`)) return
+    if (!confirm(t("organization.removeConfirm"))) return
     try {
       await removeOrganizationMember(userId)
       setMembers((prev) => prev.filter((m) => m.userId !== userId))
-      toast.success(`Member removed`)
+      toast.success(t("organization.memberRemoved"))
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to remove member")
     }
@@ -219,22 +222,22 @@ export function ManageOrganizationDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building2Icon className="size-5 text-primary" />
-            {organization.name} — Settings & Members
+            {organization.name} — {t("organization.manageTitle")}
           </DialogTitle>
           <DialogDescription>
-            Manage organization details, team members, and access roles.
+            {t("organization.general")}
           </DialogDescription>
         </DialogHeader>
 
         {isOwnerOrAdmin ? (
           <form onSubmit={handleUpdateName} className="space-y-3 pt-2">
             <Field>
-              <FieldLabel>Organization Name</FieldLabel>
+              <FieldLabel>{t("organization.name")}</FieldLabel>
               <div className="flex gap-2">
                 <Input
                   value={orgName}
                   onChange={(e) => setOrgName(e.target.value)}
-                  placeholder="Organization Name"
+                  placeholder={t("organization.namePlaceholder")}
                   required
                 />
                 <Button
@@ -243,7 +246,7 @@ export function ManageOrganizationDialog({
                   variant="outline"
                   disabled={isUpdatingName || !orgName.trim() || orgName.trim() === organization.name}
                 >
-                  {isUpdatingName ? "Saving..." : "Rename"}
+                  {isUpdatingName ? t("organization.saving") : t("organization.save")}
                 </Button>
               </div>
             </Field>
@@ -254,7 +257,7 @@ export function ManageOrganizationDialog({
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold flex items-center gap-1.5">
               <UsersIcon className="size-4 text-muted-foreground" />
-              Members ({members.length})
+              {t("organization.members")} ({members.length})
             </h4>
           </div>
 
@@ -263,7 +266,7 @@ export function ManageOrganizationDialog({
               <Input
                 value={emailOrUsername}
                 onChange={(e) => setEmailOrUsername(e.target.value)}
-                placeholder="Username or email address..."
+                placeholder={t("organization.emailOrUsernamePlaceholder")}
                 className="flex-1 text-xs"
                 required
               />
@@ -272,12 +275,12 @@ export function ManageOrganizationDialog({
                 onChange={(e) => setRole(e.target.value)}
                 className="rounded-md border border-input bg-background px-2 text-xs"
               >
-                <option value="MEMBER">Member</option>
-                <option value="ADMIN">Admin</option>
+                <option value="MEMBER">{t("organization.member")}</option>
+                <option value="ADMIN">{t("organization.admin")}</option>
               </select>
               <Button type="submit" size="sm" disabled={isAdding || !emailOrUsername.trim()}>
                 {isAdding ? <Loader2Icon className="size-4 animate-spin" /> : <UserPlusIcon className="size-4 mr-1" />}
-                Add
+                {t("organization.add")}
               </Button>
             </form>
           ) : null}
@@ -320,7 +323,7 @@ export function ManageOrganizationDialog({
                 </div>
               ))}
               {members.length === 0 ? (
-                <div className="py-6 text-center text-muted-foreground">No members found.</div>
+                <div className="py-6 text-center text-muted-foreground">{t("common.emptyData")}</div>
               ) : null}
             </div>
           )}
@@ -328,7 +331,7 @@ export function ManageOrganizationDialog({
 
         <DialogFooter className="pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
+            {t("common.close")}
           </Button>
         </DialogFooter>
       </DialogContent>
