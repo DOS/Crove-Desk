@@ -1,12 +1,18 @@
 package services
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"testing"
+	"time"
+
 	"agent-desk/internal/models"
+	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/repositories"
-	"testing"
-	"time"
 
 	"github.com/mlogclub/simple/sqls"
 )
@@ -326,5 +332,54 @@ func TestWebhookSync_CompanyAndCustomerEvents(t *testing.T) {
 	cust = repositories.CustomerRepository.Get(db, cust.ID)
 	if cust == nil || cust.Name != "Nguyen Van A (Updated)" || cust.Remark != "VP of Engineering" {
 		t.Fatalf("unexpected updated customer: %+v", cust)
+	}
+}
+
+func TestWebhookSignatureVerification_TimestampFormat(t *testing.T) {
+	svc := newWebhookSyncService()
+	secret := "test-secret-key-12345"
+
+	// Mock config
+	cfg := &config.Config{
+		Webhook: config.WebhookConfig{
+			OrgSyncSecret: secret,
+		},
+	}
+	config.SetCurrent(cfg)
+
+	payload := []byte(`{"event":"customer.created","data":{"name":"John Doe"}}`)
+	nowMs := time.Now().UnixMilli()
+	tsStr := fmt.Sprintf("%d", nowMs)
+
+	// Compute HMAC-SHA256 of timestamp.payload
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(tsStr + "." + string(payload)))
+	sigHex := hex.EncodeToString(mac.Sum(nil))
+
+	header := fmt.Sprintf("t=%s,v1=%s", tsStr, sigHex)
+
+	if !svc.VerifySignature(payload, header) {
+		t.Fatalf("expected signature %q to be verified successfully", header)
+	}
+
+	// Test expired timestamp (> 5 minutes ago)
+	oldMs := time.Now().Add(-10 * time.Minute).UnixMilli()
+	oldTsStr := fmt.Sprintf("%d", oldMs)
+	macOld := hmac.New(sha256.New, []byte(secret))
+	macOld.Write([]byte(oldTsStr + "." + string(payload)))
+	oldSigHex := hex.EncodeToString(macOld.Sum(nil))
+	oldHeader := fmt.Sprintf("t=%s,v1=%s", oldTsStr, oldSigHex)
+
+	if svc.VerifySignature(payload, oldHeader) {
+		t.Fatalf("expected expired signature %q to fail verification", oldHeader)
+	}
+
+	// Test sha256= format
+	macRaw := hmac.New(sha256.New, []byte(secret))
+	macRaw.Write(payload)
+	rawSigHex := hex.EncodeToString(macRaw.Sum(nil))
+
+	if !svc.VerifySignature(payload, "sha256="+rawSigHex) {
+		t.Fatalf("expected sha256= signature to be verified successfully")
 	}
 }

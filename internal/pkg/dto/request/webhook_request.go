@@ -4,6 +4,7 @@ type OrgSyncEventData struct {
 	// Organization fields
 	OrgID        string `json:"org_id"`
 	ID           string `json:"id,omitempty"`
+	GlobalOrgID  string `json:"global_org_id,omitempty"`
 	OrgName      string `json:"org_name"`
 	Name         string `json:"name,omitempty"`
 	Slug         string `json:"slug,omitempty"`
@@ -17,9 +18,12 @@ type OrgSyncEventData struct {
 	// Company fields
 	CRMCompanyID      string `json:"crm_company_id,omitempty"`
 	DeskCompanyID     string `json:"desk_company_id,omitempty"`
+	CompanyID         string `json:"company_id,omitempty"`
 	DomainName        string `json:"domain_name,omitempty"`
+	Domain            string `json:"domain,omitempty"`
 	Address           string `json:"address,omitempty"`
 	Tier              string `json:"tier,omitempty"`
+	TaxCode           string `json:"tax_code,omitempty"`
 	AccountOwnerEmail string `json:"account_owner_email,omitempty"`
 
 	// Customer fields

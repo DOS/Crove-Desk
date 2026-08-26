@@ -13,7 +13,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"log/slog"
+	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -44,12 +46,57 @@ func (s *webhookSyncService) VerifySignature(payload []byte, signature string) b
 		return true
 	}
 
-	sig := strings.TrimSpace(signature)
+	sigHeader := strings.TrimSpace(signature)
+	if sigHeader == "" {
+		return false
+	}
+
+	// 1. Check for format: t=<timestamp>,v1=<signature>
+	if strings.Contains(sigHeader, "t=") && (strings.Contains(sigHeader, "v1=") || strings.Contains(sigHeader, "v0=")) {
+		parts := strings.Split(sigHeader, ",")
+		var tsStr, expectedSig string
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if strings.HasPrefix(p, "t=") {
+				tsStr = strings.TrimPrefix(p, "t=")
+			} else if strings.HasPrefix(p, "v1=") {
+				expectedSig = strings.TrimPrefix(p, "v1=")
+			} else if strings.HasPrefix(p, "v0=") && expectedSig == "" {
+				expectedSig = strings.TrimPrefix(p, "v0=")
+			}
+		}
+
+		if tsStr != "" && expectedSig != "" {
+			// Timestamp anti-replay check (5 minutes)
+			var tsInt int64
+			if parsed, err := strconv.ParseInt(tsStr, 10, 64); err == nil {
+				tsInt = parsed
+				now := time.Now().Unix()
+				if tsInt > 1e11 { // ms
+					now = time.Now().UnixMilli()
+					if math.Abs(float64(now-tsInt)) > float64(5*60*1000) {
+						return false
+					}
+				} else {
+					if math.Abs(float64(now-tsInt)) > float64(5*60) {
+						return false
+					}
+				}
+			}
+
+			mac := hmac.New(sha256.New, []byte(secret))
+			mac.Write([]byte(tsStr + "." + string(payload)))
+			computed := hex.EncodeToString(mac.Sum(nil))
+			if hmac.Equal([]byte(expectedSig), []byte(computed)) {
+				return true
+			}
+		}
+	}
+
+	// 2. Fallback to direct sha256= signature or raw hex signature
+	sig := sigHeader
 	if strings.HasPrefix(sig, "sha256=") {
 		sig = strings.TrimPrefix(sig, "sha256=")
-	}
-	if sig == "" {
-		return false
 	}
 
 	mac := hmac.New(sha256.New, []byte(secret))
@@ -422,10 +469,26 @@ func (s *webhookSyncService) handleCompanyUpsert(data request.OrgSyncEventData) 
 
 	code := strings.TrimSpace(data.CRMCompanyID)
 	if code == "" {
+		code = strings.TrimSpace(data.ID)
+	}
+	if code == "" {
+		code = strings.TrimSpace(data.CompanyID)
+	}
+	if code == "" {
 		code = strings.TrimSpace(data.DeskCompanyID)
 	}
 
 	remark := strings.TrimSpace(data.DomainName)
+	if remark == "" {
+		remark = strings.TrimSpace(data.Domain)
+	}
+	if data.TaxCode != "" {
+		if remark != "" {
+			remark += " | Tax: " + data.TaxCode
+		} else {
+			remark = "Tax: " + data.TaxCode
+		}
+	}
 	if data.Address != "" {
 		if remark != "" {
 			remark += " | " + data.Address
@@ -497,7 +560,13 @@ func (s *webhookSyncService) handleCustomerUpsert(data request.OrgSyncEventData)
 	}
 	phone := strings.TrimSpace(data.Phone)
 	crmPersonID := strings.TrimSpace(data.CRMPersonID)
+	if crmPersonID == "" {
+		crmPersonID = strings.TrimSpace(data.ID)
+	}
 	crmCompanyID := strings.TrimSpace(data.CRMCompanyID)
+	if crmCompanyID == "" {
+		crmCompanyID = strings.TrimSpace(data.CompanyID)
+	}
 	companyName := strings.TrimSpace(data.CompanyName)
 
 	if name == "" && email == "" && phone == "" && crmPersonID == "" {

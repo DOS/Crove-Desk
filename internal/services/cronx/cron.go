@@ -26,6 +26,10 @@ func Init() {
 		if count > 0 {
 			slog.Info("wxwork kf outbox dispatched", "count", count)
 		}
+		tgCount := services.TelegramOutboundService.DispatchPendingOutbox()
+		if tgCount > 0 {
+			slog.Info("telegram outbox dispatched", "count", tgCount)
+		}
 	})
 
 	c.Start()

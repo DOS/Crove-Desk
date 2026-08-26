@@ -300,6 +300,21 @@ func (s *channelService) ParseWechatMPChannelConfig(raw string) (*dto.WechatMPCh
 	return cfg, nil
 }
 
+func (s *channelService) ParseTelegramChannelConfig(raw string) (*dto.TelegramChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.TelegramChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.BotToken = strings.TrimSpace(cfg.BotToken)
+	cfg.BotUsername = strings.TrimSpace(cfg.BotUsername)
+	cfg.WebhookSecret = strings.TrimSpace(cfg.WebhookSecret)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
 func (s *channelService) GetUserTokenSecret(channel *models.Channel) string {
 	if channel == nil {
 		return ""
@@ -416,7 +431,7 @@ func (s *channelService) GetEnabledChannel(ctx *gin.Context) *models.Channel {
 
 func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRequest) (*models.Channel, error) {
 	channelType := strings.TrimSpace(req.ChannelType)
-	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF {
+	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram {
 		return nil, errorsx.InvalidParamI18n("error.e0250")
 	}
 	name := strings.TrimSpace(req.Name)
@@ -520,6 +535,25 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 		if channel := s.GetEnabledWxWorkKFChannelByOpenKfID(cfg.OpenKfID); channel != nil && channel.ID != id {
 			return nil, errorsx.InvalidParamI18n("error.e0069")
 		}
+	case enums.ChannelTypeTelegram:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseTelegramChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid telegram configuration")
+		}
+		if cfg == nil || cfg.BotToken == "" {
+			return nil, errorsx.InvalidParam("telegram botToken is required")
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
 	}
 
 	return &models.Channel{

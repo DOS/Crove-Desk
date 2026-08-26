@@ -58,6 +58,12 @@ type WechatMPChannelConfig = {
   userTokenSecret?: string
 }
 
+type TelegramChannelConfig = {
+  botToken?: string
+  botUsername?: string
+  webhookSecret?: string
+}
+
 function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
   return {
     title: t("channel.defaultTitleWeb"),
@@ -72,11 +78,14 @@ function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
 function createSchema(t: Translate) {
   return z
     .object({
-      channelType: z.enum(["web", "wechat_mp", "wxwork_kf"], t("channel.typeRequired")),
+      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram"], t("channel.typeRequired")),
       aiAgentId: z.string().trim().regex(/^\d+$/, t("channel.agentRequired")),
 		aiAgentRolloutPercent: z.coerce.number().int().min(1).max(100),
       name: z.string().trim().min(1, t("channel.nameRequired")),
       openKfId: z.string().trim(),
+      botToken: z.string().trim(),
+      botUsername: z.string().trim(),
+      webhookSecret: z.string().trim(),
       widgetTitle: z.string().trim(),
       widgetSubtitle: z.string().trim(),
       widgetThemeColor: z.string().trim(),
@@ -93,15 +102,25 @@ function createSchema(t: Translate) {
           message: t("channel.wxworkAccountRequired"),
         })
       }
+      if (values.channelType === "telegram" && !values.botToken.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["botToken"],
+          message: "Telegram Bot Token is required",
+        })
+      }
     })
 }
 
 type EditForm = {
-  channelType: "web" | "wechat_mp" | "wxwork_kf"
+  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram"
   aiAgentId: string
 	aiAgentRolloutPercent: number
   name: string
   openKfId: string
+  botToken: string
+  botUsername: string
+  webhookSecret: string
   widgetTitle: string
   widgetSubtitle: string
   widgetThemeColor: string
@@ -119,6 +138,9 @@ function createEmptyForm(t: Translate): EditForm {
 		aiAgentRolloutPercent: 100,
     name: "",
     openKfId: "",
+    botToken: "",
+    botUsername: "",
+    webhookSecret: "",
     widgetTitle: defaultWebChannelConfig.title,
     widgetSubtitle: defaultWebChannelConfig.subtitle,
     widgetThemeColor: defaultWebChannelConfig.themeColor,
@@ -138,6 +160,20 @@ function parseOpenKfId(configJson: string): string {
     return typeof parsed.openKfId === "string" ? parsed.openKfId.trim() : ""
   } catch {
     return ""
+  }
+}
+
+function parseTelegramChannelConfig(configJson: string): TelegramChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as TelegramChannelConfig
+    return {
+      botToken: parsed.botToken?.trim() || "",
+      botUsername: parsed.botUsername?.trim() || "",
+      webhookSecret: parsed.webhookSecret?.trim() || "",
+    }
+  } catch {
+    return {}
   }
 }
 
@@ -193,21 +229,30 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
     return createEmptyForm(t)
   }
   const isWechatMP = item.channelType === "wechat_mp"
+  const isTelegram = item.channelType === "telegram"
   const webConfig = parseWebChannelConfig(item.configJson, t)
   const wechatConfig = isWechatMP
     ? parseWechatMPChannelConfig(item.configJson, t)
+    : null
+  const telegramConfig = isTelegram
+    ? parseTelegramChannelConfig(item.configJson)
     : null
   return {
     channelType:
       item.channelType === "wxwork_kf"
         ? "wxwork_kf"
-        : item.channelType === "wechat_mp"
-          ? "wechat_mp"
-          : "web",
+        : item.channelType === "telegram"
+          ? "telegram"
+          : item.channelType === "wechat_mp"
+            ? "wechat_mp"
+            : "web",
     aiAgentId: item.aiAgentId > 0 ? String(item.aiAgentId) : "",
 		aiAgentRolloutPercent: item.aiAgentRolloutPercent || 100,
     name: item.name,
     openKfId: parseOpenKfId(item.configJson),
+    botToken: telegramConfig?.botToken ?? "",
+    botUsername: telegramConfig?.botUsername ?? "",
+    webhookSecret: telegramConfig?.webhookSecret ?? "",
     widgetTitle: wechatConfig?.title ?? webConfig.title,
     widgetSubtitle: wechatConfig?.subtitle ?? webConfig.subtitle,
     widgetThemeColor: wechatConfig?.themeColor ?? webConfig.themeColor,
@@ -233,14 +278,20 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
   const configJson =
     channelType === "wxwork_kf"
       ? JSON.stringify({ openKfId: form.openKfId.trim() })
-      : channelType === "wechat_mp"
-        ? JSON.stringify(webLikeConfig)
-        : JSON.stringify({
-            ...webLikeConfig,
-            position: form.widgetPosition || defaultWebChannelConfig.position,
-            width: form.widgetWidth.trim() || defaultWebChannelConfig.width,
-            userTokenSecret: form.userTokenSecret.trim(),
+      : channelType === "telegram"
+        ? JSON.stringify({
+            botToken: form.botToken.trim(),
+            botUsername: form.botUsername.trim(),
+            webhookSecret: form.webhookSecret.trim(),
           })
+        : channelType === "wechat_mp"
+          ? JSON.stringify(webLikeConfig)
+          : JSON.stringify({
+              ...webLikeConfig,
+              position: form.widgetPosition || defaultWebChannelConfig.position,
+              width: form.widgetWidth.trim() || defaultWebChannelConfig.width,
+              userTokenSecret: form.userTokenSecret.trim(),
+            })
   return {
     channelType,
     aiAgentId: Number(form.aiAgentId),
@@ -428,6 +479,7 @@ function ChannelFormBody({
   }))
   const channelTypeOptions = [
     { value: "web", label: t("channel.typeWeb") },
+    { value: "telegram", label: t("channel.typeTelegram") },
     { value: "wechat_mp", label: t("channel.typeWechatMp") },
     { value: "wxwork_kf", label: t("channel.typeWxworkKf") },
   ] as const
@@ -601,6 +653,54 @@ function ChannelFormBody({
                     : t("channel.configWebDescription")}
               </div>
             </div>
+
+            {channelType === "telegram" ? (
+              <div className="space-y-4">
+                <Field data-invalid={!!errors.botToken}>
+                  <FieldLabel htmlFor="channel-telegram-token">{t("channel.botToken")} *</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-telegram-token"
+                      type="password"
+                      placeholder="123456789:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+                      {...register("botToken")}
+                    />
+                    <FieldError errors={[errors.botToken]} />
+                  </FieldContent>
+                </Field>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.botUsername}>
+                    <FieldLabel htmlFor="channel-telegram-username">{t("channel.botUsername")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-telegram-username"
+                        placeholder="e.g. CroveDeskBot"
+                        {...register("botUsername")}
+                      />
+                      <FieldError errors={[errors.botUsername]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.webhookSecret}>
+                    <FieldLabel htmlFor="channel-telegram-secret">{t("channel.webhookSecret")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-telegram-secret"
+                        placeholder="Auto-generated secret"
+                        {...register("webhookSecret")}
+                      />
+                      <FieldError errors={[errors.webhookSecret]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                  <div className="font-medium text-foreground">{t("channel.telegramAutoConnectTitle")}</div>
+                  <div className="mt-1">{t("channel.telegramAutoConnectDescription")}</div>
+                </div>
+              </div>
+            ) : null}
 
             {channelType === "wxwork_kf" ? (
               <Field data-invalid={!!errors.openKfId}>

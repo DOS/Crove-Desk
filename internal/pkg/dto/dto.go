@@ -32,3 +32,10 @@ type WechatMPChannelConfig struct {
 	ThemeColor      string `json:"themeColor"`
 	UserTokenSecret string `json:"userTokenSecret,omitempty"`
 }
+
+type TelegramChannelConfig struct {
+	BotToken       string `json:"botToken"`
+	BotUsername    string `json:"botUsername,omitempty"`
+	WebhookSecret  string `json:"webhookSecret,omitempty"`
+	WelcomeMessage string `json:"welcomeMessage,omitempty"`
+}

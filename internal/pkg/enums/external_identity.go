@@ -10,6 +10,7 @@ const (
 	ExternalSourceWxWorkKF  ExternalSource = "wxwork_kf"  // 企业微信客服
 	ExternalSourceUser      ExternalSource = "user"       // 用户信息
 	ExternalSourceTwentyCRM ExternalSource = "twenty_crm" // Twenty CRM
+	ExternalSourceTelegram  ExternalSource = "telegram"   // Telegram Bot
 )
 
 var externalSourceLabelMap = map[ExternalSource]string{
@@ -17,6 +18,7 @@ var externalSourceLabelMap = map[ExternalSource]string{
 	ExternalSourceWxWorkKF:  "企业微信客服",
 	ExternalSourceUser:      "用户",
 	ExternalSourceTwentyCRM: "Twenty CRM",
+	ExternalSourceTelegram:  "Telegram",
 }
 
 func GetExternalSourceLabel(v ExternalSource) string {

@@ -77,6 +77,11 @@ mcp:
       endpoint: "http://127.0.0.1:8083/api/mcp"
       timeoutMs: 15000
       headers: {}
+    twenty_crm:
+      enabled: true
+      endpoint: "https://crm.crove.com/api/mcp"
+      timeoutMs: 15000
+      headers: {}
 
 oidc:
   enabled: true
@@ -89,3 +94,7 @@ oidc:
     - openid
     - profile
     - email
+
+webhook:
+  orgSyncSecret: "ad3726c93d4951e8c86a73b138bfde865fde427adc7384d5"
+  outboundUrl: "https://api.dos.me/internal/events/publish"
