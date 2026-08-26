@@ -14,7 +14,7 @@ server:
 db:
   type: postgres
   # Supabase Session Pooler (port 5432) with schema desk
-  dsn: "host=aws-1-ap-southeast-1.pooler.supabase.com user=postgres.gulptwduchsjcsbndmua password=06nmFQaSw6nLzWHE dbname=postgres port=5432 sslmode=require search_path=desk"
+  dsn: "host=aws-1-ap-southeast-1.pooler.supabase.com user=postgres.your-project-ref password=your-db-password dbname=postgres port=5432 sslmode=require search_path=desk"
   maxIdleConns: 5
   maxOpenConns: 20
   connMaxIdleTimeSeconds: 300
@@ -62,7 +62,7 @@ vectorDB:
 ai:
   provider: openai
   baseUrl: https://api.dos.ai/v1
-  apiKey: dos_sk_IIv2Nii7JGqCLk3i0r29ExujvFYl7inY
+  apiKey: your-ai-api-key
   llmModel: dos-ai
   embeddingModel: qwen3-embedding-4b
   embeddingDimension: 2560
@@ -85,16 +85,16 @@ mcp:
 
 oidc:
   enabled: true
-  issuer: "https://gulptwduchsjcsbndmua.supabase.co/auth/v1"
-  clientId: "18790ccb-4d71-48cd-ad24-aee5f3ced3da"
-  clientSecret: "mjlRNUhS0J0aaW6ahIYvaJM_566XJCHxUbIN_LfCQ1o"
+  issuer: "https://your-supabase-ref.supabase.co/auth/v1"
+  clientId: "your-oidc-client-id"
+  clientSecret: "your-oidc-client-secret"
   redirectUrl: "https://desk.crove.com/api/auth/oidc_callback"
-  stateSecret: "crove-desk-oidc-state-secret-4f81c9e2b7a0"
+  stateSecret: "crove-desk-oidc-state-secret-placeholder"
   scopes:
     - openid
     - profile
     - email
 
 webhook:
-  orgSyncSecret: "ad3726c93d4951e8c86a73b138bfde865fde427adc7384d5"
+  orgSyncSecret: "your-org-sync-webhook-secret"
   outboundUrl: "https://api.dos.me/internal/events/publish"
