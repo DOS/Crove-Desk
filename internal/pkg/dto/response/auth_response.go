@@ -23,6 +23,8 @@ type LoginResponse struct {
 
 type PublicConfigResponse struct {
 	Language             string `json:"language"`
+	CompanyName          string `json:"companyName,omitempty"`
+	CompanyLogoURL       string `json:"companyLogoUrl,omitempty"`
 	PasswordLoginEnabled bool   `json:"passwordLoginEnabled"`
 	WxWorkEnabled        bool   `json:"wxworkEnabled"`
 	OIDCEnabled          bool   `json:"oidcEnabled"`

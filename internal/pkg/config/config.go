@@ -47,8 +47,10 @@ type WxWorkNotifyConfig struct {
 }
 
 type ServerConfig struct {
-	Port int        `yaml:"port"`
-	CORS CORSConfig `yaml:"cors"`
+	Port           int        `yaml:"port"`
+	CompanyName    string     `yaml:"companyName"`
+	CompanyLogoURL string     `yaml:"companyLogoUrl"`
+	CORS           CORSConfig `yaml:"cors"`
 }
 
 func (s ServerConfig) Address() string {
@@ -271,10 +273,13 @@ func loadDotEnv(configPath string) {
 		return
 	}
 	_ = gotenv.Load(".env")
+	_ = gotenv.Load("../.env")
+	_ = gotenv.Load("../../.env")
 	if configPath != "" {
 		dir := filepath.Dir(configPath)
 		if dir != "." && dir != "" {
 			_ = gotenv.Load(filepath.Join(dir, ".env"))
+			_ = gotenv.Load(filepath.Join(dir, "..", ".env"))
 		}
 	}
 }
@@ -282,6 +287,8 @@ func loadDotEnv(configPath string) {
 func bindConfigDefaults(v *viper.Viper) {
 	v.SetDefault("language", "zh-CN")
 	v.SetDefault("server.port", 8083)
+	v.SetDefault("server.companyName", "")
+	v.SetDefault("server.companyLogoUrl", "")
 	v.SetDefault("server.cors.allowedOrigins", []string{})
 	v.SetDefault("db.type", "sqlite")
 	v.SetDefault("db.dsn", "file:./data/app.db?_busy_timeout=5000")
@@ -309,6 +316,8 @@ func bindConfigDefaults(v *viper.Viper) {
 
 func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("server.port", "PORT", "SERVER_PORT", "AGENT_DESK_SERVER_PORT")
+	_ = v.BindEnv("server.companyName", "COMPANY_NAME", "NEXT_PUBLIC_COMPANY_NAME", "BRAND_NAME", "BRAND_COMPANY_NAME", "AGENT_DESK_SERVER_COMPANYNAME")
+	_ = v.BindEnv("server.companyLogoUrl", "COMPANY_LOGO_URL", "NEXT_PUBLIC_COMPANY_LOGO_URL", "BRAND_LOGO_URL", "AGENT_DESK_SERVER_COMPANYLOGOURL")
 	_ = v.BindEnv("db.type", "DATABASE_TYPE", "DB_TYPE", "AGENT_DESK_DB_TYPE")
 	_ = v.BindEnv("db.dsn", "DATABASE_URL", "DB_DSN", "AGENT_DESK_DB_DSN")
 	_ = v.BindEnv("auth.passwordLoginEnabled", "PASSWORD_LOGIN_ENABLED", "AGENT_DESK_AUTH_PASSWORDLOGINENABLED")
