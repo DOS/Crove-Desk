@@ -22,17 +22,6 @@ export const AIAgentHandoffModeLabels: Record<AIAgentHandoffMode, string> = {
   [AIAgentHandoffMode.AIHoldAndNotify]: "AI继续接待并提醒人工",
 }
 
-export enum AIAgentRuntimeMode {
-  Workflow = "workflow",
-  Autonomous = "autonomous",
-  Hybrid = "hybrid",
-}
-export const AIAgentRuntimeModeLabels: Record<AIAgentRuntimeMode, string> = {
-  [AIAgentRuntimeMode.Workflow]: "流程编排",
-  [AIAgentRuntimeMode.Autonomous]: "自主运行",
-  [AIAgentRuntimeMode.Hybrid]: "混合运行",
-}
-
 export enum AIModelType {
   LLM = "llm",
   Embedding = "embedding",
@@ -88,11 +77,15 @@ export enum ExternalSource {
   Guest = "guest",
   WxWorkKF = "wxwork_kf",
   User = "user",
+  Telegram = "telegram",
+  ZaloOA = "zalo_oa",
 }
 export const ExternalSourceLabels: Record<ExternalSource, string> = {
   [ExternalSource.Guest]: "访客",
   [ExternalSource.WxWorkKF]: "企业微信客服",
   [ExternalSource.User]: "用户",
+  [ExternalSource.Telegram]: "Telegram",
+  [ExternalSource.ZaloOA]: "Zalo OA",
 }
 
 export enum Gender {

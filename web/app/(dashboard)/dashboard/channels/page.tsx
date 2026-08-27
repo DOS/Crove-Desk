@@ -4,6 +4,7 @@ import {
   Building2Icon,
   MessagesSquareIcon,
   MessageSquareMoreIcon,
+  SendIcon,
 } from "lucide-react"
 
 import {
@@ -32,6 +33,12 @@ function getChannelTypeLabel(channelType: string, t: (key: string) => string) {
   if (channelType === "wxwork_kf") {
     return t("channel.typeWxworkKf")
   }
+  if (channelType === "telegram") {
+    return t("channel.typeTelegram")
+  }
+  if (channelType === "zalo_oa") {
+    return t("channel.typeZaloOa")
+  }
   return t("channel.typeWeb")
 }
 
@@ -52,6 +59,9 @@ function ChannelIcon({ channelType }: { channelType: string }) {
   if (channelType === "wxwork_kf") {
     return <MessageSquareMoreIcon className="size-4" />
   }
+  if (channelType === "telegram" || channelType === "zalo_oa") {
+    return <SendIcon className="size-4" />
+  }
   return <Building2Icon className="size-4" />
 }
 
@@ -67,6 +77,8 @@ export default function DashboardChannelsPage() {
   const channelTypeOptions = [
     { value: "all", label: t("channel.allTypes") },
     { value: "web", label: t("channel.typeWeb") },
+    { value: "telegram", label: t("channel.typeTelegram") },
+    { value: "zalo_oa", label: t("channel.typeZaloOa") },
     { value: "wechat_mp", label: t("channel.typeWechatMp") },
     { value: "wxwork_kf", label: t("channel.typeWxworkKf") },
   ]

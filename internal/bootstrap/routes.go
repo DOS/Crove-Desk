@@ -425,3 +425,13 @@ func registerThirdWechatRoutes(group *gin.RouterGroup) {
 	group.GET("/callback", third.WechatGetCallback)
 	group.POST("/callback", third.WechatPostCallback)
 }
+
+func registerThirdTelegramRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.TelegramPostWebhook)
+	group.POST("/webhook/:channel_id", third.TelegramPostWebhook)
+}
+
+func registerThirdZaloRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.ZaloPostWebhook)
+	group.POST("/webhook/:channel_id", third.ZaloPostWebhook)
+}
