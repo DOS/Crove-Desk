@@ -106,11 +106,23 @@ func Init(ctx context.Context) error {
 	if len(scopes) == 0 {
 		scopes = []string{gooidc.ScopeOpenID, "profile", "email", "offline_access"}
 	}
+	endpoint := p.Endpoint()
+	authStyle := oauth2.AuthStyleInHeader
+	switch strings.ToLower(strings.TrimSpace(cfg.AuthStyle)) {
+	case "post", "params", "inparams", "client_secret_post":
+		authStyle = oauth2.AuthStyleInParams
+	case "basic", "header", "inheader", "client_secret_basic":
+		authStyle = oauth2.AuthStyleInHeader
+	case "auto", "autodetect":
+		authStyle = oauth2.AuthStyleAutoDetect
+	}
+	endpoint.AuthStyle = authStyle
+
 	provider = p
 	oauthConfig = &oauth2.Config{
 		ClientID:     strings.TrimSpace(cfg.ClientID),
 		ClientSecret: strings.TrimSpace(cfg.ClientSecret),
-		Endpoint:     p.Endpoint(),
+		Endpoint:     endpoint,
 		RedirectURL:  strings.TrimSpace(cfg.RedirectURL),
 		Scopes:       scopes,
 	}

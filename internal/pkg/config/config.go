@@ -209,6 +209,7 @@ type OIDCConfig struct {
 	Issuer       string   `yaml:"issuer"`
 	ClientID     string   `yaml:"clientId"`
 	ClientSecret string   `yaml:"clientSecret"`
+	AuthStyle    string   `yaml:"authStyle"`
 	RedirectURL  string   `yaml:"redirectUrl"`
 	StateSecret  string   `yaml:"stateSecret"`
 	Scopes       []string `yaml:"scopes"`
@@ -379,6 +380,7 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("oidc.issuer", "OIDC_ISSUER", "AGENT_DESK_OIDC_ISSUER")
 	_ = v.BindEnv("oidc.clientId", "OIDC_CLIENT_ID", "CUSTOM_OAUTH_CLIENT_ID", "AGENT_DESK_OIDC_CLIENTID")
 	_ = v.BindEnv("oidc.clientSecret", "OIDC_CLIENT_SECRET", "CUSTOM_OAUTH_CLIENT_SECRET", "AGENT_DESK_OIDC_CLIENTSECRET")
+	_ = v.BindEnv("oidc.authStyle", "OIDC_AUTH_STYLE", "CUSTOM_OAUTH_AUTH_STYLE", "AGENT_DESK_OIDC_AUTHSTYLE")
 	_ = v.BindEnv("oidc.redirectUrl", "OIDC_REDIRECT_URL", "CUSTOM_OAUTH_REDIRECT_URI", "AGENT_DESK_OIDC_REDIRECTURL")
 	_ = v.BindEnv("webhook.orgSyncSecret", "ORG_SYNC_SECRET", "WEBHOOK_SECRET", "AGENT_DESK_WEBHOOK_ORGSYNCSECRET")
 	_ = v.BindEnv("webhook.outboundUrl", "ORG_SYNC_OUTBOUND_URL", "DOS_ORG_SYNC_URL", "WEBHOOK_OUTBOUND_URL", "AGENT_DESK_WEBHOOK_OUTBOUNDURL")
@@ -412,10 +414,16 @@ func normalizeLoadedConfig(cfg *Config) {
 
 	crmEndpoint := strings.TrimSpace(os.Getenv("MCP_CRM_ENDPOINT"))
 	if crmEndpoint == "" {
+		crmEndpoint = strings.TrimSpace(os.Getenv("CROVE_CRM_MCP_ENDPOINT"))
+	}
+	if crmEndpoint == "" {
 		crmEndpoint = strings.TrimSpace(os.Getenv("TWENTY_CRM_MCP_ENDPOINT"))
 	}
 	if crmEndpoint != "" {
 		apiKey := strings.TrimSpace(os.Getenv("MCP_CRM_API_KEY"))
+		if apiKey == "" {
+			apiKey = strings.TrimSpace(os.Getenv("CROVE_CRM_API_KEY"))
+		}
 		if apiKey == "" {
 			apiKey = strings.TrimSpace(os.Getenv("TWENTY_CRM_API_KEY"))
 		}
@@ -423,11 +431,13 @@ func normalizeLoadedConfig(cfg *Config) {
 		if apiKey != "" {
 			headers["Authorization"] = "Bearer " + apiKey
 		}
-		cfg.MCP.Servers["twenty_crm"] = MCPServerConfig{
+		crmServerConfig := MCPServerConfig{
 			Enabled:   true,
 			Endpoint:  crmEndpoint,
 			TimeoutMS: 15000,
 			Headers:   headers,
 		}
+		cfg.MCP.Servers["twenty_crm"] = crmServerConfig
+		cfg.MCP.Servers["crove_crm"] = crmServerConfig
 	}
 }
