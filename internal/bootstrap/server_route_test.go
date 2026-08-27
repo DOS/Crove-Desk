@@ -42,6 +42,7 @@ func TestNewServerRegistersGinRoutes(t *testing.T) {
 		http.MethodPost + " /api/auth/oidc_exchange",
 		http.MethodGet + " /api/auth/profile",
 		http.MethodPost + " /api/webhooks/org-sync",
+		http.MethodPost + " /api/webhooks/ecosystem",
 		http.MethodGet + " /api/dashboard/organization/my_list",
 		http.MethodPost + " /api/dashboard/organization/create",
 		http.MethodPost + " /api/dashboard/organization/switch",
