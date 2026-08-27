@@ -85,6 +85,8 @@ func TestLoadFromDotEnvAndStandardEnvAliases(t *testing.T) {
 	tempDir := t.TempDir()
 	envPath := filepath.Join(tempDir, ".env")
 	envContent := []byte(`PORT=9090
+COMPANY_NAME=CustomDesk
+COMPANY_LOGO_URL=/custom-logo.svg
 DATABASE_URL=postgres://user:pass@localhost:5432/mydb?sslmode=disable
 PASSWORD_LOGIN_ENABLED=false
 JWT_SECRET=super-secret-key-12345
@@ -110,6 +112,12 @@ ORG_SYNC_SECRET=webhook-secret-789
 
 	if cfg.Server.Port != 9090 {
 		t.Fatalf("Server.Port=%d want 9090", cfg.Server.Port)
+	}
+	if cfg.Server.CompanyName != "CustomDesk" {
+		t.Fatalf("Server.CompanyName=%q want CustomDesk", cfg.Server.CompanyName)
+	}
+	if cfg.Server.CompanyLogoURL != "/custom-logo.svg" {
+		t.Fatalf("Server.CompanyLogoURL=%q want /custom-logo.svg", cfg.Server.CompanyLogoURL)
 	}
 	if cfg.DB.Type != "postgres" {
 		t.Fatalf("DB.Type=%q want postgres", cfg.DB.Type)

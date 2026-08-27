@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useI18n } from "@/i18n/provider"
 import { fetchSupportConfig, type SupportNavigationMenuItem } from "@/lib/api/support-config"
+import { fetchPublicConfig } from "@/lib/api/config"
 import { cn } from "@/lib/utils"
 
 export type SupportHeaderSection = "home" | "help" | "community" | "login"
@@ -66,6 +67,17 @@ export function SupportHeader({
   const pathname = usePathname()
   const fallbackNavigation = useMemo(() => defaultSupportNavigationMenu(t), [t])
   const [navigationItems, setNavigationItems] = useState<SupportNavigationMenuItem[]>(fallbackNavigation)
+  const [companyName, setCompanyName] = useState<string>("")
+
+  useEffect(() => {
+    void fetchPublicConfig()
+      .then((cfg) => {
+        if (cfg?.companyName) {
+          setCompanyName(cfg.companyName)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     let ignore = false
@@ -105,7 +117,7 @@ export function SupportHeader({
           href="/support"
           className="flex shrink-0 items-center gap-2 font-semibold tracking-tight"
         >
-          <span>AGENT DESK</span>
+          <span>{companyName || "AGENT DESK"}</span>
           <span className="hidden border-l pl-2 font-normal text-muted-foreground sm:inline">
             {t(sectionTitleKey[section])}
           </span>

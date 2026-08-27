@@ -2,6 +2,9 @@ language: zh-CN
 
 server:
   port: 8083
+  # Custom platform / instance branding (optional)
+  companyName: ""
+  companyLogoUrl: ""
   cors:
     # Browser CORS allowlist. In production, replace this with the actual frontend or embedded-site domains, such as https://support.example.com.
     # Leave it empty to reject cross-origin browser requests. Same-origin and non-browser calls are still supported.
