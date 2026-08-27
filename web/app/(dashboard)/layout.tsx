@@ -35,8 +35,13 @@ try {
 `
 
 export const metadata: Metadata = {
-  title: "AI Customer Service Admin",
-  description: "AI Customer Service Admin",
+  title: "Crove Desk",
+  description: "Crove Desk - AI-Powered Customer Support & Operations",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/images/logo.svg",
+  },
 }
 
 export default function DashboardRootLayout({

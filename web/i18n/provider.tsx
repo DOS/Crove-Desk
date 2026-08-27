@@ -15,7 +15,7 @@ import {
   configureLocale,
 } from "@/i18n/config"
 import { translateMessage } from "@/i18n/messages"
-import { fetchPublicConfig } from "@/lib/api/config"
+import { fetchPublicConfig, type PublicConfig } from "@/lib/api/config"
 
 type LocaleContextValue = {
   locale: AppLocale
@@ -29,8 +29,34 @@ const LocaleContext = createContext<LocaleContextValue>({
   t: (key) => key,
 })
 
+function applyBranding(locale: AppLocale, config?: PublicConfig | null) {
+  if (typeof document === "undefined") return
+
+  const rawTitle = translateMessage(locale, "app.metadataTitle")
+  const brandName = config?.companyName?.trim()
+  if (brandName) {
+    if (brandName.toLowerCase().includes("desk") || brandName.toLowerCase().includes("crove")) {
+      document.title = `${brandName} - ${rawTitle}`
+    } else {
+      document.title = `${brandName} Desk - ${rawTitle}`
+    }
+  } else {
+    document.title = rawTitle
+  }
+
+  const faviconUrl = config?.companyFaviconUrl || config?.companyLogoUrl || "/favicon.svg"
+  let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']")
+  if (!link) {
+    link = document.createElement("link")
+    link.rel = "icon"
+    document.head.appendChild(link)
+  }
+  link.href = faviconUrl
+}
+
 export function AppI18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<AppLocale>(DEFAULT_LOCALE)
+  const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
   const [isLocaleReady, setIsLocaleReady] = useState(false)
 
   const handleSetLocale = (newLocale: AppLocale) => {
@@ -40,7 +66,7 @@ export function AppI18nProvider({ children }: { children: ReactNode }) {
       window.localStorage.setItem("app_locale", next)
     } catch (_) {}
     document.documentElement.lang = next
-    document.title = translateMessage(next, "app.metadataTitle")
+    applyBranding(next, publicConfig)
   }
 
   useEffect(() => {
@@ -50,25 +76,22 @@ export function AppI18nProvider({ children }: { children: ReactNode }) {
       savedLocale = window.localStorage.getItem("app_locale")
     } catch (_) {}
 
-    if (savedLocale) {
-      const configured = configureLocale(savedLocale)
-      setLocaleState(configured)
-      document.documentElement.lang = configured
-      document.title = translateMessage(configured, "app.metadataTitle")
-      setIsLocaleReady(true)
-      return
-    }
-
     fetchPublicConfig()
-      .then((config) => configureLocale(config.language))
-      .catch(() => configureLocale(DEFAULT_LOCALE))
-      .then((configuredLocale) => {
-        if (cancelled) {
-          return
-        }
-        setLocaleState(configuredLocale)
-        document.documentElement.lang = configuredLocale
-        document.title = translateMessage(configuredLocale, "app.metadataTitle")
+      .then((cfg) => {
+        if (cancelled) return
+        setPublicConfig(cfg)
+        const targetLocale = savedLocale ? configureLocale(savedLocale) : configureLocale(cfg.language)
+        setLocaleState(targetLocale)
+        document.documentElement.lang = targetLocale
+        applyBranding(targetLocale, cfg)
+        setIsLocaleReady(true)
+      })
+      .catch(() => {
+        if (cancelled) return
+        const targetLocale = savedLocale ? configureLocale(savedLocale) : configureLocale(DEFAULT_LOCALE)
+        setLocaleState(targetLocale)
+        document.documentElement.lang = targetLocale
+        applyBranding(targetLocale, null)
         setIsLocaleReady(true)
       })
 
@@ -78,8 +101,8 @@ export function AppI18nProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    document.title = translateMessage(locale, "app.metadataTitle")
-  }, [locale])
+    applyBranding(locale, publicConfig)
+  }, [locale, publicConfig])
 
   const value = useMemo<LocaleContextValue>(
     () => ({

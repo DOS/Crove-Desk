@@ -26,6 +26,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Crove Desk Support",
   description: "Crove Desk Support Center",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/images/logo.svg",
+  },
 }
 
 export default function SupportRootLayout({
