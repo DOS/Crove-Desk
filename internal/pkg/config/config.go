@@ -4,6 +4,7 @@ import (
 	"agent-desk/internal/pkg/enums"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,6 +50,7 @@ type WxWorkNotifyConfig struct {
 
 type ServerConfig struct {
 	Port           int        `yaml:"port"`
+	PublicURL      string     `yaml:"publicUrl"`
 	CompanyName    string     `yaml:"companyName"`
 	CompanyLogoURL string     `yaml:"companyLogoUrl"`
 	CORS           CORSConfig `yaml:"cors"`
@@ -59,6 +61,18 @@ func (s ServerConfig) Address() string {
 		return ":8080"
 	}
 	return fmt.Sprintf(":%d", s.Port)
+}
+
+func (s ServerConfig) GetPublicBaseURL(oidcRedirectURL string) string {
+	if strings.TrimSpace(s.PublicURL) != "" {
+		return strings.TrimRight(strings.TrimSpace(s.PublicURL), "/")
+	}
+	if strings.TrimSpace(oidcRedirectURL) != "" {
+		if u, err := url.Parse(strings.TrimSpace(oidcRedirectURL)); err == nil && u.Scheme != "" && u.Host != "" {
+			return fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+		}
+	}
+	return ""
 }
 
 type CORSConfig struct {
@@ -300,6 +314,7 @@ func loadDotEnv(configPath string) {
 func bindConfigDefaults(v *viper.Viper) {
 	v.SetDefault("language", "zh-CN")
 	v.SetDefault("server.port", 8083)
+	v.SetDefault("server.publicUrl", "")
 	v.SetDefault("server.companyName", "")
 	v.SetDefault("server.companyLogoUrl", "")
 	v.SetDefault("server.cors.allowedOrigins", []string{})
@@ -337,6 +352,7 @@ func bindConfigDefaults(v *viper.Viper) {
 
 func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("server.port", "PORT", "SERVER_PORT", "AGENT_DESK_SERVER_PORT")
+	_ = v.BindEnv("server.publicUrl", "PUBLIC_URL", "APP_URL", "SERVER_PUBLIC_URL", "BASE_URL", "DESK_BASE_URL", "AGENT_DESK_SERVER_PUBLICURL")
 	_ = v.BindEnv("server.companyName", "COMPANY_NAME", "NEXT_PUBLIC_COMPANY_NAME", "BRAND_NAME", "BRAND_COMPANY_NAME", "AGENT_DESK_SERVER_COMPANYNAME")
 	_ = v.BindEnv("server.companyLogoUrl", "COMPANY_LOGO_URL", "NEXT_PUBLIC_COMPANY_LOGO_URL", "BRAND_LOGO_URL", "AGENT_DESK_SERVER_COMPANYLOGOURL")
 	_ = v.BindEnv("db.type", "DATABASE_TYPE", "DB_TYPE", "AGENT_DESK_DB_TYPE")

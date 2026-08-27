@@ -39,3 +39,13 @@ type TelegramChannelConfig struct {
 	WebhookSecret  string `json:"webhookSecret,omitempty"`
 	WelcomeMessage string `json:"welcomeMessage,omitempty"`
 }
+
+type ZaloOAChannelConfig struct {
+	AppID          string `json:"appId,omitempty"`
+	OAID           string `json:"oaId,omitempty"`
+	SecretKey      string `json:"secretKey,omitempty"`
+	AccessToken    string `json:"accessToken"`
+	RefreshToken   string `json:"refreshToken,omitempty"`
+	WebhookSecret  string `json:"webhookSecret,omitempty"`
+	WelcomeMessage string `json:"welcomeMessage,omitempty"`
+}

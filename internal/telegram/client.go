@@ -55,6 +55,28 @@ func (c *Client) SetWebhook(ctx context.Context, req SetWebhookRequest) error {
 	return nil
 }
 
+func (c *Client) DeleteWebhook(ctx context.Context) error {
+	var resp APIResponse[bool]
+	if err := c.doRequest(ctx, "deleteWebhook", nil, &resp); err != nil {
+		return err
+	}
+	if !resp.OK {
+		return fmt.Errorf("telegram deleteWebhook failed (%d): %s", resp.ErrorCode, resp.Description)
+	}
+	return nil
+}
+
+func (c *Client) GetWebhookInfo(ctx context.Context) (*WebhookInfo, error) {
+	var resp APIResponse[WebhookInfo]
+	if err := c.doRequest(ctx, "getWebhookInfo", nil, &resp); err != nil {
+		return nil, err
+	}
+	if !resp.OK {
+		return nil, fmt.Errorf("telegram getWebhookInfo failed (%d): %s", resp.ErrorCode, resp.Description)
+	}
+	return &resp.Result, nil
+}
+
 func (c *Client) SendMessage(ctx context.Context, req SendMessageRequest) (*Message, error) {
 	if strings.TrimSpace(req.Text) == "" {
 		return nil, fmt.Errorf("telegram message text is required")

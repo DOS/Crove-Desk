@@ -195,6 +195,7 @@ func addRouter(app *gin.Engine) {
 	thirdGroup := app.Group("/api/third")
 	registerThirdWechatRoutes(thirdGroup.Group("/wechat"))
 	registerThirdTelegramRoutes(thirdGroup.Group("/telegram"))
+	registerThirdZaloRoutes(thirdGroup.Group("/zalo"))
 }
 
 type spaShellRewrite struct {

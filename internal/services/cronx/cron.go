@@ -30,6 +30,10 @@ func Init() {
 		if tgCount > 0 {
 			slog.Info("telegram outbox dispatched", "count", tgCount)
 		}
+		zaloCount := services.ZaloOAOutboundService.DispatchPendingOutbox()
+		if zaloCount > 0 {
+			slog.Info("zalo oa outbox dispatched", "count", zaloCount)
+		}
 	})
 
 	c.Start()

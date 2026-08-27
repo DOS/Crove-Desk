@@ -81,3 +81,44 @@ func TestTelegramClient_SendMessage(t *testing.T) {
 		t.Fatalf("unexpected sent message: %+v", msg)
 	}
 }
+
+func TestTelegramClient_SetAndDeleteWebhook(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/bot123456:ABC-DEF/setWebhook":
+			_ = json.NewEncoder(w).Encode(APIResponse[bool]{OK: true, Result: true})
+		case "/bot123456:ABC-DEF/deleteWebhook":
+			_ = json.NewEncoder(w).Encode(APIResponse[bool]{OK: true, Result: true})
+		case "/bot123456:ABC-DEF/getWebhookInfo":
+			_ = json.NewEncoder(w).Encode(APIResponse[WebhookInfo]{
+				OK: true,
+				Result: WebhookInfo{
+					URL: "https://desk.crove.com/api/third/telegram/webhook/ch_123",
+				},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	client := NewClient("123456:ABC-DEF")
+	client.SetBaseURL(ts.URL)
+
+	err := client.SetWebhook(context.Background(), SetWebhookRequest{
+		URL: "https://desk.crove.com/api/third/telegram/webhook/ch_123",
+	})
+	if err != nil {
+		t.Fatalf("SetWebhook failed: %v", err)
+	}
+
+	info, err := client.GetWebhookInfo(context.Background())
+	if err != nil || info.URL != "https://desk.crove.com/api/third/telegram/webhook/ch_123" {
+		t.Fatalf("GetWebhookInfo failed: %+v, err: %v", info, err)
+	}
+
+	err = client.DeleteWebhook(context.Background())
+	if err != nil {
+		t.Fatalf("DeleteWebhook failed: %v", err)
+	}
+}

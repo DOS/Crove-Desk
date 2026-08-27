@@ -2,6 +2,7 @@ package services
 
 import (
 	"agent-desk/internal/models"
+	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/dto"
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/dto/response"
@@ -10,10 +11,14 @@ import (
 	"agent-desk/internal/pkg/httpx"
 	"agent-desk/internal/pkg/utils"
 	"agent-desk/internal/repositories"
+	"agent-desk/internal/telegram"
 	"agent-desk/internal/wxwork"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -90,6 +95,7 @@ func (s *channelService) CreateChannel(req request.CreateChannelRequest, operato
 	if err := repositories.ChannelRepository.Create(sqls.DB(), item); err != nil {
 		return nil, err
 	}
+	go s.syncTelegramWebhook(item, item.Status)
 	return item, nil
 }
 
@@ -121,7 +127,11 @@ func (s *channelService) UpdateChannel(req request.UpdateChannelRequest, operato
 	if item.AIAgentRolloutPercent != current.AIAgentRolloutPercent {
 		columns["previous_ai_agent_rollout_percent"] = current.AIAgentRolloutPercent
 	}
-	return repositories.ChannelRepository.Updates(sqls.DB(), req.ID, columns)
+	if err := repositories.ChannelRepository.Updates(sqls.DB(), req.ID, columns); err != nil {
+		return err
+	}
+	go s.syncTelegramWebhook(item, item.Status)
+	return nil
 }
 
 // RollbackChannelAIAgentRollout restores the last channel-level rollout value
@@ -162,12 +172,16 @@ func (s *channelService) UpdateStatus(id int64, status int, operator *dto.AuthPr
 	if status != int(enums.StatusOk) && status != int(enums.StatusDisabled) {
 		return errorsx.InvalidParamI18n("error.e0254")
 	}
-	return s.Updates(id, map[string]any{
+	err := s.Updates(id, map[string]any{
 		"status":           status,
 		"update_user_id":   operator.UserID,
 		"update_user_name": operator.Username,
 		"updated_at":       time.Now(),
 	})
+	if err == nil {
+		go s.syncTelegramWebhook(item, enums.Status(status))
+	}
+	return err
 }
 
 func (s *channelService) DeleteChannel(id int64, operator *dto.AuthPrincipal) error {
@@ -178,12 +192,56 @@ func (s *channelService) DeleteChannel(id int64, operator *dto.AuthPrincipal) er
 	if item == nil || item.Status == enums.StatusDeleted {
 		return errorsx.InvalidParamI18n("error.e0208")
 	}
-	return s.Updates(id, map[string]any{
+	err := s.Updates(id, map[string]any{
 		"status":           enums.StatusDeleted,
 		"update_user_id":   operator.UserID,
 		"update_user_name": operator.Username,
 		"updated_at":       time.Now(),
 	})
+	if err == nil {
+		go s.syncTelegramWebhook(item, enums.StatusDeleted)
+	}
+	return err
+}
+
+func (s *channelService) syncTelegramWebhook(channel *models.Channel, targetStatus enums.Status) {
+	if channel == nil || channel.ChannelType != enums.ChannelTypeTelegram {
+		return
+	}
+	cfg, err := s.ParseTelegramChannelConfig(channel.ConfigJSON)
+	if err != nil || cfg == nil || cfg.BotToken == "" {
+		return
+	}
+
+	client := telegram.NewClient(cfg.BotToken)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if targetStatus == enums.StatusOk {
+		serverCfg := config.GetCurrent()
+		publicBaseURL := ""
+		if serverCfg != nil {
+			publicBaseURL = serverCfg.Server.GetPublicBaseURL(serverCfg.OIDC.RedirectURL)
+		}
+		if publicBaseURL != "" {
+			webhookURL := fmt.Sprintf("%s/api/third/telegram/webhook/%s", publicBaseURL, channel.ChannelID)
+			req := telegram.SetWebhookRequest{
+				URL:         webhookURL,
+				SecretToken: cfg.WebhookSecret,
+			}
+			if err := client.SetWebhook(ctx, req); err != nil {
+				slog.Warn("auto set telegram webhook failed", "channel_id", channel.ChannelID, "url", webhookURL, "error", err)
+			} else {
+				slog.Info("auto set telegram webhook succeeded", "channel_id", channel.ChannelID, "url", webhookURL)
+			}
+		}
+	} else {
+		if err := client.DeleteWebhook(ctx); err != nil {
+			slog.Warn("auto delete telegram webhook failed", "channel_id", channel.ChannelID, "error", err)
+		} else {
+			slog.Info("auto delete telegram webhook succeeded", "channel_id", channel.ChannelID)
+		}
+	}
 }
 
 func (s *channelService) ParseWxWorkKFChannelConfig(raw string) (*dto.WxWorkKFChannelConfig, error) {
@@ -315,6 +373,24 @@ func (s *channelService) ParseTelegramChannelConfig(raw string) (*dto.TelegramCh
 	return cfg, nil
 }
 
+func (s *channelService) ParseZaloOAChannelConfig(raw string) (*dto.ZaloOAChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.ZaloOAChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.AppID = strings.TrimSpace(cfg.AppID)
+	cfg.OAID = strings.TrimSpace(cfg.OAID)
+	cfg.SecretKey = strings.TrimSpace(cfg.SecretKey)
+	cfg.AccessToken = strings.TrimSpace(cfg.AccessToken)
+	cfg.RefreshToken = strings.TrimSpace(cfg.RefreshToken)
+	cfg.WebhookSecret = strings.TrimSpace(cfg.WebhookSecret)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
 func (s *channelService) GetUserTokenSecret(channel *models.Channel) string {
 	if channel == nil {
 		return ""
@@ -431,7 +507,7 @@ func (s *channelService) GetEnabledChannel(ctx *gin.Context) *models.Channel {
 
 func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRequest) (*models.Channel, error) {
 	channelType := strings.TrimSpace(req.ChannelType)
-	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram {
+	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA {
 		return nil, errorsx.InvalidParamI18n("error.e0250")
 	}
 	name := strings.TrimSpace(req.Name)
@@ -548,6 +624,30 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 		}
 		if cfg == nil || cfg.BotToken == "" {
 			return nil, errorsx.InvalidParam("telegram botToken is required")
+		}
+		if cfg.WebhookSecret == "" {
+			if secret, err := generateUserTokenSecret(); err == nil {
+				cfg.WebhookSecret = secret
+			}
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeZaloOA:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseZaloOAChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid zalo oa configuration")
+		}
+		if cfg == nil || cfg.AccessToken == "" {
+			return nil, errorsx.InvalidParam("zalo oa accessToken is required")
 		}
 		configBytes, err := json.Marshal(cfg)
 		if err != nil {

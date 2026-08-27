@@ -64,6 +64,15 @@ type TelegramChannelConfig = {
   webhookSecret?: string
 }
 
+type ZaloOAChannelConfig = {
+  appId?: string
+  oaId?: string
+  secretKey?: string
+  accessToken?: string
+  refreshToken?: string
+  webhookSecret?: string
+}
+
 function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
   return {
     title: t("channel.defaultTitleWeb"),
@@ -78,7 +87,7 @@ function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
 function createSchema(t: Translate) {
   return z
     .object({
-      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram"], t("channel.typeRequired")),
+      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa"], t("channel.typeRequired")),
       aiAgentId: z.string().trim().regex(/^\d+$/, t("channel.agentRequired")),
 		aiAgentRolloutPercent: z.coerce.number().int().min(1).max(100),
       name: z.string().trim().min(1, t("channel.nameRequired")),
@@ -86,6 +95,10 @@ function createSchema(t: Translate) {
       botToken: z.string().trim(),
       botUsername: z.string().trim(),
       webhookSecret: z.string().trim(),
+      zaloAppId: z.string().trim(),
+      zaloOaId: z.string().trim(),
+      zaloAccessToken: z.string().trim(),
+      zaloSecretKey: z.string().trim(),
       widgetTitle: z.string().trim(),
       widgetSubtitle: z.string().trim(),
       widgetThemeColor: z.string().trim(),
@@ -109,11 +122,18 @@ function createSchema(t: Translate) {
           message: "Telegram Bot Token is required",
         })
       }
+      if (values.channelType === "zalo_oa" && !values.zaloAccessToken.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["zaloAccessToken"],
+          message: "Zalo OA Access Token is required",
+        })
+      }
     })
 }
 
 type EditForm = {
-  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram"
+  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa"
   aiAgentId: string
 	aiAgentRolloutPercent: number
   name: string
@@ -121,6 +141,10 @@ type EditForm = {
   botToken: string
   botUsername: string
   webhookSecret: string
+  zaloAppId: string
+  zaloOaId: string
+  zaloAccessToken: string
+  zaloSecretKey: string
   widgetTitle: string
   widgetSubtitle: string
   widgetThemeColor: string
@@ -141,6 +165,10 @@ function createEmptyForm(t: Translate): EditForm {
     botToken: "",
     botUsername: "",
     webhookSecret: "",
+    zaloAppId: "",
+    zaloOaId: "",
+    zaloAccessToken: "",
+    zaloSecretKey: "",
     widgetTitle: defaultWebChannelConfig.title,
     widgetSubtitle: defaultWebChannelConfig.subtitle,
     widgetThemeColor: defaultWebChannelConfig.themeColor,
@@ -170,6 +198,23 @@ function parseTelegramChannelConfig(configJson: string): TelegramChannelConfig {
     return {
       botToken: parsed.botToken?.trim() || "",
       botUsername: parsed.botUsername?.trim() || "",
+      webhookSecret: parsed.webhookSecret?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseZaloOAChannelConfig(configJson: string): ZaloOAChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as ZaloOAChannelConfig
+    return {
+      appId: parsed.appId?.trim() || "",
+      oaId: parsed.oaId?.trim() || "",
+      secretKey: parsed.secretKey?.trim() || "",
+      accessToken: parsed.accessToken?.trim() || "",
+      refreshToken: parsed.refreshToken?.trim() || "",
       webhookSecret: parsed.webhookSecret?.trim() || "",
     }
   } catch {
@@ -230,6 +275,7 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   }
   const isWechatMP = item.channelType === "wechat_mp"
   const isTelegram = item.channelType === "telegram"
+  const isZaloOA = item.channelType === "zalo_oa"
   const webConfig = parseWebChannelConfig(item.configJson, t)
   const wechatConfig = isWechatMP
     ? parseWechatMPChannelConfig(item.configJson, t)
@@ -237,22 +283,31 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const telegramConfig = isTelegram
     ? parseTelegramChannelConfig(item.configJson)
     : null
+  const zaloConfig = isZaloOA
+    ? parseZaloOAChannelConfig(item.configJson)
+    : null
   return {
     channelType:
       item.channelType === "wxwork_kf"
         ? "wxwork_kf"
         : item.channelType === "telegram"
           ? "telegram"
-          : item.channelType === "wechat_mp"
-            ? "wechat_mp"
-            : "web",
+          : item.channelType === "zalo_oa"
+            ? "zalo_oa"
+            : item.channelType === "wechat_mp"
+              ? "wechat_mp"
+              : "web",
     aiAgentId: item.aiAgentId > 0 ? String(item.aiAgentId) : "",
 		aiAgentRolloutPercent: item.aiAgentRolloutPercent || 100,
     name: item.name,
     openKfId: parseOpenKfId(item.configJson),
     botToken: telegramConfig?.botToken ?? "",
     botUsername: telegramConfig?.botUsername ?? "",
-    webhookSecret: telegramConfig?.webhookSecret ?? "",
+    webhookSecret: telegramConfig?.webhookSecret ?? zaloConfig?.webhookSecret ?? "",
+    zaloAppId: zaloConfig?.appId ?? "",
+    zaloOaId: zaloConfig?.oaId ?? "",
+    zaloAccessToken: zaloConfig?.accessToken ?? "",
+    zaloSecretKey: zaloConfig?.secretKey ?? "",
     widgetTitle: wechatConfig?.title ?? webConfig.title,
     widgetSubtitle: wechatConfig?.subtitle ?? webConfig.subtitle,
     widgetThemeColor: wechatConfig?.themeColor ?? webConfig.themeColor,
@@ -284,14 +339,22 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
             botUsername: form.botUsername.trim(),
             webhookSecret: form.webhookSecret.trim(),
           })
-        : channelType === "wechat_mp"
-          ? JSON.stringify(webLikeConfig)
-          : JSON.stringify({
-              ...webLikeConfig,
-              position: form.widgetPosition || defaultWebChannelConfig.position,
-              width: form.widgetWidth.trim() || defaultWebChannelConfig.width,
-              userTokenSecret: form.userTokenSecret.trim(),
+        : channelType === "zalo_oa"
+          ? JSON.stringify({
+              appId: form.zaloAppId.trim(),
+              oaId: form.zaloOaId.trim(),
+              accessToken: form.zaloAccessToken.trim(),
+              secretKey: form.zaloSecretKey.trim(),
+              webhookSecret: form.webhookSecret.trim(),
             })
+          : channelType === "wechat_mp"
+            ? JSON.stringify(webLikeConfig)
+            : JSON.stringify({
+                ...webLikeConfig,
+                position: form.widgetPosition || defaultWebChannelConfig.position,
+                width: form.widgetWidth.trim() || defaultWebChannelConfig.width,
+                userTokenSecret: form.userTokenSecret.trim(),
+              })
   return {
     channelType,
     aiAgentId: Number(form.aiAgentId),
@@ -653,6 +716,54 @@ function ChannelFormBody({
                     : t("channel.configWebDescription")}
               </div>
             </div>
+
+            {channelType === "zalo_oa" ? (
+              <div className="space-y-4">
+                <Field data-invalid={!!errors.zaloAccessToken}>
+                  <FieldLabel htmlFor="channel-zalo-token">{t("channel.zaloAccessToken")} *</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-zalo-token"
+                      type="password"
+                      placeholder="Enter Zalo OA Access Token"
+                      {...register("zaloAccessToken")}
+                    />
+                    <FieldError errors={[errors.zaloAccessToken]} />
+                  </FieldContent>
+                </Field>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.zaloOaId}>
+                    <FieldLabel htmlFor="channel-zalo-oaid">{t("channel.zaloOaId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-zalo-oaid"
+                        placeholder="e.g. 1234567890"
+                        {...register("zaloOaId")}
+                      />
+                      <FieldError errors={[errors.zaloOaId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.zaloAppId}>
+                    <FieldLabel htmlFor="channel-zalo-appid">{t("channel.zaloAppId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-zalo-appid"
+                        placeholder="e.g. 9876543210"
+                        {...register("zaloAppId")}
+                      />
+                      <FieldError errors={[errors.zaloAppId]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                  <div className="font-medium text-foreground">{t("channel.zaloAutoConnectTitle")}</div>
+                  <div className="mt-1">{t("channel.zaloAutoConnectDescription")}</div>
+                </div>
+              </div>
+            ) : null}
 
             {channelType === "telegram" ? (
               <div className="space-y-4">
