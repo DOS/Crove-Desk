@@ -74,9 +74,9 @@ jobs:
 
           echo "Target upstream tag: $TARGET_TAG"
 
-          # 2. Check if tag already exists locally/remotely in our repository
+          # 2. Check if tag already exists in origin repository
           TAG_EXISTS=false
-          if git rev-parse -q --verify "refs/tags/$TARGET_TAG" >/dev/null; then
+          if git ls-remote --tags origin "refs/tags/$TARGET_TAG" | grep -q "$TARGET_TAG"; then
             TAG_EXISTS=true
           fi
 
@@ -104,8 +104,8 @@ jobs:
             echo "Creating a sync branch instead..."
             SYNC_BRANCH="sync/upstream-$TARGET_TAG"
             git merge --abort || true
-            git checkout -b "$SYNC_BRANCH" "upstream/main"
-            git push -u origin "$SYNC_BRANCH"
+            git checkout -b "$SYNC_BRANCH" "$TARGET_TAG"
+            git push -u origin "$SYNC_BRANCH" --force
             gh pr create --base dev --head "$SYNC_BRANCH" \
               --title "chore(upstream): sync upstream release $TARGET_TAG" \
               --body "Automated PR to sync upstream release \`$TARGET_TAG\` from \`$UPSTREAM_REPO\`. Please resolve merge conflicts."
@@ -118,8 +118,7 @@ jobs:
 
           # 6. Create or update tag on our repository
           if [ "$TAG_EXISTS" != "true" ]; then
-            git tag -a "$TARGET_TAG" -m "Release $TARGET_TAG synced from upstream $UPSTREAM_REPO"
-            git push origin "$TARGET_TAG"
+            git push origin "$TARGET_TAG" || true
 
             # Create GitHub Release with release notes
             UPSTREAM_BODY=$(gh api repos/$UPSTREAM_REPO/releases/tags/$TARGET_TAG --jq '.body // "Release synced from upstream."' || echo "Release synced from upstream.")
