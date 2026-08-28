@@ -433,3 +433,8 @@ func registerThirdZaloRoutes(group *gin.RouterGroup) {
 	group.POST("/webhook", third.ZaloPostWebhook)
 	group.POST("/webhook/:channel_id", third.ZaloPostWebhook)
 }
+
+func registerThirdEmailRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.EmailPostWebhook)
+	group.POST("/webhook/:channel_id", third.EmailPostWebhook)
+}

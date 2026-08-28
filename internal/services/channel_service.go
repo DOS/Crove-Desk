@@ -391,6 +391,35 @@ func (s *channelService) ParseZaloOAChannelConfig(raw string) (*dto.ZaloOAChanne
 	return cfg, nil
 }
 
+func (s *channelService) ParseEmailChannelConfig(raw string) (*dto.EmailChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.EmailChannelConfig{
+		Provider: "smtp",
+	}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.EmailAddress = strings.ToLower(strings.TrimSpace(cfg.EmailAddress))
+	cfg.SenderName = strings.TrimSpace(cfg.SenderName)
+	cfg.Provider = strings.ToLower(strings.TrimSpace(cfg.Provider))
+	if cfg.Provider == "" {
+		if cfg.APIKey != "" {
+			cfg.Provider = "brevo"
+		} else {
+			cfg.Provider = "smtp"
+		}
+	}
+	cfg.APIKey = strings.TrimSpace(cfg.APIKey)
+	cfg.SMTPHost = strings.TrimSpace(cfg.SMTPHost)
+	cfg.SMTPUser = strings.TrimSpace(cfg.SMTPUser)
+	cfg.SMTPPassword = strings.TrimSpace(cfg.SMTPPassword)
+	cfg.WebhookSecret = strings.TrimSpace(cfg.WebhookSecret)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
 func (s *channelService) GetUserTokenSecret(channel *models.Channel) string {
 	if channel == nil {
 		return ""
@@ -493,6 +522,31 @@ func (s *channelService) GetEnabledWxWorkKFChannelByOpenKfID(openKfID string) *m
 	return nil
 }
 
+func (s *channelService) GetEnabledEmailChannelByAddress(emailAddress string) *models.Channel {
+	emailAddress = strings.ToLower(strings.TrimSpace(emailAddress))
+	if emailAddress == "" {
+		return nil
+	}
+	channels := s.Find(sqls.NewCnd().
+		Eq("channel_type", enums.ChannelTypeEmail).
+		Eq("status", enums.StatusOk).
+		Asc("id"))
+	for i := range channels {
+		cfg, err := s.ParseEmailChannelConfig(channels[i].ConfigJSON)
+		if err != nil {
+			continue
+		}
+		if cfg != nil && strings.ToLower(strings.TrimSpace(cfg.EmailAddress)) == emailAddress {
+			return &channels[i]
+		}
+	}
+	// Fallback to first active email channel if exact address match wasn't found
+	if len(channels) > 0 {
+		return &channels[0]
+	}
+	return nil
+}
+
 func (s *channelService) GetEnabledChannel(ctx *gin.Context) *models.Channel {
 	channelID := httpx.GetChannelID(ctx)
 	channel := repositories.ChannelRepository.GetByChannelID(sqls.DB(), channelID)
@@ -507,7 +561,7 @@ func (s *channelService) GetEnabledChannel(ctx *gin.Context) *models.Channel {
 
 func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRequest) (*models.Channel, error) {
 	channelType := strings.TrimSpace(req.ChannelType)
-	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA {
+	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeEmail {
 		return nil, errorsx.InvalidParamI18n("error.e0250")
 	}
 	name := strings.TrimSpace(req.Name)
@@ -648,6 +702,30 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 		}
 		if cfg == nil || cfg.AccessToken == "" {
 			return nil, errorsx.InvalidParam("zalo oa accessToken is required")
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeEmail:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseEmailChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid email channel configuration")
+		}
+		if cfg == nil || cfg.EmailAddress == "" {
+			return nil, errorsx.InvalidParam("emailAddress is required")
+		}
+		if cfg.WebhookSecret == "" {
+			if secret, err := generateUserTokenSecret(); err == nil {
+				cfg.WebhookSecret = secret
+			}
 		}
 		configBytes, err := json.Marshal(cfg)
 		if err != nil {

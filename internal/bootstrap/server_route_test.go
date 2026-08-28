@@ -65,6 +65,7 @@ func TestNewServerRegistersGinRoutes(t *testing.T) {
 		http.MethodPost + " /api/dashboard/channel/rollback_ai_agent_rollout",
 		http.MethodPost + " /api/dashboard/agent-run/quality_feedback",
 		http.MethodGet + " /api/dashboard/agent-run/list",
+		http.MethodPost + " /api/third/email/webhook",
 		http.MethodGet + " /api/ws/dashboard",
 		http.MethodGet + " /api/ws/open",
 	}
