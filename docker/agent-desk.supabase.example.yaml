@@ -79,7 +79,12 @@ mcp:
       headers: {}
     twenty_crm:
       enabled: true
-      endpoint: "https://crm.crove.com/api/mcp"
+      endpoint: "http://crm-server:3000/mcp"
+      timeoutMs: 15000
+      headers: {}
+    crove_crm:
+      enabled: true
+      endpoint: "http://crm-server:3000/mcp"
       timeoutMs: 15000
       headers: {}
 
