@@ -6,6 +6,7 @@ import { toast } from "sonner"
 
 import { ProjectDialog } from "@/components/project-dialog"
 import { Badge } from "@/components/ui/badge"
+import { useI18n } from "@/i18n/provider"
 import {
   fetchAIWorkflowUsage,
   type AIWorkflow,
@@ -21,6 +22,7 @@ export function WorkflowUsageDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
+  const t = useI18n()
   const [usage, setUsage] = useState<AIWorkflowUsage[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -30,11 +32,11 @@ export function WorkflowUsageDialog({
     try {
       setUsage((await fetchAIWorkflowUsage(workflow.id)) ?? [])
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "加载使用情况失败")
+      toast.error(error instanceof Error ? error.message : t("aiWorkflow.loadFailed"))
     } finally {
       setLoading(false)
     }
-  }, [open, workflow])
+  }, [open, t, workflow])
 
   useEffect(() => {
     void load()
@@ -44,14 +46,14 @@ export function WorkflowUsageDialog({
     <ProjectDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="使用情况"
+      title={t("aiWorkflow.usageTitle")}
       description={workflow?.name}
       size="lg"
       bodyClassName="min-h-[360px]"
     >
       {loading ? (
         <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground">
-          正在加载使用情况…
+          {t("aiWorkflow.loadingUsage")}
         </div>
       ) : usage.length ? (
         <div className="space-y-3">
@@ -63,18 +65,18 @@ export function WorkflowUsageDialog({
               <div>
                 <div className="font-medium">{item.aiAgentName}</div>
                 <div className="mt-1 text-sm text-muted-foreground">
-                  固定关联 v{item.workflowVersion}
+                  {t("aiWorkflow.fixedBoundVersion", { version: String(item.workflowVersion) })}
                 </div>
               </div>
               <Badge variant={item.enabled ? "secondary" : "outline"}>
-                {item.enabled ? "启用" : "已停用"}
+                {item.enabled ? t("aiWorkflow.enabledStatus") : t("aiWorkflow.disabledStatus")}
               </Badge>
             </div>
           ))}
         </div>
       ) : (
         <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground">
-          暂未被任何 Agent 使用
+          {t("aiWorkflow.notUsedByAnyAgent")}
         </div>
       )}
     </ProjectDialog>

@@ -305,7 +305,7 @@ export function ChatPanel() {
         const data = await fetchAIWorkflowRun(runId);
         setActiveWorkflowRun(data);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "加载 AI 执行详情失败");
+        toast.error(error instanceof Error ? error.message : t("aiWorkflow.loadDetailFailed"));
         setWorkflowRunDialogOpen(false);
       } finally {
         setWorkflowRunLoading(false);

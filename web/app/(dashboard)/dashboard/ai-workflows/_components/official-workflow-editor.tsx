@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react"
 
+import { useI18n } from "@/i18n/provider"
 import type { AIWorkflowDefinition, AIWorkflowNodeSpec } from "@/lib/api/admin"
 
 const MESSAGE_SOURCE = "agent-desk"
@@ -38,6 +39,7 @@ export function OfficialWorkflowEditor({
   onDefinitionChange: (definition: AIWorkflowDefinition) => void
   readonly?: boolean
 }) {
+  const t = useI18n()
   const frameRef = useRef<HTMLIFrameElement>(null)
   const definitionRef = useRef(definition)
 
@@ -90,7 +92,7 @@ export function OfficialWorkflowEditor({
     <iframe
       ref={frameRef}
       src="/flowgram-editor/index.html"
-      title="FlowGram 工作流编辑器"
+      title={t("aiWorkflow.editorTitle")}
       className="h-full min-h-[560px] w-full border-0 bg-white"
     />
   )

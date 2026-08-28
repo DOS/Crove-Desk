@@ -112,9 +112,9 @@ export function WorkflowWorkbench({
 
   useEffect(() => {
     void load().catch((error) =>
-      toast.error(error instanceof Error ? error.message : "加载工作流失败")
+      toast.error(error instanceof Error ? error.message : t("aiWorkflow.loadFailed"))
     )
-  }, [load])
+  }, [load, t])
 
   function beginEditing(field: "name" | "description") {
     cancellingEditRef.current = false
@@ -139,7 +139,7 @@ export function WorkflowWorkbench({
     if (field === "name" && !currentValue) {
       setName(editSnapshotRef.current.value)
       setDirty(editSnapshotRef.current.dirty)
-      toast.error("请填写工作流名称")
+      toast.error(t("aiWorkflow.nameRequired"))
       return
     }
 
@@ -179,10 +179,10 @@ export function WorkflowWorkbench({
       setDescription(nextDescription)
       setDirty(active ? editSnapshotRef.current.dirty : false)
       onSaved?.()
-      toast.success(field === "name" ? "名称已保存" : "描述已保存")
+      toast.success(field === "name" ? t("aiWorkflow.nameSaved") : t("aiWorkflow.descriptionSaved"))
     } catch (error) {
       setDirty(true)
-      toast.error(error instanceof Error ? error.message : "保存失败")
+      toast.error(error instanceof Error ? error.message : t("aiWorkflow.saveFailed"))
     } finally {
       savingRef.current = false
       setSaving(false)
@@ -203,7 +203,7 @@ export function WorkflowWorkbench({
   async function save() {
     if (savingRef.current) return
     if (!name.trim()) {
-      toast.error("请填写工作流名称")
+      toast.error(t("aiWorkflow.nameRequired"))
       return
     }
     const savedName = name.trim()
@@ -244,9 +244,9 @@ export function WorkflowWorkbench({
         setDirty(false)
       }
       onSaved?.()
-      toast.success("保存成功")
+      toast.success(t("aiWorkflow.savedSuccess"))
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "保存失败")
+      toast.error(error instanceof Error ? error.message : t("aiWorkflow.saveFailed"))
     } finally {
       savingRef.current = false
       setSaving(false)
@@ -256,7 +256,7 @@ export function WorkflowWorkbench({
   async function publish() {
     if (savingRef.current) return
     if (!active) {
-      toast.error("请先保存")
+      toast.error(t("aiWorkflow.saveFirst"))
       return
     }
     savingRef.current = true
@@ -275,9 +275,9 @@ export function WorkflowWorkbench({
       )
       setDirty(false)
       onSaved?.()
-      toast.success(`已发布 v${version.version}`)
+      toast.success(t("aiWorkflow.publishedVersionSuccess", { version: String(version.version) }))
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "发布失败")
+      toast.error(error instanceof Error ? error.message : t("aiWorkflow.publishFailed"))
     } finally {
       savingRef.current = false
       setSaving(false)
@@ -293,7 +293,7 @@ export function WorkflowWorkbench({
               {editingField === "name" ? (
                 <Input
                   autoFocus
-                  aria-label="工作流名称"
+                  aria-label={t("aiWorkflow.nameLabel")}
                   value={name}
                   onFocus={(event) => event.currentTarget.select()}
                   onChange={(event) => {
@@ -427,7 +427,7 @@ export function WorkflowWorkbench({
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            正在加载节点能力…
+            {t("aiWorkflow.loadingNodeCapabilities")}
           </div>
         )}
       </div>

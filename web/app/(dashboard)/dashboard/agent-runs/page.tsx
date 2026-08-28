@@ -57,7 +57,7 @@ export default function DashboardAgentRunsPage() {
 		try {
 			setWorkflowRun(await fetchAIWorkflowRun(id))
 		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "加载 Workflow 节点审计失败")
+			toast.error(error instanceof Error ? error.message : t("aiWorkflow.loadDetailFailed"))
 			setWorkflowAuditOpen(false)
 		} finally {
 			setWorkflowAuditLoading(false)

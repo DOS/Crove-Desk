@@ -111,6 +111,7 @@ export function AIAgentConfigWorkbench({
   onAgentCreated?: (agent: AIAgent) => void
   onCancel?: () => void
 }) {
+  const t = useI18n()
   const [currentAgentId, setCurrentAgentId] = useState(agentId ?? null)
   const [activeSection, setActiveSection] = useState<SectionKey>("setup")
   const [agent, setAgent] = useState<AIAgent | null>(null)
@@ -151,8 +152,8 @@ export function AIAgentConfigWorkbench({
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [configs, teams, skillList, knowledgeBaseList, catalog, workflowPage] =
-        await Promise.all([
+      const [configsRes, teamsRes, skillListRes, knowledgeBaseListRes, catalogRes, workflowPageRes] =
+        await Promise.allSettled([
           fetchAIConfigsAll({ modelType: AIModelType.LLM }),
           fetchAgentTeamsAll(),
           fetchSkillDefinitionsAll({ status: Status.Ok }),
@@ -160,6 +161,13 @@ export function AIAgentConfigWorkbench({
           fetchMCPCatalog(),
           fetchAIWorkflows({ limit: 100 }),
         ])
+
+      const configs = configsRes.status === "fulfilled" ? configsRes.value : []
+      const teams = teamsRes.status === "fulfilled" ? teamsRes.value : []
+      const skillList = skillListRes.status === "fulfilled" ? skillListRes.value : []
+      const knowledgeBaseList = knowledgeBaseListRes.status === "fulfilled" ? knowledgeBaseListRes.value : []
+      const catalog = catalogRes.status === "fulfilled" ? catalogRes.value : []
+      const workflowPage = workflowPageRes.status === "fulfilled" ? workflowPageRes.value : { results: [] }
 
       setAIConfigs(configs ?? [])
       setAgentTeams(teams ?? [])
@@ -175,7 +183,7 @@ export function AIAgentConfigWorkbench({
         setAgentRevisions([])
         setName("")
         setDescription("")
-        setAIConfigId("")
+        setAIConfigId(configs && configs.length > 0 ? String(configs[0].id) : "")
         setServiceMode(String(IMConversationServiceMode.AIFirst))
         setSystemPrompt("")
         setWelcomeMessage("")
@@ -223,11 +231,11 @@ export function AIAgentConfigWorkbench({
         ),
       )
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "加载 Agent 配置失败")
+      toast.error(error instanceof Error ? error.message : t("aiAgent.loadDetailFailed"))
     } finally {
       setLoading(false)
     }
-  }, [currentAgentId])
+  }, [currentAgentId, t])
 
   useEffect(() => {
     void loadData()
@@ -245,8 +253,6 @@ export function AIAgentConfigWorkbench({
     )
     setAgentRevisions(revisions ?? [])
   }
-
-  const t = useI18n()
 
   const serviceModeOptions = useMemo(
     () => [
@@ -326,9 +332,9 @@ export function AIAgentConfigWorkbench({
       publishedWorkflows.map((workflow) => ({
         value: String(workflow.publishedVersionId),
         label: workflow.name,
-        subtitle: `固定版本 #${workflow.publishedVersionId}`,
+        subtitle: t("aiAgent.fixedVersion", { version: String(workflow.publishedVersionId) }),
       })),
-    [publishedWorkflows],
+    [publishedWorkflows, t],
   )
 
   function selectedOptions(ids: number[], options: { value: string; label: string }[]) {
@@ -384,12 +390,12 @@ export function AIAgentConfigWorkbench({
   function validateForm() {
     if (!name.trim()) {
       setActiveSection("setup")
-      toast.error("请填写 Agent 名称")
+      toast.error(t("aiAgent.nameRequired"))
       return false
     }
     if (!Number(aiConfigId)) {
       setActiveSection("setup")
-      toast.error("请选择 AI 配置")
+      toast.error(t("aiAgent.aiConfigRequired"))
       return false
     }
     return true
@@ -425,19 +431,19 @@ export function AIAgentConfigWorkbench({
         await updateAIAgent({ id: agent.id, ...payload })
         toast.success(
           agent.publishedRevisionId > 0
-            ? "配置已保存，当前已发布版本继续生效"
-            : "Agent 配置已保存",
+            ? t("aiAgent.savedActiveNote")
+            : t("aiAgent.savedNote"),
         )
       } else {
         const created = await createAIAgent(payload)
         setCurrentAgentId(created.id)
         setAgent(created)
-        toast.success("Agent 已创建")
+        toast.success(t("aiAgent.createdNote"))
         onAgentCreated?.(created)
       }
       onAgentSaved?.()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "保存 Agent 配置失败")
+      toast.error(error instanceof Error ? error.message : t("aiAgent.saveFailed"))
     } finally {
       setSaving(false)
     }
@@ -452,10 +458,10 @@ export function AIAgentConfigWorkbench({
       await updateAIAgent({ id: agent.id, ...payload })
       await publishAIAgent(agent.id)
       await refreshAgentPublicationState(agent.id)
-      toast.success("Agent 配置已保存并发布")
+      toast.success(t("aiAgent.publishedSuccess"))
       onAgentSaved?.()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "保存并发布 Agent 失败")
+      toast.error(error instanceof Error ? error.message : t("aiAgent.publishFailed"))
     } finally {
       setSaving(false)
     }
@@ -466,11 +472,11 @@ export function AIAgentConfigWorkbench({
     setSaving(true)
     try {
       await rollbackAIAgent(agent.id, revisionId)
-      toast.success("已回滚到选中的 Agent 版本")
+      toast.success(t("aiAgent.rollbackSuccess"))
       await refreshAgentPublicationState(agent.id)
       onAgentSaved?.()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "回滚 Agent 版本失败")
+      toast.error(error instanceof Error ? error.message : t("aiAgent.rollbackFailed"))
     } finally {
       setSaving(false)
     }
