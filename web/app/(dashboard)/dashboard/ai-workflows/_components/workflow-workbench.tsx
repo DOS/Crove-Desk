@@ -33,13 +33,13 @@ const emptyDefinition: AIWorkflowDefinition = {
       id: "start_1",
       type: "start",
       meta: { position: { x: 0, y: 80 } },
-      data: { title: "开始", config: {}, inputsValues: {} },
+      data: { title: "Start", config: {}, inputsValues: {} },
     },
     {
       id: "end_1",
       type: "end",
       meta: { position: { x: 260, y: 80 } },
-      data: { title: "结束", config: {}, inputsValues: {} },
+      data: { title: "End", config: {}, inputsValues: {} },
     },
   ],
   edges: [
