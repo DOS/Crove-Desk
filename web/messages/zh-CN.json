@@ -18,7 +18,11 @@
     "exitFullscreen": "退出全屏",
     "selectedCount": "已选择 {count} 项",
     "expand": "展开",
-    "collapse": "折叠"
+    "collapse": "折叠",
+    "cancel": "取消",
+    "status": "状态",
+    "save": "保存",
+    "confirm": "确认"
   },
   "language": {
     "enUS": "English (英文)",

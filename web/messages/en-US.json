@@ -18,7 +18,11 @@
     "exitFullscreen": "Exit fullscreen",
     "selectedCount": "{count} selected",
     "expand": "Expand",
-    "collapse": "Collapse"
+    "collapse": "Collapse",
+    "cancel": "Cancel",
+    "status": "Status",
+    "save": "Save",
+    "confirm": "Confirm"
   },
   "language": {
     "enUS": "English",
