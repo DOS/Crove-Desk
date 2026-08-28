@@ -454,9 +454,9 @@ function ChannelFormBody({
 				aiAgentRolloutPercent: previousRolloutPercent,
 				previousAiAgentRolloutPercent: channelDetail.aiAgentRolloutPercent,
 			})
-			toast.success("已恢复上一次渠道灰度比例")
+			toast.success(t("aiAgent.channelRolloutRestored"))
 		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "恢复渠道灰度比例失败")
+			toast.error(error instanceof Error ? error.message : t("aiAgent.channelRolloutRestoreFailed"))
 		} finally {
 			setRollingBackRollout(false)
 		}
@@ -533,7 +533,7 @@ function ChannelFormBody({
   const selectedAIAgent = aiAgents.find((item) => String(item.id) === aiAgentId)
   const aiAgentOptions = aiAgents.map((item) => ({
     value: String(item.id),
-    label: isAgentChannelBindable(item) ? item.name : `${item.name} · 未发布`,
+    label: isAgentChannelBindable(item) ? item.name : `${item.name} · ${t("aiAgent.agentNotPublishedShort")}`,
     disabled: !isAgentChannelBindable(item),
   }))
   const wxWorkKFAccountOptions = wxWorkKFAccounts.map((item) => ({
@@ -563,8 +563,8 @@ function ChannelFormBody({
 
   async function onFormSubmit(values: EditForm) {
     const selected = aiAgents.find((item) => String(item.id) === values.aiAgentId)
-	if (!isAgentChannelBindable(selected)) {
-		toast.error("该 Agent 尚未完成发布，不能绑定渠道")
+    if (!isAgentChannelBindable(selected)) {
+      toast.error(t("aiAgent.agentNotPublishedWarning"))
       return
     }
     await onSubmit(buildPayload(values, currentStatus, t))
@@ -660,7 +660,7 @@ function ChannelFormBody({
                 />
                 {selectedAIAgent && !isAgentChannelBindable(selectedAIAgent) ? (
                   <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                    该 Agent 尚未发布，AI 不会自动回复。请先在 Agent 配置中发布 Revision。
+                    {t("aiAgent.agentNotPublishedWarning")}
                   </div>
                 ) : null}
                 <FieldError errors={[errors.aiAgentId]} />
@@ -668,14 +668,14 @@ function ChannelFormBody({
             </Field>
 
             <Field data-invalid={!!errors.aiAgentRolloutPercent}>
-              <FieldLabel htmlFor="channel-ai-agent-rollout">AI 灰度比例（%）</FieldLabel>
+              <FieldLabel htmlFor="channel-ai-agent-rollout">{t("aiAgent.channelRolloutTitle")}</FieldLabel>
               <FieldContent>
                 <div className="flex items-center gap-2">
                   <Input id="channel-ai-agent-rollout" type="number" min={1} max={100} step={1} {...register("aiAgentRolloutPercent")} />
                   {previousRolloutPercent > 0 ? (
                     <Button type="button" variant="outline" size="sm" disabled={saving || rollingBackRollout} onClick={rollbackRolloutPercent}>
                       <RotateCcwIcon />
-                      恢复 {previousRolloutPercent}%
+                      {t("aiAgent.channelRolloutRestoreBtn", { percent: String(previousRolloutPercent) })}
                     </Button>
                   ) : null}
                 </div>

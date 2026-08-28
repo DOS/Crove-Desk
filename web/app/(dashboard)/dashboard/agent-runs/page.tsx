@@ -57,7 +57,7 @@ export default function DashboardAgentRunsPage() {
 		try {
 			setWorkflowRun(await fetchAIWorkflowRun(id))
 		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "加载 Workflow 节点审计失败")
+			toast.error(error instanceof Error ? error.message : t("aiWorkflow.loadDetailFailed"))
 			setWorkflowAuditOpen(false)
 		} finally {
 			setWorkflowAuditLoading(false)
@@ -67,16 +67,16 @@ export default function DashboardAgentRunsPage() {
   return (
     <>
 		{metrics ? <div className="grid grid-cols-2 gap-px border-b bg-border sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-10">
-			<Metric label="运行完成率" value={`${Math.round(metrics.completionRate * 100)}%`} detail={`${metrics.completedRuns}/${metrics.totalRuns}`} />
-			<Metric label="解决率" value={metrics.reviewedRuns ? `${Math.round(metrics.resolutionRate * 100)}%` : "-"} detail={`${metrics.resolvedRuns}/${metrics.reviewedRuns} 已质检`} />
-			<Metric label="无依据率" value={metrics.reviewedRuns ? `${Math.round(metrics.unsupportedEvidenceRate * 100)}%` : "-"} detail={`${metrics.unsupportedEvidenceRuns}/${metrics.reviewedRuns} 已质检`} />
-			<Metric label="工具成功率" value={metrics.toolCalls ? `${Math.round(metrics.toolSuccessRate * 100)}%` : "-"} detail={`${metrics.toolCalls} 次调用`} />
-			<Metric label="平均步骤" value={metrics.averageSteps.toFixed(1)} detail={`${metrics.totalRuns} 次运行`} />
-			<Metric label="P95 时延" value={`${metrics.p95DurationMs} ms`} detail={`平均 ${metrics.averageDurationMs} ms`} />
-			<Metric label="Token" value={`${metrics.promptTokens + metrics.completionTokens}`} detail={`${metrics.promptTokens}/${metrics.completionTokens}`} />
-			<Metric label="转人工率" value={`${Math.round(metrics.handoffRate * 100)}%`} detail="已转人工会话" />
-			<Metric label="知识兜底率" value={`${Math.round(metrics.knowledgeFallbackRate * 100)}%`} detail="证据不足或检索失败" />
-			<Metric label="中断恢复率" value={metrics.resumedInterrupts ? `${Math.round(metrics.interruptRecoveryRate * 100)}%` : "-"} detail={`${metrics.resolvedInterrupts}/${metrics.resumedInterrupts}`} />
+			<Metric label={t("agentRun.metricCompletionRate")} value={`${Math.round(metrics.completionRate * 100)}%`} detail={`${metrics.completedRuns}/${metrics.totalRuns}`} />
+			<Metric label={t("agentRun.metricResolutionRate")} value={metrics.reviewedRuns ? `${Math.round(metrics.resolutionRate * 100)}%` : "-"} detail={`${metrics.resolvedRuns}/${metrics.reviewedRuns}`} />
+			<Metric label={t("agentRun.metricUnsupportedRate")} value={metrics.reviewedRuns ? `${Math.round(metrics.unsupportedEvidenceRate * 100)}%` : "-"} detail={`${metrics.unsupportedEvidenceRuns}/${metrics.reviewedRuns}`} />
+			<Metric label={t("agentRun.metricToolSuccessRate")} value={metrics.toolCalls ? `${Math.round(metrics.toolSuccessRate * 100)}%` : "-"} detail={`${metrics.toolCalls}`} />
+			<Metric label={t("agentRun.metricAvgSteps")} value={metrics.averageSteps.toFixed(1)} detail={`${metrics.totalRuns}`} />
+			<Metric label={t("agentRun.metricP95Latency")} value={`${metrics.p95DurationMs} ms`} detail={`avg ${metrics.averageDurationMs} ms`} />
+			<Metric label={t("agentRun.metricToken")} value={`${metrics.promptTokens + metrics.completionTokens}`} detail={`${metrics.promptTokens}/${metrics.completionTokens}`} />
+			<Metric label={t("agentRun.metricHandoffRate")} value={`${Math.round(metrics.handoffRate * 100)}%`} detail="Handoff" />
+			<Metric label={t("agentRun.metricFallbackRate")} value={`${Math.round(metrics.knowledgeFallbackRate * 100)}%`} detail="Fallback" />
+			<Metric label={t("agentRun.metricInterruptRecoveryRate")} value={metrics.resumedInterrupts ? `${Math.round(metrics.interruptRecoveryRate * 100)}%` : "-"} detail={`${metrics.resolvedInterrupts}/${metrics.resumedInterrupts}`} />
 		</div> : null}
       <DashboardListPage<AgentRun>
         filters={[
@@ -111,8 +111,8 @@ function AgentRunDetailDialog({ open, loading, run, onOpenChange, onOpenWorkflow
   return <ProjectDialog open={open} onOpenChange={onOpenChange} size="xl" allowFullscreen defaultFullscreen title={<span className="flex items-center gap-2"><BotMessageSquareIcon className="size-4" />{t("agentRun.detailTitle")}</span>} description={run ? `Run #${run.id}` : t("agentRun.detailDescription")} footer={<Button variant="outline" onClick={() => onOpenChange(false)}>{t("agentRun.close")}</Button>}>
     {loading ? <div className="py-10 text-sm text-muted-foreground">{t("agentRun.loadingDetail")}</div> : run ? <div className="space-y-4">
 		<div className="flex flex-wrap gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs"><Meta label={t("agentRun.status")} value={run.status} /><Meta label={t("agentRun.agent")} value={`#${run.aiAgentId}`} /><Meta label={t("agentRun.revision")} value={`#${run.agentRevisionId || "-"}`} /><Meta label={t("agentRun.duration")} value={`${run.durationMs || 0} ms`} /><Meta label={t("agentRun.tokens")} value={`${run.promptTokens || 0}/${run.completionTokens || 0}`} /></div>
-		{run.workflowRunId > 0 ? <section className="flex items-center justify-between gap-3 border px-3 py-2"><div><div className="text-sm font-medium">关联 Workflow 审计</div><div className="text-xs text-muted-foreground">Workflow Run #{run.workflowRunId} 的节点输入、输出和状态</div></div><Button type="button" variant="outline" size="sm" onClick={() => onOpenWorkflowAudit(run.workflowRunId)}><WorkflowIcon />查看节点审计</Button></section> : null}
-		<QualityFeedbackPanel run={run} onSaved={onQualityFeedbackSaved} />
+		{run.workflowRunId > 0 ? <section className="flex items-center justify-between gap-3 border px-3 py-2"><div><div className="text-sm font-medium">{t("agentRun.workflowAudit")}</div><div className="text-xs text-muted-foreground">Workflow Run #{run.workflowRunId}</div></div><Button type="button" variant="outline" size="sm" onClick={() => onOpenWorkflowAudit(run.workflowRunId)}><WorkflowIcon />{t("agentRun.viewWorkflowAudit")}</Button></section> : null}
+		<QualityFeedbackPanel run={run} onSaved={onQualityFeedbackSaved} t={t} />
       {run.errorMessage ? <div className="flex gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><AlertTriangleIcon className="size-4 shrink-0" />{run.errorMessage}</div> : null}
       <Preview title={t("agentRun.trace")} raw={run.traceData} />
       <section className="space-y-2"><h3 className="text-sm font-medium">{t("agentRun.steps")}</h3>{(run.steps ?? []).map((step) => <StepBlock key={step.id} step={step} t={t} />)}{!run.steps?.length ? <p className="text-sm text-muted-foreground">{t("agentRun.emptySteps")}</p> : null}</section>
@@ -121,7 +121,7 @@ function AgentRunDetailDialog({ open, loading, run, onOpenChange, onOpenWorkflow
   </ProjectDialog>
 }
 
-function QualityFeedbackPanel({ run, onSaved }: { run: AgentRun; onSaved: (agentRunId: number) => void }) {
+function QualityFeedbackPanel({ run, onSaved, t }: { run: AgentRun; onSaved: (agentRunId: number) => void; t: (key: string) => string }) {
 	const [resolutionStatus, setResolutionStatus] = useState<"unknown" | "resolved" | "unresolved">("unknown")
 	const [evidenceStatus, setEvidenceStatus] = useState<"unknown" | "supported" | "unsupported">("unknown")
 	const [comment, setComment] = useState("")
@@ -137,21 +137,22 @@ function QualityFeedbackPanel({ run, onSaved }: { run: AgentRun; onSaved: (agent
 		setSaving(true)
 		try {
 			await saveAgentRunQualityFeedback({ agentRunId: run.id, resolutionStatus, evidenceStatus, comment })
-			toast.success("质检结果已保存")
+			toast.success(t("agentRun.qualitySaved"))
 			onSaved(run.id)
 		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "保存质检结果失败")
+			toast.error(error instanceof Error ? error.message : "Save failed")
 		} finally {
 			setSaving(false)
 		}
 	}
 
-	return <section className="space-y-3 border p-3"><div><h3 className="text-sm font-medium">运行质检</h3><p className="text-xs text-muted-foreground">解决率和无依据率仅统计已质检记录。</p></div><div className="grid gap-3 sm:grid-cols-2"><OptionCombobox value={resolutionStatus} placeholder="选择解决情况" options={[{ value: "unknown", label: "解决情况：未判断" }, { value: "resolved", label: "解决情况：已解决" }, { value: "unresolved", label: "解决情况：未解决" }]} onChange={(value) => setResolutionStatus(value === "resolved" || value === "unresolved" ? value : "unknown")} /><OptionCombobox value={evidenceStatus} placeholder="选择依据情况" options={[{ value: "unknown", label: "依据情况：未判断" }, { value: "supported", label: "依据情况：有依据" }, { value: "unsupported", label: "依据情况：无依据" }]} onChange={(value) => setEvidenceStatus(value === "supported" || value === "unsupported" ? value : "unknown")} /></div><Textarea rows={3} value={comment} onChange={(event) => setComment(event.target.value)} placeholder="质检备注" /><div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">{run.qualityFeedback?.updatedAt ? `最近标注：${run.qualityFeedback.updatedAt}` : "尚未标注"}</span><Button type="button" size="sm" disabled={saving} onClick={save}>保存质检</Button></div></section>
+	return <section className="space-y-3 border p-3"><div><h3 className="text-sm font-medium">{t("agentRun.qualityTitle")}</h3><p className="text-xs text-muted-foreground">{t("agentRun.qualityDescription")}</p></div><div className="grid gap-3 sm:grid-cols-2"><OptionCombobox value={resolutionStatus} placeholder={t("agentRun.selectResolution")} options={[{ value: "unknown", label: "Resolution: Unknown" }, { value: "resolved", label: "Resolution: Resolved" }, { value: "unresolved", label: "Resolution: Unresolved" }]} onChange={(value) => setResolutionStatus(value === "resolved" || value === "unresolved" ? value : "unknown")} /><OptionCombobox value={evidenceStatus} placeholder={t("agentRun.selectEvidence")} options={[{ value: "unknown", label: "Evidence: Unknown" }, { value: "supported", label: "Evidence: Supported" }, { value: "unsupported", label: "Evidence: Unsupported" }]} onChange={(value) => setEvidenceStatus(value === "supported" || value === "unsupported" ? value : "unknown")} /></div><Textarea rows={3} value={comment} onChange={(event) => setComment(event.target.value)} placeholder={t("agentRun.qualityCommentPlaceholder")} /><div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">{run.qualityFeedback?.updatedAt ? `Last annotated: ${run.qualityFeedback.updatedAt}` : "-"}</span><Button type="button" size="sm" disabled={saving} onClick={save}>{t("agentRun.saveQuality")}</Button></div></section>
 }
 
 function WorkflowAuditDialog({ open, loading, run, onOpenChange }: { open: boolean; loading: boolean; run: AIWorkflowRun | null; onOpenChange: (open: boolean) => void }) {
-	return <ProjectDialog open={open} onOpenChange={onOpenChange} size="xl" allowFullscreen defaultFullscreen title={<span className="flex items-center gap-2"><WorkflowIcon className="size-4" />Workflow 节点审计</span>} description={run ? `Workflow Run #${run.id}` : "加载关联 Workflow 的节点审计"} footer={<Button variant="outline" onClick={() => onOpenChange(false)}>关闭</Button>}>
-		{loading ? <div className="py-10 text-sm text-muted-foreground">加载节点审计中...</div> : run ? <div className="space-y-3"><div className="flex flex-wrap gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs"><Meta label="状态" value={run.statusName} /><Meta label="Workflow" value={run.workflowName || `#${run.workflowId}`} /><Meta label="版本" value={`v${run.workflowVersion || "-"}`} /><Meta label="时延" value={`${run.durationMs || 0} ms`} /></div>{run.errorMessage ? <div className="flex gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><AlertTriangleIcon className="size-4 shrink-0" />{run.errorMessage}</div> : null}<WorkflowRunAuditGraph run={run} /></div> : <div className="py-10 text-sm text-muted-foreground">未找到关联 Workflow Run。</div>}
+	const t = useI18n()
+	return <ProjectDialog open={open} onOpenChange={onOpenChange} size="xl" allowFullscreen defaultFullscreen title={<span className="flex items-center gap-2"><WorkflowIcon className="size-4" />{t("agentRun.workflowAudit")}</span>} description={run ? `Workflow Run #${run.id}` : t("agentRun.workflowAudit")} footer={<Button variant="outline" onClick={() => onOpenChange(false)}>{t("common.close")}</Button>}>
+		{loading ? <div className="py-10 text-sm text-muted-foreground">{t("common.loading")}</div> : run ? <div className="space-y-3"><div className="flex flex-wrap gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs"><Meta label={t("common.status")} value={run.statusName} /><Meta label="Workflow" value={run.workflowName || `#${run.workflowId}`} /><Meta label={t("agentRun.revision")} value={`v${run.workflowVersion || "-"}`} /><Meta label={t("agentRun.duration")} value={`${run.durationMs || 0} ms`} /></div>{run.errorMessage ? <div className="flex gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><AlertTriangleIcon className="size-4 shrink-0" />{run.errorMessage}</div> : null}<WorkflowRunAuditGraph run={run} /></div> : <div className="py-10 text-sm text-muted-foreground">{t("common.emptyData")}</div>}
 	</ProjectDialog>
 }
 

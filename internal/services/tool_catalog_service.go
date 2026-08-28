@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"log/slog"
 	"slices"
 	"strings"
 
@@ -71,7 +72,8 @@ func (s *toolCatalogService) ListMCPToolsWithLocale(ctx context.Context, locale 
 	for _, serverCode := range serverCodes {
 		tools, err := mcps.Runtime.ListTools(ctx, serverCode)
 		if err != nil {
-			return nil, err
+			slog.Warn("list mcp server tools failed, skipping server", "server", serverCode, "error", err)
+			continue
 		}
 		for _, item := range tools {
 			toolCode := toolx.BuildMCPToolCode(serverCode, item.Name)

@@ -28,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
+import { useI18n } from "@/i18n/provider"
 import {
   createAIAgent,
   fetchAIAgent,
@@ -110,6 +111,7 @@ export function AIAgentConfigWorkbench({
   onAgentCreated?: (agent: AIAgent) => void
   onCancel?: () => void
 }) {
+  const t = useI18n()
   const [currentAgentId, setCurrentAgentId] = useState(agentId ?? null)
   const [activeSection, setActiveSection] = useState<SectionKey>("setup")
   const [agent, setAgent] = useState<AIAgent | null>(null)
@@ -150,8 +152,8 @@ export function AIAgentConfigWorkbench({
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [configs, teams, skillList, knowledgeBaseList, catalog, workflowPage] =
-        await Promise.all([
+      const [configsRes, teamsRes, skillListRes, knowledgeBaseListRes, catalogRes, workflowPageRes] =
+        await Promise.allSettled([
           fetchAIConfigsAll({ modelType: AIModelType.LLM }),
           fetchAgentTeamsAll(),
           fetchSkillDefinitionsAll({ status: Status.Ok }),
@@ -159,6 +161,13 @@ export function AIAgentConfigWorkbench({
           fetchMCPCatalog(),
           fetchAIWorkflows({ limit: 100 }),
         ])
+
+      const configs = configsRes.status === "fulfilled" ? configsRes.value : []
+      const teams = teamsRes.status === "fulfilled" ? teamsRes.value : []
+      const skillList = skillListRes.status === "fulfilled" ? skillListRes.value : []
+      const knowledgeBaseList = knowledgeBaseListRes.status === "fulfilled" ? knowledgeBaseListRes.value : []
+      const catalog = catalogRes.status === "fulfilled" ? catalogRes.value : []
+      const workflowPage = workflowPageRes.status === "fulfilled" ? workflowPageRes.value : { results: [] }
 
       setAIConfigs(configs ?? [])
       setAgentTeams(teams ?? [])
@@ -174,7 +183,7 @@ export function AIAgentConfigWorkbench({
         setAgentRevisions([])
         setName("")
         setDescription("")
-        setAIConfigId("")
+        setAIConfigId(configs && configs.length > 0 ? String(configs[0].id) : "")
         setServiceMode(String(IMConversationServiceMode.AIFirst))
         setSystemPrompt("")
         setWelcomeMessage("")
@@ -222,11 +231,11 @@ export function AIAgentConfigWorkbench({
         ),
       )
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "加载 Agent 配置失败")
+      toast.error(error instanceof Error ? error.message : t("aiAgent.loadDetailFailed"))
     } finally {
       setLoading(false)
     }
-  }, [currentAgentId])
+  }, [currentAgentId, t])
 
   useEffect(() => {
     void loadData()
@@ -247,33 +256,33 @@ export function AIAgentConfigWorkbench({
 
   const serviceModeOptions = useMemo(
     () => [
-      { value: String(IMConversationServiceMode.AIOnly), label: "仅 AI" },
-      { value: String(IMConversationServiceMode.HumanOnly), label: "仅人工" },
-      { value: String(IMConversationServiceMode.AIFirst), label: "AI 优先" },
+      { value: String(IMConversationServiceMode.AIOnly), label: t("aiAgent.serviceAiOnly") },
+      { value: String(IMConversationServiceMode.HumanOnly), label: t("aiAgent.serviceHumanOnly") },
+      { value: String(IMConversationServiceMode.AIFirst), label: t("aiAgent.serviceAiFirst") },
     ],
-    [],
+    [t],
   )
   const handoffModeOptions = useMemo(
     () => [
-      { value: String(AIAgentHandoffMode.WaitPool), label: "进入待接入池" },
+      { value: String(AIAgentHandoffMode.WaitPool), label: t("aiAgent.handoffWaitPool") },
       {
         value: String(AIAgentHandoffMode.DefaultTeamPool),
-        label: "进入默认客服组待接入池",
+        label: t("aiAgent.handoffDefaultTeamPool"),
       },
       {
         value: String(AIAgentHandoffMode.AIHoldAndNotify),
-        label: "AI继续接待并提醒人工",
+        label: t("aiAgent.handoffAiHoldAndNotify"),
       },
     ],
-    [],
+    [t],
   )
   const fallbackModeOptions = useMemo(
     () => [
-      { value: String(AIAgentFallbackMode.NoAnswer), label: "直接说明知识不足" },
-      { value: String(AIAgentFallbackMode.SuggestRetry), label: "引导用户补充信息" },
-      { value: String(AIAgentFallbackMode.Handoff), label: "转人工客服" },
+      { value: String(AIAgentFallbackMode.NoAnswer), label: t("aiAgent.fallbackNoAnswer") },
+      { value: String(AIAgentFallbackMode.SuggestRetry), label: t("aiAgent.fallbackSuggestRetry") },
+      { value: String(AIAgentFallbackMode.Handoff), label: t("aiAgent.sectionHandoff") },
     ],
-    [],
+    [t],
   )
   const aiConfigOptions = useMemo(
     () =>
@@ -323,9 +332,9 @@ export function AIAgentConfigWorkbench({
       publishedWorkflows.map((workflow) => ({
         value: String(workflow.publishedVersionId),
         label: workflow.name,
-        subtitle: `固定版本 #${workflow.publishedVersionId}`,
+        subtitle: t("aiAgent.fixedVersion", { version: String(workflow.publishedVersionId) }),
       })),
-    [publishedWorkflows],
+    [publishedWorkflows, t],
   )
 
   function selectedOptions(ids: number[], options: { value: string; label: string }[]) {
@@ -381,12 +390,12 @@ export function AIAgentConfigWorkbench({
   function validateForm() {
     if (!name.trim()) {
       setActiveSection("setup")
-      toast.error("请填写 Agent 名称")
+      toast.error(t("aiAgent.nameRequired"))
       return false
     }
     if (!Number(aiConfigId)) {
       setActiveSection("setup")
-      toast.error("请选择 AI 配置")
+      toast.error(t("aiAgent.aiConfigRequired"))
       return false
     }
     return true
@@ -422,19 +431,19 @@ export function AIAgentConfigWorkbench({
         await updateAIAgent({ id: agent.id, ...payload })
         toast.success(
           agent.publishedRevisionId > 0
-            ? "配置已保存，当前已发布版本继续生效"
-            : "Agent 配置已保存",
+            ? t("aiAgent.savedActiveNote")
+            : t("aiAgent.savedNote"),
         )
       } else {
         const created = await createAIAgent(payload)
         setCurrentAgentId(created.id)
         setAgent(created)
-        toast.success("Agent 已创建")
+        toast.success(t("aiAgent.createdNote"))
         onAgentCreated?.(created)
       }
       onAgentSaved?.()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "保存 Agent 配置失败")
+      toast.error(error instanceof Error ? error.message : t("aiAgent.saveFailed"))
     } finally {
       setSaving(false)
     }
@@ -449,10 +458,10 @@ export function AIAgentConfigWorkbench({
       await updateAIAgent({ id: agent.id, ...payload })
       await publishAIAgent(agent.id)
       await refreshAgentPublicationState(agent.id)
-      toast.success("Agent 配置已保存并发布")
+      toast.success(t("aiAgent.publishedSuccess"))
       onAgentSaved?.()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "保存并发布 Agent 失败")
+      toast.error(error instanceof Error ? error.message : t("aiAgent.publishFailed"))
     } finally {
       setSaving(false)
     }
@@ -463,11 +472,11 @@ export function AIAgentConfigWorkbench({
     setSaving(true)
     try {
       await rollbackAIAgent(agent.id, revisionId)
-      toast.success("已回滚到选中的 Agent 版本")
+      toast.success(t("aiAgent.rollbackSuccess"))
       await refreshAgentPublicationState(agent.id)
       onAgentSaved?.()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "回滚 Agent 版本失败")
+      toast.error(error instanceof Error ? error.message : t("aiAgent.rollbackFailed"))
     } finally {
       setSaving(false)
     }
@@ -480,16 +489,16 @@ export function AIAgentConfigWorkbench({
     title: string
     icon: ReactNode
   }[] = [
-    { key: "setup", title: "身份与运行", icon: <SettingsIcon /> },
-    { key: "persona", title: "角色与回复", icon: <MessageSquareTextIcon /> },
-    { key: "capability", title: "知识与能力", icon: <PlugIcon /> },
-    { key: "service", title: "服务与兜底", icon: <UserRoundCheckIcon /> },
+    { key: "setup", title: t("aiAgent.sectionSetup"), icon: <SettingsIcon /> },
+    { key: "persona", title: t("aiAgent.sectionPersona"), icon: <MessageSquareTextIcon /> },
+    { key: "capability", title: t("aiAgent.sectionCapability"), icon: <PlugIcon /> },
+    { key: "service", title: t("aiAgent.sectionService"), icon: <UserRoundCheckIcon /> },
   ]
 
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        加载中...
+        {t("common.loading")}
       </div>
     )
   }
@@ -502,24 +511,24 @@ export function AIAgentConfigWorkbench({
             <BotMessageSquareIcon className="size-5" />
           </div> */}
           <div className="flex min-w-0 items-center gap-2">
-            <h1 className="truncate text-base font-semibold">{agent?.name || "新建 AI Agent"}</h1>
+            <h1 className="truncate text-base font-semibold">{agent?.name || t("aiAgent.new")}</h1>
             {agent?.statusName ? <Badge variant="secondary">{agent.statusName}</Badge> : null}
             <Badge variant={agentPublished ? "default" : "outline"}>
-              {agentPublished ? "已发布" : agent ? "未发布" : "尚未创建"}
+              {agentPublished ? t("aiAgent.published") : agent ? t("aiAgent.unpublished") : t("aiAgent.notCreated")}
             </Badge>
           </div>
           {agent ? (
             <Button type="button" variant="link" onClick={() => setVersionDialogOpen(true)}>
               <HistoryIcon />
-              版本记录
+              {t("aiAgent.versionHistory")}
             </Button>
           ) : null}
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-64 shrink-0 flex-col border-r bg-muted/20 p-4 md:flex">
-          <div className="px-3 pb-2 text-[11px] font-semibold tracking-wider text-muted-foreground">
-            AGENT 配置
+          <div className="px-3 pb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+            {t("aiAgent.columnAiConfig")}
           </div>
           <nav className="space-y-1">
             {sections.map((section, index) => (
@@ -550,9 +559,9 @@ export function AIAgentConfigWorkbench({
             ))}
           </nav>
           <div className="mt-auto flex items-center justify-between rounded-lg border bg-background p-3 text-xs">
-            <span className="text-muted-foreground">状态</span>
+            <span className="text-muted-foreground">{t("common.status")}</span>
             <span className={agentPublished ? "font-medium text-emerald-600" : "font-medium text-amber-600"}>
-              {agentPublished ? "已发布" : agent ? "未发布" : "尚未创建"}
+              {agentPublished ? t("aiAgent.published") : agent ? t("aiAgent.unpublished") : t("aiAgent.notCreated")}
             </span>
           </div>
         </aside>
@@ -562,22 +571,22 @@ export function AIAgentConfigWorkbench({
             {activeSection === "setup" ? (
               <div className="space-y-10">
                 <FormSection
-                  title="基本信息"
-                  description="配置 Agent 的后台名称、服务方式和职责说明。"
+                  title={t("aiAgent.sectionBasic")}
+                  description={t("aiAgent.basicDescription")}
                 >
                   <div className="grid gap-5 md:grid-cols-2">
-                    <FieldBlock label="Agent 名称" required>
+                    <FieldBlock label={t("aiAgent.name")} required>
                       <Input value={name} onChange={(event) => setName(event.target.value)} />
                     </FieldBlock>
-                    <FieldBlock label="服务模式">
+                    <FieldBlock label={t("aiAgent.columnServiceMode")}>
                       <OptionCombobox
                         value={serviceMode}
                         options={serviceModeOptions}
-                        placeholder="选择服务模式"
+                        placeholder={t("aiAgent.selectServiceMode")}
                         onChange={setServiceMode}
                       />
                     </FieldBlock>
-                    <FieldBlock label="描述" className="md:col-span-2">
+                    <FieldBlock label={t("aiAgent.description")} className="md:col-span-2">
                       <Textarea
                         rows={4}
                         value={description}
@@ -588,21 +597,21 @@ export function AIAgentConfigWorkbench({
                 </FormSection>
 
                 <FormSection
-                  title="模型与响应"
-                  description="选择推理模型并设置单次回复的超时时间。"
+                  title={t("aiAgent.sectionModel")}
+                  description={t("aiAgent.modelDescription")}
                 >
                   <div className="grid gap-5 md:grid-cols-2">
-                    <FieldBlock label="AI 配置" required>
+                    <FieldBlock label={t("aiAgent.aiConfig")} required>
                       <OptionCombobox
                         value={aiConfigId}
                         options={aiConfigOptions}
-                        placeholder="选择 AI 配置"
-                        searchPlaceholder="搜索 AI 配置"
-                        emptyText="没有可用 AI 配置"
+                        placeholder={t("aiAgent.selectAiConfig")}
+                        searchPlaceholder={t("aiAgent.searchAiConfig")}
+                        emptyText={t("aiAgent.emptyAiConfig")}
                         onChange={setAIConfigId}
                       />
                     </FieldBlock>
-                    <FieldBlock label="回复超时">
+                    <FieldBlock label={t("aiAgent.replyTimeout")}>
                       <div className="relative">
                         <Input
                           type="number"
@@ -613,7 +622,7 @@ export function AIAgentConfigWorkbench({
                           onChange={(event) => setReplyTimeoutSeconds(event.target.value)}
                         />
                         <span className="pointer-events-none absolute top-2.5 right-3 text-sm text-muted-foreground">
-                          秒
+                          {t("aiAgent.seconds")}
                         </span>
                       </div>
                     </FieldBlock>
@@ -625,8 +634,8 @@ export function AIAgentConfigWorkbench({
             {activeSection === "persona" ? (
               <div className="space-y-10">
                 <FormSection
-                  title="系统提示词"
-                  description="定义 Agent 的角色、任务和回复边界，支持 Markdown。"
+                  title={t("aiAgent.sectionRole")}
+                  description={t("aiAgent.personaDescription")}
                 >
                   <ContentEditor
                     value={{ mode: "markdown", raw: systemPrompt }}
@@ -636,8 +645,8 @@ export function AIAgentConfigWorkbench({
                   />
                 </FormSection>
                 <FormSection
-                  title="欢迎语"
-                  description="进入会话时发送的首次回复，留空时不主动发送。"
+                  title={t("aiAgent.sectionGreeting")}
+                  description={t("aiAgent.greetingDescription")}
                 >
                   <Textarea
                     rows={5}
@@ -651,15 +660,15 @@ export function AIAgentConfigWorkbench({
             {activeSection === "capability" ? (
               <div className="space-y-10">
                 <FormSection
-                  title="知识库"
-                  description="Agent 回答时可以检索的知识范围。"
+                  title={t("aiAgent.sectionKnowledge")}
+                  description={t("aiAgent.knowledgeDescription")}
                 >
                   <OptionCombobox
                     multiple
                     values={selectedKnowledgeBaseIds.map(String)}
                     options={knowledgeBaseOptions}
-                    placeholder="选择知识库"
-                    emptyText="没有可用知识库"
+                    placeholder={t("aiAgent.selectKnowledge")}
+                    emptyText={t("aiAgent.emptyKnowledge")}
                     onValuesChange={(values) =>
                       setSelectedKnowledgeBaseIds(values.map(Number))
                     }
@@ -667,22 +676,22 @@ export function AIAgentConfigWorkbench({
                 </FormSection>
 
                 <FormSection
-                  title="Skill"
-                  description="Agent 可以调用的标准能力。"
+                  title={t("aiAgent.sectionSkill")}
+                  description={t("aiAgent.skillDescription")}
                 >
                   <OptionCombobox
                     multiple
                     values={selectedSkillIds.map(String)}
                     options={skillOptions}
-                    placeholder="选择 Skill"
-                    emptyText="没有可用 Skill"
+                    placeholder={t("aiAgent.selectSkill")}
+                    emptyText={t("aiAgent.emptySkill")}
                     onValuesChange={(values) => setSelectedSkillIds(values.map(Number))}
                   />
                 </FormSection>
 
                 <FormSection
-                  title="工作流"
-                  description="关联工作流中心中已经发布的固定版本。"
+                  title={t("aiAgent.sectionWorkflow")}
+                  description={t("aiAgent.workflowDescription")}
                 >
                   <OptionCombobox
                     multiple
@@ -690,22 +699,22 @@ export function AIAgentConfigWorkbench({
                       String(binding.workflowVersionId),
                     )}
                     options={workflowOptions}
-                    placeholder="选择已发布工作流"
-                    emptyText="没有已发布的工作流"
+                    placeholder={t("aiAgent.selectWorkflow")}
+                    emptyText={t("aiAgent.emptyWorkflow")}
                     onValuesChange={setWorkflowSelection}
                   />
                 </FormSection>
 
                 <FormSection
-                  title="MCP Tool"
-                  description="选择允许 Agent 调用的 MCP Tool，选项与 MCP Tool 管理中的可用工具保持一致。"
+                  title={t("aiAgent.sectionMcp")}
+                  description={t("aiAgent.mcpDescription")}
                 >
                   <OptionCombobox
                     multiple
                     values={mcpTools.map((tool) => tool.toolCode)}
                     options={mcpToolOptions}
-                    placeholder="选择 MCP Tool"
-                    emptyText="没有可用 MCP Tool"
+                    placeholder={t("aiAgent.selectMCPTool")}
+                    emptyText={t("aiAgent.emptyMCPTool")}
                     onValuesChange={setMCPToolSelection}
                   />
                   {mcpTools.length > 0 ? (
@@ -731,8 +740,8 @@ export function AIAgentConfigWorkbench({
                               {catalogTool && !catalogTool.riskEditable ? (
                                 <Badge variant="secondary">
                                   {tool.riskLevel === "read"
-                                    ? "只读（系统定义）"
-                                    : "写操作（系统定义）"}
+                                    ? `${t("aiAgent.readOnly")} (${t("aiAgent.systemDefined")})`
+                                    : `${t("aiAgent.writeAction")} (${t("aiAgent.systemDefined")})`}
                                 </Badge>
                               ) : (
                                 <>
@@ -756,7 +765,7 @@ export function AIAgentConfigWorkbench({
                                       )
                                     }
                                   >
-                                    只读
+                                    {t("aiAgent.readOnly")}
                                   </Button>
                                   <Button
                                     type="button"
@@ -780,7 +789,7 @@ export function AIAgentConfigWorkbench({
                                       )
                                     }
                                   >
-                                    写操作（需确认）
+                                    {t("aiAgent.writeAction")}
                                   </Button>
                                 </>
                               )}
@@ -797,19 +806,19 @@ export function AIAgentConfigWorkbench({
             {activeSection === "service" ? (
               <div className="space-y-10">
                 <FormSection
-                  title="转人工"
-                  description="配置需要人工介入时的接入方式和承接客服组。"
+                  title={t("aiAgent.sectionHandoff")}
+                  description={t("aiAgent.handoffDescription")}
                 >
                   <div className="grid gap-5 md:grid-cols-2">
-                    <FieldBlock label="执行方式">
+                    <FieldBlock label={t("aiAgent.handoffMode")}>
                       <OptionCombobox
                         value={handoffMode}
                         options={handoffModeOptions}
-                        placeholder="选择转人工执行方式"
+                        placeholder={t("aiAgent.selectHandoffMode")}
                         onChange={setHandoffMode}
                       />
                     </FieldBlock>
-                    <FieldBlock label="客服组">
+                    <FieldBlock label={t("aiAgent.teams")}>
                       <div className="flex gap-2">
                         <div className="min-w-0 flex-1">
                           <OptionCombobox
@@ -818,7 +827,7 @@ export function AIAgentConfigWorkbench({
                               (option) =>
                                 !selectedTeamIds.includes(Number(option.value)),
                             )}
-                            placeholder="选择客服组"
+                            placeholder={t("aiAgent.selectTeam")}
                             onChange={setTeamToAdd}
                           />
                         </div>
@@ -831,13 +840,13 @@ export function AIAgentConfigWorkbench({
                             setTeamToAdd("")
                           }}
                         >
-                          添加
+                          {t("aiAgent.add")}
                         </Button>
                       </div>
                     </FieldBlock>
                   </div>
                   <BadgeList
-                    empty="未配置客服组"
+                    empty={t("aiAgent.noTeams")}
                     items={selectedOptions(selectedTeamIds, teamOptions)}
                     onRemove={(id) =>
                       setSelectedTeamIds((current) =>
@@ -848,18 +857,18 @@ export function AIAgentConfigWorkbench({
                 </FormSection>
 
                 <FormSection
-                  title="知识不足"
-                  description="配置 Agent 无法确定答案时的处理策略和回复内容。"
+                  title={t("aiAgent.sectionFallback")}
+                  description={t("aiAgent.fallbackDescription")}
                 >
-                  <FieldBlock label="处理策略">
+                  <FieldBlock label={t("aiAgent.fallbackMode")}>
                     <OptionCombobox
                       value={fallbackMode}
                       options={fallbackModeOptions}
-                      placeholder="选择知识不足回复策略"
+                      placeholder={t("aiAgent.selectFallbackMode")}
                       onChange={setFallbackMode}
                     />
                   </FieldBlock>
-                  <FieldBlock label="回复文案">
+                  <FieldBlock label={t("aiAgent.fallbackMessage")}>
                     <Textarea
                       rows={5}
                       value={fallbackMessage}
@@ -883,13 +892,13 @@ export function AIAgentConfigWorkbench({
           />
           <span>
             {agentPublished
-              ? "已发布版本正在生效；再次发布后应用当前配置"
-              : "发布时会先保存当前配置"}
+              ? t("aiAgent.publishedNote")
+              : t("aiAgent.unpublishedNote")}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" onClick={onCancel}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button
             type="button"
@@ -898,11 +907,11 @@ export function AIAgentConfigWorkbench({
             onClick={saveAgentSettings}
           >
             <SaveIcon />
-            保存配置
+            {t("aiAgent.saveConfig")}
           </Button>
           {agent ? (
             <Button type="button" disabled={saving} onClick={publishAgent}>
-              发布 Agent
+              {t("aiAgent.publishAgent")}
             </Button>
           ) : null}
         </div>
@@ -911,7 +920,7 @@ export function AIAgentConfigWorkbench({
       <ProjectDialog
         open={versionDialogOpen}
         onOpenChange={setVersionDialogOpen}
-        title="版本记录"
+        title={t("aiAgent.versionHistory")}
         size="xl"
       >
         <VersionRecordsTable
@@ -1017,17 +1026,19 @@ function VersionRecordsTable({
   onRollback: (revisionId: number) => void
   rollbackDisabled: boolean
 }) {
+  const t = useI18n()
+
   return (
     <div className="max-h-[60vh] overflow-auto rounded-md border">
       {agentRevisions.length > 0 ? (
         <Table>
           <TableHeader className="bg-muted/40">
             <TableRow>
-              <TableHead className="w-28">版本</TableHead>
-              <TableHead>发布时间</TableHead>
-              <TableHead>发布人</TableHead>
-              <TableHead>定义摘要</TableHead>
-              <TableHead className="text-right">操作</TableHead>
+              <TableHead className="w-28">{t("aiAgent.versionHistory")}</TableHead>
+              <TableHead>{t("common.name")}</TableHead>
+              <TableHead>{t("common.status")}</TableHead>
+              <TableHead>{t("aiAgent.description")}</TableHead>
+              <TableHead className="text-right">{t("aiAgent.columnActions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1039,7 +1050,7 @@ function VersionRecordsTable({
                     r{revision.revision}
                     {active ? (
                       <Badge variant="secondary" className="ml-2">
-                        当前生效
+                        {t("aiAgent.activeRevision")}
                       </Badge>
                     ) : null}
                   </TableCell>
@@ -1058,7 +1069,7 @@ function VersionRecordsTable({
                       disabled={active || rollbackDisabled}
                       onClick={() => onRollback(revision.id)}
                     >
-                      回滚
+                      {t("aiAgent.rollback")}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -1067,7 +1078,7 @@ function VersionRecordsTable({
           </TableBody>
         </Table>
       ) : (
-        <div className="p-5 text-sm text-muted-foreground">暂无已发布 Agent 版本。</div>
+        <div className="p-5 text-sm text-muted-foreground">{t("aiAgent.noRevisions")}</div>
       )}
     </div>
   )
