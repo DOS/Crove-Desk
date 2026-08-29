@@ -17,6 +17,7 @@ import {
   type AIWorkflow,
   type CreateAIWorkflowPayload,
 } from "@/lib/api/admin"
+import { useI18n } from "@/i18n/provider"
 import { formatDateTime } from "@/lib/utils"
 
 import { WorkflowUsageDialog } from "./_components/workflow-usage-dialog"
@@ -24,6 +25,7 @@ import { WorkflowVersionsDialog } from "./_components/workflow-versions-dialog"
 import { WorkflowWorkbench } from "./_components/workflow-workbench"
 
 export default function DashboardAIWorkflowsPage() {
+  const t = useI18n()
   const [reloadKey, setReloadKey] = useState(0)
   const [versionsWorkflow, setVersionsWorkflow] =
     useState<AIWorkflow | null>(null)
@@ -35,8 +37,8 @@ export default function DashboardAIWorkflowsPage() {
         filters={[
           {
             name: "name",
-            label: "工作流名称",
-            placeholder: "搜索工作流名称",
+            label: t("aiWorkflow.filterName"),
+            placeholder: t("aiWorkflow.searchName"),
             defaultValue: "",
             trim: true,
             className: "w-full sm:w-72",
@@ -45,7 +47,7 @@ export default function DashboardAIWorkflowsPage() {
         columns={[
           {
             key: "workflow",
-            label: "工作流",
+            label: t("aiWorkflow.columnWorkflow"),
             render: (item) => (
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -54,7 +56,7 @@ export default function DashboardAIWorkflowsPage() {
                 <div className="min-w-0">
                   <div className="font-medium">{item.name}</div>
                   <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                    {item.description || "暂无业务说明"}
+                    {item.description || t("aiWorkflow.noDescription")}
                   </div>
                 </div>
               </div>
@@ -62,26 +64,26 @@ export default function DashboardAIWorkflowsPage() {
           },
           {
             key: "status",
-            label: "状态",
+            label: t("aiWorkflow.columnStatus"),
             render: (item) => (
               <Badge
                 variant={item.publishedVersionId ? "secondary" : "outline"}
               >
-                {item.publishedVersionId ? "已发布" : "草稿"}
+                {item.publishedVersionId ? t("aiWorkflow.published") : t("aiWorkflow.draft")}
               </Badge>
             ),
           },
           {
             key: "version",
-            label: "当前版本",
+            label: t("aiWorkflow.currentVersion"),
             render: (item) =>
               item.publishedVersionId
-                ? `已发布 #${item.publishedVersionId}`
+                ? t("aiWorkflow.publishedVersion", { version: item.publishedVersionId })
                 : "-",
           },
           {
             key: "updatedAt",
-            label: "更新时间",
+            label: t("common.actions"),
             render: (item) => formatDateTime(item.updatedAt),
           },
         ]}
@@ -99,13 +101,13 @@ export default function DashboardAIWorkflowsPage() {
         rowActions={[
           {
             key: "versions",
-            label: "版本历史",
+            label: t("aiWorkflow.versionHistory"),
             icon: <HistoryIcon />,
             run: ({ item }) => setVersionsWorkflow(item),
           },
           {
             key: "usage",
-            label: "使用情况",
+            label: t("aiWorkflow.usage"),
             icon: <UsersIcon />,
             run: ({ item }) => setUsageWorkflow(item),
           },
@@ -115,7 +117,7 @@ export default function DashboardAIWorkflowsPage() {
           <ProjectDialog
             open={open}
             onOpenChange={onOpenChange}
-            title={item ? "编辑工作流" : "新建工作流"}
+            title={item ? t("aiWorkflow.editTitle") : t("aiWorkflow.createTitle")}
             defaultFullscreen
             bodyScrollable={false}
             headerClassName="sr-only"
@@ -127,22 +129,22 @@ export default function DashboardAIWorkflowsPage() {
           </ProjectDialog>
         )}
         labels={{
-          refresh: "刷新",
-          create: "创建工作流",
-          query: "查询",
-          loading: "正在加载工作流…",
-          empty: "暂无工作流",
-          actions: "操作",
-          edit: "编辑",
-          delete: "删除",
-          processing: "处理中…",
-          moreActions: (item) => `${item.name} 的更多操作`,
-          loadFailed: "加载工作流失败",
-          saveFailed: "保存工作流失败",
-          deleteFailed: "删除工作流失败",
-          created: (payload) => `已创建 ${payload.name}`,
-          updated: (item) => `已更新 ${item.name}`,
-          deleted: (item) => `已删除 ${item.name}`,
+          refresh: t("aiWorkflow.refresh"),
+          create: t("aiWorkflow.create"),
+          query: t("aiWorkflow.query"),
+          loading: t("aiWorkflow.loading"),
+          empty: t("aiWorkflow.empty"),
+          actions: t("aiWorkflow.actions"),
+          edit: t("aiWorkflow.edit"),
+          delete: t("aiWorkflow.delete"),
+          processing: t("aiWorkflow.processing"),
+          moreActions: (item) => t("aiWorkflow.moreActions", { name: item.name }),
+          loadFailed: t("aiWorkflow.loadFailed"),
+          saveFailed: t("aiWorkflow.saveFailed"),
+          deleteFailed: t("aiWorkflow.deleteFailed"),
+          created: (payload) => t("aiWorkflow.created", { name: payload.name }),
+          updated: (item) => t("aiWorkflow.updated", { name: item.name }),
+          deleted: (item) => t("aiWorkflow.deleted", { name: item.name }),
         }}
       />
 

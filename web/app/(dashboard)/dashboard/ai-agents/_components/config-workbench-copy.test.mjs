@@ -3,8 +3,8 @@ import test from "node:test"
 import { readFile } from "node:fs/promises"
 
 const configWorkbenchSource = await readFile(new URL("./config-workbench.tsx", import.meta.url), "utf8")
-const zhMessagesSource = await readFile(new URL("../../../../messages/zh-CN.json", import.meta.url), "utf8")
-const adminApiSource = await readFile(new URL("../../../../lib/api/admin.ts", import.meta.url), "utf8")
+const zhMessagesSource = await readFile(new URL("../../../../../messages/zh-CN.json", import.meta.url), "utf8")
+const adminApiSource = await readFile(new URL("../../../../../lib/api/admin.ts", import.meta.url), "utf8")
 const zhMessages = JSON.parse(zhMessagesSource)
 
 test("AI Agent policy copy separates handoff execution from knowledge fallback", () => {
@@ -33,12 +33,13 @@ test("AI Agent config no longer exposes legacy graph tool routing knobs", () => 
 })
 
 test("AI Agent config uses one Agent Loop without a runtime mode selector", () => {
+  const combinedSource = `${configWorkbenchSource}\n${zhMessagesSource}`
   assert.doesNotMatch(configWorkbenchSource, /runtimeMode/)
   assert.doesNotMatch(adminApiSource, /runtimeMode/)
   assert.doesNotMatch(configWorkbenchSource, /运行方式/)
   assert.doesNotMatch(configWorkbenchSource, /Workflow 是 Agent 的可选能力/)
   assert.doesNotMatch(configWorkbenchSource, /管理工作流/)
-  assert.match(configWorkbenchSource, /写操作（需确认）/)
+  assert.match(combinedSource, /写操作（需确认）/)
 })
 
 test("publishing an AI Agent saves the current form before publishing", () => {
@@ -56,24 +57,26 @@ test("publishing an AI Agent saves the current form before publishing", () => {
 
   assert.ok(saveIndex >= 0)
   assert.ok(publishIndex > saveIndex)
-  assert.match(publishFunction, /Agent 配置已保存并发布/)
+  assert.match(publishFunction, /publishedSuccess/)
 })
 
 test("saving a published AI Agent keeps the active revision online", () => {
   const saveFunction = configWorkbenchSource.match(
     /async function saveAgentSettings\(\) \{([\s\S]*?)\n  \}/,
   )?.[1]
+  const combinedSource = `${configWorkbenchSource}\n${zhMessagesSource}`
 
   assert.ok(saveFunction)
-  assert.match(configWorkbenchSource, /配置已保存，当前已发布版本继续生效/)
-  assert.match(configWorkbenchSource, /已发布版本正在生效；再次发布后应用当前配置/)
+  assert.match(combinedSource, /配置已保存，当前已发布版本继续生效/)
+  assert.match(combinedSource, /已发布版本正在生效；再次发布后应用当前配置/)
   assert.doesNotMatch(saveFunction, /loadData\(\)/)
 })
 
 test("trusted MCP tools use backend risk metadata and cannot be edited", () => {
+  const combinedSource = `${configWorkbenchSource}\n${zhMessagesSource}`
   assert.match(adminApiSource, /riskEditable: boolean/)
   assert.match(configWorkbenchSource, /riskLevel: tool\.riskLevel/)
   assert.match(configWorkbenchSource, /requireConfirmation: tool\.requireConfirmation/)
-  assert.match(configWorkbenchSource, /只读（系统定义）/)
+  assert.match(combinedSource, /系统定义/)
   assert.match(configWorkbenchSource, /!catalogTool\.riskEditable/)
 })
