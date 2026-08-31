@@ -5,10 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"agent-desk/internal/email"
 	"agent-desk/internal/models"
+	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/pkg/openidentity"
@@ -18,7 +22,10 @@ import (
 	"github.com/mlogclub/simple/sqls"
 )
 
-var EmailInboundService = newEmailInboundService()
+var (
+	EmailInboundService = newEmailInboundService()
+	ticketIDRegex       = regexp.MustCompile(`(?i)(?:\[(?:#|Ticket\s*#?)|(?:#|Ticket\s*#))\s*(\d+)`)
+)
 
 func newEmailInboundService() *emailInboundService {
 	return &emailInboundService{}
@@ -26,8 +33,8 @@ func newEmailInboundService() *emailInboundService {
 
 type emailInboundService struct{}
 
-// HandleWebhook processes an incoming email webhook from Brevo, SendGrid, or custom SMTP webhook gateway.
-func (s *emailInboundService) HandleWebhook(ctx context.Context, channelID string, secretHeader string, rawPayload []byte) error {
+// HandleWebhook processes an incoming email webhook from any supported provider (Cloudflare, Brevo, SendGrid, Postmark, Mailgun, Resend).
+func (s *emailInboundService) HandleWebhook(ctx context.Context, channelID string, secretHeader string, contentType string, rawPayload []byte, form url.Values) error {
 	channelID = strings.TrimSpace(channelID)
 	var channel *models.Channel
 	if channelID != "" {
@@ -35,12 +42,17 @@ func (s *emailInboundService) HandleWebhook(ctx context.Context, channelID strin
 	}
 
 	// 1. Parse inbound email items
-	inboundItems, err := s.parseInboundPayload(rawPayload)
+	inboundItems, err := email.ParseInboundWebhook(contentType, rawPayload, form)
 	if err != nil {
 		return fmt.Errorf("parse email webhook failed: %w", err)
 	}
 	if len(inboundItems) == 0 {
 		return nil
+	}
+
+	systemSecret := ""
+	if cfg := config.GetCurrent(); cfg != nil {
+		systemSecret = cfg.Email.InboundSecret
 	}
 
 	for _, item := range inboundItems {
@@ -61,7 +73,12 @@ func (s *emailInboundService) HandleWebhook(ctx context.Context, channelID strin
 			return errorsx.InvalidParam("email channel config invalid")
 		}
 
-		if cfg.WebhookSecret != "" && strings.TrimSpace(secretHeader) != cfg.WebhookSecret {
+		expectedSecret := cfg.WebhookSecret
+		if expectedSecret == "" {
+			expectedSecret = systemSecret
+		}
+
+		if expectedSecret != "" && strings.TrimSpace(secretHeader) != expectedSecret {
 			return errorsx.UnauthorizedI18n("error.auth.invalidSignature")
 		}
 
@@ -106,10 +123,27 @@ func (s *emailInboundService) processInboundItem(ctx context.Context, channel *m
 		ExternalName:   fromName,
 	}
 
-	// 2. Create or match Conversation
-	conversation, err := ConversationService.Create(externalUser, channel.ID, channel.AIAgentID)
-	if err != nil {
-		return fmt.Errorf("create email conversation failed: %w", err)
+	// 2. Threading Resolution: Find existing conversation by Ticket ID or In-Reply-To header
+	var conversation *models.Conversation
+	ticketID := s.extractTicketID(item.Subject)
+	if ticketID > 0 {
+		existing := ConversationService.Get(ticketID)
+		if existing != nil && existing.Status != enums.IMConversationStatusClosed {
+			conversation = existing
+		}
+	}
+
+	if conversation == nil && item.InReplyTo != "" {
+		conversation = s.findConversationByInReplyTo(item.InReplyTo)
+	}
+
+	// If no existing thread matched, create or match via standard ConversationService
+	if conversation == nil {
+		var err error
+		conversation, err = ConversationService.Create(externalUser, channel.ID, channel.AIAgentID)
+		if err != nil {
+			return fmt.Errorf("create email conversation failed: %w", err)
+		}
 	}
 
 	// Ensure customer primary_email is populated
@@ -134,10 +168,11 @@ func (s *emailInboundService) processInboundItem(ctx context.Context, channel *m
 		"email_subject":    item.Subject,
 		"email_message_id": item.MessageID,
 		"email_in_reply":   item.InReplyTo,
+		"email_references": item.References,
 	}
 	payloadBytes, _ := json.Marshal(payloadMap)
 
-	_, err = MessageService.SendCustomerMessage(
+	_, err := MessageService.SendCustomerMessage(
 		conversation.ID,
 		clientMsgID,
 		enums.IMMessageTypeText,
@@ -149,67 +184,42 @@ func (s *emailInboundService) processInboundItem(ctx context.Context, channel *m
 		return fmt.Errorf("send customer message failed: %w", err)
 	}
 
-	slog.Info("inbound email successfully processed", "from", fromEmail, "channel_id", channel.ChannelID, "conversation_id", conversation.ID)
+	slog.Info("inbound email successfully processed",
+		"from", fromEmail,
+		"channel_id", channel.ChannelID,
+		"conversation_id", conversation.ID,
+		"subject", item.Subject,
+	)
 	return nil
 }
 
-func (s *emailInboundService) parseInboundPayload(raw []byte) ([]email.InboundEmailPayload, error) {
-	rawStr := strings.TrimSpace(string(raw))
-	if rawStr == "" {
-		return nil, nil
-	}
-
-	// Try Brevo format first
-	var brevoWebhook email.BrevoInboundWebhook
-	if err := json.Unmarshal(raw, &brevoWebhook); err == nil && len(brevoWebhook.Items) > 0 {
-		var results []email.InboundEmailPayload
-		for _, item := range brevoWebhook.Items {
-			fromEmail, fromName := email.ParseAddress(item.Sender)
-			toEmail, _ := email.ParseAddress(item.Recipient)
-			msgID := ""
-			if len(item.UUID) > 0 {
-				msgID = item.UUID[0]
-			}
-			results = append(results, email.InboundEmailPayload{
-				FromEmail: fromEmail,
-				FromName:  fromName,
-				ToEmail:   toEmail,
-				Subject:   strings.TrimSpace(item.Subject),
-				BodyText:  strings.TrimSpace(item.RawTextBody),
-				BodyHTML:  strings.TrimSpace(item.RawHTMLBody),
-				MessageID: msgID,
-			})
+func (s *emailInboundService) extractTicketID(subject string) int64 {
+	matches := ticketIDRegex.FindStringSubmatch(subject)
+	if len(matches) > 1 {
+		if id, err := strconv.ParseInt(matches[1], 10, 64); err == nil && id > 0 {
+			return id
 		}
-		return results, nil
 	}
+	return 0
+}
 
-	// Try Generic JSON format
-	var generic email.GenericInboundWebhook
-	if err := json.Unmarshal(raw, &generic); err == nil && generic.From != "" {
-		fromEmail, fromName := email.ParseAddress(generic.From)
-		if generic.FromName != "" {
-			fromName = generic.FromName
-		}
-		toEmail, _ := email.ParseAddress(generic.To)
-		body := generic.Text
-		if body == "" {
-			body = generic.Body
-		}
-		return []email.InboundEmailPayload{
-			{
-				FromEmail: fromEmail,
-				FromName:  fromName,
-				ToEmail:   toEmail,
-				Subject:   strings.TrimSpace(generic.Subject),
-				BodyText:  strings.TrimSpace(body),
-				BodyHTML:  strings.TrimSpace(generic.HTML),
-				MessageID: generic.MessageID,
-				InReplyTo: generic.InReplyTo,
-			},
-		}, nil
+func (s *emailInboundService) findConversationByInReplyTo(inReplyTo string) *models.Conversation {
+	inReplyTo = strings.TrimSpace(inReplyTo)
+	if inReplyTo == "" {
+		return nil
 	}
-
-	return nil, fmt.Errorf("unrecognized email webhook format")
+	// Look up recent message containing this email message ID
+	likePattern := "%" + inReplyTo + "%"
+	msg := repositories.MessageRepository.FindOne(sqls.DB(), sqls.NewCnd().
+		Where("payload LIKE ?", likePattern).
+		Desc("id"))
+	if msg != nil && msg.ConversationID > 0 {
+		conv := ConversationService.Get(msg.ConversationID)
+		if conv != nil && conv.Status != enums.IMConversationStatusClosed {
+			return conv
+		}
+	}
+	return nil
 }
 
 func stripHTMLTags(s string) string {

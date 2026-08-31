@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"agent-desk/internal/services"
@@ -11,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// EmailPostWebhook receives incoming inbound email webhook events from Brevo, SendGrid, Postmark or SMTP forwarders.
+// EmailPostWebhook receives incoming inbound email webhook events from Cloudflare, Brevo, SendGrid, Postmark, Mailgun, or SMTP forwarders.
 func EmailPostWebhook(ctx *gin.Context) {
 	channelID := strings.TrimSpace(ctx.Param("channel_id"))
 	if channelID == "" {
@@ -23,17 +24,33 @@ func EmailPostWebhook(ctx *gin.Context) {
 		secretHeader = ctx.GetHeader("X-Brevo-Webhook-Secret")
 	}
 	if secretHeader == "" {
+		secretHeader = ctx.GetHeader("X-Postmark-Webhook-Secret")
+	}
+	if secretHeader == "" {
 		secretHeader = ctx.Query("secret")
 	}
 
-	bodyBytes, err := io.ReadAll(ctx.Request.Body)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "failed to read body"})
-		return
-	}
-	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	contentType := ctx.GetHeader("Content-Type")
 
-	if err := services.EmailInboundService.HandleWebhook(ctx.Request.Context(), channelID, secretHeader, bodyBytes); err != nil {
+	var formValues url.Values
+	var bodyBytes []byte
+
+	if strings.Contains(strings.ToLower(contentType), "multipart/form-data") {
+		if err := ctx.Request.ParseMultipartForm(32 << 20); err == nil && ctx.Request.MultipartForm != nil {
+			formValues = ctx.Request.MultipartForm.Value
+		}
+	} else if strings.Contains(strings.ToLower(contentType), "application/x-www-form-urlencoded") {
+		if err := ctx.Request.ParseForm(); err == nil {
+			formValues = ctx.Request.PostForm
+		}
+	}
+
+	if ctx.Request.Body != nil {
+		bodyBytes, _ = io.ReadAll(ctx.Request.Body)
+		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	}
+
+	if err := services.EmailInboundService.HandleWebhook(ctx.Request.Context(), channelID, secretHeader, contentType, bodyBytes, formValues); err != nil {
 		ctx.JSON(http.StatusOK, gin.H{"ok": false, "error": err.Error()})
 		return
 	}

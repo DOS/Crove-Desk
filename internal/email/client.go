@@ -12,82 +12,55 @@ import (
 	"net/http"
 	"net/mail"
 	"net/smtp"
+	"net/url"
 	"strings"
 	"time"
 )
 
 const (
-	defaultBrevoBaseURL = "https://api.brevo.com/v3"
-	defaultTimeout      = 15 * time.Second
+	defaultBrevoBaseURL    = "https://api.brevo.com/v3"
+	defaultSendGridBaseURL = "https://api.sendgrid.com/v3"
+	defaultResendBaseURL   = "https://api.resend.com"
+	defaultPostmarkBaseURL = "https://api.postmarkapp.com"
+	defaultMailgunBaseURL  = "https://api.mailgun.net/v3"
+	defaultTimeout         = 20 * time.Second
 )
 
+// Client interface for sending emails across multiple providers.
 type Client interface {
 	SendEmail(ctx context.Context, req SendEmailParams) error
 }
 
-type SendEmailParams struct {
-	FromEmail string
-	FromName  string
-	ToEmail   string
-	ToName    string
-	Subject   string
-	BodyText  string
-	BodyHTML  string
-	InReplyTo string
-}
-
 type emailClient struct {
-	provider     string
-	apiKey       string
-	brevoBaseURL string
-	smtpHost     string
-	smtpPort     int
-	smtpUser     string
-	smtpPassword string
-	httpClient   *http.Client
+	cfg        ClientConfig
+	httpClient *http.Client
 }
 
-type ClientConfig struct {
-	Provider     string
-	APIKey       string
-	BrevoBaseURL string
-	SMTPHost     string
-	SMTPPort     int
-	SMTPUser     string
-	SMTPPassword string
-	HTTPClient   *http.Client
-}
-
+// NewClient creates a new unified Email client.
 func NewClient(cfg ClientConfig) Client {
-	provider := strings.ToLower(strings.TrimSpace(cfg.Provider))
+	provider := DeliveryProvider(strings.ToLower(strings.TrimSpace(string(cfg.Provider))))
 	if provider == "" {
 		if cfg.APIKey != "" {
-			provider = "brevo"
+			if strings.HasPrefix(cfg.APIKey, "xkeysib-") {
+				provider = ProviderBrevo
+			} else if strings.HasPrefix(cfg.APIKey, "SG.") {
+				provider = ProviderSendGrid
+			} else if strings.HasPrefix(cfg.APIKey, "re_") {
+				provider = ProviderResend
+			} else {
+				provider = ProviderBrevo
+			}
 		} else {
-			provider = "smtp"
+			provider = ProviderSMTP
 		}
 	}
-	brevoBaseURL := strings.TrimRight(strings.TrimSpace(cfg.BrevoBaseURL), "/")
-	if brevoBaseURL == "" {
-		brevoBaseURL = defaultBrevoBaseURL
-	}
-	httpClient := cfg.HTTPClient
-	if httpClient == nil {
-		httpClient = &http.Client{Timeout: defaultTimeout}
-	}
-	smtpPort := cfg.SMTPPort
-	if smtpPort <= 0 {
-		smtpPort = 587
+	cfg.Provider = provider
+	if cfg.SMTPPort <= 0 {
+		cfg.SMTPPort = 587
 	}
 	return &emailClient{
-		provider:     provider,
-		apiKey:       strings.TrimSpace(cfg.APIKey),
-		brevoBaseURL: brevoBaseURL,
-		smtpHost:     strings.TrimSpace(cfg.SMTPHost),
-		smtpPort:     smtpPort,
-		smtpUser:     strings.TrimSpace(cfg.SMTPUser),
-		smtpPassword: strings.TrimSpace(cfg.SMTPPassword),
-		httpClient:   httpClient,
+		cfg:        cfg,
+		httpClient: &http.Client{Timeout: defaultTimeout},
 	}
 }
 
@@ -101,18 +74,35 @@ func (c *emailClient) SendEmail(ctx context.Context, req SendEmailParams) error 
 		req.Subject = "Support Notification"
 	}
 
-	if c.provider == "brevo" || (c.apiKey != "" && c.smtpHost == "") {
+	switch c.cfg.Provider {
+	case ProviderBrevo:
 		return c.sendViaBrevo(ctx, req)
+	case ProviderSendGrid:
+		return c.sendViaSendGrid(ctx, req)
+	case ProviderResend:
+		return c.sendViaResend(ctx, req)
+	case ProviderPostmark:
+		return c.sendViaPostmark(ctx, req)
+	case ProviderMailgun:
+		return c.sendViaMailgun(ctx, req)
+	default:
+		return c.sendViaSMTP(ctx, req)
 	}
-	return c.sendViaSMTP(ctx, req)
 }
 
+// 1. Brevo v3 API
 func (c *emailClient) sendViaBrevo(ctx context.Context, req SendEmailParams) error {
-	url := fmt.Sprintf("%s/smtp/email", c.brevoBaseURL)
+	baseURL := strings.TrimRight(c.cfg.BaseURL, "/")
+	if baseURL == "" {
+		baseURL = defaultBrevoBaseURL
+	}
+	apiURL := fmt.Sprintf("%s/smtp/email", baseURL)
+
 	senderName := req.FromName
 	if senderName == "" {
-		senderName = "Crove Desk Support"
+		senderName = "Customer Support"
 	}
+
 	payload := BrevoSendEmailRequest{
 		Sender: BrevoEmailContact{
 			Name:  senderName,
@@ -127,43 +117,195 @@ func (c *emailClient) sendViaBrevo(ctx context.Context, req SendEmailParams) err
 		Subject:     req.Subject,
 		TextContent: req.BodyText,
 		HTMLContent: req.BodyHTML,
+		Headers:     req.Headers,
+	}
+	if req.ReplyTo != "" {
+		payload.ReplyTo = &BrevoEmailContact{Email: req.ReplyTo}
 	}
 	if payload.HTMLContent == "" && payload.TextContent != "" {
-		payload.HTMLContent = fmt.Sprintf("<div style=\"font-family: sans-serif; line-height: 1.5;\">%s</div>", strings.ReplaceAll(payload.TextContent, "\n", "<br/>"))
+		payload.HTMLContent = formatHTMLParagraphs(payload.TextContent)
 	}
 
-	bodyBytes, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal brevo request: %w", err)
+	return c.postJSON(ctx, apiURL, payload, map[string]string{
+		"api-key": c.cfg.APIKey,
+	})
+}
+
+// 2. SendGrid v3 API
+func (c *emailClient) sendViaSendGrid(ctx context.Context, req SendEmailParams) error {
+	baseURL := strings.TrimRight(c.cfg.BaseURL, "/")
+	if baseURL == "" {
+		baseURL = defaultSendGridBaseURL
+	}
+	apiURL := fmt.Sprintf("%s/mail/send", baseURL)
+
+	payload := SendGridSendEmailRequest{
+		Personalizations: []SendGridPersonalization{
+			{
+				To: []SendGridContact{{Email: req.ToEmail, Name: req.ToName}},
+			},
+		},
+		From:    SendGridContact{Email: req.FromEmail, Name: req.FromName},
+		Subject: req.Subject,
+		Headers: req.Headers,
+	}
+	if req.ReplyTo != "" {
+		payload.ReplyTo = &SendGridContact{Email: req.ReplyTo}
+	}
+	if req.BodyText != "" {
+		payload.Content = append(payload.Content, SendGridContent{Type: "text/plain", Value: req.BodyText})
+	}
+	if req.BodyHTML != "" {
+		payload.Content = append(payload.Content, SendGridContent{Type: "text/html", Value: req.BodyHTML})
+	} else if req.BodyText != "" {
+		payload.Content = append(payload.Content, SendGridContent{Type: "text/html", Value: formatHTMLParagraphs(req.BodyText)})
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
-	if err != nil {
-		return fmt.Errorf("failed to create http request: %w", err)
+	return c.postJSON(ctx, apiURL, payload, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", c.cfg.APIKey),
+	})
+}
+
+// 3. Resend API
+func (c *emailClient) sendViaResend(ctx context.Context, req SendEmailParams) error {
+	baseURL := strings.TrimRight(c.cfg.BaseURL, "/")
+	if baseURL == "" {
+		baseURL = defaultResendBaseURL
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("api-key", c.apiKey)
+	apiURL := fmt.Sprintf("%s/emails", baseURL)
+
+	fromHeader := req.FromEmail
+	if req.FromName != "" {
+		fromHeader = fmt.Sprintf("%s <%s>", req.FromName, req.FromEmail)
+	}
+
+	payload := ResendSendEmailRequest{
+		From:    fromHeader,
+		To:      []string{req.ToEmail},
+		ReplyTo: req.ReplyTo,
+		Subject: req.Subject,
+		Text:    req.BodyText,
+		HTML:    req.BodyHTML,
+		Headers: req.Headers,
+	}
+	if payload.HTML == "" && payload.Text != "" {
+		payload.HTML = formatHTMLParagraphs(payload.Text)
+	}
+
+	return c.postJSON(ctx, apiURL, payload, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", c.cfg.APIKey),
+	})
+}
+
+// 4. Postmark API
+func (c *emailClient) sendViaPostmark(ctx context.Context, req SendEmailParams) error {
+	baseURL := strings.TrimRight(c.cfg.BaseURL, "/")
+	if baseURL == "" {
+		baseURL = defaultPostmarkBaseURL
+	}
+	apiURL := fmt.Sprintf("%s/email", baseURL)
+
+	fromHeader := req.FromEmail
+	if req.FromName != "" {
+		fromHeader = fmt.Sprintf("%s <%s>", req.FromName, req.FromEmail)
+	}
+
+	var headers []PostmarkHeader
+	for k, v := range req.Headers {
+		headers = append(headers, PostmarkHeader{Name: k, Value: v})
+	}
+
+	payload := PostmarkSendEmailRequest{
+		From:     fromHeader,
+		To:       req.ToEmail,
+		ReplyTo:  req.ReplyTo,
+		Subject:  req.Subject,
+		TextBody: req.BodyText,
+		HtmlBody: req.BodyHTML,
+		Headers:  headers,
+	}
+	if payload.HtmlBody == "" && payload.TextBody != "" {
+		payload.HtmlBody = formatHTMLParagraphs(payload.TextBody)
+	}
+
+	return c.postJSON(ctx, apiURL, payload, map[string]string{
+		"X-Postmark-Server-Token": c.cfg.APIKey,
+	})
+}
+
+// 5. Mailgun Messages API
+func (c *emailClient) sendViaMailgun(ctx context.Context, req SendEmailParams) error {
+	baseURL := strings.TrimRight(c.cfg.BaseURL, "/")
+	if baseURL == "" {
+		baseURL = defaultMailgunBaseURL
+	}
+	domain := c.cfg.Domain
+	if domain == "" {
+		parts := strings.Split(req.FromEmail, "@")
+		if len(parts) == 2 {
+			domain = parts[1]
+		}
+	}
+	apiURL := fmt.Sprintf("%s/%s/messages", baseURL, domain)
+
+	fromHeader := req.FromEmail
+	if req.FromName != "" {
+		fromHeader = fmt.Sprintf("%s <%s>", req.FromName, req.FromEmail)
+	}
+
+	form := url.Values{}
+	form.Set("from", fromHeader)
+	form.Set("to", req.ToEmail)
+	form.Set("subject", req.Subject)
+	if req.BodyText != "" {
+		form.Set("text", req.BodyText)
+	}
+	if req.BodyHTML != "" {
+		form.Set("html", req.BodyHTML)
+	} else if req.BodyText != "" {
+		form.Set("html", formatHTMLParagraphs(req.BodyText))
+	}
+	if req.ReplyTo != "" {
+		form.Set("h:Reply-To", req.ReplyTo)
+	}
+	if req.InReplyTo != "" {
+		form.Set("h:In-Reply-To", req.InReplyTo)
+	}
+	if req.References != "" {
+		form.Set("h:References", req.References)
+	}
+	for k, v := range req.Headers {
+		form.Set(fmt.Sprintf("h:%s", k), v)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, strings.NewReader(form.Encode()))
+	if err != nil {
+		return fmt.Errorf("create mailgun request failed: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	httpReq.SetBasicAuth("api", c.cfg.APIKey)
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		return fmt.Errorf("brevo request failed: %w", err)
+		return fmt.Errorf("mailgun request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("brevo api error (status %d): %s", resp.StatusCode, string(respBody))
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("mailgun api error (status %d): %s", resp.StatusCode, string(body))
 	}
-	slog.Info("email successfully sent via brevo", "to", req.ToEmail, "subject", req.Subject)
+	slog.Info("email sent via mailgun", "to", req.ToEmail, "subject", req.Subject)
 	return nil
 }
 
+// 6. Standard SMTP (AWS SES, Postmark SMTP, SendGrid SMTP, Brevo SMTP, custom Postfix)
 func (c *emailClient) sendViaSMTP(ctx context.Context, req SendEmailParams) error {
-	if c.smtpHost == "" {
+	if c.cfg.SMTPHost == "" {
 		return fmt.Errorf("smtp host is not configured")
 	}
 
-	addr := fmt.Sprintf("%s:%d", c.smtpHost, c.smtpPort)
+	addr := fmt.Sprintf("%s:%d", c.cfg.SMTPHost, c.cfg.SMTPPort)
 	fromHeader := req.FromEmail
 	if req.FromName != "" {
 		fromHeader = fmt.Sprintf("%s <%s>", req.FromName, req.FromEmail)
@@ -174,9 +316,20 @@ func (c *emailClient) sendViaSMTP(ctx context.Context, req SendEmailParams) erro
 	header["To"] = req.ToEmail
 	header["Subject"] = req.Subject
 	header["MIME-Version"] = "1.0"
+	if req.ReplyTo != "" {
+		header["Reply-To"] = req.ReplyTo
+	}
+	if req.MessageID != "" {
+		header["Message-ID"] = req.MessageID
+	}
 	if req.InReplyTo != "" {
 		header["In-Reply-To"] = req.InReplyTo
-		header["References"] = req.InReplyTo
+	}
+	if req.References != "" {
+		header["References"] = req.References
+	}
+	for k, v := range req.Headers {
+		header[k] = v
 	}
 
 	contentType := "text/plain; charset=UTF-8"
@@ -195,24 +348,23 @@ func (c *emailClient) sendViaSMTP(ctx context.Context, req SendEmailParams) erro
 	msg.WriteString(body)
 
 	var auth smtp.Auth
-	if c.smtpUser != "" && c.smtpPassword != "" {
-		auth = smtp.PlainAuth("", c.smtpUser, c.smtpPassword, c.smtpHost)
+	if c.cfg.SMTPUser != "" && c.cfg.SMTPPassword != "" {
+		auth = smtp.PlainAuth("", c.cfg.SMTPUser, c.cfg.SMTPPassword, c.cfg.SMTPHost)
 	}
 
-	// Dial with timeout and TLS support
 	tlsConfig := &tls.Config{
-		ServerName: c.smtpHost,
+		ServerName: c.cfg.SMTPHost,
 	}
 
 	var client *smtp.Client
 	var err error
 
-	if c.smtpPort == 465 {
+	if c.cfg.SMTPPort == 465 || c.cfg.SMTPUseTLS {
 		conn, err := tls.DialWithDialer(&net.Dialer{Timeout: defaultTimeout}, "tcp", addr, tlsConfig)
 		if err != nil {
 			return fmt.Errorf("failed to connect via tls: %w", err)
 		}
-		client, err = smtp.NewClient(conn, c.smtpHost)
+		client, err = smtp.NewClient(conn, c.cfg.SMTPHost)
 		if err != nil {
 			return fmt.Errorf("failed to create smtp client: %w", err)
 		}
@@ -221,7 +373,7 @@ func (c *emailClient) sendViaSMTP(ctx context.Context, req SendEmailParams) erro
 		if err != nil {
 			return fmt.Errorf("failed to dial smtp: %w", err)
 		}
-		client, err = smtp.NewClient(conn, c.smtpHost)
+		client, err = smtp.NewClient(conn, c.cfg.SMTPHost)
 		if err != nil {
 			return fmt.Errorf("failed to create smtp client: %w", err)
 		}
@@ -261,11 +413,44 @@ func (c *emailClient) sendViaSMTP(ctx context.Context, req SendEmailParams) erro
 		return fmt.Errorf("failed to close email writer: %w", err)
 	}
 
-	slog.Info("email successfully sent via smtp", "to", req.ToEmail, "subject", req.Subject)
+	slog.Info("email sent via smtp", "to", req.ToEmail, "subject", req.Subject)
 	return nil
 }
 
-// ParseAddress parses a raw email string like "John Doe <john@example.com>" into email and name.
+func (c *emailClient) postJSON(ctx context.Context, apiURL string, payload any, headers map[string]string) error {
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal json payload: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return fmt.Errorf("failed to create http request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	for k, v := range headers {
+		httpReq.Header.Set(k, v)
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("email api request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("email api error (status %d): %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
+func formatHTMLParagraphs(text string) string {
+	escaped := strings.ReplaceAll(text, "\n", "<br/>")
+	return fmt.Sprintf("<div style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333;\">%s</div>", escaped)
+}
+
+// ParseAddress parses a raw email address string like "Support Team <help@crove.com>" into email and display name.
 func ParseAddress(raw string) (emailStr string, nameStr string) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {

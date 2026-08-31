@@ -27,6 +27,7 @@ type Config struct {
 	OIDC            OIDCConfig            `yaml:"oidc"`
 	CustomerSession CustomerSessionConfig `yaml:"customerSession"`
 	Webhook         WebhookConfig         `yaml:"webhook"`
+	Email           EmailConfig           `yaml:"email"`
 }
 
 func (c Config) LanguageOrDefault() string {
@@ -259,6 +260,19 @@ type WebhookConfig struct {
 	OutboundURL      string `yaml:"outboundUrl"`
 }
 
+type EmailConfig struct {
+	Provider      string `yaml:"provider"`
+	FromAddress   string `yaml:"fromAddress"`
+	FromName      string `yaml:"fromName"`
+	APIKey        string `yaml:"apiKey"`
+	SMTPHost      string `yaml:"smtpHost"`
+	SMTPPort      int    `yaml:"smtpPort"`
+	SMTPUser      string `yaml:"smtpUser"`
+	SMTPPassword  string `yaml:"smtpPassword"`
+	SMTPUseTLS    bool   `yaml:"smtpUseTls"`
+	InboundSecret string `yaml:"inboundSecret"`
+}
+
 func Load(path string) (*Config, error) {
 	loadDotEnv(path)
 
@@ -351,6 +365,16 @@ func bindConfigDefaults(v *viper.Viper) {
 	v.SetDefault("ai.timeoutMs", 30000)
 	v.SetDefault("ai.maxRetryCount", 1)
 	v.SetDefault("mcp.enabled", true)
+	v.SetDefault("email.provider", "smtp")
+	v.SetDefault("email.fromAddress", "")
+	v.SetDefault("email.fromName", "")
+	v.SetDefault("email.apiKey", "")
+	v.SetDefault("email.smtpHost", "")
+	v.SetDefault("email.smtpPort", 587)
+	v.SetDefault("email.smtpUser", "")
+	v.SetDefault("email.smtpPassword", "")
+	v.SetDefault("email.smtpUseTls", false)
+	v.SetDefault("email.inboundSecret", "")
 }
 
 func bindEnvironmentAliases(v *viper.Viper) {
@@ -388,6 +412,16 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("webhook.orgSyncSecret", "ORG_SYNC_SECRET", "WEBHOOK_SECRET", "AGENT_DESK_WEBHOOK_ORGSYNCSECRET")
 	_ = v.BindEnv("webhook.outboundUrl", "ORG_SYNC_OUTBOUND_URL", "DOS_ORG_SYNC_URL", "WEBHOOK_OUTBOUND_URL", "AGENT_DESK_WEBHOOK_OUTBOUNDURL")
 	_ = v.BindEnv("mcp.enabled", "MCP_ENABLED", "AGENT_DESK_MCP_ENABLED")
+	_ = v.BindEnv("email.provider", "EMAIL_PROVIDER", "AGENT_DESK_EMAIL_PROVIDER")
+	_ = v.BindEnv("email.fromAddress", "EMAIL_FROM", "EMAIL_FROM_ADDRESS", "SUPPORT_EMAIL", "AGENT_DESK_EMAIL_FROMADDRESS")
+	_ = v.BindEnv("email.fromName", "EMAIL_FROM_NAME", "EMAIL_SENDER_NAME", "SUPPORT_SENDER_NAME", "AGENT_DESK_EMAIL_FROMNAME")
+	_ = v.BindEnv("email.apiKey", "EMAIL_API_KEY", "BREVO_API_KEY", "CROVE_BREVO_API_KEY", "SENDGRID_API_KEY", "RESEND_API_KEY", "POSTMARK_API_KEY", "MAILGUN_API_KEY", "AGENT_DESK_EMAIL_APIKEY")
+	_ = v.BindEnv("email.smtpHost", "SMTP_HOST", "EMAIL_SMTP_HOST", "AGENT_DESK_EMAIL_SMTPHOST")
+	_ = v.BindEnv("email.smtpPort", "SMTP_PORT", "EMAIL_SMTP_PORT", "AGENT_DESK_EMAIL_SMTPPORT")
+	_ = v.BindEnv("email.smtpUser", "SMTP_USER", "EMAIL_SMTP_USER", "CROVE_SMTP_USER", "AGENT_DESK_EMAIL_SMTPUSER")
+	_ = v.BindEnv("email.smtpPassword", "SMTP_PASSWORD", "SMTP_PASS", "EMAIL_SMTP_PASSWORD", "CROVE_SMTP_PASSWORD", "AGENT_DESK_EMAIL_SMTPPASSWORD")
+	_ = v.BindEnv("email.smtpUseTls", "SMTP_USE_TLS", "SMTP_SSL", "AGENT_DESK_EMAIL_SMTPUSETLS")
+	_ = v.BindEnv("email.inboundSecret", "EMAIL_INBOUND_SECRET", "EMAIL_WEBHOOK_SECRET", "AGENT_DESK_EMAIL_INBOUNDSECRET")
 }
 
 func normalizeLoadedConfig(cfg *Config) {

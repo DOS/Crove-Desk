@@ -849,8 +849,13 @@ function ChannelFormBody({
                         className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         {...register("emailProvider")}
                       >
-                        <option value="brevo">Brevo API (Recommended)</option>
-                        <option value="smtp">Custom SMTP Server</option>
+                        <option value="default">{t("channel.emailProviderDefault")}</option>
+                        <option value="smtp">{t("channel.emailProviderSmtp")}</option>
+                        <option value="brevo">{t("channel.emailProviderBrevo")}</option>
+                        <option value="sendgrid">{t("channel.emailProviderSendGrid")}</option>
+                        <option value="resend">{t("channel.emailProviderResend")}</option>
+                        <option value="postmark">{t("channel.emailProviderPostmark")}</option>
+                        <option value="mailgun">{t("channel.emailProviderMailgun")}</option>
                       </select>
                       <FieldError errors={[errors.emailProvider]} />
                     </FieldContent>
@@ -869,20 +874,20 @@ function ChannelFormBody({
                   </Field>
                 </div>
 
-                {emailProvider === "brevo" ? (
+                {emailProvider === "brevo" || emailProvider === "sendgrid" || emailProvider === "resend" || emailProvider === "postmark" || emailProvider === "mailgun" ? (
                   <Field data-invalid={!!errors.emailApiKey}>
                     <FieldLabel htmlFor="channel-email-apikey">{t("channel.emailApiKey")}</FieldLabel>
                     <FieldContent>
                       <Input
                         id="channel-email-apikey"
                         type="password"
-                        placeholder="xkeysib-... (leave blank to use system BREVO_API_KEY)"
+                        placeholder="API Key / Server Token"
                         {...register("emailApiKey")}
                       />
                       <FieldError errors={[errors.emailApiKey]} />
                     </FieldContent>
                   </Field>
-                ) : (
+                ) : emailProvider === "smtp" ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                       <div className="sm:col-span-2">
@@ -937,13 +942,13 @@ function ChannelFormBody({
                       </Field>
                     </div>
                   </div>
-                )}
+                ) : null}
 
                 <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
                   <div className="font-medium text-foreground">{t("channel.emailAutoConnectTitle")}</div>
                   <div className="mt-1">{t("channel.emailAutoConnectDescription")}</div>
                   <div className="mt-2 font-mono text-[11px] text-foreground">
-                    Webhook URL: https://desk.crove.com/api/third/email/webhook
+                    {t("channel.inboundWebhookUrl")}: /api/third/email/webhook
                   </div>
                 </div>
               </div>
