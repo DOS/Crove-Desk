@@ -200,3 +200,22 @@ wxWork:
     enableDuplicateCheck: true
     # Duplicate message check window, in seconds.
     duplicateCheckInterval: 1800
+
+email:
+  # Outbound delivery provider: smtp, brevo, sendgrid, resend, postmark, mailgun
+  provider: brevo
+  # Default system support email address (e.g. help@crove.com)
+  fromAddress: "help@crove.com"
+  # Default sender display name
+  fromName: "Crove Desk Support"
+  # Provider API Key (for Brevo, SendGrid, Resend, Postmark, Mailgun)
+  apiKey: ""
+  # Custom SMTP server configuration (when provider is smtp)
+  smtpHost: ""
+  smtpPort: 587
+  smtpUser: ""
+  smtpPassword: ""
+  smtpUseTls: false
+  # Secret token to authenticate Inbound Webhook requests at /api/third/email/webhook (Header: X-Webhook-Secret)
+  inboundSecret: ""
+

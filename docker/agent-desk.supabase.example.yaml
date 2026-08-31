@@ -103,3 +103,10 @@ oidc:
 webhook:
   orgSyncSecret: "your-org-sync-webhook-secret"
   outboundUrl: "https://api.dos.me/internal/events/publish"
+
+email:
+  provider: brevo
+  fromAddress: "help@crove.com"
+  fromName: "Crove Desk Support"
+  apiKey: "your-brevo-or-esp-api-key"
+  inboundSecret: "your-email-inbound-webhook-secret"
