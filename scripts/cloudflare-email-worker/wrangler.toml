@@ -1,0 +1,7 @@
+name = "crove-email-inbound-worker"
+main = "src/index.ts"
+compatibility_date = "2024-11-05"
+
+[vars]
+DESK_WEBHOOK_URL = "https://desk.crove.com/api/third/email/webhook"
+DESK_WEBHOOK_SECRET = "your-email-inbound-webhook-secret"
