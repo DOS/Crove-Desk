@@ -1,5 +1,5 @@
-import { SupportHelpCenter } from "@/components/support-center/help-center"
+import { SupportCenterHome } from "./page-client"
 
 export default function SupportPage() {
-  return <SupportHelpCenter />
+  return <SupportCenterHome />
 }

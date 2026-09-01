@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { ProjectDialog } from "@/components/project-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { useI18n } from "@/i18n/provider"
 import {
   fetchAIWorkflowVersions,
   restoreAIWorkflowVersion,
@@ -26,6 +27,7 @@ export function WorkflowVersionsDialog({
   onOpenChange: (open: boolean) => void
   onRestored: () => void
 }) {
+  const t = useI18n()
   const [versions, setVersions] = useState<AIWorkflowVersion[]>([])
   const [loading, setLoading] = useState(false)
   const [restoringId, setRestoringId] = useState<number | null>(null)
@@ -40,11 +42,11 @@ export function WorkflowVersionsDialog({
       })
       setVersions(page.results ?? [])
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "加载版本历史失败")
+      toast.error(error instanceof Error ? error.message : t("aiWorkflow.loadFailed"))
     } finally {
       setLoading(false)
     }
-  }, [open, workflow])
+  }, [open, t, workflow])
 
   useEffect(() => {
     void load()
@@ -56,9 +58,9 @@ export function WorkflowVersionsDialog({
     try {
       await restoreAIWorkflowVersion(workflow.id, version.id)
       onRestored()
-      toast.success(`已将 v${version.version} 恢复为草稿`)
+      toast.success(t("aiWorkflow.restoredDraftSuccess", { version: String(version.version) }))
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "恢复失败")
+      toast.error(error instanceof Error ? error.message : t("aiWorkflow.restoreFailed"))
     } finally {
       setRestoringId(null)
     }
@@ -68,14 +70,14 @@ export function WorkflowVersionsDialog({
     <ProjectDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="版本历史"
+      title={t("aiWorkflow.versionsTitle")}
       description={workflow?.name}
       size="lg"
       bodyClassName="min-h-[360px]"
     >
       {loading ? (
         <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground">
-          正在加载版本历史…
+          {t("aiWorkflow.loadingVersions")}
         </div>
       ) : versions.length ? (
         <div className="space-y-3">
@@ -90,7 +92,7 @@ export function WorkflowVersionsDialog({
                   {formatDateTime(version.publishedAt || version.createdAt)}
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  发布人：{version.publishedByName || "-"}
+                  {t("aiWorkflow.publisher", { name: version.publishedByName || "-" })}
                 </div>
               </div>
               <Button
@@ -99,14 +101,14 @@ export function WorkflowVersionsDialog({
                 disabled={restoringId !== null}
                 onClick={() => void restore(version)}
               >
-                {restoringId === version.id ? "恢复中…" : "恢复为草稿"}
+                {restoringId === version.id ? t("aiWorkflow.restoring") : t("aiWorkflow.restoreToDraft")}
               </Button>
             </div>
           ))}
         </div>
       ) : (
         <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground">
-          尚未发布版本
+          {t("aiWorkflow.noVersionsYet")}
         </div>
       )}
     </ProjectDialog>

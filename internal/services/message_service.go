@@ -541,6 +541,24 @@ func (s *messageService) sendValidatedMessage(conversation *models.Conversation,
 		)
 	}
 
+	// Telegram 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueTelegramMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue telegram outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
+	// Zalo OA 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueZaloOAMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue zalo oa outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
 	// 客户发送消息，触发AI回复
 	if senderType == enums.IMSenderTypeCustomer {
 		if TriggerAIReplyAsyncHook != nil {

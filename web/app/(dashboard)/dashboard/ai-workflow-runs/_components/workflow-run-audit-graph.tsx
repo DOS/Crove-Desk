@@ -7,12 +7,14 @@ import { AlertTriangleIcon, CheckCircle2Icon, TimerIcon } from "lucide-react"
 import { JsonTreeViewer } from "@/components/json-tree-viewer"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useI18n } from "@/i18n/provider"
 import type { AIWorkflowNodeRun, AIWorkflowRun } from "@/lib/api/admin"
 import { cn } from "@/lib/utils"
 
 import { OfficialWorkflowEditor } from "../../ai-workflows/_components/official-workflow-editor"
 
 export function WorkflowRunAuditGraph({ run }: { run: AIWorkflowRun }) {
+  const t = useI18n()
   const nodeRuns = useMemo(() => run.nodes ?? [], [run.nodes])
   const firstNodeId = nodeRuns[0]?.nodeId ?? run.definition?.nodes?.[0]?.id ?? ""
   const [selectedNodeId, setSelectedNodeId] = useState(firstNodeId)
@@ -31,20 +33,20 @@ export function WorkflowRunAuditGraph({ run }: { run: AIWorkflowRun }) {
         <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap gap-2">
           <Badge variant="secondary" className="gap-1">
             <CheckCircle2Icon className="size-3" />
-            已执行 {executedNodeIds.size}
+            {t("aiWorkflow.executedCount", { count: String(executedNodeIds.size) })}
           </Badge>
           {run.errorMessage ? (
             <Badge variant="destructive" className="gap-1">
               <AlertTriangleIcon className="size-3" />
-              异常
+              {t("aiWorkflow.errorStatus")}
             </Badge>
           ) : null}
         </div>
       </div>
       <aside className="flex min-h-0 flex-col border-l bg-background">
         <div className="border-b p-3">
-          <div className="text-sm font-medium">节点轨迹</div>
-          <div className="mt-1 text-xs text-muted-foreground">点击查看输入、输出和错误信息</div>
+          <div className="text-sm font-medium">{t("aiWorkflow.nodeTraceTitle")}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{t("aiWorkflow.nodeTraceHint")}</div>
         </div>
         <ScrollArea className="min-h-0 flex-1">
           <div className="space-y-2 p-3">
@@ -71,16 +73,16 @@ export function WorkflowRunAuditGraph({ run }: { run: AIWorkflowRun }) {
           </div>
         </ScrollArea>
         <div className="max-h-72 overflow-auto border-t p-3">
-          <NodeRunPreview nodeRun={selectedNodeRun} />
+          <NodeRunPreview nodeRun={selectedNodeRun} t={t} />
         </div>
       </aside>
     </div>
   )
 }
 
-function NodeRunPreview({ nodeRun }: { nodeRun?: AIWorkflowNodeRun }) {
+function NodeRunPreview({ nodeRun, t }: { nodeRun?: AIWorkflowNodeRun; t: (key: string, values?: Record<string, string | number>) => string }) {
   if (!nodeRun) {
-    return <div className="text-xs text-muted-foreground">暂无节点执行记录。</div>
+    return <div className="text-xs text-muted-foreground">{t("aiWorkflow.noNodeRuns")}</div>
   }
   return (
     <div className="space-y-3 text-xs">
@@ -89,17 +91,17 @@ function NodeRunPreview({ nodeRun }: { nodeRun?: AIWorkflowNodeRun }) {
           {nodeRun.errorMessage}
         </div>
       ) : null}
-      <PreviewBlock title="输入" value={nodeRun.inputPreview} />
-      <PreviewBlock title="输出" value={nodeRun.outputPreview} />
+      <PreviewBlock title={t("aiWorkflow.inputTitle")} value={nodeRun.inputPreview} emptyText={t("aiWorkflow.noneValue")} />
+      <PreviewBlock title={t("aiWorkflow.outputTitle")} value={nodeRun.outputPreview} emptyText={t("aiWorkflow.noneValue")} />
     </div>
   )
 }
 
-function PreviewBlock({ title, value }: { title: string; value?: string }) {
+function PreviewBlock({ title, value, emptyText }: { title: string; value?: string; emptyText?: string }) {
   return (
     <div>
       <div className="mb-1 font-medium">{title}</div>
-      {value ? <JsonTreeViewer value={parsePreview(value)} /> : <div className="text-muted-foreground">无</div>}
+      {value ? <JsonTreeViewer value={parsePreview(value)} /> : <div className="text-muted-foreground">{emptyText || "None"}</div>}
     </div>
   )
 }

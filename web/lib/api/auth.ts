@@ -1,9 +1,19 @@
-import { clearSession, writeSession, type AuthSession } from "@/lib/auth"
+import { clearSession, readSession, writeSession, type AuthSession } from "@/lib/auth"
 import { request } from "@/lib/api/client"
 
 export type LoginRequest = {
   username: string
   password: string
+}
+
+export type UpdateProfileRequest = {
+  avatar: string
+  email?: string
+  nickname: string
+}
+
+export type ProfileAvatarAsset = {
+  url: string
 }
 
 export async function loginWithPassword(payload: LoginRequest) {
@@ -38,6 +48,30 @@ export async function exchangeOIDCTicket(ticket: string) {
 
 export async function fetchProfile() {
   return request<AuthSession>("/api/auth/profile")
+}
+
+export async function updateProfile(payload: UpdateProfileRequest) {
+  const data = await request<AuthSession>("/api/auth/profile/update", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+  const stored = readSession()
+  const nextSession: AuthSession = {
+    ...data,
+    accessToken: data.accessToken || stored?.accessToken || "",
+    expiresAt: data.expiresAt || stored?.expiresAt,
+  }
+  writeSession(nextSession)
+  return nextSession
+}
+
+export function uploadProfileAvatar(file: File) {
+  const formData = new FormData()
+  formData.set("file", file)
+  return request<ProfileAvatarAsset>("/api/auth/profile/avatar/upload", {
+    method: "POST",
+    body: formData,
+  })
 }
 
 export async function logout() {

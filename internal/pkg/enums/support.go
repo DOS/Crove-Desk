@@ -1,38 +1,51 @@
 package enums
 
-type SupportHelpPageStatus string
+type DocPageStatus string
 
 const (
-	SupportHelpPageStatusDraft     SupportHelpPageStatus = "draft"
-	SupportHelpPageStatusPublished SupportHelpPageStatus = "published"
-	SupportHelpPageStatusHidden    SupportHelpPageStatus = "hidden"
-	SupportHelpPageStatusDeleted   SupportHelpPageStatus = "deleted"
+	DocPageStatusDraft     DocPageStatus = "draft"
+	DocPageStatusPublished DocPageStatus = "published"
+	DocPageStatusHidden    DocPageStatus = "hidden"
+	DocPageStatusDeleted   DocPageStatus = "deleted"
 )
 
-type SupportQuestionStatus string
+type PostStatus string
 
 const (
-	SupportQuestionStatusPending  SupportQuestionStatus = "pending"
-	SupportQuestionStatusNormal   SupportQuestionStatus = "normal"
-	SupportQuestionStatusResolved SupportQuestionStatus = "resolved"
-	SupportQuestionStatusClosed   SupportQuestionStatus = "closed"
-	SupportQuestionStatusHidden   SupportQuestionStatus = "hidden"
-	SupportQuestionStatusDeleted  SupportQuestionStatus = "deleted"
+	PostStatusPending  PostStatus = "pending"
+	PostStatusNormal   PostStatus = "normal"
+	PostStatusResolved PostStatus = "resolved"
+	PostStatusClosed   PostStatus = "closed"
+	PostStatusHidden   PostStatus = "hidden"
+	PostStatusDeleted  PostStatus = "deleted"
 )
 
-type SupportAnswerStatus string
+type CommentStatus string
 
 const (
-	SupportAnswerStatusNormal  SupportAnswerStatus = "normal"
-	SupportAnswerStatusHidden  SupportAnswerStatus = "hidden"
-	SupportAnswerStatusDeleted SupportAnswerStatus = "deleted"
+	CommentStatusNormal  CommentStatus = "normal"
+	CommentStatusHidden  CommentStatus = "hidden"
+	CommentStatusDeleted CommentStatus = "deleted"
 )
 
-type SupportAnswerAuthorType string
+type CommentAuthorType string
 
 const (
-	SupportAnswerAuthorTypeUser     SupportAnswerAuthorType = "user"
-	SupportAnswerAuthorTypeEmployee SupportAnswerAuthorType = "employee"
+	CommentAuthorTypeUser     CommentAuthorType = "user"
+	CommentAuthorTypeEmployee CommentAuthorType = "employee"
+)
+
+type ReactionTarget string
+
+const (
+	ReactionTargetPost    ReactionTarget = "post"
+	ReactionTargetComment ReactionTarget = "comment"
+)
+
+type ReactionType string
+
+const (
+	ReactionTypeLike ReactionType = "like"
 )
 
 type UserType string

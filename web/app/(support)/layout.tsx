@@ -1,9 +1,9 @@
 import type { Metadata } from "next"
-import { Inter, Geist_Mono } from "next/font/google"
+import { Geist, Geist_Mono } from "next/font/google"
 
 import { ImageLightboxProvider } from "@/components/image-lightbox"
 import { ConfirmProvider } from "@/components/confirm-provider"
-import { SupportAuthProvider } from "@/components/support-center/support-auth-provider"
+import { SupportAuthProvider } from "@/app/(support)/support/_components/support-auth-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
@@ -12,10 +12,9 @@ import { AppI18nProvider } from "@/i18n/provider"
 import "./support.css"
 import "md-editor-rt/lib/style.css"
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin", "vietnamese"],
-  display: "swap",
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
 })
 
 const geistMono = Geist_Mono({
@@ -24,8 +23,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Crove Desk Support",
-  description: "Crove Desk Support Center",
+  title: "AgentDesk Support",
+  description: "AgentDesk Support Center",
 }
 
 export default function SupportRootLayout({
@@ -34,9 +33,9 @@ export default function SupportRootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en-US" suppressHydrationWarning>
+    <html lang="en-US" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${geistMono.variable} antialiased`}
+        className="antialiased font-sans"
       >
         <AppI18nProvider>
           <ThemeProvider>

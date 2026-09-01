@@ -274,10 +274,13 @@ func loadDotEnv(configPath string) {
 		return
 	}
 	_ = gotenv.Load(".env")
+	_ = gotenv.Load("../.env")
+	_ = gotenv.Load("../../.env")
 	if configPath != "" {
 		dir := filepath.Dir(configPath)
 		if dir != "." && dir != "" {
 			_ = gotenv.Load(filepath.Join(dir, ".env"))
+			_ = gotenv.Load(filepath.Join(dir, "..", ".env"))
 		}
 	}
 }
@@ -334,7 +337,6 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("oidc.clientSecret", "OIDC_CLIENT_SECRET", "CUSTOM_OAUTH_CLIENT_SECRET", "AGENT_DESK_OIDC_CLIENTSECRET")
 	_ = v.BindEnv("oidc.redirectUrl", "OIDC_REDIRECT_URL", "CUSTOM_OAUTH_REDIRECT_URI", "AGENT_DESK_OIDC_REDIRECTURL")
 	_ = v.BindEnv("webhook.orgSyncSecret", "ORG_SYNC_SECRET", "WEBHOOK_SECRET", "AGENT_DESK_WEBHOOK_ORGSYNCSECRET")
-	_ = v.BindEnv("webhook.outboundUrl", "ORG_SYNC_OUTBOUND_URL", "DOS_ORG_SYNC_URL", "WEBHOOK_OUTBOUND_URL", "AGENT_DESK_WEBHOOK_OUTBOUNDURL")
 }
 
 func normalizeLoadedConfig(cfg *Config) {

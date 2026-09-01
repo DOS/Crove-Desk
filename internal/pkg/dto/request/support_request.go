@@ -8,39 +8,39 @@ type SupportCustomerRegisterRequest struct {
 	Password string `json:"password"`
 }
 
-type SaveSupportHelpPageRequest struct {
-	ID          int64                       `json:"id"`
-	ParentID    int64                       `json:"parentId"`
-	Title       string                      `json:"title"`
-	Slug        string                      `json:"slug"`
-	Summary     string                      `json:"summary"`
-	ContentType string                      `json:"contentType"`
-	Content     string                      `json:"content"`
-	CoverURL    string                      `json:"coverUrl"`
-	Tags        []string                    `json:"tags"`
-	Status      enums.SupportHelpPageStatus `json:"status"`
-	SortNo      int                         `json:"sortNo"`
-	Remark      string                      `json:"remark"`
+type SaveDocPageRequest struct {
+	ID          int64               `json:"id"`
+	ParentID    int64               `json:"parentId"`
+	Title       string              `json:"title"`
+	Slug        string              `json:"slug"`
+	Summary     string              `json:"summary"`
+	ContentType string              `json:"contentType"`
+	Content     string              `json:"content"`
+	CoverURL    string              `json:"coverUrl"`
+	Tags        []string            `json:"tags"`
+	Status      enums.DocPageStatus `json:"status"`
+	SortNo      int                 `json:"sortNo"`
+	Remark      string              `json:"remark"`
 }
 
-type UpdateSupportHelpPageSettingsRequest struct {
+type UpdateDocPageSettingsRequest struct {
 	ID       int64  `json:"id"`
 	ParentID int64  `json:"parentId"`
 	Slug     string `json:"slug"`
 	Summary  string `json:"summary"`
 }
 
-type SortSupportHelpPagesRequest struct {
+type SortDocPagesRequest struct {
 	ParentID int64   `json:"parentId"`
 	IDs      []int64 `json:"ids"`
 }
 
-type ChangeSupportHelpPageStatusRequest struct {
-	ID     int64                       `json:"id"`
-	Status enums.SupportHelpPageStatus `json:"status"`
+type ChangeDocPageStatusRequest struct {
+	ID     int64               `json:"id"`
+	Status enums.DocPageStatus `json:"status"`
 }
 
-type SaveSupportQuestionCategoryRequest struct {
+type SaveCategoryRequest struct {
 	ID          int64        `json:"id"`
 	Name        string       `json:"name"`
 	Slug        string       `json:"slug"`
@@ -49,55 +49,80 @@ type SaveSupportQuestionCategoryRequest struct {
 	Remark      string       `json:"remark"`
 }
 
-type CreateSupportQuestionRequest struct {
-	CategoryID int64    `json:"categoryId"`
-	Title      string   `json:"title"`
-	Content    string   `json:"content"`
-	Tags       []string `json:"tags"`
+type CreatePostRequest struct {
+	CategoryID  int64    `json:"categoryId"`
+	Title       string   `json:"title"`
+	ContentType string   `json:"contentType"`
+	Content     string   `json:"content"`
+	Tags        []string `json:"tags"`
 }
 
-type UpdateSupportQuestionRequest struct {
-	ID         int64    `json:"id"`
-	CategoryID int64    `json:"categoryId"`
-	Title      string   `json:"title"`
-	Content    string   `json:"content"`
-	Tags       []string `json:"tags"`
+type UpdatePostRequest struct {
+	ID          int64    `json:"id"`
+	CategoryID  int64    `json:"categoryId"`
+	Title       string   `json:"title"`
+	ContentType string   `json:"contentType"`
+	Content     string   `json:"content"`
+	Tags        []string `json:"tags"`
 }
 
-type ModerateSupportQuestionRequest struct {
-	ID     int64                       `json:"id"`
-	Status enums.SupportQuestionStatus `json:"status"`
+type ModeratePostRequest struct {
+	ID     int64            `json:"id"`
+	Status enums.PostStatus `json:"status"`
 }
 
-type CreateSupportAnswerRequest struct {
-	QuestionID int64  `json:"questionId"`
-	Content    string `json:"content"`
+type CreateCommentRequest struct {
+	PostID      int64  `json:"postId"`
+	ParentID    int64  `json:"parentId"`
+	ContentType string `json:"contentType"`
+	Content     string `json:"content"`
 }
 
-type UpdateSupportAnswerRequest struct {
-	ID      int64  `json:"id"`
-	Content string `json:"content"`
+type UpdateCommentRequest struct {
+	ID          int64  `json:"id"`
+	ContentType string `json:"contentType"`
+	Content     string `json:"content"`
 }
 
-type ModerateSupportAnswerRequest struct {
-	ID     int64                     `json:"id"`
-	Status enums.SupportAnswerStatus `json:"status"`
+type ModerateCommentRequest struct {
+	ID     int64               `json:"id"`
+	Status enums.CommentStatus `json:"status"`
 }
 
-type SupportVoteRequest struct {
+type IDRequest struct {
 	ID int64 `json:"id"`
 }
 
-type SupportAcceptAnswerRequest struct {
-	QuestionID int64 `json:"questionId"`
-	AnswerID   int64 `json:"answerId"`
+type ReactionRequest struct {
+	TargetType   enums.ReactionTarget `json:"targetType"`
+	TargetID     int64                `json:"targetId"`
+	ReactionType enums.ReactionType   `json:"reactionType"`
 }
 
-type SupportHelpPageFeedbackRequest struct {
+type ReportCommentRequest struct {
+	ID     int64  `json:"id"`
+	Reason string `json:"reason"`
+}
+
+type AcceptCommentRequest struct {
+	PostID    int64 `json:"postId"`
+	CommentID int64 `json:"commentId"`
+}
+
+type DocPageFeedbackRequest struct {
 	ID      int64 `json:"id"`
 	Helpful bool  `json:"helpful"`
 }
 
 type DeleteByIDRequest struct {
 	ID int64 `json:"id"`
+}
+
+type SupportNavigationMenuItemRequest struct {
+	ID              string                             `json:"id"`
+	Title           string                             `json:"title"`
+	URL             string                             `json:"url"`
+	OpenInNewWindow bool                               `json:"openInNewWindow"`
+	Visible         *bool                              `json:"visible"`
+	Children        []SupportNavigationMenuItemRequest `json:"children"`
 }

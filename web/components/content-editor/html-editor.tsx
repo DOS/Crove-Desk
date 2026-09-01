@@ -347,7 +347,7 @@ export const HtmlEditor = forwardRef<HtmlEditorRef, HtmlEditorProps>(
 
     return (
       <div
-        className="flex w-full flex-col rounded-lg border bg-background"
+        className="flex w-full flex-col rounded-md border bg-background"
         style={scrollMode === "document" ? undefined : { height }}
       >
         <input

@@ -186,14 +186,17 @@ func addRouter(app *gin.Engine) {
 	registerDashboardKnowledgeFAQRoutes(dashboardGroup.Group("/knowledge-faq"))
 	registerDashboardKnowledgeRetrieveRoutes(dashboardGroup.Group("/knowledge-retrieve"))
 	registerDashboardKnowledgeRetrieveLogRoutes(dashboardGroup.Group("/knowledge-retrieve-log"))
-	registerDashboardSupportHelpPageRoutes(dashboardGroup.Group("/support-help-page"))
-	registerDashboardSupportQuestionCategoryRoutes(dashboardGroup.Group("/support-question-category"))
-	registerDashboardSupportQuestionRoutes(dashboardGroup.Group("/support-question"))
+	registerDashboardSupportConfigRoutes(dashboardGroup.Group("/support/config"))
+	registerDashboardDocPageRoutes(dashboardGroup.Group("/doc-page"))
+	registerDashboardCommunityCategoryRoutes(dashboardGroup.Group("/support-community/categories"))
+	registerDashboardCommunityPostRoutes(dashboardGroup.Group("/support-community/posts"))
 	registerDashboardSkillDefinitionRoutes(dashboardGroup.Group("/skill-definition"))
 	registerDashboardMCPRoutes(dashboardGroup.Group("/mcp"))
 
 	thirdGroup := app.Group("/api/third")
 	registerThirdWechatRoutes(thirdGroup.Group("/wechat"))
+	registerThirdTelegramRoutes(thirdGroup.Group("/telegram"))
+	registerThirdZaloRoutes(thirdGroup.Group("/zalo"))
 }
 
 type spaShellRewrite struct {
@@ -233,30 +236,30 @@ func handleSpa(app *gin.Engine) {
 func registerSPAShellRewrites(app *gin.Engine, spaHandler gin.HandlerFunc) {
 	rewrites := []spaShellRewrite{
 		{
-			// Runtime-authored help pages cannot be enumerated by static export.
-			Route:     "/support/help/*slug",
-			ShellPath: "/support/help.html",
+			// Runtime-authored document pages cannot be enumerated by static export.
+			Route:     "/support/docs/*slug",
+			ShellPath: "/support/docs.html",
 		},
 		{
-			// Keep the public RESTful URL and serve the exported detail shell for IDs.
-			Route:     "/support/question/:id",
-			ShellPath: "/support/question/detail.html",
+			// Keep the public RESTful URL and serve the exported post detail shell for IDs.
+			Route:     "/support/community/posts/:id",
+			ShellPath: "/support/community/posts/detail.html",
 			Match: func(ctx *gin.Context) bool {
 				value, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 				return err == nil && value > 0
 			},
 		},
 		{
-			Route:     "/support/questions/ask",
-			ShellPath: "/support/questions/ask.html",
+			Route:     "/support/community/posts/new",
+			ShellPath: "/support/community/posts/new.html",
 		},
 		{
-			// FAQ category pages are runtime-authored through category slugs.
-			Route:     "/support/questions/:slug",
-			ShellPath: "/support/questions.html",
+			// Community category pages are runtime-authored through category slugs.
+			Route:     "/support/community/categories/:slug",
+			ShellPath: "/support/community/categories.html",
 			Match: func(ctx *gin.Context) bool {
 				slug := ctx.Param("slug")
-				return slug != "" && slug != "ask" && slug != "detail"
+				return slug != ""
 			},
 		},
 	}

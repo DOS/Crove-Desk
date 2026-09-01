@@ -123,7 +123,7 @@ export default function DashboardAIAgentsPage() {
       },
       {
         key: "publication",
-        label: "发布状态",
+        label: t("aiAgent.publishStatus"),
         render: (item) => {
           const published = item.publishedRevisionId > 0;
           const workflowCount = item.workflowBindings?.length ?? 0;
@@ -131,7 +131,7 @@ export default function DashboardAIAgentsPage() {
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-1.5">
                 <Badge variant={published ? "default" : "outline"}>
-                  {published ? "已发布" : "未发布"}
+                  {published ? t("aiAgent.published") : t("aiAgent.unpublished")}
                 </Badge>
                 {published ? (
                   <span className="font-mono text-xs text-muted-foreground">
@@ -141,8 +141,8 @@ export default function DashboardAIAgentsPage() {
               </div>
               <div className="text-xs text-muted-foreground">
                 {workflowCount > 0
-                  ? `已配置 ${workflowCount} 个 Workflow`
-                  : "由 Agent 自主判断并直接回复"}
+                  ? t("aiAgent.configuredWorkflows", { count: String(workflowCount) })
+                  : t("aiAgent.directAutonomous")}
               </div>
             </div>
           );

@@ -7,6 +7,7 @@ import (
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/dto/response"
 	"agent-desk/internal/pkg/enums"
+	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/pkg/httpx"
 	"agent-desk/internal/pkg/httpx/params"
 	"agent-desk/internal/repositories"
@@ -16,16 +17,23 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mlogclub/simple/sqls"
 	"github.com/mlogclub/simple/web"
+	"github.com/spf13/cast"
 	"gorm.io/gorm"
 )
 
-func SupportPostRegister(ctx *gin.Context) {
+func SupportAuthPostRegister(ctx *gin.Context) {
+	cfg := config.Current()
+	if !cfg.Auth.IsPasswordLoginEnabled() {
+		httpx.WriteJSON(ctx, errorsx.ForbiddenI18n("error.auth.passwordLoginDisabled"))
+		return
+	}
+
 	req := request.SupportCustomerRegisterRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	ret, err := services.SupportService.RegisterUser(req, config.Current().Auth, ctx.ClientIP(), ctx.GetHeader("User-Agent"))
+	ret, err := services.SupportService.RegisterUser(req, cfg.Auth, ctx.ClientIP(), ctx.GetHeader("User-Agent"))
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
@@ -47,205 +55,274 @@ func SupportGetMe(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, response.SupportUserResponse{ID: principal.UserID, Name: supportPrincipalDisplayName(principal.UserID), Email: email, UserType: principal.UserType})
 }
 
-func SupportHelpPageAnyList(ctx *gin.Context) {
+func DocPageAnyList(ctx *gin.Context) {
 	cnd := params.NewPagedSqlCnd(ctx,
 		params.QueryFilter{ParamName: "parentId"},
 		params.QueryFilter{ParamName: "title", Op: params.Like},
-	).Eq("status", enums.SupportHelpPageStatusPublished).Asc("sort_no").Desc("id")
+	).Eq("status", enums.DocPageStatusPublished).Asc("sort_no").Desc("id")
 	if keyword := strings.TrimSpace(ctx.Query("keyword")); keyword != "" {
 		pattern := "%" + keyword + "%"
 		cnd.Where("(title LIKE ? OR summary LIKE ? OR content LIKE ? OR tags_json LIKE ? OR slug LIKE ?)", pattern, pattern, pattern, pattern, pattern)
 	}
-	list, paging := repositories.SupportHelpPageRepository.FindPageByCnd(sqls.DB(), cnd)
-	results := buildSupportHelpPageList(list, false)
+	list, paging := repositories.DocPageRepository.FindPageByCnd(sqls.DB(), cnd)
+	results := buildDocPageList(list, false)
 	httpx.WriteJSON(ctx, &web.PageResult{Results: results, Page: paging})
 }
 
-func SupportHelpPageGetNavigation(ctx *gin.Context) {
-	list := services.SupportService.FindPublicHelpNavigation()
-	httpx.WriteJSON(ctx, builders.BuildSupportHelpPageNavigationTree(list))
+func DocPageGetNavigation(ctx *gin.Context) {
+	list := services.SupportService.FindPublicDocNavigation()
+	httpx.WriteJSON(ctx, builders.BuildDocPageNavigationTree(list))
 }
 
-func SupportHelpPageGetBy(ctx *gin.Context) {
+func DocPageGetBy(ctx *gin.Context) {
 	id, ok := httpx.GetPathInt64(ctx, "id")
 	if !ok {
 		return
 	}
-	item := repositories.SupportHelpPageRepository.Get(sqls.DB(), id)
-	if item == nil || item.Status != enums.SupportHelpPageStatusPublished {
+	item := repositories.DocPageRepository.Get(sqls.DB(), id)
+	if item == nil || item.Status != enums.DocPageStatusPublished {
 		httpx.WriteJSON(ctx, httpx.JsonErrorMsg(ctx, "error.notFound"))
 		return
 	}
-	_ = repositories.SupportHelpPageRepository.UpdateColumn(sqls.DB(), item.ID, "view_count", gorm.Expr("view_count + ?", 1))
-	httpx.WriteJSON(ctx, builders.BuildSupportHelpPage(item, true))
+	_ = repositories.DocPageRepository.UpdateColumn(sqls.DB(), item.ID, "view_count", gorm.Expr("view_count + ?", 1))
+	httpx.WriteJSON(ctx, builders.BuildDocPage(item, true))
 }
 
-func SupportHelpPagePostFeedback(ctx *gin.Context) {
-	req := request.SupportHelpPageFeedbackRequest{}
+func DocPagePostFeedback(ctx *gin.Context) {
+	req := request.DocPageFeedbackRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, services.SupportService.FeedbackHelpPage(req))
+	httpx.WriteJSON(ctx, services.SupportService.FeedbackDocPage(req))
 }
 
-func SupportQuestionCategoryAnyList(ctx *gin.Context) {
-	list := repositories.SupportQuestionCategoryRepository.Find(sqls.DB(), sqls.NewCnd().Eq("status", enums.StatusOk).Asc("sort_no").Desc("id"))
-	httpx.WriteJSON(ctx, builders.BuildSupportQuestionCategories(list))
+func CategoryAnyList(ctx *gin.Context) {
+	list := repositories.CategoryRepository.Find(sqls.DB(), sqls.NewCnd().Eq("status", enums.StatusOk).Asc("sort_no").Desc("id"))
+	httpx.WriteJSON(ctx, builders.BuildPostCategories(list))
 }
 
-func SupportQuestionAnyList(ctx *gin.Context) {
-	cnd := params.NewPagedSqlCnd(ctx,
+func PostAnyList(ctx *gin.Context) {
+	cursor, _ := params.GetInt64(ctx, "cursor")
+	limit, _ := params.GetInt(ctx, "limit")
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+	cnd := params.NewSqlCnd(ctx,
 		params.QueryFilter{ParamName: "categoryId"},
+		params.QueryFilter{ParamName: "userId"},
 		params.QueryFilter{ParamName: "status"},
 		params.QueryFilter{ParamName: "title", Op: params.Like},
-	).Where("status NOT IN ?", []enums.SupportQuestionStatus{enums.SupportQuestionStatusHidden, enums.SupportQuestionStatusDeleted}).Desc("id")
-	list, paging := repositories.SupportQuestionRepository.FindPageByCnd(sqls.DB(), cnd)
-	results := buildSupportQuestionList(list)
-	httpx.WriteJSON(ctx, &web.PageResult{Results: results, Page: paging})
+	).Where("status NOT IN ?", []enums.PostStatus{enums.PostStatusHidden, enums.PostStatusDeleted}).Desc("id").Limit(limit + 1)
+	if cursor > 0 {
+		cnd.Lt("id", cursor)
+	}
+	list := repositories.PostRepository.Find(sqls.DB(), cnd)
+	hasMore := len(list) > limit
+	if hasMore {
+		list = list[:limit]
+	}
+	nextCursor := ""
+	if hasMore && len(list) > 0 {
+		nextCursor = cast.ToString(list[len(list)-1].ID)
+	}
+	httpx.WriteJSON(ctx, httpx.CursorData(buildPostList(list), nextCursor, hasMore))
 }
 
-func SupportQuestionGetBy(ctx *gin.Context) {
+func PostGetBy(ctx *gin.Context) {
 	id, ok := httpx.GetPathInt64(ctx, "id")
 	if !ok {
 		return
 	}
-	question := repositories.SupportQuestionRepository.Get(sqls.DB(), id)
-	if question == nil || question.Status == enums.SupportQuestionStatusHidden || question.Status == enums.SupportQuestionStatusDeleted {
+	post := repositories.PostRepository.Get(sqls.DB(), id)
+	if post == nil || post.Status == enums.PostStatusHidden || post.Status == enums.PostStatusDeleted {
 		httpx.WriteJSON(ctx, httpx.JsonErrorMsg(ctx, "error.notFound"))
 		return
 	}
-	_ = repositories.SupportQuestionRepository.UpdateColumn(sqls.DB(), question.ID, "view_count", gorm.Expr("view_count + ?", 1))
-	answers := repositories.SupportAnswerRepository.Find(sqls.DB(), sqls.NewCnd().Eq("question_id", id).Eq("status", enums.SupportAnswerStatusNormal).Desc("is_best_answer").Asc("id"))
-	httpx.WriteJSON(ctx, response.SupportQuestionDetailResponse{Question: *builders.BuildSupportQuestion(question, supportQuestionCategoryName(question.CategoryID), supportUser(question.UserID)), Answers: buildSupportAnswerList(answers)})
+	_ = repositories.PostRepository.UpdateColumn(sqls.DB(), post.ID, "view_count", gorm.Expr("view_count + ?", 1))
+	comments, err := services.SupportService.ListPostComments(id, 0, "default", 1, 20)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, response.PostDetailResponse{Post: *builders.BuildPost(post, supportCategoryName(post.CategoryID), supportUser(post.UserID)), Comments: buildCommentListWithReplies(comments.Comments, comments.Replies)})
 }
 
-func SupportQuestionPostCreate(ctx *gin.Context) {
+func PostPostCreate(ctx *gin.Context) {
 	principal, err := services.SupportService.RequireSupportUser(ctx)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.CreateSupportQuestionRequest{}
+	req := request.CreatePostRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	item, err := services.SupportService.CreateQuestion(req, principal)
+	item, err := services.SupportService.CreatePost(req, principal)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, builders.BuildSupportQuestion(item, supportQuestionCategoryName(item.CategoryID), supportUser(principal.UserID)))
+	httpx.WriteJSON(ctx, builders.BuildPost(item, supportCategoryName(item.CategoryID), supportUser(principal.UserID)))
 }
 
-func SupportQuestionPostUpdate(ctx *gin.Context) {
+func PostPostUpdate(ctx *gin.Context) {
 	principal, err := services.SupportService.RequireSupportUser(ctx)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.UpdateSupportQuestionRequest{}
+	req := request.UpdatePostRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, services.SupportService.UpdateQuestion(req, principal))
+	httpx.WriteJSON(ctx, services.SupportService.UpdatePost(req, principal))
 }
 
-func SupportQuestionPostAcceptAnswer(ctx *gin.Context) {
+func PostPostAcceptComment(ctx *gin.Context) {
 	principal, err := services.SupportService.RequireSupportUser(ctx)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.SupportAcceptAnswerRequest{}
+	req := request.AcceptCommentRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, services.SupportService.AcceptAnswer(req, principal, nil))
+	httpx.WriteJSON(ctx, services.SupportService.AcceptComment(req, principal, nil))
 }
 
-func SupportQuestionPostVote(ctx *gin.Context) {
+func CommentPostCreate(ctx *gin.Context) {
 	principal, err := services.SupportService.RequireSupportUser(ctx)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.SupportVoteRequest{}
+	req := request.CreateCommentRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, services.SupportService.ToggleQuestionVote(req.ID, principal))
+	item, err := services.SupportService.CreateCustomerComment(req, principal)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, builders.BuildComment(item, supportPrincipalDisplayName(principal.UserID)))
 }
 
-func SupportAnswerPostCreate(ctx *gin.Context) {
+func CommentAnyList(ctx *gin.Context) {
+	postID, _ := params.GetInt64(ctx, "postId")
+	parentID, _ := params.GetInt64(ctx, "parentId")
+	page, _ := params.GetInt(ctx, "page")
+	limit, _ := params.GetInt(ctx, "limit")
+	sort, _ := params.Get(ctx, "sort")
+	result, err := services.SupportService.ListPostComments(postID, parentID, sort, page, limit)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, &web.PageResult{Results: buildCommentListWithReplies(result.Comments, result.Replies), Page: result.Paging})
+}
+
+func CommentPostUpdate(ctx *gin.Context) {
 	principal, err := services.SupportService.RequireSupportUser(ctx)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.CreateSupportAnswerRequest{}
+	req := request.UpdateCommentRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	item, err := services.SupportService.CreateSupportUserAnswer(req, principal)
-	if err != nil {
-		httpx.WriteJSON(ctx, err)
-		return
-	}
-	httpx.WriteJSON(ctx, builders.BuildSupportAnswer(item, supportPrincipalDisplayName(principal.UserID)))
+	httpx.WriteJSON(ctx, services.SupportService.UpdateComment(req, principal))
 }
 
-func SupportAnswerPostVote(ctx *gin.Context) {
+func CommentPostDelete(ctx *gin.Context) {
 	principal, err := services.SupportService.RequireSupportUser(ctx)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	req := request.SupportVoteRequest{}
+	req := request.IDRequest{}
 	if err := params.ReadJSON(ctx, &req); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	httpx.WriteJSON(ctx, services.SupportService.ToggleAnswerVote(req.ID, principal))
+	httpx.WriteJSON(ctx, services.SupportService.DeleteComment(req.ID, principal))
 }
 
-func buildSupportHelpPageList(list []models.SupportHelpPage, includeContent bool) []response.SupportHelpPageResponse {
-	results := make([]response.SupportHelpPageResponse, 0, len(list))
+func CommentPostReport(ctx *gin.Context) {
+	principal, err := services.SupportService.RequireSupportUser(ctx)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.ReportCommentRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, services.SupportService.ReportComment(req, principal))
+}
+
+func ReactionPostToggle(ctx *gin.Context) {
+	principal, err := services.SupportService.RequireSupportUser(ctx)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.ReactionRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, services.SupportService.ToggleReaction(req.TargetType, req.TargetID, req.ReactionType, principal))
+}
+
+func buildDocPageList(list []models.DocPage, includeContent bool) []response.DocPageResponse {
+	results := make([]response.DocPageResponse, 0, len(list))
 	for _, item := range list {
-		if resp := builders.BuildSupportHelpPage(&item, includeContent); resp != nil {
+		if resp := builders.BuildDocPage(&item, includeContent); resp != nil {
 			results = append(results, *resp)
 		}
 	}
 	return results
 }
 
-func buildSupportQuestionList(list []models.SupportQuestion) []response.SupportQuestionResponse {
-	results := make([]response.SupportQuestionResponse, 0, len(list))
+func buildPostList(list []models.Post) []response.PostResponse {
+	results := make([]response.PostResponse, 0, len(list))
 	for _, item := range list {
-		if resp := builders.BuildSupportQuestion(&item, supportQuestionCategoryName(item.CategoryID), supportUser(item.UserID)); resp != nil {
+		if resp := builders.BuildPost(&item, supportCategoryName(item.CategoryID), supportUser(item.UserID)); resp != nil {
 			results = append(results, *resp)
 		}
 	}
 	return results
 }
 
-func buildSupportAnswerList(list []models.SupportAnswer) []response.SupportAnswerResponse {
-	results := make([]response.SupportAnswerResponse, 0, len(list))
+func buildCommentList(list []models.Comment) []response.CommentResponse {
+	return buildCommentListWithReplies(list, nil)
+}
+
+func buildCommentListWithReplies(list []models.Comment, replies map[int64][]models.Comment) []response.CommentResponse {
+	results := make([]response.CommentResponse, 0, len(list))
 	for _, item := range list {
-		if resp := builders.BuildSupportAnswer(&item, supportAnswerAuthorName(item)); resp != nil {
+		if resp := builders.BuildComment(&item, supportCommentAuthorName(item)); resp != nil {
+			if len(replies[item.ID]) > 0 {
+				resp.Replies = buildCommentListWithReplies(replies[item.ID], nil)
+			}
 			results = append(results, *resp)
 		}
 	}
 	return results
 }
 
-func supportQuestionCategoryName(id int64) string {
-	item := repositories.SupportQuestionCategoryRepository.Get(sqls.DB(), id)
+func supportCategoryName(id int64) string {
+	item := repositories.CategoryRepository.Get(sqls.DB(), id)
 	if item == nil {
 		return ""
 	}
@@ -267,7 +344,7 @@ func supportPrincipalDisplayName(id int64) string {
 	return user.Username
 }
 
-func supportAnswerAuthorName(item models.SupportAnswer) string {
+func supportCommentAuthorName(item models.Comment) string {
 	user := repositories.UserRepository.Get(sqls.DB(), item.AuthorID)
 	if user == nil {
 		return ""

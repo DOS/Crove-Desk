@@ -21,6 +21,8 @@ const (
 	ChannelTypeWeb      = "web"
 	ChannelTypeWechatMP = "wechat_mp"
 	ChannelTypeWxWorkKF = "wxwork_kf"
+	ChannelTypeTelegram = "telegram"
+	ChannelTypeZaloOA   = "zalo_oa"
 )
 
 type WxWorkKFMessageSendStatus string

@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-func TestBuildSupportHelpPageNavigationTree(t *testing.T) {
-	menu := BuildSupportHelpPageNavigationTree([]models.SupportHelpPage{
+func TestBuildDocPageNavigationTree(t *testing.T) {
+	menu := BuildDocPageNavigationTree([]models.DocPage{
 		{ID: 1, Title: "Install", Slug: "install"},
 		{ID: 2, Title: "Overview", Slug: "overview"},
 		{ID: 3, ParentID: 2, Title: "Change log", Slug: "changelog"},

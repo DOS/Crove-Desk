@@ -12,6 +12,8 @@ func registerApiAuthRoutes(group *gin.RouterGroup) {
 	group.POST("/login", api.Login)
 	group.POST("/logout", api.Logout)
 	group.GET("/profile", api.Profile)
+	group.POST("/profile/update", api.UpdateProfile)
+	group.POST("/profile/avatar/upload", api.UploadProfileAvatar)
 	group.GET("/wxwork_callback", api.WxWorkCallback)
 	group.POST("/wxwork_exchange", api.WxWorkExchange)
 	group.GET("/wxwork_login", api.WxWorkLogin)
@@ -50,21 +52,30 @@ func registerApiMessageRoutes(group *gin.RouterGroup) {
 }
 
 func registerApiSupportRoutes(group *gin.RouterGroup) {
-	group.POST("/auth/register", api.SupportPostRegister)
+	group.GET("/config", api.SupportConfigGetConfig)
+	group.POST("/auth/register", api.SupportAuthPostRegister)
 	group.GET("/me", api.SupportGetMe)
-	group.Any("/help-page/list", api.SupportHelpPageAnyList)
-	group.GET("/help-page/navigation", api.SupportHelpPageGetNavigation)
-	group.GET("/help-page/:id", api.SupportHelpPageGetBy)
-	group.POST("/help-page/feedback", api.SupportHelpPagePostFeedback)
-	group.Any("/question-category/list", api.SupportQuestionCategoryAnyList)
-	group.Any("/question/list", api.SupportQuestionAnyList)
-	group.GET("/question/:id", api.SupportQuestionGetBy)
-	group.POST("/question/create", api.SupportQuestionPostCreate)
-	group.POST("/question/update", api.SupportQuestionPostUpdate)
-	group.POST("/question/accept_answer", api.SupportQuestionPostAcceptAnswer)
-	group.POST("/question/vote", api.SupportQuestionPostVote)
-	group.POST("/answer/create", api.SupportAnswerPostCreate)
-	group.POST("/answer/vote", api.SupportAnswerPostVote)
+	group.Any("/doc-page/list", api.DocPageAnyList)
+	group.GET("/doc-page/navigation", api.DocPageGetNavigation)
+	group.GET("/doc-page/:id", api.DocPageGetBy)
+	group.POST("/doc-page/feedback", api.DocPagePostFeedback)
+	group.Any("/community/categories/list", api.CategoryAnyList)
+	group.Any("/community/posts/list", api.PostAnyList)
+	group.GET("/community/posts/:id", api.PostGetBy)
+	group.POST("/community/posts/create", api.PostPostCreate)
+	group.POST("/community/posts/update", api.PostPostUpdate)
+	group.POST("/community/posts/accept_comment", api.PostPostAcceptComment)
+	group.Any("/community/comments/list", api.CommentAnyList)
+	group.POST("/community/comments/create", api.CommentPostCreate)
+	group.POST("/community/comments/update", api.CommentPostUpdate)
+	group.POST("/community/comments/delete", api.CommentPostDelete)
+	group.POST("/community/comments/report", api.CommentPostReport)
+	group.POST("/community/reactions/toggle", api.ReactionPostToggle)
+}
+
+func registerDashboardSupportConfigRoutes(group *gin.RouterGroup) {
+	group.GET("", dashboard.SupportConfigGetConfig)
+	group.POST("/save", dashboard.SupportConfigPostSave)
 }
 
 func registerDashboardDashboardRoutes(group *gin.RouterGroup) {
@@ -364,34 +375,34 @@ func registerDashboardKnowledgeRetrieveLogRoutes(group *gin.RouterGroup) {
 	group.Any("/list", dashboard.KnowledgeRetrieveLogAnyList)
 }
 
-func registerDashboardSupportHelpPageRoutes(group *gin.RouterGroup) {
-	group.GET("/:id", dashboard.SupportHelpPageGetBy)
-	group.POST("/create", dashboard.SupportHelpPagePostCreate)
-	group.POST("/delete", dashboard.SupportHelpPagePostDelete)
-	group.Any("/list", dashboard.SupportHelpPageAnyList)
-	group.GET("/list_all", dashboard.SupportHelpPageGetList_all)
-	group.POST("/update", dashboard.SupportHelpPagePostUpdate)
-	group.POST("/update_settings", dashboard.SupportHelpPagePostUpdate_settings)
-	group.POST("/update_sort", dashboard.SupportHelpPagePostUpdate_sort)
-	group.POST("/change_status", dashboard.SupportHelpPagePostChange_status)
+func registerDashboardDocPageRoutes(group *gin.RouterGroup) {
+	group.GET("/:id", dashboard.DocPageGetBy)
+	group.POST("/create", dashboard.DocPagePostCreate)
+	group.POST("/delete", dashboard.DocPagePostDelete)
+	group.Any("/list", dashboard.DocPageAnyList)
+	group.GET("/list_all", dashboard.DocPageGetList_all)
+	group.POST("/update", dashboard.DocPagePostUpdate)
+	group.POST("/update_settings", dashboard.DocPagePostUpdate_settings)
+	group.POST("/update_sort", dashboard.DocPagePostUpdate_sort)
+	group.POST("/change_status", dashboard.DocPagePostChange_status)
 }
 
-func registerDashboardSupportQuestionCategoryRoutes(group *gin.RouterGroup) {
-	group.POST("/create", dashboard.SupportQuestionCategoryPostCreate)
-	group.POST("/delete", dashboard.SupportQuestionCategoryPostDelete)
-	group.Any("/list", dashboard.SupportQuestionCategoryAnyList)
-	group.GET("/list_all", dashboard.SupportQuestionCategoryGetList_all)
-	group.POST("/update", dashboard.SupportQuestionCategoryPostUpdate)
-	group.POST("/update_sort", dashboard.SupportQuestionCategoryPostUpdateSort)
+func registerDashboardCommunityCategoryRoutes(group *gin.RouterGroup) {
+	group.POST("/create", dashboard.CategoryPostCreate)
+	group.POST("/delete", dashboard.CategoryPostDelete)
+	group.Any("/list", dashboard.CategoryAnyList)
+	group.GET("/list_all", dashboard.CategoryGetList_all)
+	group.POST("/update", dashboard.CategoryPostUpdate)
+	group.POST("/update_sort", dashboard.CategoryPostUpdateSort)
 }
 
-func registerDashboardSupportQuestionRoutes(group *gin.RouterGroup) {
-	group.GET("/:id", dashboard.SupportQuestionGetBy)
-	group.POST("/accept_answer", dashboard.SupportQuestionPostAcceptAnswer)
-	group.POST("/answer/create", dashboard.SupportAnswerPostCreate)
-	group.POST("/answer/moderate", dashboard.SupportAnswerPostModerate)
-	group.Any("/list", dashboard.SupportQuestionAnyList)
-	group.POST("/moderate", dashboard.SupportQuestionPostModerate)
+func registerDashboardCommunityPostRoutes(group *gin.RouterGroup) {
+	group.GET("/:id", dashboard.PostGetBy)
+	group.POST("/accept_comment", dashboard.PostPostAcceptComment)
+	group.POST("/comment/create", dashboard.CommentPostCreate)
+	group.POST("/comment/moderate", dashboard.CommentPostModerate)
+	group.Any("/list", dashboard.PostAnyList)
+	group.POST("/moderate", dashboard.PostPostModerate)
 }
 
 func registerDashboardSkillDefinitionRoutes(group *gin.RouterGroup) {
@@ -418,4 +429,14 @@ func registerDashboardMCPRoutes(group *gin.RouterGroup) {
 func registerThirdWechatRoutes(group *gin.RouterGroup) {
 	group.GET("/callback", third.WechatGetCallback)
 	group.POST("/callback", third.WechatPostCallback)
+}
+
+func registerThirdTelegramRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.TelegramPostWebhook)
+	group.POST("/webhook/:channel_id", third.TelegramPostWebhook)
+}
+
+func registerThirdZaloRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.ZaloPostWebhook)
+	group.POST("/webhook/:channel_id", third.ZaloPostWebhook)
 }

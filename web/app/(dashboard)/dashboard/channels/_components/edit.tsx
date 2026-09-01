@@ -58,6 +58,21 @@ type WechatMPChannelConfig = {
   userTokenSecret?: string
 }
 
+type TelegramChannelConfig = {
+  botToken?: string
+  botUsername?: string
+  webhookSecret?: string
+}
+
+type ZaloOAChannelConfig = {
+  appId?: string
+  oaId?: string
+  secretKey?: string
+  accessToken?: string
+  refreshToken?: string
+  webhookSecret?: string
+}
+
 function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
   return {
     title: t("channel.defaultTitleWeb"),
@@ -72,11 +87,18 @@ function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
 function createSchema(t: Translate) {
   return z
     .object({
-      channelType: z.enum(["web", "wechat_mp", "wxwork_kf"], t("channel.typeRequired")),
+      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa"], t("channel.typeRequired")),
       aiAgentId: z.string().trim().regex(/^\d+$/, t("channel.agentRequired")),
 		aiAgentRolloutPercent: z.coerce.number().int().min(1).max(100),
       name: z.string().trim().min(1, t("channel.nameRequired")),
       openKfId: z.string().trim(),
+      botToken: z.string().trim(),
+      botUsername: z.string().trim(),
+      webhookSecret: z.string().trim(),
+      zaloAppId: z.string().trim(),
+      zaloOaId: z.string().trim(),
+      zaloAccessToken: z.string().trim(),
+      zaloSecretKey: z.string().trim(),
       widgetTitle: z.string().trim(),
       widgetSubtitle: z.string().trim(),
       widgetThemeColor: z.string().trim(),
@@ -93,15 +115,36 @@ function createSchema(t: Translate) {
           message: t("channel.wxworkAccountRequired"),
         })
       }
+      if (values.channelType === "telegram" && !values.botToken.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["botToken"],
+          message: "Telegram Bot Token is required",
+        })
+      }
+      if (values.channelType === "zalo_oa" && !values.zaloAccessToken.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["zaloAccessToken"],
+          message: "Zalo OA Access Token is required",
+        })
+      }
     })
 }
 
 type EditForm = {
-  channelType: "web" | "wechat_mp" | "wxwork_kf"
+  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa"
   aiAgentId: string
 	aiAgentRolloutPercent: number
   name: string
   openKfId: string
+  botToken: string
+  botUsername: string
+  webhookSecret: string
+  zaloAppId: string
+  zaloOaId: string
+  zaloAccessToken: string
+  zaloSecretKey: string
   widgetTitle: string
   widgetSubtitle: string
   widgetThemeColor: string
@@ -119,6 +162,13 @@ function createEmptyForm(t: Translate): EditForm {
 		aiAgentRolloutPercent: 100,
     name: "",
     openKfId: "",
+    botToken: "",
+    botUsername: "",
+    webhookSecret: "",
+    zaloAppId: "",
+    zaloOaId: "",
+    zaloAccessToken: "",
+    zaloSecretKey: "",
     widgetTitle: defaultWebChannelConfig.title,
     widgetSubtitle: defaultWebChannelConfig.subtitle,
     widgetThemeColor: defaultWebChannelConfig.themeColor,
@@ -138,6 +188,37 @@ function parseOpenKfId(configJson: string): string {
     return typeof parsed.openKfId === "string" ? parsed.openKfId.trim() : ""
   } catch {
     return ""
+  }
+}
+
+function parseTelegramChannelConfig(configJson: string): TelegramChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as TelegramChannelConfig
+    return {
+      botToken: parsed.botToken?.trim() || "",
+      botUsername: parsed.botUsername?.trim() || "",
+      webhookSecret: parsed.webhookSecret?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseZaloOAChannelConfig(configJson: string): ZaloOAChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as ZaloOAChannelConfig
+    return {
+      appId: parsed.appId?.trim() || "",
+      oaId: parsed.oaId?.trim() || "",
+      secretKey: parsed.secretKey?.trim() || "",
+      accessToken: parsed.accessToken?.trim() || "",
+      refreshToken: parsed.refreshToken?.trim() || "",
+      webhookSecret: parsed.webhookSecret?.trim() || "",
+    }
+  } catch {
+    return {}
   }
 }
 
@@ -193,21 +274,40 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
     return createEmptyForm(t)
   }
   const isWechatMP = item.channelType === "wechat_mp"
+  const isTelegram = item.channelType === "telegram"
+  const isZaloOA = item.channelType === "zalo_oa"
   const webConfig = parseWebChannelConfig(item.configJson, t)
   const wechatConfig = isWechatMP
     ? parseWechatMPChannelConfig(item.configJson, t)
+    : null
+  const telegramConfig = isTelegram
+    ? parseTelegramChannelConfig(item.configJson)
+    : null
+  const zaloConfig = isZaloOA
+    ? parseZaloOAChannelConfig(item.configJson)
     : null
   return {
     channelType:
       item.channelType === "wxwork_kf"
         ? "wxwork_kf"
-        : item.channelType === "wechat_mp"
-          ? "wechat_mp"
-          : "web",
+        : item.channelType === "telegram"
+          ? "telegram"
+          : item.channelType === "zalo_oa"
+            ? "zalo_oa"
+            : item.channelType === "wechat_mp"
+              ? "wechat_mp"
+              : "web",
     aiAgentId: item.aiAgentId > 0 ? String(item.aiAgentId) : "",
 		aiAgentRolloutPercent: item.aiAgentRolloutPercent || 100,
     name: item.name,
     openKfId: parseOpenKfId(item.configJson),
+    botToken: telegramConfig?.botToken ?? "",
+    botUsername: telegramConfig?.botUsername ?? "",
+    webhookSecret: telegramConfig?.webhookSecret ?? zaloConfig?.webhookSecret ?? "",
+    zaloAppId: zaloConfig?.appId ?? "",
+    zaloOaId: zaloConfig?.oaId ?? "",
+    zaloAccessToken: zaloConfig?.accessToken ?? "",
+    zaloSecretKey: zaloConfig?.secretKey ?? "",
     widgetTitle: wechatConfig?.title ?? webConfig.title,
     widgetSubtitle: wechatConfig?.subtitle ?? webConfig.subtitle,
     widgetThemeColor: wechatConfig?.themeColor ?? webConfig.themeColor,
@@ -233,14 +333,28 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
   const configJson =
     channelType === "wxwork_kf"
       ? JSON.stringify({ openKfId: form.openKfId.trim() })
-      : channelType === "wechat_mp"
-        ? JSON.stringify(webLikeConfig)
-        : JSON.stringify({
-            ...webLikeConfig,
-            position: form.widgetPosition || defaultWebChannelConfig.position,
-            width: form.widgetWidth.trim() || defaultWebChannelConfig.width,
-            userTokenSecret: form.userTokenSecret.trim(),
+      : channelType === "telegram"
+        ? JSON.stringify({
+            botToken: form.botToken.trim(),
+            botUsername: form.botUsername.trim(),
+            webhookSecret: form.webhookSecret.trim(),
           })
+        : channelType === "zalo_oa"
+          ? JSON.stringify({
+              appId: form.zaloAppId.trim(),
+              oaId: form.zaloOaId.trim(),
+              accessToken: form.zaloAccessToken.trim(),
+              secretKey: form.zaloSecretKey.trim(),
+              webhookSecret: form.webhookSecret.trim(),
+            })
+          : channelType === "wechat_mp"
+            ? JSON.stringify(webLikeConfig)
+            : JSON.stringify({
+                ...webLikeConfig,
+                position: form.widgetPosition || defaultWebChannelConfig.position,
+                width: form.widgetWidth.trim() || defaultWebChannelConfig.width,
+                userTokenSecret: form.userTokenSecret.trim(),
+              })
   return {
     channelType,
     aiAgentId: Number(form.aiAgentId),
@@ -340,9 +454,9 @@ function ChannelFormBody({
 				aiAgentRolloutPercent: previousRolloutPercent,
 				previousAiAgentRolloutPercent: channelDetail.aiAgentRolloutPercent,
 			})
-			toast.success("已恢复上一次渠道灰度比例")
+			toast.success(t("aiAgent.channelRolloutRestored"))
 		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "恢复渠道灰度比例失败")
+			toast.error(error instanceof Error ? error.message : t("aiAgent.channelRolloutRestoreFailed"))
 		} finally {
 			setRollingBackRollout(false)
 		}
@@ -419,7 +533,7 @@ function ChannelFormBody({
   const selectedAIAgent = aiAgents.find((item) => String(item.id) === aiAgentId)
   const aiAgentOptions = aiAgents.map((item) => ({
     value: String(item.id),
-    label: isAgentChannelBindable(item) ? item.name : `${item.name} · 未发布`,
+    label: isAgentChannelBindable(item) ? item.name : `${item.name} · ${t("aiAgent.agentNotPublishedShort")}`,
     disabled: !isAgentChannelBindable(item),
   }))
   const wxWorkKFAccountOptions = wxWorkKFAccounts.map((item) => ({
@@ -428,6 +542,7 @@ function ChannelFormBody({
   }))
   const channelTypeOptions = [
     { value: "web", label: t("channel.typeWeb") },
+    { value: "telegram", label: t("channel.typeTelegram") },
     { value: "wechat_mp", label: t("channel.typeWechatMp") },
     { value: "wxwork_kf", label: t("channel.typeWxworkKf") },
   ] as const
@@ -448,8 +563,8 @@ function ChannelFormBody({
 
   async function onFormSubmit(values: EditForm) {
     const selected = aiAgents.find((item) => String(item.id) === values.aiAgentId)
-	if (!isAgentChannelBindable(selected)) {
-		toast.error("该 Agent 尚未完成发布，不能绑定渠道")
+    if (!isAgentChannelBindable(selected)) {
+      toast.error(t("aiAgent.agentNotPublishedWarning"))
       return
     }
     await onSubmit(buildPayload(values, currentStatus, t))
@@ -545,7 +660,7 @@ function ChannelFormBody({
                 />
                 {selectedAIAgent && !isAgentChannelBindable(selectedAIAgent) ? (
                   <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                    该 Agent 尚未发布，AI 不会自动回复。请先在 Agent 配置中发布 Revision。
+                    {t("aiAgent.agentNotPublishedWarning")}
                   </div>
                 ) : null}
                 <FieldError errors={[errors.aiAgentId]} />
@@ -553,14 +668,14 @@ function ChannelFormBody({
             </Field>
 
             <Field data-invalid={!!errors.aiAgentRolloutPercent}>
-              <FieldLabel htmlFor="channel-ai-agent-rollout">AI 灰度比例（%）</FieldLabel>
+              <FieldLabel htmlFor="channel-ai-agent-rollout">{t("aiAgent.channelRolloutTitle")}</FieldLabel>
               <FieldContent>
                 <div className="flex items-center gap-2">
                   <Input id="channel-ai-agent-rollout" type="number" min={1} max={100} step={1} {...register("aiAgentRolloutPercent")} />
                   {previousRolloutPercent > 0 ? (
                     <Button type="button" variant="outline" size="sm" disabled={saving || rollingBackRollout} onClick={rollbackRolloutPercent}>
                       <RotateCcwIcon />
-                      恢复 {previousRolloutPercent}%
+                      {t("aiAgent.channelRolloutRestoreBtn", { percent: String(previousRolloutPercent) })}
                     </Button>
                   ) : null}
                 </div>
@@ -601,6 +716,102 @@ function ChannelFormBody({
                     : t("channel.configWebDescription")}
               </div>
             </div>
+
+            {channelType === "zalo_oa" ? (
+              <div className="space-y-4">
+                <Field data-invalid={!!errors.zaloAccessToken}>
+                  <FieldLabel htmlFor="channel-zalo-token">{t("channel.zaloAccessToken")} *</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-zalo-token"
+                      type="password"
+                      placeholder="Enter Zalo OA Access Token"
+                      {...register("zaloAccessToken")}
+                    />
+                    <FieldError errors={[errors.zaloAccessToken]} />
+                  </FieldContent>
+                </Field>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.zaloOaId}>
+                    <FieldLabel htmlFor="channel-zalo-oaid">{t("channel.zaloOaId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-zalo-oaid"
+                        placeholder="e.g. 1234567890"
+                        {...register("zaloOaId")}
+                      />
+                      <FieldError errors={[errors.zaloOaId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.zaloAppId}>
+                    <FieldLabel htmlFor="channel-zalo-appid">{t("channel.zaloAppId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-zalo-appid"
+                        placeholder="e.g. 9876543210"
+                        {...register("zaloAppId")}
+                      />
+                      <FieldError errors={[errors.zaloAppId]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                  <div className="font-medium text-foreground">{t("channel.zaloAutoConnectTitle")}</div>
+                  <div className="mt-1">{t("channel.zaloAutoConnectDescription")}</div>
+                </div>
+              </div>
+            ) : null}
+
+            {channelType === "telegram" ? (
+              <div className="space-y-4">
+                <Field data-invalid={!!errors.botToken}>
+                  <FieldLabel htmlFor="channel-telegram-token">{t("channel.botToken")} *</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-telegram-token"
+                      type="password"
+                      placeholder="123456789:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+                      {...register("botToken")}
+                    />
+                    <FieldError errors={[errors.botToken]} />
+                  </FieldContent>
+                </Field>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.botUsername}>
+                    <FieldLabel htmlFor="channel-telegram-username">{t("channel.botUsername")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-telegram-username"
+                        placeholder="e.g. CroveDeskBot"
+                        {...register("botUsername")}
+                      />
+                      <FieldError errors={[errors.botUsername]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.webhookSecret}>
+                    <FieldLabel htmlFor="channel-telegram-secret">{t("channel.webhookSecret")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-telegram-secret"
+                        placeholder="Auto-generated secret"
+                        {...register("webhookSecret")}
+                      />
+                      <FieldError errors={[errors.webhookSecret]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                  <div className="font-medium text-foreground">{t("channel.telegramAutoConnectTitle")}</div>
+                  <div className="mt-1">{t("channel.telegramAutoConnectDescription")}</div>
+                </div>
+              </div>
+            ) : null}
 
             {channelType === "wxwork_kf" ? (
               <Field data-invalid={!!errors.openKfId}>

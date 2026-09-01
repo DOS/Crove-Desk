@@ -24,11 +24,13 @@ export type BlobResponse = {
 
 export class ApiRequestError extends Error {
   errorCode?: number
+  data?: unknown
 
-  constructor(message: string, errorCode?: number, options?: ErrorOptions) {
+  constructor(message: string, errorCode?: number, data?: unknown, options?: ErrorOptions) {
     super(message, options)
     this.name = "ApiRequestError"
     this.errorCode = errorCode
+    this.data = data
   }
 }
 
@@ -43,6 +45,7 @@ function normalizeApiRequestError(error: unknown) {
   return new ApiRequestError(
     translateCurrentMessage("api.requestFailed"),
     undefined,
+    undefined,
     { cause: error }
   )
 }
@@ -55,7 +58,8 @@ async function parseResult<T>(response: Response) {
     }
     throw new ApiRequestError(
       payload.message || translateCurrentMessage("api.requestFailed"),
-      payload.errorCode
+      payload.errorCode,
+      payload.data
     )
   }
   return payload.data
