@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Inter, Geist_Mono } from "next/font/google"
+import { Geist, Geist_Mono } from "next/font/google"
 
 import { AuthProvider } from "@/components/auth-provider"
 import { ApiErrorProvider } from "@/components/api-error-provider"
@@ -14,10 +14,9 @@ import "./dashboard.css"
 import "md-editor-rt/lib/style.css"
 import "@/styles/main.scss"
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin", "vietnamese"],
-  display: "swap",
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
 })
 
 const geistMono = Geist_Mono({
@@ -35,13 +34,8 @@ try {
 `
 
 export const metadata: Metadata = {
-  title: "Crove Desk",
-  description: "Crove Desk - AI-Powered Customer Support & Operations",
-  icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-    apple: "/images/logo.svg",
-  },
+  title: "AI Customer Service Admin",
+  description: "AI Customer Service Admin",
 }
 
 export default function DashboardRootLayout({
@@ -50,7 +44,7 @@ export default function DashboardRootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en-US" className={`${inter.variable} ${geistMono.variable}`} suppressHydrationWarning>
+    <html lang="en-US" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body
         className="antialiased font-sans"
       >

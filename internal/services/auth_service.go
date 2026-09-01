@@ -9,9 +9,11 @@ import (
 	"agent-desk/internal/pkg/dto/response"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/errorsx"
+	"agent-desk/internal/pkg/utils"
 	"agent-desk/internal/repositories"
 	"crypto/rand"
 	"encoding/hex"
+	"net/mail"
 	"slices"
 	"sort"
 	"strings"
@@ -196,19 +198,69 @@ func (s *authService) CurrentProfile(ctx *gin.Context) (*response.LoginResponse,
 		return nil, err
 	}
 
+	user := UserService.Get(principal.UserID)
+	if user == nil || user.Status != enums.StatusOk {
+		return nil, errorsx.UnauthorizedI18n("error.e0256")
+	}
+
 	return &response.LoginResponse{
 		User: &response.AuthUserResponse{
-			ID:       principal.UserID,
-			Username: principal.Username,
-			Nickname: principal.Nickname,
-			Avatar:   principal.Avatar,
-			UserType: principal.UserType,
-			Status:   principal.Status,
+			ID:       user.ID,
+			Username: user.Username,
+			Nickname: user.Nickname,
+			Avatar:   user.Avatar,
+			Email:    derefString(user.Email),
+			UserType: user.UserType,
+			Status:   user.Status,
 			Roles:    principal.Roles,
 		},
 		Permissions: principal.Permissions,
 		Roles:       principal.Roles,
 	}, nil
+}
+
+func (s *authService) UpdateProfile(ctx *gin.Context, req request.UpdateProfileRequest) (*response.LoginResponse, error) {
+	principal, err := s.Authenticate(ctx)
+	if err != nil {
+		return nil, err
+	}
+	user := UserService.Get(principal.UserID)
+	if user == nil || user.DeletedAt != nil || user.Status != enums.StatusOk {
+		return nil, errorsx.UnauthorizedI18n("error.e0256")
+	}
+
+	nickname := strings.TrimSpace(req.Nickname)
+	if nickname == "" {
+		return nil, errorsx.InvalidParamI18n("error.profile.nicknameRequired")
+	}
+	if len([]rune(nickname)) > 100 {
+		return nil, errorsx.InvalidParamI18n("error.profile.nicknameTooLong")
+	}
+	avatar := strings.TrimSpace(req.Avatar)
+	if len(avatar) > 255 {
+		return nil, errorsx.InvalidParamI18n("error.profile.avatarTooLong")
+	}
+	email := utils.NormalizeNullableString(req.Email)
+	if email != nil {
+		if _, parseErr := mail.ParseAddress(*email); parseErr != nil {
+			return nil, errorsx.InvalidParamI18n("error.profile.emailInvalid")
+		}
+		if existed := UserService.GetByEmail(*email); existed != nil && existed.ID != user.ID {
+			return nil, errorsx.InvalidParamI18n("error.e0338")
+		}
+	}
+
+	if err := repositories.UserRepository.Updates(sqls.DB(), user.ID, map[string]any{
+		"nickname":         nickname,
+		"avatar":           avatar,
+		"email":            email,
+		"update_user_id":   user.ID,
+		"update_user_name": user.Username,
+		"updated_at":       time.Now(),
+	}); err != nil {
+		return nil, err
+	}
+	return s.CurrentProfile(ctx)
 }
 
 func (s *authService) GetUserRoles(userID int64) ([]models.Role, error) {
@@ -260,6 +312,7 @@ func (s *authService) issueTokens(ctx *sqls.TxContext, user *models.User, client
 			Username: user.Username,
 			Nickname: user.Nickname,
 			Avatar:   user.Avatar,
+			Email:    derefString(user.Email),
 			UserType: user.UserType,
 			Status:   user.Status,
 			Roles:    roles,
@@ -428,6 +481,13 @@ func (s *authService) isCredentialLocked(principal string, authCfg config.AuthCo
 
 func normalizeLoginPrincipal(principal string) string {
 	return strings.ToLower(strings.TrimSpace(principal))
+}
+
+func derefString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func randomToken(prefix string) (string, error) {

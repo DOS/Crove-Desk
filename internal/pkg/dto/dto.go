@@ -49,7 +49,6 @@ type ZaloOAChannelConfig struct {
 	WebhookSecret  string `json:"webhookSecret,omitempty"`
 	WelcomeMessage string `json:"welcomeMessage,omitempty"`
 }
-
 type EmailChannelConfig struct {
 	EmailAddress   string `json:"emailAddress"`             // e.g. help@crove.com
 	SenderName     string `json:"senderName,omitempty"`     // e.g. Crove Desk Support
@@ -62,4 +61,3 @@ type EmailChannelConfig struct {
 	WebhookSecret  string `json:"webhookSecret,omitempty"`  // Inbound Webhook Secret
 	WelcomeMessage string `json:"welcomeMessage,omitempty"` // Auto-responder / welcome message
 }
-

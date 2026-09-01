@@ -419,7 +419,6 @@ func (s *channelService) ParseEmailChannelConfig(raw string) (*dto.EmailChannelC
 	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
 	return cfg, nil
 }
-
 func (s *channelService) GetUserTokenSecret(channel *models.Channel) string {
 	if channel == nil {
 		return ""

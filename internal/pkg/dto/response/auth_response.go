@@ -7,6 +7,7 @@ type AuthUserResponse struct {
 	Username string         `json:"username"`
 	Nickname string         `json:"nickname"`
 	Avatar   string         `json:"avatar"`
+	Email    string         `json:"email,omitempty"`
 	UserType enums.UserType `json:"userType"`
 	Status   enums.Status   `json:"status"`
 	Roles    []string       `json:"roles"`

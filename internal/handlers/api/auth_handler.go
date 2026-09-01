@@ -1,6 +1,7 @@
 package api
 
 import (
+	"agent-desk/internal/builders"
 	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/dto/response"
@@ -170,6 +171,45 @@ func Profile(ctx *gin.Context) {
 		return
 	}
 	httpx.WriteJSON(ctx, ret)
+}
+
+func UpdateProfile(ctx *gin.Context) {
+	req := request.UpdateProfileRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	ret, err := services.AuthService.UpdateProfile(ctx, req)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, ret)
+}
+
+func UploadProfileAvatar(ctx *gin.Context) {
+	principal, err := services.AuthService.Authenticate(ctx)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+
+	header, err := ctx.FormFile("file")
+	if err != nil {
+		httpx.WriteJSON(ctx, httpx.JsonErrorMsg(ctx, "error.e0323"))
+		return
+	}
+	if !strings.HasPrefix(strings.ToLower(header.Header.Get("Content-Type")), "image/") {
+		httpx.WriteJSON(ctx, httpx.JsonErrorMsg(ctx, "error.e0090"))
+		return
+	}
+
+	item, err := services.AssetService.UploadFile(header, "avatars", principal)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, builders.BuildAsset(item))
 }
 
 func wxWorkErrorMessage(message string) string {

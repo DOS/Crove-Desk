@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 
+import { articleHeadingId } from "@/lib/support-article"
 import { cn } from "@/lib/utils"
 
 type SafeRichHTMLProps = {
@@ -9,6 +10,7 @@ type SafeRichHTMLProps = {
   fallback?: string
   className?: string
   id?: string
+  articleHeadingIds?: boolean
   unstyled?: boolean
 }
 
@@ -82,7 +84,26 @@ function isSafeURL(value: string) {
   }
 }
 
-function sanitizeRichHTML(value: string) {
+function appendClassName(element: Element, className: string) {
+  const current = element.getAttribute("class")?.trim()
+  if (!current) {
+    element.setAttribute("class", className)
+    return
+  }
+  if (current.split(/\s+/).includes(className)) {
+    return
+  }
+  element.setAttribute("class", `${current} ${className}`)
+}
+
+function applyArticleHeadingIds(container: ParentNode) {
+  container.querySelectorAll<HTMLElement>("h2, h3").forEach((heading, index) => {
+    heading.id = articleHeadingId(heading.textContent || "", index)
+    appendClassName(heading, "scroll-mt-20")
+  })
+}
+
+function sanitizeRichHTML(value: string, options: { articleHeadingIds?: boolean } = {}) {
   const source = looksLikeHTML(value) ? value : plainTextToHTML(value)
   if (typeof window === "undefined") {
     return source
@@ -121,6 +142,10 @@ function sanitizeRichHTML(value: string) {
     }
   }
 
+  if (options.articleHeadingIds) {
+    applyArticleHeadingIds(doc.body)
+  }
+
   return doc.body.innerHTML
 }
 
@@ -136,14 +161,14 @@ export function isRichTextEmpty(value?: string | null) {
   return (doc.body.textContent ?? "").trim() === "" && doc.body.querySelector("img") === null
 }
 
-export function SafeRichHTML({ html, fallback = "-", className, id, unstyled = false }: SafeRichHTMLProps) {
+export function SafeRichHTML({ html, fallback = "-", className, id, articleHeadingIds = false, unstyled = false }: SafeRichHTMLProps) {
   const normalized = String(html ?? "").trim()
   const safeHTML = useMemo(() => {
     if (!normalized) {
       return plainTextToHTML(fallback)
     }
-    return sanitizeRichHTML(normalized)
-  }, [fallback, normalized])
+    return sanitizeRichHTML(normalized, { articleHeadingIds })
+  }, [articleHeadingIds, fallback, normalized])
 
   return (
     <div

@@ -2,7 +2,7 @@ language: zh-CN
 
 server:
   port: 8083
-  # Company branding
+  # Custom platform / instance branding (optional)
   companyName: ""
   companyLogoUrl: ""
   cors:

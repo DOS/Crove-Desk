@@ -30,6 +30,12 @@ var SupportService = &supportService{}
 
 type supportService struct{}
 
+type CommentListResult struct {
+	Comments []models.Comment
+	Replies  map[int64][]models.Comment
+	Paging   *sqls.Paging
+}
+
 func (s *supportService) RegisterUser(req request.SupportCustomerRegisterRequest, authCfg config.AuthConfig, clientIP, userAgent string) (*response.LoginResponse, error) {
 	name := strings.TrimSpace(req.Name)
 	email := normalizeSupportEmail(req.Email)
@@ -95,29 +101,29 @@ func (s *supportService) GetSupportUser(ctx *gin.Context) *dto.AuthPrincipal {
 	return nil
 }
 
-func (s *supportService) FindHelpPages(cnd *sqls.Cnd) []models.SupportHelpPage {
-	return repositories.SupportHelpPageRepository.Find(sqls.DB(), cnd)
+func (s *supportService) FindDocPages(cnd *sqls.Cnd) []models.DocPage {
+	return repositories.DocPageRepository.Find(sqls.DB(), cnd)
 }
 
-func (s *supportService) FindPublicHelpNavigation() []models.SupportHelpPage {
-	return repositories.SupportHelpPageRepository.FindNavigationItems(sqls.DB(), sqls.NewCnd().Eq("status", enums.SupportHelpPageStatusPublished).Asc("sort_no").Asc("id"))
+func (s *supportService) FindPublicDocNavigation() []models.DocPage {
+	return repositories.DocPageRepository.FindNavigationItems(sqls.DB(), sqls.NewCnd().Eq("status", enums.DocPageStatusPublished).Asc("sort_no").Asc("id"))
 }
 
-func (s *supportService) FindHelpPageByID(id int64) *models.SupportHelpPage {
-	return repositories.SupportHelpPageRepository.Get(sqls.DB(), id)
+func (s *supportService) FindDocPageByID(id int64) *models.DocPage {
+	return repositories.DocPageRepository.Get(sqls.DB(), id)
 }
 
-func (s *supportService) FindHelpPagePage(cnd *sqls.Cnd) ([]models.SupportHelpPage, *sqls.Paging) {
-	return repositories.SupportHelpPageRepository.FindPageByCnd(sqls.DB(), cnd)
+func (s *supportService) FindDocPagePage(cnd *sqls.Cnd) ([]models.DocPage, *sqls.Paging) {
+	return repositories.DocPageRepository.FindPageByCnd(sqls.DB(), cnd)
 }
 
-func (s *supportService) SortHelpPages(req request.SortSupportHelpPagesRequest) error {
-	pages := repositories.SupportHelpPageRepository.Find(
+func (s *supportService) SortDocPages(req request.SortDocPagesRequest) error {
+	pages := repositories.DocPageRepository.Find(
 		sqls.DB(),
 		sqls.NewCnd().Eq("parent_id", req.ParentID).Asc("sort_no").Asc("id"),
 	)
 	if len(req.IDs) != len(pages) {
-		return errorsx.InvalidParamI18n("error.supportHelpPage.sortScopeMismatch")
+		return errorsx.InvalidParamI18n("error.docPage.sortScopeMismatch")
 	}
 	existing := make(map[int64]struct{}, len(pages))
 	for _, page := range pages {
@@ -126,16 +132,16 @@ func (s *supportService) SortHelpPages(req request.SortSupportHelpPagesRequest) 
 	seen := make(map[int64]struct{}, len(req.IDs))
 	for _, id := range req.IDs {
 		if _, ok := existing[id]; !ok {
-			return errorsx.InvalidParamI18n("error.supportHelpPage.sortScopeMismatch")
+			return errorsx.InvalidParamI18n("error.docPage.sortScopeMismatch")
 		}
 		if _, ok := seen[id]; ok {
-			return errorsx.InvalidParamI18n("error.supportHelpPage.sortDuplicate")
+			return errorsx.InvalidParamI18n("error.docPage.sortDuplicate")
 		}
 		seen[id] = struct{}{}
 	}
 	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
 		for sortNo, id := range req.IDs {
-			if err := repositories.SupportHelpPageRepository.UpdateSort(ctx.Tx, id, sortNo); err != nil {
+			if err := repositories.DocPageRepository.UpdateSort(ctx.Tx, id, sortNo); err != nil {
 				return err
 			}
 		}
@@ -143,14 +149,14 @@ func (s *supportService) SortHelpPages(req request.SortSupportHelpPagesRequest) 
 	})
 }
 
-func (s *supportService) validateHelpPageParent(id, parentID int64) error {
+func (s *supportService) validateDocPageParent(id, parentID int64) error {
 	if parentID == 0 {
 		return nil
 	}
 	if id > 0 && id == parentID {
 		return errorsx.InvalidParam("page cannot be its own parent")
 	}
-	parent := repositories.SupportHelpPageRepository.Get(sqls.DB(), parentID)
+	parent := repositories.DocPageRepository.Get(sqls.DB(), parentID)
 	if parent == nil {
 		return errorsx.InvalidParam("parent page not found")
 	}
@@ -161,7 +167,7 @@ func (s *supportService) validateHelpPageParent(id, parentID int64) error {
 			return errorsx.InvalidParam("page hierarchy contains a cycle")
 		}
 		visited[parent.ParentID] = true
-		parent = repositories.SupportHelpPageRepository.Get(sqls.DB(), parent.ParentID)
+		parent = repositories.DocPageRepository.Get(sqls.DB(), parent.ParentID)
 		if parent == nil {
 			return errorsx.InvalidParam("parent page not found")
 		}
@@ -173,7 +179,7 @@ func (s *supportService) validateHelpPageParent(id, parentID int64) error {
 	return nil
 }
 
-func (s *supportService) SaveHelpPage(req request.SaveSupportHelpPageRequest, operator *dto.AuthPrincipal) (*models.SupportHelpPage, error) {
+func (s *supportService) SaveDocPage(req request.SaveDocPageRequest, operator *dto.AuthPrincipal) (*models.DocPage, error) {
 	title, slug := strings.TrimSpace(req.Title), normalizeSupportSlug(req.Slug)
 	if title == "" || slug == "" {
 		return nil, errorsx.InvalidParam("title and slug are required")
@@ -181,31 +187,31 @@ func (s *supportService) SaveHelpPage(req request.SaveSupportHelpPageRequest, op
 	if err := validateSupportSlug(slug); err != nil {
 		return nil, err
 	}
-	if err := s.validateHelpPageParent(req.ID, req.ParentID); err != nil {
+	if err := s.validateDocPageParent(req.ID, req.ParentID); err != nil {
 		return nil, err
 	}
-	if existing := repositories.SupportHelpPageRepository.GetByParentIDAndSlug(sqls.DB(), req.ParentID, slug); existing != nil && existing.ID != req.ID {
+	if existing := repositories.DocPageRepository.GetByParentIDAndSlug(sqls.DB(), req.ParentID, slug); existing != nil && existing.ID != req.ID {
 		return nil, errorsx.InvalidParam("page slug already exists")
 	}
-	status := normalizeHelpPageStatus(req.Status)
-	var current *models.SupportHelpPage
+	status := normalizeDocPageStatus(req.Status)
+	var current *models.DocPage
 	if req.ID > 0 {
-		current = repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ID)
+		current = repositories.DocPageRepository.Get(sqls.DB(), req.ID)
 		if current == nil {
 			return nil, errorsx.InvalidParam("page not found")
 		}
-		// Publication status is changed only by ChangeHelpPageStatus so saving
+		// Publication status is changed only by ChangeDocPageStatus so saving
 		// content cannot accidentally publish or withdraw a public document.
 		status = current.Status
 	}
-	if status == enums.SupportHelpPageStatusPublished && req.ParentID > 0 {
-		parent := repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ParentID)
-		if parent == nil || parent.Status != enums.SupportHelpPageStatusPublished {
+	if status == enums.DocPageStatusPublished && req.ParentID > 0 {
+		parent := repositories.DocPageRepository.Get(sqls.DB(), req.ParentID)
+		if parent == nil || parent.Status != enums.DocPageStatusPublished {
 			return nil, errorsx.InvalidParam("publish the parent page first")
 		}
 	}
-	if req.ID > 0 && status != enums.SupportHelpPageStatusPublished {
-		publishedChildren := repositories.SupportHelpPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", req.ID).Eq("status", enums.SupportHelpPageStatusPublished).Page(1, 1))
+	if req.ID > 0 && status != enums.DocPageStatusPublished {
+		publishedChildren := repositories.DocPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", req.ID).Eq("status", enums.DocPageStatusPublished).Page(1, 1))
 		if len(publishedChildren) > 0 {
 			return nil, errorsx.InvalidParam("unpublish child pages first")
 		}
@@ -213,7 +219,7 @@ func (s *supportService) SaveHelpPage(req request.SaveSupportHelpPageRequest, op
 	tags, _ := json.Marshal(normalizeTags(req.Tags))
 	now := time.Now()
 	publishedAt := (*time.Time)(nil)
-	if status == enums.SupportHelpPageStatusPublished && req.ID == 0 {
+	if status == enums.DocPageStatusPublished && req.ID == 0 {
 		publishedAt = &now
 	}
 	columns := map[string]any{"parent_id": req.ParentID, "title": title, "slug": slug, "summary": strings.TrimSpace(req.Summary), "content_type": normalizeContentType(req.ContentType), "content": req.Content, "cover_url": strings.TrimSpace(req.CoverURL), "tags_json": string(tags), "status": status, "sort_no": req.SortNo, "remark": strings.TrimSpace(req.Remark), "updated_at": now, "update_user_id": operator.UserID, "update_user_name": operator.Username}
@@ -221,45 +227,45 @@ func (s *supportService) SaveHelpPage(req request.SaveSupportHelpPageRequest, op
 		columns["published_at"] = publishedAt
 	}
 	if req.ID > 0 {
-		if err := repositories.SupportHelpPageRepository.Updates(sqls.DB(), req.ID, columns); err != nil {
+		if err := repositories.DocPageRepository.Updates(sqls.DB(), req.ID, columns); err != nil {
 			return nil, err
 		}
-		return repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ID), nil
+		return repositories.DocPageRepository.Get(sqls.DB(), req.ID), nil
 	}
-	item := &models.SupportHelpPage{ParentID: req.ParentID, Title: title, Slug: slug, Summary: strings.TrimSpace(req.Summary), ContentType: normalizeContentType(req.ContentType), Content: req.Content, CoverURL: strings.TrimSpace(req.CoverURL), TagsJSON: string(tags), Status: status, SortNo: req.SortNo, PublishedAt: publishedAt, Remark: strings.TrimSpace(req.Remark), AuditFields: auditFieldsFromOperator(operator, now)}
-	if err := repositories.SupportHelpPageRepository.Create(sqls.DB(), item); err != nil {
+	item := &models.DocPage{ParentID: req.ParentID, Title: title, Slug: slug, Summary: strings.TrimSpace(req.Summary), ContentType: normalizeContentType(req.ContentType), Content: req.Content, CoverURL: strings.TrimSpace(req.CoverURL), TagsJSON: string(tags), Status: status, SortNo: req.SortNo, PublishedAt: publishedAt, Remark: strings.TrimSpace(req.Remark), AuditFields: auditFieldsFromOperator(operator, now)}
+	if err := repositories.DocPageRepository.Create(sqls.DB(), item); err != nil {
 		return nil, err
 	}
 	return item, nil
 }
 
-func (s *supportService) UpdateHelpPageSettings(req request.UpdateSupportHelpPageSettingsRequest, operator *dto.AuthPrincipal) (*models.SupportHelpPage, error) {
-	item := repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ID)
+func (s *supportService) UpdateDocPageSettings(req request.UpdateDocPageSettingsRequest, operator *dto.AuthPrincipal) (*models.DocPage, error) {
+	item := repositories.DocPageRepository.Get(sqls.DB(), req.ID)
 	if item == nil {
-		return nil, errorsx.InvalidParamI18n("error.supportHelpPage.notFound")
+		return nil, errorsx.InvalidParamI18n("error.docPage.notFound")
 	}
 	slug := normalizeSupportSlug(req.Slug)
 	if slug == "" {
-		return nil, errorsx.InvalidParamI18n("error.supportHelpPage.slugRequired")
+		return nil, errorsx.InvalidParamI18n("error.docPage.slugRequired")
 	}
 	if err := validateSupportSlug(slug); err != nil {
 		return nil, err
 	}
-	if err := s.validateHelpPageParent(item.ID, req.ParentID); err != nil {
+	if err := s.validateDocPageParent(item.ID, req.ParentID); err != nil {
 		return nil, err
 	}
-	if existing := repositories.SupportHelpPageRepository.GetByParentIDAndSlug(sqls.DB(), req.ParentID, slug); existing != nil && existing.ID != item.ID {
-		return nil, errorsx.InvalidParamI18n("error.supportHelpPage.slugDuplicate")
+	if existing := repositories.DocPageRepository.GetByParentIDAndSlug(sqls.DB(), req.ParentID, slug); existing != nil && existing.ID != item.ID {
+		return nil, errorsx.InvalidParamI18n("error.docPage.slugDuplicate")
 	}
-	if item.Status == enums.SupportHelpPageStatusPublished && req.ParentID > 0 {
-		parent := repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ParentID)
-		if parent == nil || parent.Status != enums.SupportHelpPageStatusPublished {
-			return nil, errorsx.InvalidParamI18n("error.supportHelpPage.publishParentFirst")
+	if item.Status == enums.DocPageStatusPublished && req.ParentID > 0 {
+		parent := repositories.DocPageRepository.Get(sqls.DB(), req.ParentID)
+		if parent == nil || parent.Status != enums.DocPageStatusPublished {
+			return nil, errorsx.InvalidParamI18n("error.docPage.publishParentFirst")
 		}
 	}
 	sortNo := item.SortNo
 	if req.ParentID != item.ParentID {
-		sortNo = len(repositories.SupportHelpPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", req.ParentID)))
+		sortNo = len(repositories.DocPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", req.ParentID)))
 	}
 	now := time.Now()
 	columns := map[string]any{
@@ -271,34 +277,34 @@ func (s *supportService) UpdateHelpPageSettings(req request.UpdateSupportHelpPag
 		"update_user_id":   operator.UserID,
 		"update_user_name": operator.Username,
 	}
-	if err := repositories.SupportHelpPageRepository.Updates(sqls.DB(), item.ID, columns); err != nil {
+	if err := repositories.DocPageRepository.Updates(sqls.DB(), item.ID, columns); err != nil {
 		return nil, err
 	}
-	return repositories.SupportHelpPageRepository.Get(sqls.DB(), item.ID), nil
+	return repositories.DocPageRepository.Get(sqls.DB(), item.ID), nil
 }
 
-func (s *supportService) ChangeHelpPageStatus(req request.ChangeSupportHelpPageStatusRequest, operator *dto.AuthPrincipal) (*models.SupportHelpPage, error) {
-	item := repositories.SupportHelpPageRepository.Get(sqls.DB(), req.ID)
+func (s *supportService) ChangeDocPageStatus(req request.ChangeDocPageStatusRequest, operator *dto.AuthPrincipal) (*models.DocPage, error) {
+	item := repositories.DocPageRepository.Get(sqls.DB(), req.ID)
 	if item == nil {
-		return nil, errorsx.InvalidParamI18n("error.supportHelpPage.notFound")
+		return nil, errorsx.InvalidParamI18n("error.docPage.notFound")
 	}
 	status := req.Status
-	if status != enums.SupportHelpPageStatusDraft && status != enums.SupportHelpPageStatusPublished && status != enums.SupportHelpPageStatusHidden {
-		return nil, errorsx.InvalidParamI18n("error.supportHelpPage.invalidStatus")
+	if status != enums.DocPageStatusDraft && status != enums.DocPageStatusPublished && status != enums.DocPageStatusHidden {
+		return nil, errorsx.InvalidParamI18n("error.docPage.invalidStatus")
 	}
 	if status == item.Status {
 		return item, nil
 	}
-	if status == enums.SupportHelpPageStatusPublished && item.ParentID > 0 {
-		parent := repositories.SupportHelpPageRepository.Get(sqls.DB(), item.ParentID)
-		if parent == nil || parent.Status != enums.SupportHelpPageStatusPublished {
-			return nil, errorsx.InvalidParamI18n("error.supportHelpPage.publishParentFirst")
+	if status == enums.DocPageStatusPublished && item.ParentID > 0 {
+		parent := repositories.DocPageRepository.Get(sqls.DB(), item.ParentID)
+		if parent == nil || parent.Status != enums.DocPageStatusPublished {
+			return nil, errorsx.InvalidParamI18n("error.docPage.publishParentFirst")
 		}
 	}
-	if status != enums.SupportHelpPageStatusPublished {
-		publishedChildren := repositories.SupportHelpPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", item.ID).Eq("status", enums.SupportHelpPageStatusPublished).Page(1, 1))
+	if status != enums.DocPageStatusPublished {
+		publishedChildren := repositories.DocPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", item.ID).Eq("status", enums.DocPageStatusPublished).Page(1, 1))
 		if len(publishedChildren) > 0 {
-			return nil, errorsx.InvalidParamI18n("error.supportHelpPage.unpublishChildrenFirst")
+			return nil, errorsx.InvalidParamI18n("error.docPage.unpublishChildrenFirst")
 		}
 	}
 	now := time.Now()
@@ -308,27 +314,27 @@ func (s *supportService) ChangeHelpPageStatus(req request.ChangeSupportHelpPageS
 		"update_user_id":   operator.UserID,
 		"update_user_name": operator.Username,
 	}
-	if status == enums.SupportHelpPageStatusPublished {
+	if status == enums.DocPageStatusPublished {
 		columns["published_at"] = now
 	}
-	if err := repositories.SupportHelpPageRepository.Updates(sqls.DB(), item.ID, columns); err != nil {
+	if err := repositories.DocPageRepository.Updates(sqls.DB(), item.ID, columns); err != nil {
 		return nil, err
 	}
-	return repositories.SupportHelpPageRepository.Get(sqls.DB(), item.ID), nil
+	return repositories.DocPageRepository.Get(sqls.DB(), item.ID), nil
 }
 
-func (s *supportService) DeleteHelpPage(id int64) error {
-	if repositories.SupportHelpPageRepository.Get(sqls.DB(), id) == nil {
+func (s *supportService) DeleteDocPage(id int64) error {
+	if repositories.DocPageRepository.Get(sqls.DB(), id) == nil {
 		return errorsx.InvalidParam("page not found")
 	}
-	children := repositories.SupportHelpPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", id).Page(1, 1))
+	children := repositories.DocPageRepository.Find(sqls.DB(), sqls.NewCnd().Eq("parent_id", id).Page(1, 1))
 	if len(children) > 0 {
 		return errorsx.InvalidParam("page still has child pages")
 	}
-	return repositories.SupportHelpPageRepository.Delete(sqls.DB(), id)
+	return repositories.DocPageRepository.Delete(sqls.DB(), id)
 }
 
-func (s *supportService) SaveQuestionCategory(req request.SaveSupportQuestionCategoryRequest, operator *dto.AuthPrincipal) (*models.SupportQuestionCategory, error) {
+func (s *supportService) SaveCategory(req request.SaveCategoryRequest, operator *dto.AuthPrincipal) (*models.Category, error) {
 	name, slug := strings.TrimSpace(req.Name), normalizeSupportSlug(req.Slug)
 	if name == "" || slug == "" {
 		return nil, errorsx.InvalidParam("name and slug are required")
@@ -338,28 +344,28 @@ func (s *supportService) SaveQuestionCategory(req request.SaveSupportQuestionCat
 	}
 	now := time.Now()
 	if req.ID > 0 {
-		if repositories.SupportQuestionCategoryRepository.Get(sqls.DB(), req.ID) == nil {
+		if repositories.CategoryRepository.Get(sqls.DB(), req.ID) == nil {
 			return nil, errorsx.InvalidParam("category not found")
 		}
-		if err := repositories.SupportQuestionCategoryRepository.Updates(sqls.DB(), req.ID, map[string]any{"name": name, "slug": slug, "description": strings.TrimSpace(req.Description), "status": req.Status, "remark": strings.TrimSpace(req.Remark), "update_user_id": operator.UserID, "update_user_name": operator.Username, "updated_at": now}); err != nil {
+		if err := repositories.CategoryRepository.Updates(sqls.DB(), req.ID, map[string]any{"name": name, "slug": slug, "description": strings.TrimSpace(req.Description), "status": req.Status, "remark": strings.TrimSpace(req.Remark), "update_user_id": operator.UserID, "update_user_name": operator.Username, "updated_at": now}); err != nil {
 			return nil, err
 		}
-		return repositories.SupportQuestionCategoryRepository.Get(sqls.DB(), req.ID), nil
+		return repositories.CategoryRepository.Get(sqls.DB(), req.ID), nil
 	}
-	item := &models.SupportQuestionCategory{Name: name, Slug: slug, Description: strings.TrimSpace(req.Description), Status: req.Status, Remark: strings.TrimSpace(req.Remark), AuditFields: auditFieldsFromOperator(operator, now)}
+	item := &models.Category{Name: name, Slug: slug, Description: strings.TrimSpace(req.Description), Status: req.Status, Remark: strings.TrimSpace(req.Remark), AuditFields: auditFieldsFromOperator(operator, now)}
 	if item.Status == 0 {
 		item.Status = enums.StatusOk
 	}
-	if err := repositories.SupportQuestionCategoryRepository.Create(sqls.DB(), item); err != nil {
+	if err := repositories.CategoryRepository.Create(sqls.DB(), item); err != nil {
 		return nil, err
 	}
 	return item, nil
 }
 
-func (s *supportService) UpdateQuestionCategorySort(ids []int64) error {
+func (s *supportService) UpdateCategorySort(ids []int64) error {
 	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
 		for i, id := range ids {
-			if err := repositories.SupportQuestionCategoryRepository.UpdateColumn(ctx.Tx, id, "sort_no", i); err != nil {
+			if err := repositories.CategoryRepository.UpdateColumn(ctx.Tx, id, "sort_no", i); err != nil {
 				return err
 			}
 		}
@@ -367,21 +373,21 @@ func (s *supportService) UpdateQuestionCategorySort(ids []int64) error {
 	})
 }
 
-func (s *supportService) DeleteQuestionCategory(id int64) error {
-	if repositories.SupportQuestionCategoryRepository.Get(sqls.DB(), id) == nil {
+func (s *supportService) DeleteCategory(id int64) error {
+	if repositories.CategoryRepository.Get(sqls.DB(), id) == nil {
 		return errorsx.InvalidParam("category not found")
 	}
-	_, paging := repositories.SupportQuestionRepository.FindPageByCnd(
+	_, paging := repositories.PostRepository.FindPageByCnd(
 		sqls.DB(),
 		sqls.NewCnd().Eq("category_id", id).Page(1, 1),
 	)
 	if paging.Total > 0 {
-		return errorsx.InvalidParam("category is still used by questions")
+		return errorsx.InvalidParam("category is still used by posts")
 	}
-	return repositories.SupportQuestionCategoryRepository.Delete(sqls.DB(), id)
+	return repositories.CategoryRepository.Delete(sqls.DB(), id)
 }
 
-func (s *supportService) CreateQuestion(req request.CreateSupportQuestionRequest, principal *dto.AuthPrincipal) (*models.SupportQuestion, error) {
+func (s *supportService) CreatePost(req request.CreatePostRequest, principal *dto.AuthPrincipal) (*models.Post, error) {
 	title, content := strings.TrimSpace(req.Title), strings.TrimSpace(req.Content)
 	if principal == nil || principal.UserID <= 0 {
 		return nil, errorsx.Unauthorized("login is required")
@@ -391,158 +397,271 @@ func (s *supportService) CreateQuestion(req request.CreateSupportQuestionRequest
 	}
 	tags, _ := json.Marshal(normalizeTags(req.Tags))
 	now := time.Now()
-	item := &models.SupportQuestion{CategoryID: req.CategoryID, UserID: principal.UserID, Title: title, Content: content, TagsJSON: string(tags), Status: enums.SupportQuestionStatusNormal, AuditFields: supportAuditFields(principal.UserID, supportPrincipalName(principal), now)}
-	if err := repositories.SupportQuestionRepository.Create(sqls.DB(), item); err != nil {
+	item := &models.Post{CategoryID: req.CategoryID, UserID: principal.UserID, Title: title, ContentType: normalizeContentType(req.ContentType), Content: content, TagsJSON: string(tags), Status: enums.PostStatusNormal, AuditFields: supportAuditFields(principal.UserID, supportPrincipalName(principal), now)}
+	if err := repositories.PostRepository.Create(sqls.DB(), item); err != nil {
 		return nil, err
 	}
 	return item, nil
 }
 
-func (s *supportService) UpdateQuestion(req request.UpdateSupportQuestionRequest, principal *dto.AuthPrincipal) error {
-	item := repositories.SupportQuestionRepository.Get(sqls.DB(), req.ID)
+func (s *supportService) UpdatePost(req request.UpdatePostRequest, principal *dto.AuthPrincipal) error {
+	item := repositories.PostRepository.Get(sqls.DB(), req.ID)
 	if item == nil {
-		return errorsx.InvalidParam("question not found")
+		return errorsx.InvalidParam("post not found")
 	}
 	if principal == nil || item.UserID != principal.UserID {
-		return errorsx.Forbidden("only the question owner can update it")
+		return errorsx.Forbidden("only the post owner can update it")
 	}
-	if item.Status == enums.SupportQuestionStatusResolved || item.Status == enums.SupportQuestionStatusClosed {
-		return errorsx.BusinessError(1, "resolved or closed question cannot be edited")
+	if item.Status == enums.PostStatusResolved || item.Status == enums.PostStatusClosed {
+		return errorsx.BusinessError(1, "resolved or closed post cannot be edited")
 	}
 	tags, _ := json.Marshal(normalizeTags(req.Tags))
-	return repositories.SupportQuestionRepository.Updates(sqls.DB(), req.ID, map[string]any{"category_id": req.CategoryID, "title": strings.TrimSpace(req.Title), "content": strings.TrimSpace(req.Content), "tags_json": string(tags), "update_user_id": principal.UserID, "update_user_name": supportPrincipalName(principal), "updated_at": time.Now()})
+	return repositories.PostRepository.Updates(sqls.DB(), req.ID, map[string]any{"category_id": req.CategoryID, "title": strings.TrimSpace(req.Title), "content_type": normalizeContentType(req.ContentType), "content": strings.TrimSpace(req.Content), "tags_json": string(tags), "update_user_id": principal.UserID, "update_user_name": supportPrincipalName(principal), "updated_at": time.Now()})
 }
 
-func (s *supportService) CreateSupportUserAnswer(req request.CreateSupportAnswerRequest, principal *dto.AuthPrincipal) (*models.SupportAnswer, error) {
+func (s *supportService) CreateCustomerComment(req request.CreateCommentRequest, principal *dto.AuthPrincipal) (*models.Comment, error) {
 	if principal == nil {
 		return nil, errorsx.Unauthorized("login is required")
 	}
-	return s.createAnswer(req.QuestionID, strings.TrimSpace(req.Content), supportAuthorType(principal), principal.UserID, supportPrincipalName(principal))
+	return s.createComment(req.PostID, req.ParentID, normalizeContentType(req.ContentType), strings.TrimSpace(req.Content), supportAuthorType(principal), principal.UserID, supportPrincipalName(principal))
 }
 
-func (s *supportService) CreateUserAnswer(req request.CreateSupportAnswerRequest, operator *dto.AuthPrincipal) (*models.SupportAnswer, error) {
+func (s *supportService) CreateUserComment(req request.CreateCommentRequest, operator *dto.AuthPrincipal) (*models.Comment, error) {
 	if operator == nil {
 		return nil, errorsx.Unauthorized("login is required")
 	}
-	return s.createAnswer(req.QuestionID, strings.TrimSpace(req.Content), supportAuthorType(operator), operator.UserID, supportPrincipalName(operator))
+	return s.createComment(req.PostID, req.ParentID, normalizeContentType(req.ContentType), strings.TrimSpace(req.Content), supportAuthorType(operator), operator.UserID, supportPrincipalName(operator))
 }
 
-func (s *supportService) createAnswer(questionID int64, content string, authorType enums.SupportAnswerAuthorType, authorID int64, authorName string) (*models.SupportAnswer, error) {
+func (s *supportService) createComment(postID, parentID int64, contentType, content string, authorType enums.CommentAuthorType, authorID int64, authorName string) (*models.Comment, error) {
 	if content == "" {
-		return nil, errorsx.InvalidParam("answer content is required")
+		return nil, errorsx.InvalidParam("comment content is required")
 	}
-	question := repositories.SupportQuestionRepository.Get(sqls.DB(), questionID)
-	if question == nil || question.Status == enums.SupportQuestionStatusDeleted || question.Status == enums.SupportQuestionStatusClosed {
-		return nil, errorsx.InvalidParam("question is unavailable")
+	post := repositories.PostRepository.Get(sqls.DB(), postID)
+	if post == nil || post.Status == enums.PostStatusDeleted || post.Status == enums.PostStatusClosed {
+		return nil, errorsx.InvalidParam("post is unavailable")
+	}
+	var parent *models.Comment
+	if parentID > 0 {
+		parent = repositories.CommentRepository.Get(sqls.DB(), parentID)
+		if parent == nil || parent.PostID != postID || parent.ParentID != 0 || parent.Status != enums.CommentStatusNormal {
+			return nil, errorsx.InvalidParam("parent comment is unavailable")
+		}
 	}
 	now := time.Now()
-	answer := &models.SupportAnswer{QuestionID: questionID, AuthorType: authorType, AuthorID: authorID, Content: content, Status: enums.SupportAnswerStatusNormal, AuditFields: supportAuditFields(authorID, authorName, now)}
+	comment := &models.Comment{PostID: postID, ParentID: parentID, AuthorType: authorType, AuthorID: authorID, ContentType: contentType, Content: content, Status: enums.CommentStatusNormal, AuditFields: supportAuditFields(authorID, authorName, now)}
 	if err := sqls.WithTransaction(func(ctx *sqls.TxContext) error {
-		if err := repositories.SupportAnswerRepository.Create(ctx.Tx, answer); err != nil {
+		if err := repositories.CommentRepository.Create(ctx.Tx, comment); err != nil {
 			return err
 		}
-		return repositories.SupportQuestionRepository.Updates(ctx.Tx, questionID, map[string]any{"answer_count": gorm.Expr("answer_count + ?", 1), "last_answered_at": now, "last_answer_user_type": authorType, "last_answer_user_id": authorID, "updated_at": now})
+		if parent != nil {
+			if err := repositories.CommentRepository.UpdateColumn(ctx.Tx, parent.ID, "reply_count", gorm.Expr("reply_count + ?", 1)); err != nil {
+				return err
+			}
+		}
+		return repositories.PostRepository.Updates(ctx.Tx, postID, map[string]any{"comment_count": gorm.Expr("comment_count + ?", 1), "last_commented_at": now, "last_comment_user_type": authorType, "last_comment_user_id": authorID, "updated_at": now})
 	}); err != nil {
 		return nil, err
 	}
-	return answer, nil
+	return comment, nil
 }
 
-func (s *supportService) AcceptAnswer(req request.SupportAcceptAnswerRequest, principal *dto.AuthPrincipal, operator *dto.AuthPrincipal) error {
-	question := repositories.SupportQuestionRepository.Get(sqls.DB(), req.QuestionID)
-	answer := repositories.SupportAnswerRepository.Get(sqls.DB(), req.AnswerID)
-	if question == nil || answer == nil || answer.QuestionID != question.ID {
-		return errorsx.InvalidParam("question or answer not found")
+func (s *supportService) ListPostComments(postID, parentID int64, sort string, page, limit int) (*CommentListResult, error) {
+	post := repositories.PostRepository.Get(sqls.DB(), postID)
+	if post == nil || post.Status == enums.PostStatusHidden || post.Status == enums.PostStatusDeleted {
+		return nil, errorsx.InvalidParam("post not found")
+	}
+	if parentID > 0 {
+		parent := repositories.CommentRepository.Get(sqls.DB(), parentID)
+		if parent == nil || parent.PostID != postID || parent.Status == enums.CommentStatusHidden {
+			return nil, errorsx.InvalidParam("parent comment not found")
+		}
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+	cnd := sqls.NewCnd().Eq("post_id", postID).Eq("parent_id", parentID).Where("status IN ?", []enums.CommentStatus{enums.CommentStatusNormal, enums.CommentStatusDeleted}).Page(page, limit)
+	if parentID > 0 {
+		cnd.Asc("id")
+	} else {
+		switch sort {
+		case "latest":
+			cnd.Desc("id")
+		case "hot":
+			cnd.Desc("reaction_count").Desc("reply_count").Desc("id")
+		default:
+			cnd.Desc("is_accepted").Asc("id")
+		}
+	}
+	comments, paging := repositories.CommentRepository.FindPageByCnd(sqls.DB(), cnd)
+	result := &CommentListResult{Comments: comments, Replies: map[int64][]models.Comment{}, Paging: paging}
+	if parentID > 0 || len(comments) == 0 {
+		return result, nil
+	}
+	for _, comment := range comments {
+		if comment.ReplyCount <= 0 {
+			continue
+		}
+		result.Replies[comment.ID] = repositories.CommentRepository.Find(sqls.DB(), sqls.NewCnd().Eq("post_id", postID).Eq("parent_id", comment.ID).Where("status IN ?", []enums.CommentStatus{enums.CommentStatusNormal, enums.CommentStatusDeleted}).Asc("id").Page(1, 2))
+	}
+	return result, nil
+}
+
+func (s *supportService) UpdateComment(req request.UpdateCommentRequest, principal *dto.AuthPrincipal) error {
+	comment := repositories.CommentRepository.Get(sqls.DB(), req.ID)
+	if comment == nil || comment.Status != enums.CommentStatusNormal {
+		return errorsx.InvalidParam("comment not found")
+	}
+	if principal == nil || comment.AuthorID != principal.UserID {
+		return errorsx.Forbidden("only the comment author can update it")
+	}
+	content := strings.TrimSpace(req.Content)
+	if content == "" {
+		return errorsx.InvalidParam("comment content is required")
+	}
+	return repositories.CommentRepository.Updates(sqls.DB(), comment.ID, map[string]any{"content_type": normalizeContentType(req.ContentType), "content": content, "update_user_id": principal.UserID, "update_user_name": supportPrincipalName(principal), "updated_at": time.Now()})
+}
+
+func (s *supportService) DeleteComment(commentID int64, principal *dto.AuthPrincipal) error {
+	comment := repositories.CommentRepository.Get(sqls.DB(), commentID)
+	if comment == nil || comment.Status == enums.CommentStatusDeleted {
+		return errorsx.InvalidParam("comment not found")
+	}
+	if principal == nil || comment.AuthorID != principal.UserID {
+		return errorsx.Forbidden("only the comment author can delete it")
+	}
+	now := time.Now()
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		if err := repositories.CommentRepository.Updates(ctx.Tx, comment.ID, map[string]any{"status": enums.CommentStatusDeleted, "is_accepted": false, "updated_at": now, "update_user_id": principal.UserID, "update_user_name": supportPrincipalName(principal)}); err != nil {
+			return err
+		}
+		columns := map[string]any{"updated_at": now}
+		if comment.IsAccepted {
+			columns["accepted_comment_id"] = int64(0)
+			columns["status"] = enums.PostStatusNormal
+		}
+		return repositories.PostRepository.Updates(ctx.Tx, comment.PostID, columns)
+	})
+}
+
+func (s *supportService) ReportComment(req request.ReportCommentRequest, principal *dto.AuthPrincipal) error {
+	if principal == nil {
+		return errorsx.Unauthorized("login is required")
+	}
+	comment := repositories.CommentRepository.Get(sqls.DB(), req.ID)
+	if comment == nil || comment.Status != enums.CommentStatusNormal {
+		return errorsx.InvalidParam("comment not found")
+	}
+	if existing := repositories.CommentReportRepository.Get(sqls.DB(), comment.ID, principal.UserID); existing != nil {
+		return nil
+	}
+	now := time.Now()
+	reason := strings.TrimSpace(req.Reason)
+	if len([]rune(reason)) > 255 {
+		reason = string([]rune(reason)[:255])
+	}
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		if err := repositories.CommentReportRepository.Create(ctx.Tx, &models.CommentReport{CommentID: comment.ID, UserID: principal.UserID, Reason: reason, CreatedAt: now}); err != nil {
+			return err
+		}
+		return repositories.CommentRepository.UpdateColumn(ctx.Tx, comment.ID, "report_count", gorm.Expr("report_count + ?", 1))
+	})
+}
+
+func (s *supportService) AcceptComment(req request.AcceptCommentRequest, principal *dto.AuthPrincipal, operator *dto.AuthPrincipal) error {
+	post := repositories.PostRepository.Get(sqls.DB(), req.PostID)
+	comment := repositories.CommentRepository.Get(sqls.DB(), req.CommentID)
+	if post == nil || comment == nil || comment.PostID != post.ID {
+		return errorsx.InvalidParam("post or comment not found")
+	}
+	if comment.ParentID != 0 || comment.Status != enums.CommentStatusNormal {
+		return errorsx.InvalidParam("only top-level normal comments can be accepted")
 	}
 	if operator == nil {
-		if principal == nil || question.UserID != principal.UserID {
-			return errorsx.Forbidden("only owner or admin can accept the best answer")
+		if principal == nil || post.UserID != principal.UserID {
+			return errorsx.Forbidden("only owner or admin can accept the best comment")
 		}
 	}
 	now := time.Now()
 	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
-		if err := ctx.Tx.Model(&models.SupportAnswer{}).Where("question_id = ?", question.ID).Update("is_best_answer", false).Error; err != nil {
+		if err := ctx.Tx.Model(&models.Comment{}).Where("post_id = ?", post.ID).Update("is_accepted", false).Error; err != nil {
 			return err
 		}
-		if err := repositories.SupportAnswerRepository.Updates(ctx.Tx, answer.ID, map[string]any{"is_best_answer": true, "updated_at": now}); err != nil {
+		if err := repositories.CommentRepository.Updates(ctx.Tx, comment.ID, map[string]any{"is_accepted": true, "updated_at": now}); err != nil {
 			return err
 		}
-		return repositories.SupportQuestionRepository.Updates(ctx.Tx, question.ID, map[string]any{"best_answer_id": answer.ID, "status": enums.SupportQuestionStatusResolved, "updated_at": now})
+		return repositories.PostRepository.Updates(ctx.Tx, post.ID, map[string]any{"accepted_comment_id": comment.ID, "status": enums.PostStatusResolved, "updated_at": now})
 	})
 }
 
-func (s *supportService) ToggleQuestionVote(questionID int64, principal *dto.AuthPrincipal) error {
+func (s *supportService) ToggleReaction(targetType enums.ReactionTarget, targetID int64, reactionType enums.ReactionType, principal *dto.AuthPrincipal) error {
 	if principal == nil {
 		return errorsx.Unauthorized("login is required")
 	}
-	question := repositories.SupportQuestionRepository.Get(sqls.DB(), questionID)
-	if question == nil {
-		return errorsx.InvalidParam("question not found")
+	if reactionType == "" {
+		reactionType = enums.ReactionTypeLike
+	}
+	if reactionType != enums.ReactionTypeLike {
+		return errorsx.InvalidParam("reaction type is unsupported")
+	}
+	updateReactionCount := func(db *gorm.DB, delta int) error {
+		switch targetType {
+		case enums.ReactionTargetPost:
+			if repositories.PostRepository.Get(sqls.DB(), targetID) == nil {
+				return errorsx.InvalidParam("post not found")
+			}
+			return repositories.PostRepository.UpdateColumn(db, targetID, "reaction_count", gorm.Expr("reaction_count + ?", delta))
+		case enums.ReactionTargetComment:
+			if repositories.CommentRepository.Get(sqls.DB(), targetID) == nil {
+				return errorsx.InvalidParam("comment not found")
+			}
+			return repositories.CommentRepository.Updates(db, targetID, map[string]any{"reaction_count": gorm.Expr("reaction_count + ?", delta), "updated_at": time.Now()})
+		default:
+			return errorsx.InvalidParam("reaction target type is unsupported")
+		}
 	}
 	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
-		existing := repositories.SupportQuestionVoteRepository.Get(ctx.Tx, questionID, principal.UserID)
+		existing := repositories.ReactionRepository.Get(ctx.Tx, string(targetType), targetID, principal.UserID, string(reactionType))
 		delta := 1
 		if existing != nil {
 			delta = -1
-			if err := repositories.SupportQuestionVoteRepository.Delete(ctx.Tx, questionID, principal.UserID); err != nil {
+			if err := repositories.ReactionRepository.Delete(ctx.Tx, string(targetType), targetID, principal.UserID, string(reactionType)); err != nil {
 				return err
 			}
 		} else {
 			now := time.Now()
-			if err := repositories.SupportQuestionVoteRepository.Create(ctx.Tx, &models.SupportQuestionVote{QuestionID: questionID, UserID: principal.UserID, VoteValue: 1, CreatedAt: now, UpdatedAt: now}); err != nil {
+			reaction := &models.Reaction{TargetType: targetType, TargetID: targetID, UserID: principal.UserID, ReactionType: reactionType, CreatedAt: now, UpdatedAt: now}
+			if err := repositories.ReactionRepository.Create(ctx.Tx, reaction); err != nil {
 				return err
 			}
 		}
-		return repositories.SupportQuestionRepository.UpdateColumn(ctx.Tx, questionID, "vote_count", gorm.Expr("vote_count + ?", delta))
+		return updateReactionCount(ctx.Tx, delta)
 	})
 }
 
-func (s *supportService) ToggleAnswerVote(answerID int64, principal *dto.AuthPrincipal) error {
-	if principal == nil {
-		return errorsx.Unauthorized("login is required")
+func (s *supportService) ModeratePost(req request.ModeratePostRequest) error {
+	if repositories.PostRepository.Get(sqls.DB(), req.ID) == nil {
+		return errorsx.InvalidParam("post not found")
 	}
-	answer := repositories.SupportAnswerRepository.Get(sqls.DB(), answerID)
-	if answer == nil {
-		return errorsx.InvalidParam("answer not found")
-	}
-	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
-		existing := repositories.SupportAnswerVoteRepository.Get(ctx.Tx, answerID, principal.UserID)
-		delta := 1
-		if existing != nil {
-			delta = -1
-			if err := repositories.SupportAnswerVoteRepository.Delete(ctx.Tx, answerID, principal.UserID); err != nil {
-				return err
-			}
-		} else {
-			now := time.Now()
-			if err := repositories.SupportAnswerVoteRepository.Create(ctx.Tx, &models.SupportAnswerVote{AnswerID: answerID, UserID: principal.UserID, VoteValue: 1, CreatedAt: now, UpdatedAt: now}); err != nil {
-				return err
-			}
-		}
-		return repositories.SupportAnswerRepository.Updates(ctx.Tx, answerID, map[string]any{"vote_count": gorm.Expr("vote_count + ?", delta), "updated_at": time.Now()})
-	})
+	return repositories.PostRepository.Updates(sqls.DB(), req.ID, map[string]any{"status": req.Status, "updated_at": time.Now()})
 }
 
-func (s *supportService) ModerateQuestion(req request.ModerateSupportQuestionRequest) error {
-	if repositories.SupportQuestionRepository.Get(sqls.DB(), req.ID) == nil {
-		return errorsx.InvalidParam("question not found")
+func (s *supportService) ModerateComment(req request.ModerateCommentRequest) error {
+	if repositories.CommentRepository.Get(sqls.DB(), req.ID) == nil {
+		return errorsx.InvalidParam("comment not found")
 	}
-	return repositories.SupportQuestionRepository.Updates(sqls.DB(), req.ID, map[string]any{"status": req.Status, "updated_at": time.Now()})
+	return repositories.CommentRepository.Updates(sqls.DB(), req.ID, map[string]any{"status": req.Status, "updated_at": time.Now()})
 }
 
-func (s *supportService) ModerateAnswer(req request.ModerateSupportAnswerRequest) error {
-	if repositories.SupportAnswerRepository.Get(sqls.DB(), req.ID) == nil {
-		return errorsx.InvalidParam("answer not found")
-	}
-	return repositories.SupportAnswerRepository.Updates(sqls.DB(), req.ID, map[string]any{"status": req.Status, "updated_at": time.Now()})
-}
-
-func (s *supportService) FeedbackHelpPage(req request.SupportHelpPageFeedbackRequest) error {
+func (s *supportService) FeedbackDocPage(req request.DocPageFeedbackRequest) error {
 	column := "unhelpful_count"
 	if req.Helpful {
 		column = "helpful_count"
 	}
-	return repositories.SupportHelpPageRepository.UpdateColumn(sqls.DB(), req.ID, column, gorm.Expr(column+" + ?", 1))
+	return repositories.DocPageRepository.UpdateColumn(sqls.DB(), req.ID, column, gorm.Expr(column+" + ?", 1))
 }
 
 func normalizeSupportEmail(email string) string {
@@ -555,7 +674,7 @@ func normalizeSupportSlug(slug string) string {
 
 func validateSupportSlug(slug string) error {
 	if !supportSlugPattern.MatchString(slug) {
-		return errorsx.InvalidParamI18n("error.supportHelpPage.invalidSlug")
+		return errorsx.InvalidParamI18n("error.docPage.invalidSlug")
 	}
 	return nil
 }
@@ -568,9 +687,9 @@ func normalizeContentType(contentType string) string {
 	return "markdown"
 }
 
-func normalizeHelpPageStatus(status enums.SupportHelpPageStatus) enums.SupportHelpPageStatus {
+func normalizeDocPageStatus(status enums.DocPageStatus) enums.DocPageStatus {
 	if status == "" {
-		return enums.SupportHelpPageStatusDraft
+		return enums.DocPageStatusDraft
 	}
 	return status
 }
@@ -613,9 +732,9 @@ func supportPrincipalName(principal *dto.AuthPrincipal) string {
 	return strings.TrimSpace(principal.Username)
 }
 
-func supportAuthorType(principal *dto.AuthPrincipal) enums.SupportAnswerAuthorType {
+func supportAuthorType(principal *dto.AuthPrincipal) enums.CommentAuthorType {
 	if principal != nil && principal.UserType == enums.UserTypeEmployee {
-		return enums.SupportAnswerAuthorTypeEmployee
+		return enums.CommentAuthorTypeEmployee
 	}
-	return enums.SupportAnswerAuthorTypeUser
+	return enums.CommentAuthorTypeUser
 }

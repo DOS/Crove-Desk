@@ -567,7 +567,6 @@ func (s *messageService) sendValidatedMessage(conversation *models.Conversation,
 			"error", enqueueErr,
 		)
 	}
-
 	// 客户发送消息，触发AI回复
 	if senderType == enums.IMSenderTypeCustomer {
 		if TriggerAIReplyAsyncHook != nil {

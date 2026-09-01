@@ -9,6 +9,9 @@
 
 data/
 config/config.yaml
+.env
+.env.*
+!.env.example
 /include/
 /lib/
 
