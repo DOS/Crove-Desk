@@ -11,9 +11,11 @@ import (
 
 	"agent-desk/internal/messenger"
 	"agent-desk/internal/models"
+	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/pkg/openidentity"
+	"os"
 )
 
 var MessengerInboundService = newMessengerInboundService()
@@ -61,8 +63,24 @@ func (s *messengerInboundService) HandleWebhook(ctx context.Context, channelID s
 		}
 
 		// Optional signature verification if appSecret is configured
-		if cfg.AppSecret != "" && strings.TrimSpace(signatureHeader) != "" {
-			if !verifyMessengerSignature(cfg.AppSecret, signatureHeader, rawPayload) {
+		appSecret := ""
+		if cfg != nil {
+			appSecret = strings.TrimSpace(cfg.AppSecret)
+		}
+		if appSecret == "" {
+			if serverCfg := config.GetCurrent(); serverCfg != nil {
+				appSecret = strings.TrimSpace(serverCfg.Messenger.AppSecret)
+			}
+		}
+		if appSecret == "" {
+			appSecret = strings.TrimSpace(os.Getenv("META_APP_SECRET"))
+		}
+		if appSecret == "" {
+			appSecret = strings.TrimSpace(os.Getenv("FB_APP_SECRET"))
+		}
+
+		if appSecret != "" && strings.TrimSpace(signatureHeader) != "" {
+			if !verifyMessengerSignature(appSecret, signatureHeader, rawPayload) {
 				return errorsx.UnauthorizedI18n("error.auth.invalidSignature")
 			}
 		}

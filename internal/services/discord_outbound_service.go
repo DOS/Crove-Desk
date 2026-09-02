@@ -9,9 +9,11 @@ import (
 
 	"agent-desk/internal/discord"
 	"agent-desk/internal/models"
+	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/repositories"
 	"agent-desk/internal/services/storage"
+	"os"
 
 	"github.com/mlogclub/simple/sqls"
 )
@@ -92,7 +94,22 @@ func (s *discordOutboundService) processOutbox(outboxID int64) error {
 		return s.markOutboxFailed(outbox, "discord channel not found or disabled")
 	}
 	cfg, err := ChannelService.ParseDiscordChannelConfig(channel.ConfigJSON)
-	if err != nil || cfg == nil || cfg.BotToken == "" {
+	if err != nil {
+		return s.markOutboxFailed(outbox, "invalid discord channel config")
+	}
+	botToken := ""
+	if cfg != nil {
+		botToken = strings.TrimSpace(cfg.BotToken)
+	}
+	if botToken == "" {
+		if serverCfg := config.GetCurrent(); serverCfg != nil {
+			botToken = strings.TrimSpace(serverCfg.Discord.BotToken)
+		}
+	}
+	if botToken == "" {
+		botToken = strings.TrimSpace(os.Getenv("DISCORD_BOT_TOKEN"))
+	}
+	if botToken == "" {
 		return s.markOutboxFailed(outbox, "discord bot token not configured")
 	}
 
@@ -120,7 +137,7 @@ func (s *discordOutboundService) processOutbox(outboxID int64) error {
 		}
 	}
 
-	client := discord.NewClient(cfg.BotToken)
+	client := discord.NewClient(botToken)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 

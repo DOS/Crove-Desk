@@ -28,6 +28,8 @@ type Config struct {
 	CustomerSession CustomerSessionConfig `yaml:"customerSession"`
 	Webhook         WebhookConfig         `yaml:"webhook"`
 	Email           EmailConfig           `yaml:"email"`
+	Discord         DiscordConfig         `yaml:"discord"`
+	Messenger       MessengerConfig       `yaml:"messenger"`
 }
 
 func (c Config) LanguageOrDefault() string {
@@ -273,6 +275,19 @@ type EmailConfig struct {
 	InboundSecret string `yaml:"inboundSecret"`
 }
 
+type DiscordConfig struct {
+	ClientID     string `yaml:"clientId"`
+	ClientSecret string `yaml:"clientSecret"`
+	BotToken     string `yaml:"botToken"`
+	PublicKey    string `yaml:"publicKey"`
+}
+
+type MessengerConfig struct {
+	AppID       string `yaml:"appId"`
+	AppSecret   string `yaml:"appSecret"`
+	VerifyToken string `yaml:"verifyToken"`
+}
+
 func Load(path string) (*Config, error) {
 	loadDotEnv(path)
 
@@ -375,6 +390,13 @@ func bindConfigDefaults(v *viper.Viper) {
 	v.SetDefault("email.smtpPassword", "")
 	v.SetDefault("email.smtpUseTls", false)
 	v.SetDefault("email.inboundSecret", "")
+	v.SetDefault("discord.clientId", "")
+	v.SetDefault("discord.clientSecret", "")
+	v.SetDefault("discord.botToken", "")
+	v.SetDefault("discord.publicKey", "")
+	v.SetDefault("messenger.appId", "")
+	v.SetDefault("messenger.appSecret", "")
+	v.SetDefault("messenger.verifyToken", "")
 }
 
 func bindEnvironmentAliases(v *viper.Viper) {
@@ -422,6 +444,13 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("email.smtpPassword", "SMTP_PASSWORD", "SMTP_PASS", "EMAIL_SMTP_PASSWORD", "CROVE_SMTP_PASSWORD", "AGENT_DESK_EMAIL_SMTPPASSWORD")
 	_ = v.BindEnv("email.smtpUseTls", "SMTP_USE_TLS", "SMTP_SSL", "AGENT_DESK_EMAIL_SMTPUSETLS")
 	_ = v.BindEnv("email.inboundSecret", "EMAIL_INBOUND_SECRET", "EMAIL_WEBHOOK_SECRET", "AGENT_DESK_EMAIL_INBOUNDSECRET")
+	_ = v.BindEnv("discord.clientId", "DISCORD_CLIENT_ID", "AGENT_DESK_DISCORD_CLIENTID")
+	_ = v.BindEnv("discord.clientSecret", "DISCORD_CLIENT_SECRET", "AGENT_DESK_DISCORD_CLIENTSECRET")
+	_ = v.BindEnv("discord.botToken", "DISCORD_BOT_TOKEN", "AGENT_DESK_DISCORD_BOTTOKEN")
+	_ = v.BindEnv("discord.publicKey", "DISCORD_PUBLIC_KEY", "AGENT_DESK_DISCORD_PUBLICKEY")
+	_ = v.BindEnv("messenger.appId", "META_APP_ID", "FB_APP_ID", "MESSENGER_APP_ID", "AGENT_DESK_MESSENGER_APPID")
+	_ = v.BindEnv("messenger.appSecret", "META_APP_SECRET", "FB_APP_SECRET", "MESSENGER_APP_SECRET", "AGENT_DESK_MESSENGER_APPSECRET")
+	_ = v.BindEnv("messenger.verifyToken", "MESSENGER_VERIFY_TOKEN", "META_VERIFY_TOKEN", "FB_VERIFY_TOKEN", "AGENT_DESK_MESSENGER_VERIFYTOKEN")
 }
 
 func normalizeLoadedConfig(cfg *Config) {

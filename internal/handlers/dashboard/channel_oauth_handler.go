@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/constants"
 	"agent-desk/internal/pkg/httpx"
 	"agent-desk/internal/services"
@@ -21,7 +22,13 @@ func ChannelGetDiscordOAuthURL(ctx *gin.Context) {
 		return
 	}
 
-	clientID := strings.TrimSpace(os.Getenv("DISCORD_CLIENT_ID"))
+	clientID := ""
+	if cfg := config.GetCurrent(); cfg != nil {
+		clientID = strings.TrimSpace(cfg.Discord.ClientID)
+	}
+	if clientID == "" {
+		clientID = strings.TrimSpace(os.Getenv("DISCORD_CLIENT_ID"))
+	}
 	if clientID == "" {
 		clientID = strings.TrimSpace(ctx.Query("client_id"))
 	}
@@ -58,7 +65,16 @@ func ChannelGetMessengerOAuthURL(ctx *gin.Context) {
 		return
 	}
 
-	appID := strings.TrimSpace(os.Getenv("META_APP_ID"))
+	appID := ""
+	if cfg := config.GetCurrent(); cfg != nil {
+		appID = strings.TrimSpace(cfg.Messenger.AppID)
+	}
+	if appID == "" {
+		appID = strings.TrimSpace(os.Getenv("META_APP_ID"))
+	}
+	if appID == "" {
+		appID = strings.TrimSpace(os.Getenv("FB_APP_ID"))
+	}
 	if appID == "" {
 		appID = strings.TrimSpace(ctx.Query("app_id"))
 	}
