@@ -1,7 +1,7 @@
 name = "crove-email-inbound-worker"
 main = "src/index.ts"
 compatibility_date = "2024-11-05"
-account_id = "3368ff98a4c956164b7bbdc8fb950163"
+account_id = "5f2a58925e790423dfafa0e6bee46b28"
 
 [vars]
 DESK_WEBHOOK_URL = "https://desk.crove.com/api/third/email/webhook"
