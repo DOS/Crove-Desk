@@ -184,12 +184,14 @@ export enum IMMessageType {
   Image = "image",
   Attachment = "attachment",
   HTML = "html",
+  Note = "note",
 }
 export const IMMessageTypeLabels: Record<IMMessageType, string> = {
   [IMMessageType.Text]: "文本",
   [IMMessageType.Image]: "图片",
   [IMMessageType.Attachment]: "附件",
   [IMMessageType.HTML]: "富文本",
+  [IMMessageType.Note]: "便签",
 }
 
 export enum IMParticipantType {
@@ -210,12 +212,14 @@ export enum IMSenderType {
   Customer = "customer",
   AI = "ai",
   System = "system",
+  Note = "note",
 }
 export const IMSenderTypeLabels: Record<IMSenderType, string> = {
   [IMSenderType.Agent]: "客服",
   [IMSenderType.Customer]: "客户",
   [IMSenderType.AI]: "AI",
   [IMSenderType.System]: "系统",
+  [IMSenderType.Note]: "便签",
 }
 
 export enum KnowledgeAnswerMode {
