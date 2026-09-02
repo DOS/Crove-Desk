@@ -231,6 +231,8 @@ func registerDashboardChannelRoutes(group *gin.RouterGroup) {
 	group.POST("/rollback_ai_agent_rollout", dashboard.ChannelPostRollback_ai_agent_rollout)
 	group.POST("/update", dashboard.ChannelPostUpdate)
 	group.POST("/update_status", dashboard.ChannelPostUpdate_status)
+	group.GET("/discord_oauth_url", dashboard.ChannelGetDiscordOAuthURL)
+	group.GET("/messenger_oauth_url", dashboard.ChannelGetMessengerOAuthURL)
 	group.Any("/wxwork/kf/accounts", dashboard.ChannelAnyWxworkKfAccounts)
 	group.Any("/wxwork/outbox/failed/list", dashboard.ChannelAnyWxworkOutboxFailedList)
 	group.POST("/wxwork/outbox/retry", dashboard.ChannelPostWxworkOutboxRetry)
@@ -447,4 +449,16 @@ func registerThirdZaloRoutes(group *gin.RouterGroup) {
 func registerThirdEmailRoutes(group *gin.RouterGroup) {
 	group.POST("/webhook", third.EmailPostWebhook)
 	group.POST("/webhook/:channel_id", third.EmailPostWebhook)
+}
+
+func registerThirdDiscordRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.DiscordPostWebhook)
+	group.POST("/webhook/:channel_id", third.DiscordPostWebhook)
+}
+
+func registerThirdMessengerRoutes(group *gin.RouterGroup) {
+	group.GET("/webhook", third.MessengerGetWebhook)
+	group.GET("/webhook/:channel_id", third.MessengerGetWebhook)
+	group.POST("/webhook", third.MessengerPostWebhook)
+	group.POST("/webhook/:channel_id", third.MessengerPostWebhook)
 }

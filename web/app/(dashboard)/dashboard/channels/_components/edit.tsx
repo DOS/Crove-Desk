@@ -85,6 +85,22 @@ type EmailChannelConfig = {
   webhookSecret?: string
 }
 
+type DiscordChannelConfig = {
+  guildId?: string
+  guildName?: string
+  botToken?: string
+  channelScope?: string
+  webhookSecret?: string
+}
+
+type MessengerChannelConfig = {
+  pageId?: string
+  pageName?: string
+  pageAccessToken?: string
+  webhookVerifyToken?: string
+  appSecret?: string
+}
+
 function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
   return {
     title: t("channel.defaultTitleWeb"),
@@ -99,7 +115,7 @@ function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
 function createSchema(t: Translate) {
   return z
     .object({
-      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "email"], t("channel.typeRequired")),
+      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "email", "discord", "messenger"], t("channel.typeRequired")),
       aiAgentId: z.string().trim().regex(/^\d+$/, t("channel.agentRequired")),
 		aiAgentRolloutPercent: z.coerce.number().int().min(1).max(100),
       name: z.string().trim().min(1, t("channel.nameRequired")),
@@ -111,6 +127,14 @@ function createSchema(t: Translate) {
       zaloOaId: z.string().trim(),
       zaloAccessToken: z.string().trim(),
       zaloSecretKey: z.string().trim(),
+      discordGuildId: z.string().trim(),
+      discordGuildName: z.string().trim(),
+      discordBotToken: z.string().trim(),
+      messengerPageId: z.string().trim(),
+      messengerPageName: z.string().trim(),
+      messengerPageAccessToken: z.string().trim(),
+      messengerWebhookVerifyToken: z.string().trim(),
+      messengerAppSecret: z.string().trim(),
       emailAddress: z.string().trim(),
       senderName: z.string().trim(),
       emailProvider: z.string().trim(),
@@ -160,7 +184,7 @@ function createSchema(t: Translate) {
 }
 
 type EditForm = {
-  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "email"
+  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "email" | "discord" | "messenger"
   aiAgentId: string
 	aiAgentRolloutPercent: number
   name: string
@@ -172,6 +196,14 @@ type EditForm = {
   zaloOaId: string
   zaloAccessToken: string
   zaloSecretKey: string
+  discordGuildId: string
+  discordGuildName: string
+  discordBotToken: string
+  messengerPageId: string
+  messengerPageName: string
+  messengerPageAccessToken: string
+  messengerWebhookVerifyToken: string
+  messengerAppSecret: string
   emailAddress: string
   senderName: string
   emailProvider: string
@@ -204,6 +236,14 @@ function createEmptyForm(t: Translate): EditForm {
     zaloOaId: "",
     zaloAccessToken: "",
     zaloSecretKey: "",
+    discordGuildId: "",
+    discordGuildName: "",
+    discordBotToken: "",
+    messengerPageId: "",
+    messengerPageName: "",
+    messengerPageAccessToken: "",
+    messengerWebhookVerifyToken: "",
+    messengerAppSecret: "",
     emailAddress: "help@crove.com",
     senderName: "Crove Desk Support",
     emailProvider: "brevo",
@@ -332,6 +372,38 @@ function parseWechatMPChannelConfig(configJson: string, t: Translate): Required<
   }
 }
 
+function parseDiscordChannelConfig(configJson: string): DiscordChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as DiscordChannelConfig
+    return {
+      guildId: parsed.guildId?.trim() || "",
+      guildName: parsed.guildName?.trim() || "",
+      botToken: parsed.botToken?.trim() || "",
+      channelScope: parsed.channelScope?.trim() || "all",
+      webhookSecret: parsed.webhookSecret?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseMessengerChannelConfig(configJson: string): MessengerChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as MessengerChannelConfig
+    return {
+      pageId: parsed.pageId?.trim() || "",
+      pageName: parsed.pageName?.trim() || "",
+      pageAccessToken: parsed.pageAccessToken?.trim() || "",
+      webhookVerifyToken: parsed.webhookVerifyToken?.trim() || "",
+      appSecret: parsed.appSecret?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
 function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   if (!item) {
     return createEmptyForm(t)
@@ -340,6 +412,8 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const isTelegram = item.channelType === "telegram"
   const isZaloOA = item.channelType === "zalo_oa"
   const isEmail = item.channelType === "email"
+  const isDiscord = item.channelType === "discord"
+  const isMessenger = item.channelType === "messenger"
   const webConfig = parseWebChannelConfig(item.configJson, t)
   const wechatConfig = isWechatMP
     ? parseWechatMPChannelConfig(item.configJson, t)
@@ -353,6 +427,12 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const emailConfig = isEmail
     ? parseEmailChannelConfig(item.configJson)
     : null
+  const discordConfig = isDiscord
+    ? parseDiscordChannelConfig(item.configJson)
+    : null
+  const messengerConfig = isMessenger
+    ? parseMessengerChannelConfig(item.configJson)
+    : null
   return {
     channelType:
       item.channelType === "wxwork_kf"
@@ -361,22 +441,34 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
           ? "telegram"
           : item.channelType === "zalo_oa"
             ? "zalo_oa"
-            : item.channelType === "email"
-              ? "email"
-              : item.channelType === "wechat_mp"
-                ? "wechat_mp"
-                : "web",
+            : item.channelType === "discord"
+              ? "discord"
+              : item.channelType === "messenger"
+                ? "messenger"
+                : item.channelType === "email"
+                  ? "email"
+                  : item.channelType === "wechat_mp"
+                    ? "wechat_mp"
+                    : "web",
     aiAgentId: item.aiAgentId > 0 ? String(item.aiAgentId) : "",
 		aiAgentRolloutPercent: item.aiAgentRolloutPercent || 100,
     name: item.name,
     openKfId: parseOpenKfId(item.configJson),
-    botToken: telegramConfig?.botToken ?? "",
+    botToken: telegramConfig?.botToken || discordConfig?.botToken || "",
     botUsername: telegramConfig?.botUsername ?? "",
-    webhookSecret: telegramConfig?.webhookSecret ?? zaloConfig?.webhookSecret ?? emailConfig?.webhookSecret ?? "",
+    webhookSecret: telegramConfig?.webhookSecret || zaloConfig?.webhookSecret || emailConfig?.webhookSecret || discordConfig?.webhookSecret || "",
     zaloAppId: zaloConfig?.appId ?? "",
     zaloOaId: zaloConfig?.oaId ?? "",
     zaloAccessToken: zaloConfig?.accessToken ?? "",
     zaloSecretKey: zaloConfig?.secretKey ?? "",
+    discordGuildId: discordConfig?.guildId ?? "",
+    discordGuildName: discordConfig?.guildName ?? "",
+    discordBotToken: discordConfig?.botToken ?? "",
+    messengerPageId: messengerConfig?.pageId ?? "",
+    messengerPageName: messengerConfig?.pageName ?? "",
+    messengerPageAccessToken: messengerConfig?.pageAccessToken ?? "",
+    messengerWebhookVerifyToken: messengerConfig?.webhookVerifyToken ?? "",
+    messengerAppSecret: messengerConfig?.appSecret ?? "",
     emailAddress: emailConfig?.emailAddress || "help@crove.com",
     senderName: emailConfig?.senderName || "Crove Desk Support",
     emailProvider: emailConfig?.provider || "brevo",
@@ -435,6 +527,21 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
                 accessToken: form.zaloAccessToken.trim(),
                 secretKey: form.zaloSecretKey.trim(),
                 webhookSecret: form.webhookSecret.trim(),
+              })
+          : channelType === "discord"
+            ? JSON.stringify({
+                guildId: form.discordGuildId.trim(),
+                guildName: form.discordGuildName.trim(),
+                botToken: form.discordBotToken.trim(),
+                webhookSecret: form.webhookSecret.trim(),
+              })
+          : channelType === "messenger"
+            ? JSON.stringify({
+                pageId: form.messengerPageId.trim(),
+                pageName: form.messengerPageName.trim(),
+                pageAccessToken: form.messengerPageAccessToken.trim(),
+                webhookVerifyToken: form.messengerWebhookVerifyToken.trim(),
+                appSecret: form.messengerAppSecret.trim(),
               })
             : channelType === "wechat_mp"
               ? JSON.stringify(webLikeConfig)
@@ -644,6 +751,8 @@ function ChannelFormBody({
   const channelTypeOptions = [
     { value: "web", label: t("channel.typeWeb") },
     { value: "email", label: t("channel.typeEmail") },
+    { value: "discord", label: t("channel.typeDiscord") },
+    { value: "messenger", label: t("channel.typeMessenger") },
     { value: "telegram", label: t("channel.typeTelegram") },
     { value: "zalo_oa", label: t("channel.typeZaloOa") },
     { value: "wechat_mp", label: t("channel.typeWechatMp") },
@@ -1085,6 +1194,136 @@ function ChannelFormBody({
               </div>
             ) : null}
 
+            {channelType === "discord" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.discordConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.discordConnectDescription")}</div>
+                  <div>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        const redirectUri = window.location.origin + "/dashboard/channels"
+                        window.open(`/api/dashboard/channel/discord_oauth_url?redirect_uri=${encodeURIComponent(redirectUri)}`, "_blank")
+                      }}
+                    >
+                      <ExternalLinkIcon className="size-3.5 mr-1" />
+                      {t("channel.connectDiscordButton")}
+                    </Button>
+                  </div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/discord/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.discordGuildId}>
+                    <FieldLabel htmlFor="channel-discord-guildid">{t("channel.discordGuildId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-discord-guildid"
+                        placeholder="e.g. 123456789012345678"
+                        {...register("discordGuildId")}
+                      />
+                      <FieldError errors={[errors.discordGuildId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.discordGuildName}>
+                    <FieldLabel htmlFor="channel-discord-guildname">{t("channel.discordGuildName")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-discord-guildname"
+                        placeholder="e.g. My Community"
+                        {...register("discordGuildName")}
+                      />
+                      <FieldError errors={[errors.discordGuildName]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.discordBotToken}>
+                  <FieldLabel htmlFor="channel-discord-bottoken">{t("channel.discordBotToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-discord-bottoken"
+                      type="password"
+                      placeholder="Optional Custom Discord Bot Token"
+                      {...register("discordBotToken")}
+                    />
+                    <FieldError errors={[errors.discordBotToken]} />
+                  </FieldContent>
+                </Field>
+              </div>
+            ) : null}
+
+            {channelType === "messenger" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.messengerConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.messengerConnectDescription")}</div>
+                  <div>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        const redirectUri = window.location.origin + "/dashboard/channels"
+                        window.open(`/api/dashboard/channel/messenger_oauth_url?redirect_uri=${encodeURIComponent(redirectUri)}`, "_blank")
+                      }}
+                    >
+                      <ExternalLinkIcon className="size-3.5 mr-1" />
+                      {t("channel.connectMessengerButton")}
+                    </Button>
+                  </div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/messenger/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.messengerPageId}>
+                    <FieldLabel htmlFor="channel-messenger-pageid">{t("channel.messengerPageId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-messenger-pageid"
+                        placeholder="e.g. 1029384756"
+                        {...register("messengerPageId")}
+                      />
+                      <FieldError errors={[errors.messengerPageId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.messengerPageName}>
+                    <FieldLabel htmlFor="channel-messenger-pagename">{t("channel.messengerPageName")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-messenger-pagename"
+                        placeholder="e.g. Acme Support Page"
+                        {...register("messengerPageName")}
+                      />
+                      <FieldError errors={[errors.messengerPageName]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.messengerPageAccessToken}>
+                  <FieldLabel htmlFor="channel-messenger-token">{t("channel.messengerPageAccessToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-messenger-token"
+                      type="password"
+                      placeholder="Page Access Token"
+                      {...register("messengerPageAccessToken")}
+                    />
+                    <FieldError errors={[errors.messengerPageAccessToken]} />
+                  </FieldContent>
+                </Field>
+              </div>
+            ) : null}
+
             {channelType === "wxwork_kf" ? (
               <Field data-invalid={!!errors.openKfId}>
                 <FieldLabel>{t("channel.wxworkAccount")}</FieldLabel>
@@ -1254,11 +1493,7 @@ function ChannelFormBody({
 
 function WebAccessGuide({ channelId }: { channelId: string }) {
   const t = useI18n()
-  const [origin, setOrigin] = useState("")
-
-  useEffect(() => {
-    setOrigin(window.location.origin)
-  }, [])
+  const [origin] = useState(() => (typeof window !== "undefined" ? window.location.origin : ""))
 
   const accessUrl = useMemo(() => {
     if (!origin || !channelId) {
@@ -1392,11 +1627,7 @@ function WebAccessGuide({ channelId }: { channelId: string }) {
 
 function WechatMPAccessGuide({ channelId }: { channelId: string }) {
   const t = useI18n()
-  const [origin, setOrigin] = useState("")
-
-  useEffect(() => {
-    setOrigin(window.location.origin)
-  }, [])
+  const [origin] = useState(() => (typeof window !== "undefined" ? window.location.origin : ""))
 
   const menuUrl = useMemo(() => {
     if (!origin || !channelId) {

@@ -420,6 +420,43 @@ func (s *channelService) ParseEmailChannelConfig(raw string) (*dto.EmailChannelC
 	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
 	return cfg, nil
 }
+
+func (s *channelService) ParseDiscordChannelConfig(raw string) (*dto.DiscordChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.DiscordChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.GuildID = strings.TrimSpace(cfg.GuildID)
+	cfg.GuildName = strings.TrimSpace(cfg.GuildName)
+	cfg.ChannelScope = strings.TrimSpace(cfg.ChannelScope)
+	cfg.BotToken = strings.TrimSpace(cfg.BotToken)
+	cfg.ApplicationID = strings.TrimSpace(cfg.ApplicationID)
+	cfg.PublicKey = strings.TrimSpace(cfg.PublicKey)
+	cfg.WebhookSecret = strings.TrimSpace(cfg.WebhookSecret)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
+func (s *channelService) ParseMessengerChannelConfig(raw string) (*dto.MessengerChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.MessengerChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.PageID = strings.TrimSpace(cfg.PageID)
+	cfg.PageName = strings.TrimSpace(cfg.PageName)
+	cfg.PageAccessToken = strings.TrimSpace(cfg.PageAccessToken)
+	cfg.WebhookVerifyToken = strings.TrimSpace(cfg.WebhookVerifyToken)
+	cfg.AppSecret = strings.TrimSpace(cfg.AppSecret)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
 func (s *channelService) GetUserTokenSecret(channel *models.Channel) string {
 	if channel == nil {
 		return ""
@@ -630,7 +667,7 @@ func (s *channelService) GetEnabledChannel(ctx *gin.Context) *models.Channel {
 
 func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRequest) (*models.Channel, error) {
 	channelType := strings.TrimSpace(req.ChannelType)
-	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeEmail {
+	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeEmail && channelType != enums.ChannelTypeDiscord && channelType != enums.ChannelTypeMessenger {
 		return nil, errorsx.InvalidParamI18n("error.e0250")
 	}
 	name := strings.TrimSpace(req.Name)
@@ -794,6 +831,48 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 		if cfg.WebhookSecret == "" {
 			if secret, err := generateUserTokenSecret(); err == nil {
 				cfg.WebhookSecret = secret
+			}
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeDiscord:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseDiscordChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid discord configuration")
+		}
+		if cfg.WebhookSecret == "" {
+			if secret, err := generateUserTokenSecret(); err == nil {
+				cfg.WebhookSecret = secret
+			}
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeMessenger:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseMessengerChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid messenger configuration")
+		}
+		if cfg.WebhookVerifyToken == "" {
+			if secret, err := generateUserTokenSecret(); err == nil {
+				cfg.WebhookVerifyToken = secret
 			}
 		}
 		configBytes, err := json.Marshal(cfg)

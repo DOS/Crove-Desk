@@ -2,7 +2,9 @@
 
 import {
   Building2Icon,
+  Gamepad2Icon,
   MailIcon,
+  MessageCircleIcon,
   MessagesSquareIcon,
   MessageSquareMoreIcon,
   SendIcon,
@@ -30,6 +32,12 @@ import { EditDialog } from "./_components/edit"
 function getChannelTypeLabel(channelType: string, t: (key: string) => string) {
   if (channelType === "email") {
     return t("channel.typeEmail")
+  }
+  if (channelType === "discord") {
+    return t("channel.typeDiscord")
+  }
+  if (channelType === "messenger") {
+    return t("channel.typeMessenger")
   }
   if (channelType === "wechat_mp") {
     return t("channel.typeWechatMp")
@@ -60,6 +68,12 @@ function ChannelIcon({ channelType }: { channelType: string }) {
   if (channelType === "email") {
     return <MailIcon className="size-4" />
   }
+  if (channelType === "discord") {
+    return <Gamepad2Icon className="size-4" />
+  }
+  if (channelType === "messenger") {
+    return <MessageCircleIcon className="size-4" />
+  }
   if (channelType === "wechat_mp") {
     return <MessagesSquareIcon className="size-4" />
   }
@@ -85,6 +99,8 @@ export default function DashboardChannelsPage() {
     { value: "all", label: t("channel.allTypes") },
     { value: "web", label: t("channel.typeWeb") },
     { value: "email", label: t("channel.typeEmail") },
+    { value: "discord", label: t("channel.typeDiscord") },
+    { value: "messenger", label: t("channel.typeMessenger") },
     { value: "telegram", label: t("channel.typeTelegram") },
     { value: "zalo_oa", label: t("channel.typeZaloOa") },
     { value: "wechat_mp", label: t("channel.typeWechatMp") },

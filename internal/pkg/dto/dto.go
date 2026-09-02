@@ -62,3 +62,23 @@ type EmailChannelConfig struct {
 	WebhookSecret     string `json:"webhookSecret,omitempty"`     // Inbound Webhook Secret
 	WelcomeMessage    string `json:"welcomeMessage,omitempty"`    // Auto-responder / welcome message
 }
+
+type DiscordChannelConfig struct {
+	GuildID        string `json:"guildId,omitempty"`
+	GuildName      string `json:"guildName,omitempty"`
+	ChannelScope   string `json:"channelScope,omitempty"` // all | dm_only
+	BotToken       string `json:"botToken,omitempty"`     // Bot Token (BYOA / Enterprise)
+	ApplicationID  string `json:"applicationId,omitempty"`
+	PublicKey      string `json:"publicKey,omitempty"`
+	WebhookSecret  string `json:"webhookSecret,omitempty"`
+	WelcomeMessage string `json:"welcomeMessage,omitempty"`
+}
+
+type MessengerChannelConfig struct {
+	PageID             string `json:"pageId,omitempty"`
+	PageName           string `json:"pageName,omitempty"`
+	PageAccessToken    string `json:"pageAccessToken,omitempty"`
+	WebhookVerifyToken string `json:"webhookVerifyToken,omitempty"`
+	AppSecret          string `json:"appSecret,omitempty"` // Meta App Secret
+	WelcomeMessage     string `json:"welcomeMessage,omitempty"`
+}

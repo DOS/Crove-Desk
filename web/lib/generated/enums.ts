@@ -81,6 +81,8 @@ export enum ExternalSource {
   Telegram = "telegram",
   ZaloOA = "zalo_oa",
   Email = "email",
+  Discord = "discord",
+  Messenger = "messenger",
 }
 export const ExternalSourceLabels: Record<ExternalSource, string> = {
   [ExternalSource.Guest]: "访客",
@@ -90,6 +92,8 @@ export const ExternalSourceLabels: Record<ExternalSource, string> = {
   [ExternalSource.Telegram]: "Telegram",
   [ExternalSource.ZaloOA]: "Zalo OA",
   [ExternalSource.Email]: "Email",
+  [ExternalSource.Discord]: "Discord",
+  [ExternalSource.Messenger]: "Messenger",
 }
 
 export enum Gender {
