@@ -635,6 +635,7 @@
     "emailAutoConnectTitle": "Tự động Nhận & Xử lý Email Khách hàng",
     "emailAutoConnectDescription": "Forward hoặc cấu hình webhook email gửi đến hộp thư hỗ trợ về Crove Desk để tự động tạo Ticket và kích hoạt AI Agent phản hồi.",
     "configEmailDescription": "Cấu hình tiếp nhận email qua Inbound Webhook và gửi phản hồi qua SMTP, Brevo, SendGrid, Resend, Postmark hoặc Mailgun.",
+    "forwardingAddressLabel": "Địa chỉ Chuyển tiếp Tự động (dùng cấu hình Auto-Forwarding trên Gmail / Outlook):",
     "inboundWebhookUrl": "Endpoint Nhận Inbound Webhook",
     "botToken": "Telegram Bot Token",
     "botTokenRequired": "Telegram Bot Token is required",

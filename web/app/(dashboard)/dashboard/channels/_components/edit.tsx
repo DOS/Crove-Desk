@@ -531,7 +531,18 @@ function ChannelFormBody({
   const openKfId = useWatch({ control, name: "openKfId" })
   const userTokenSecret = useWatch({ control, name: "userTokenSecret" })
   const emailProvider = useWatch({ control, name: "emailProvider" })
+  const emailAddressValue = useWatch({ control, name: "emailAddress" })
+  const nameValue = useWatch({ control, name: "name" })
 	const previousRolloutPercent = channelDetail?.previousAiAgentRolloutPercent ?? 0
+
+  const forwardingAddressPreview = useMemo(() => {
+    const raw = (emailAddressValue || "").trim().toLowerCase()
+    if (raw.endsWith(".crove.io") || raw.endsWith(".on.crove.email") || raw.endsWith(".crove-mail.com")) {
+      return raw
+    }
+    const cleanName = (nameValue || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "org"
+    return `help@${cleanName}.crove.io`
+  }, [emailAddressValue, nameValue])
 
 	async function rollbackRolloutPercent() {
 		if (!channelDetail || previousRolloutPercent < 1) return
@@ -944,10 +955,34 @@ function ChannelFormBody({
                   </div>
                 ) : null}
 
-                <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
-                  <div className="font-medium text-foreground">{t("channel.emailAutoConnectTitle")}</div>
-                  <div className="mt-1">{t("channel.emailAutoConnectDescription")}</div>
-                  <div className="mt-2 font-mono text-[11px] text-foreground">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-2.5">
+                  <div className="font-medium text-sm text-foreground">{t("channel.emailAutoConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.emailAutoConnectDescription")}</div>
+                  <div className="flex flex-col gap-1 pt-1">
+                    <span className="font-medium text-foreground">{t("channel.forwardingAddressLabel")}</span>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 rounded bg-background px-2.5 py-1.5 font-mono text-[12px] font-semibold text-primary border">
+                        {forwardingAddressPreview}
+                      </code>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(forwardingAddressPreview)
+                            toast.success(t("channel.copySecretSuccess"))
+                          } catch {
+                            toast.error(t("channel.copyFailed"))
+                          }
+                        }}
+                      >
+                        <CopyIcon className="size-3.5 mr-1" />
+                        {t("channel.copy")}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
                     {t("channel.inboundWebhookUrl")}: /api/third/email/webhook
                   </div>
                 </div>

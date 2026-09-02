@@ -402,6 +402,7 @@ func (s *channelService) ParseEmailChannelConfig(raw string) (*dto.EmailChannelC
 		}
 	}
 	cfg.EmailAddress = strings.ToLower(strings.TrimSpace(cfg.EmailAddress))
+	cfg.ForwardingAddress = strings.ToLower(strings.TrimSpace(cfg.ForwardingAddress))
 	cfg.SenderName = strings.TrimSpace(cfg.SenderName)
 	cfg.Provider = strings.ToLower(strings.TrimSpace(cfg.Provider))
 	if cfg.Provider == "" {
@@ -530,20 +531,89 @@ func (s *channelService) GetEnabledEmailChannelByAddress(emailAddress string) *m
 		Eq("channel_type", enums.ChannelTypeEmail).
 		Eq("status", enums.StatusOk).
 		Asc("id"))
+	if len(channels) == 0 {
+		return nil
+	}
+
+	// 1. Pass 1: Exact match with EmailAddress or ForwardingAddress
 	for i := range channels {
 		cfg, err := s.ParseEmailChannelConfig(channels[i].ConfigJSON)
 		if err != nil {
 			continue
 		}
-		if cfg != nil && strings.ToLower(strings.TrimSpace(cfg.EmailAddress)) == emailAddress {
-			return &channels[i]
+		if cfg != nil {
+			if strings.ToLower(strings.TrimSpace(cfg.EmailAddress)) == emailAddress ||
+				strings.ToLower(strings.TrimSpace(cfg.ForwardingAddress)) == emailAddress {
+				return &channels[i]
+			}
 		}
 	}
-	// Fallback to first active email channel if exact address match wasn't found
-	if len(channels) > 0 {
-		return &channels[0]
+
+	// 2. Pass 2: Extract tenant slug (e.g. help@dos.crove.io -> "dos", help@dos.on.crove.email -> "dos", help+dos@... -> "dos")
+	slug := extractTenantSlugFromEmail(emailAddress)
+	if slug != "" {
+		for i := range channels {
+			cfg, err := s.ParseEmailChannelConfig(channels[i].ConfigJSON)
+			if err != nil {
+				continue
+			}
+			channelIDLower := strings.ToLower(channels[i].ChannelID)
+			if channelIDLower == "email_"+slug || channelIDLower == slug || strings.Contains(channelIDLower, slug) {
+				return &channels[i]
+			}
+			if cfg != nil {
+				cfgEmailLower := strings.ToLower(cfg.EmailAddress)
+				cfgFwdLower := strings.ToLower(cfg.ForwardingAddress)
+				if strings.Contains(cfgEmailLower, "@"+slug+".") ||
+					strings.Contains(cfgEmailLower, "+"+slug+"@") ||
+					strings.Contains(cfgFwdLower, "@"+slug+".") ||
+					strings.Contains(cfgFwdLower, "+"+slug+"@") {
+					return &channels[i]
+				}
+			}
+		}
+
+		// Also check if Organization exists with code == slug
+		org := repositories.OrganizationRepository.GetByCode(sqls.DB(), slug)
+		if org != nil {
+			for i := range channels {
+				if strings.EqualFold(channels[i].Name, org.Name) ||
+					strings.Contains(strings.ToLower(channels[i].Name), slug) {
+					return &channels[i]
+				}
+			}
+		}
 	}
-	return nil
+
+	// 3. Pass 3: Fallback to first active email channel
+	return &channels[0]
+}
+
+func extractTenantSlugFromEmail(emailAddress string) string {
+	emailAddress = strings.ToLower(strings.TrimSpace(emailAddress))
+	parts := strings.Split(emailAddress, "@")
+	if len(parts) != 2 {
+		return ""
+	}
+	localPart, domain := parts[0], parts[1]
+
+	// Check plus addressing (e.g. help+dos@crove.io -> "dos")
+	if strings.Contains(localPart, "+") {
+		plusParts := strings.Split(localPart, "+")
+		if len(plusParts) > 1 && plusParts[1] != "" {
+			return plusParts[1]
+		}
+	}
+
+	// Check subdomains (e.g. dos.crove.io -> "dos", dos.on.crove.email -> "dos")
+	domainParts := strings.Split(domain, ".")
+	if len(domainParts) >= 3 {
+		if domainParts[0] != "mail" && domainParts[0] != "smtp" && domainParts[0] != "email" && domainParts[0] != "inbound" {
+			return domainParts[0]
+		}
+	}
+
+	return ""
 }
 
 func (s *channelService) GetEnabledChannel(ctx *gin.Context) *models.Channel {

@@ -628,6 +628,7 @@
     "emailAutoConnectTitle": "Automatic Inbound Email Ingestion",
     "emailAutoConnectDescription": "Forward emails sent to your support address to the Inbound Webhook endpoint to automatically convert incoming emails into tickets and trigger AI agent responses.",
     "configEmailDescription": "Configure inbound email webhook ingestion and outbound delivery across SMTP, Brevo, SendGrid, Resend, Postmark, or Mailgun.",
+    "forwardingAddressLabel": "Dedicated Forwarding Address (for auto-forwarding from Gmail / Outlook):",
     "inboundWebhookUrl": "Inbound Webhook Endpoint",
     "botToken": "Telegram Bot Token",
     "botTokenRequired": "Telegram Bot Token is required",
