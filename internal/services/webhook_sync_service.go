@@ -373,6 +373,7 @@ func (s *webhookSyncService) handleMemberUpsert(data request.OrgSyncEventData) e
 					},
 				})
 			}
+			_, _ = AgentProfileService.EnsureAgentProfileForUser(ctx.Tx, user)
 		}
 
 		member := repositories.OrganizationMemberRepository.GetByOrgAndUser(ctx.Tx, org.ID, user.ID)

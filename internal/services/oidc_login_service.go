@@ -112,6 +112,7 @@ func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authC
 
 		s.ensureDefaultOIDCRole(ctx.Tx, user)
 		s.syncOIDCUserOrganizations(ctx.Tx, user, profile)
+		_, _ = AgentProfileService.EnsureAgentProfileForUser(ctx.Tx, user)
 
 		if err = repositories.UserIdentityRepository.Updates(ctx.Tx, identity.ID, map[string]any{
 			"provider_name":    enums.GetThirdProviderLabel(enums.ThirdProviderOIDC),

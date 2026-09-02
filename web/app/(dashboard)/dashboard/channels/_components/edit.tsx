@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, Resolver, useForm, useWatch } from "react-hook-form"
 import { z } from "zod/v4"
-import { CopyIcon, ExternalLinkIcon, RotateCcwIcon } from "lucide-react"
+import { CopyIcon, ExternalLinkIcon, RotateCcwIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { getWidgetDemoPath } from "@/components/support-chat/demo-navigation"
@@ -30,6 +30,7 @@ import {
 	rollbackChannelAIAgentRollout,
   resetChannelUserTokenSecret,
 } from "@/lib/api/admin"
+import { listMyOrganizations } from "@/lib/api/organization"
 import { useI18n } from "@/i18n/provider"
 
 type ChannelFormDialogProps = {
@@ -641,15 +642,34 @@ function ChannelFormBody({
   const emailAddressValue = useWatch({ control, name: "emailAddress" })
   const nameValue = useWatch({ control, name: "name" })
 	const previousRolloutPercent = channelDetail?.previousAiAgentRolloutPercent ?? 0
+  const [orgSlug, setOrgSlug] = useState<string>("org")
+  const [showAdvancedDelivery, setShowAdvancedDelivery] = useState(false)
+
+  useEffect(() => {
+    async function loadOrg() {
+      try {
+        const res = await listMyOrganizations()
+        const active =
+          res.organizations.find((o) => o.id === res.currentOrganizationId) ||
+          res.organizations[0]
+        if (active?.code) {
+          setOrgSlug(active.code.toLowerCase())
+        }
+      } catch {
+        // fallback to default org
+      }
+    }
+    void loadOrg()
+  }, [])
 
   const forwardingAddressPreview = useMemo(() => {
     const raw = (emailAddressValue || "").trim().toLowerCase()
     if (raw.endsWith(".crove.io") || raw.endsWith(".on.crove.email") || raw.endsWith(".crove-mail.com")) {
       return raw
     }
-    const cleanName = (nameValue || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "org"
-    return `help@${cleanName}.crove.io`
-  }, [emailAddressValue, nameValue])
+    const slug = (orgSlug || "org").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+    return `help@${slug}.crove.io`
+  }, [emailAddressValue, orgSlug])
 
 	async function rollbackRolloutPercent() {
 		if (!channelDetail || previousRolloutPercent < 1) return
@@ -960,117 +980,13 @@ function ChannelFormBody({
                   </Field>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field data-invalid={!!errors.emailProvider}>
-                    <FieldLabel htmlFor="channel-email-provider">{t("channel.emailProvider")}</FieldLabel>
-                    <FieldContent>
-                      <select
-                        id="channel-email-provider"
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        {...register("emailProvider")}
-                      >
-                        <option value="default">{t("channel.emailProviderDefault")}</option>
-                        <option value="smtp">{t("channel.emailProviderSmtp")}</option>
-                        <option value="brevo">{t("channel.emailProviderBrevo")}</option>
-                        <option value="sendgrid">{t("channel.emailProviderSendGrid")}</option>
-                        <option value="resend">{t("channel.emailProviderResend")}</option>
-                        <option value="postmark">{t("channel.emailProviderPostmark")}</option>
-                        <option value="mailgun">{t("channel.emailProviderMailgun")}</option>
-                      </select>
-                      <FieldError errors={[errors.emailProvider]} />
-                    </FieldContent>
-                  </Field>
-
-                  <Field data-invalid={!!errors.webhookSecret}>
-                    <FieldLabel htmlFor="channel-email-webhook-secret">{t("channel.webhookSecret")}</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="channel-email-webhook-secret"
-                        placeholder="Secret for Inbound Webhook"
-                        {...register("webhookSecret")}
-                      />
-                      <FieldError errors={[errors.webhookSecret]} />
-                    </FieldContent>
-                  </Field>
-                </div>
-
-                {emailProvider === "brevo" || emailProvider === "sendgrid" || emailProvider === "resend" || emailProvider === "postmark" || emailProvider === "mailgun" ? (
-                  <Field data-invalid={!!errors.emailApiKey}>
-                    <FieldLabel htmlFor="channel-email-apikey">{t("channel.emailApiKey")}</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="channel-email-apikey"
-                        type="password"
-                        placeholder="API Key / Server Token"
-                        {...register("emailApiKey")}
-                      />
-                      <FieldError errors={[errors.emailApiKey]} />
-                    </FieldContent>
-                  </Field>
-                ) : emailProvider === "smtp" ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                      <div className="sm:col-span-2">
-                        <Field data-invalid={!!errors.smtpHost}>
-                          <FieldLabel htmlFor="channel-smtp-host">SMTP Host</FieldLabel>
-                          <FieldContent>
-                            <Input
-                              id="channel-smtp-host"
-                              placeholder="smtp.example.com"
-                              {...register("smtpHost")}
-                            />
-                            <FieldError errors={[errors.smtpHost]} />
-                          </FieldContent>
-                        </Field>
-                      </div>
-                      <Field data-invalid={!!errors.smtpPort}>
-                        <FieldLabel htmlFor="channel-smtp-port">SMTP Port</FieldLabel>
-                        <FieldContent>
-                          <Input
-                            id="channel-smtp-port"
-                            type="number"
-                            placeholder="587"
-                            {...register("smtpPort")}
-                          />
-                          <FieldError errors={[errors.smtpPort]} />
-                        </FieldContent>
-                      </Field>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <Field data-invalid={!!errors.smtpUser}>
-                        <FieldLabel htmlFor="channel-smtp-user">SMTP Username</FieldLabel>
-                        <FieldContent>
-                          <Input
-                            id="channel-smtp-user"
-                            placeholder="user@example.com"
-                            {...register("smtpUser")}
-                          />
-                          <FieldError errors={[errors.smtpUser]} />
-                        </FieldContent>
-                      </Field>
-                      <Field data-invalid={!!errors.smtpPassword}>
-                        <FieldLabel htmlFor="channel-smtp-password">SMTP Password</FieldLabel>
-                        <FieldContent>
-                          <Input
-                            id="channel-smtp-password"
-                            type="password"
-                            placeholder="••••••••"
-                            {...register("smtpPassword")}
-                          />
-                          <FieldError errors={[errors.smtpPassword]} />
-                        </FieldContent>
-                      </Field>
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-2.5">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-4 text-xs text-muted-foreground space-y-3">
                   <div className="font-medium text-sm text-foreground">{t("channel.emailAutoConnectTitle")}</div>
                   <div className="leading-relaxed">{t("channel.emailAutoConnectDescription")}</div>
-                  <div className="flex flex-col gap-1 pt-1">
+                  <div className="flex flex-col gap-1.5 pt-1">
                     <span className="font-medium text-foreground">{t("channel.forwardingAddressLabel")}</span>
                     <div className="flex items-center gap-2">
-                      <code className="flex-1 rounded bg-background px-2.5 py-1.5 font-mono text-[12px] font-semibold text-primary border">
+                      <code className="flex-1 rounded bg-background px-3 py-2 font-mono text-xs font-semibold text-primary border">
                         {forwardingAddressPreview}
                       </code>
                       <Button
@@ -1091,9 +1007,130 @@ function ChannelFormBody({
                       </Button>
                     </div>
                   </div>
-                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
-                    {t("channel.inboundWebhookUrl")}: /api/third/email/webhook
-                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvancedDelivery(!showAdvancedDelivery)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    {showAdvancedDelivery ? (
+                      <ChevronDownIcon className="size-3.5" />
+                    ) : (
+                      <ChevronRightIcon className="size-3.5" />
+                    )}
+                    <span>{t("channel.customDeliveryToggle")}</span>
+                  </button>
+
+                  {showAdvancedDelivery && (
+                    <div className="mt-3 space-y-4 rounded-md border border-dashed p-3.5 bg-muted/20">
+                      <p className="text-xs text-muted-foreground leading-relaxed">{t("channel.customDeliveryDescription")}</p>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <Field data-invalid={!!errors.emailProvider}>
+                          <FieldLabel htmlFor="channel-email-provider">{t("channel.emailProvider")}</FieldLabel>
+                          <FieldContent>
+                            <select
+                              id="channel-email-provider"
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                              {...register("emailProvider")}
+                            >
+                              <option value="default">{t("channel.emailProviderDefault")}</option>
+                              <option value="smtp">{t("channel.emailProviderSmtp")}</option>
+                              <option value="brevo">{t("channel.emailProviderBrevo")}</option>
+                              <option value="sendgrid">{t("channel.emailProviderSendGrid")}</option>
+                              <option value="resend">{t("channel.emailProviderResend")}</option>
+                              <option value="postmark">{t("channel.emailProviderPostmark")}</option>
+                              <option value="mailgun">{t("channel.emailProviderMailgun")}</option>
+                            </select>
+                            <FieldError errors={[errors.emailProvider]} />
+                          </FieldContent>
+                        </Field>
+
+                        <Field data-invalid={!!errors.webhookSecret}>
+                          <FieldLabel htmlFor="channel-email-webhook-secret">{t("channel.webhookSecret")}</FieldLabel>
+                          <FieldContent>
+                            <Input
+                              id="channel-email-webhook-secret"
+                              placeholder="Secret for Inbound Webhook"
+                              {...register("webhookSecret")}
+                            />
+                            <FieldError errors={[errors.webhookSecret]} />
+                          </FieldContent>
+                        </Field>
+                      </div>
+
+                      {emailProvider === "brevo" || emailProvider === "sendgrid" || emailProvider === "resend" || emailProvider === "postmark" || emailProvider === "mailgun" ? (
+                        <Field data-invalid={!!errors.emailApiKey}>
+                          <FieldLabel htmlFor="channel-email-apikey">{t("channel.emailApiKey")}</FieldLabel>
+                          <FieldContent>
+                            <Input
+                              id="channel-email-apikey"
+                              type="password"
+                              placeholder="API Key / Server Token"
+                              {...register("emailApiKey")}
+                            />
+                            <FieldError errors={[errors.emailApiKey]} />
+                          </FieldContent>
+                        </Field>
+                      ) : emailProvider === "smtp" ? (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                            <div className="sm:col-span-2">
+                              <Field data-invalid={!!errors.smtpHost}>
+                                <FieldLabel htmlFor="channel-smtp-host">SMTP Host</FieldLabel>
+                                <FieldContent>
+                                  <Input
+                                    id="channel-smtp-host"
+                                    placeholder="smtp.example.com"
+                                    {...register("smtpHost")}
+                                  />
+                                  <FieldError errors={[errors.smtpHost]} />
+                                </FieldContent>
+                              </Field>
+                            </div>
+                            <Field data-invalid={!!errors.smtpPort}>
+                              <FieldLabel htmlFor="channel-smtp-port">SMTP Port</FieldLabel>
+                              <FieldContent>
+                                <Input
+                                  id="channel-smtp-port"
+                                  type="number"
+                                  placeholder="587"
+                                  {...register("smtpPort")}
+                                />
+                                <FieldError errors={[errors.smtpPort]} />
+                              </FieldContent>
+                            </Field>
+                          </div>
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <Field data-invalid={!!errors.smtpUser}>
+                              <FieldLabel htmlFor="channel-smtp-user">SMTP Username</FieldLabel>
+                              <FieldContent>
+                                <Input
+                                  id="channel-smtp-user"
+                                  placeholder="user@example.com"
+                                  {...register("smtpUser")}
+                                />
+                                <FieldError errors={[errors.smtpUser]} />
+                              </FieldContent>
+                            </Field>
+                            <Field data-invalid={!!errors.smtpPassword}>
+                              <FieldLabel htmlFor="channel-smtp-password">SMTP Password</FieldLabel>
+                              <FieldContent>
+                                <Input
+                                  id="channel-smtp-password"
+                                  type="password"
+                                  placeholder="••••••••"
+                                  {...register("smtpPassword")}
+                                />
+                                <FieldError errors={[errors.smtpPassword]} />
+                              </FieldContent>
+                            </Field>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : null}

@@ -136,7 +136,11 @@ func (s *userService) CreateUser(req request.CreateUserRequest, operator *dto.Au
 		if err := repositories.UserRepository.Create(ctx.Tx, user); err != nil {
 			return err
 		}
-		return s.replaceUserRolesDB(ctx.Tx, user.ID, req.RoleIDs, operator)
+		if err := s.replaceUserRolesDB(ctx.Tx, user.ID, req.RoleIDs, operator); err != nil {
+			return err
+		}
+		_, _ = AgentProfileService.EnsureAgentProfileForUser(ctx.Tx, user)
+		return nil
 	})
 	if err != nil {
 		return nil, "", err

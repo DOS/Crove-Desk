@@ -1,19 +1,21 @@
 package services
 
 import (
+	"fmt"
+	"strings"
+	"time"
+
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/dto"
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/errorsx"
+	"agent-desk/internal/pkg/httpx/params"
 	"agent-desk/internal/pkg/utils"
 	"agent-desk/internal/repositories"
-	"strings"
-	"time"
-
-	"agent-desk/internal/pkg/httpx/params"
 
 	"github.com/mlogclub/simple/sqls"
+	"gorm.io/gorm"
 )
 
 var AgentProfileService = newAgentProfileService()
@@ -57,7 +59,105 @@ func (s *agentProfileService) GetByUserID(userID int64) *models.AgentProfile {
 	if userID <= 0 {
 		return nil
 	}
-	return repositories.AgentProfileRepository.FindOne(sqls.DB(), sqls.NewCnd().Eq("user_id", userID))
+	profile := repositories.AgentProfileRepository.FindOne(sqls.DB(), sqls.NewCnd().Eq("user_id", userID))
+	if profile != nil {
+		return profile
+	}
+	// Self-healing native JIT: If user exists in DB, automatically provision AgentProfile
+	if user := repositories.UserRepository.Get(sqls.DB(), userID); user != nil && user.ID > 0 {
+		if newProfile, err := s.EnsureAgentProfileForUser(sqls.DB(), user); err == nil && newProfile != nil {
+			return newProfile
+		}
+	}
+	return nil
+}
+
+// EnsureDefaultAgentTeam checks if any active agent team exists, creating a default one if not.
+func (s *agentProfileService) EnsureDefaultAgentTeam(db *gorm.DB) (*models.AgentTeam, error) {
+	if db == nil {
+		db = sqls.DB()
+	}
+	existing := repositories.AgentTeamRepository.FindOne(db, sqls.NewCnd().Eq("status", enums.StatusOk).Asc("id"))
+	if existing != nil && existing.ID > 0 {
+		return existing, nil
+	}
+
+	team := &models.AgentTeam{
+		Name:        "Support Team",
+		Status:      enums.StatusOk,
+		Description: "Default Support Team",
+		AuditFields: models.AuditFields{
+			CreatedAt:      time.Now(),
+			UpdatedAt:      time.Now(),
+			CreateUserName: "system",
+			UpdateUserName: "system",
+		},
+	}
+	if err := repositories.AgentTeamRepository.Create(db, team); err != nil {
+		return nil, err
+	}
+	return team, nil
+}
+
+// EnsureAgentProfileForUser ensures a 1-to-1 AgentProfile exists for the given user.
+func (s *agentProfileService) EnsureAgentProfileForUser(db *gorm.DB, user *models.User) (*models.AgentProfile, error) {
+	if user == nil || user.ID <= 0 {
+		return nil, errorsx.InvalidParamI18n("error.e0325")
+	}
+	if db == nil {
+		db = sqls.DB()
+	}
+
+	existing := repositories.AgentProfileRepository.FindOne(db, sqls.NewCnd().Eq("user_id", user.ID))
+	if existing != nil && existing.ID > 0 {
+		return existing, nil
+	}
+
+	team, err := s.EnsureDefaultAgentTeam(db)
+	if err != nil {
+		return nil, err
+	}
+
+	displayName := strings.TrimSpace(user.Nickname)
+	if displayName == "" {
+		displayName = strings.TrimSpace(user.Username)
+	}
+	if displayName == "" {
+		displayName = fmt.Sprintf("Agent #%d", user.ID)
+	}
+
+	agentCode := fmt.Sprintf("A%04d", user.ID)
+	if codeExist := repositories.AgentProfileRepository.FindOne(db, sqls.NewCnd().Eq("agent_code", agentCode)); codeExist != nil {
+		agentCode = fmt.Sprintf("A%d%d", user.ID, time.Now().Unix()%1000)
+	}
+
+	profile := &models.AgentProfile{
+		UserID:                user.ID,
+		TeamID:                team.ID,
+		AgentCode:             agentCode,
+		DisplayName:           displayName,
+		Avatar:                strings.TrimSpace(user.Avatar),
+		ServiceStatus:         enums.ServiceStatusIdle,
+		MaxConcurrentCount:    5,
+		PriorityLevel:         0,
+		AutoAssignEnabled:     true,
+		ReceiveOfflineMessage: false,
+		Status:                enums.StatusOk,
+		AuditFields: models.AuditFields{
+			CreatedAt:      time.Now(),
+			UpdatedAt:      time.Now(),
+			CreateUserID:   user.ID,
+			CreateUserName: user.Username,
+			UpdateUserID:   user.ID,
+			UpdateUserName: user.Username,
+		},
+	}
+
+	if err := repositories.AgentProfileRepository.Create(db, profile); err != nil {
+		return nil, err
+	}
+	s.dispatchPendingConversationsIfEligible(profile)
+	return profile, nil
 }
 
 func (s *agentProfileService) GetUserIDsByTeamID(teamID int64) []int64 {
