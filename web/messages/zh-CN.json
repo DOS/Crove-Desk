@@ -1671,6 +1671,11 @@
     "selectUser": "请选择用户",
     "searchUser": "搜索用户...",
     "emptyUser": "没有匹配的用户",
+    "team": "所属客服组",
+    "selectTeam": "请选择客服组",
+    "searchTeam": "搜索客服组...",
+    "emptyTeam": "没有匹配的客服组",
+    "noTeamsWarning": "当前没有可用的客服组，请先在左侧边栏创建客服组。",
     "displayName": "展示名",
     "displayNamePlaceholder": "请输入展示名",
     "agentCodeLabel": "客服工号",
@@ -2766,9 +2771,12 @@
     "brand": "AgentDesk 支持中心",
     "nav": {
       "home": "首页",
-      "help": "帮助",
+      "help": "文档",
+      "community": "社区",
       "questions": "FAQ",
-      "login": "登录"
+      "login": "登录",
+      "menu": "菜单",
+      "siteNavigation": "站点导航"
     },
     "home": {
       "badge": "支持中心",
@@ -2948,6 +2956,10 @@
     "knowledge": "知识库",
     "support": "支持中心",
     "supportCenter": "支持中心",
+    "supportDocs": "文档中心",
+    "supportCommunity": "社区内容",
+    "supportCommunityCategories": "社区分类",
+    "supportConfig": "支持中心配置",
     "supportHelp": "帮助中心",
     "supportFaq": "FAQ 社区",
     "supportFaqCategories": "FAQ 分类",

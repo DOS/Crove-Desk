@@ -1671,6 +1671,11 @@
     "selectUser": "Select user",
     "searchUser": "Search users...",
     "emptyUser": "No matching users",
+    "team": "Support Team",
+    "selectTeam": "Select support team",
+    "searchTeam": "Search support teams...",
+    "emptyTeam": "No matching support teams",
+    "noTeamsWarning": "No support teams exist. Please create a team in the sidebar first.",
     "displayName": "Display Name",
     "displayNamePlaceholder": "Enter display name",
     "agentCodeLabel": "Agent Code",
@@ -2766,9 +2771,12 @@
     "brand": "AgentDesk Support",
     "nav": {
       "home": "Home",
-      "help": "Help",
+      "help": "Docs",
+      "community": "Community",
       "questions": "FAQ",
-      "login": "Log In"
+      "login": "Log In",
+      "menu": "Menu",
+      "siteNavigation": "Site Navigation"
     },
     "home": {
       "badge": "Support Center",
@@ -2948,6 +2956,10 @@
     "knowledge": "Knowledge Base",
     "support": "Support Center",
     "supportCenter": "Support Center",
+    "supportDocs": "Documentation",
+    "supportCommunity": "Community Posts",
+    "supportCommunityCategories": "Community Categories",
+    "supportConfig": "Support Settings",
     "supportHelp": "Help Center",
     "supportFaq": "FAQ Community",
     "supportFaqCategories": "FAQ Categories",

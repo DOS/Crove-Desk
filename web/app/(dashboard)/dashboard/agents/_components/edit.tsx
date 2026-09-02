@@ -35,8 +35,10 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   fetchAgentProfile,
+  fetchAgentTeamsAll,
   fetchUsersAll,
   type AdminAgentProfile,
+  type AdminAgentTeam,
   type AdminUser,
   type CreateAdminAgentProfilePayload,
 } from "@/lib/api/admin";
@@ -206,19 +208,34 @@ function AgentEditDialogBody({
 }: AgentEditDialogBodyProps) {
   const t = useI18n();
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [teams, setTeams] = useState<AdminAgentTeam[]>([]);
   const [userSelectOpen, setUserSelectOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const userOptions = users.map((user) => ({
-    value: String(user.id),
-    label: `${user.nickname || user.username} (${user.username})`,
-  }));
+  const userOptions = useMemo(
+    () =>
+      users.map((user) => ({
+        value: String(user.id),
+        label: `${user.nickname || user.username} (${user.username})`,
+      })),
+    [users],
+  );
+  const teamOptions = useMemo(
+    () =>
+      teams.map((team) => ({
+        value: String(team.id),
+        label: team.name,
+      })),
+    [teams],
+  );
   const serviceStatusOptions = useMemo(() => getServiceStatusOptions(t), [t]);
   const loadOptions = useCallback(async () => {
     try {
-      const [usersData] = await Promise.all([
+      const [usersData, teamsData] = await Promise.all([
         fetchUsersAll(),
+        fetchAgentTeamsAll(),
       ]);
       setUsers(usersData);
+      setTeams(teamsData);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("agentProfile.loadOptionsFailed"));
     }
@@ -237,8 +254,12 @@ function AgentEditDialogBody({
     handleSubmit,
     reset,
     register,
+    setValue,
+    watch,
     formState: { errors },
   } = form;
+
+  const currentTeamId = watch("teamId");
 
   useEffect(() => {
     async function loadDetail() {
@@ -264,6 +285,13 @@ function AgentEditDialogBody({
       void loadOptions();
     }
   }, [loadOptions, open]);
+
+  // Auto-set teamId if empty and teams are available
+  useEffect(() => {
+    if (!itemId && !currentTeamId && teams.length > 0) {
+      setValue("teamId", String(defaultTeamId ?? teams[0].id));
+    }
+  }, [currentTeamId, defaultTeamId, itemId, setValue, teams]);
 
   async function onFormSubmit(values: EditForm) {
     await onSubmit(buildPayload(values));
@@ -303,6 +331,12 @@ function AgentEditDialogBody({
           onSubmit={handleSubmit(onFormSubmit)}
           className="space-y-4"
         >
+          {teams.length === 0 && !loading && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+              {t("agentProfile.noTeamsWarning")}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field data-invalid={!!errors.userId}>
               <FieldLabel>{t("agentProfile.linkedUser")}</FieldLabel>
@@ -347,6 +381,23 @@ function AgentEditDialogBody({
                                   value={option.label}
                                   onSelect={() => {
                                     field.onChange(option.value);
+                                    const selected = users.find(
+                                      (u) => String(u.id) === option.value,
+                                    );
+                                    if (selected) {
+                                      if (!form.getValues("displayName")) {
+                                        form.setValue(
+                                          "displayName",
+                                          selected.nickname || selected.username,
+                                        );
+                                      }
+                                      if (
+                                        !form.getValues("avatar") &&
+                                        selected.avatar
+                                      ) {
+                                        form.setValue("avatar", selected.avatar);
+                                      }
+                                    }
                                     setUserSelectOpen(false);
                                   }}
                                 >
@@ -370,6 +421,30 @@ function AgentEditDialogBody({
                 <FieldError errors={[errors.userId]} />
               </FieldContent>
             </Field>
+
+            <Field data-invalid={!!errors.teamId}>
+              <FieldLabel>{t("agentProfile.team")}</FieldLabel>
+              <FieldContent>
+                <Controller
+                  control={control}
+                  name="teamId"
+                  render={({ field }) => (
+                    <OptionCombobox
+                      options={teamOptions}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder={t("agentProfile.selectTeam")}
+                      searchPlaceholder={t("agentProfile.searchTeam")}
+                      emptyText={t("agentProfile.emptyTeam")}
+                    />
+                  )}
+                />
+                <FieldError errors={[errors.teamId]} />
+              </FieldContent>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field data-invalid={!!errors.displayName}>
               <FieldLabel htmlFor="agent-display-name">{t("agentProfile.displayName")}</FieldLabel>
               <FieldContent>
@@ -381,9 +456,7 @@ function AgentEditDialogBody({
                 <FieldError errors={[errors.displayName]} />
               </FieldContent>
             </Field>
-          </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field data-invalid={!!errors.agentCode}>
               <FieldLabel htmlFor="agent-code">{t("agentProfile.agentCodeLabel")}</FieldLabel>
               <FieldContent>
@@ -395,7 +468,9 @@ function AgentEditDialogBody({
                 <FieldError errors={[errors.agentCode]} />
               </FieldContent>
             </Field>
+          </div>
 
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field className="min-h-32">
               <FieldLabel>{t("agentProfile.avatar")}</FieldLabel>
               <FieldContent>
@@ -415,9 +490,7 @@ function AgentEditDialogBody({
                 />
               </FieldContent>
             </Field>
-          </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field data-invalid={!!errors.serviceStatus}>
               <FieldLabel>{t("agentProfile.serviceStatus")}</FieldLabel>
               <FieldContent>
