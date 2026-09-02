@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, Resolver, useForm, useWatch } from "react-hook-form"
 import { z } from "zod/v4"
-import { CopyIcon, ExternalLinkIcon, RotateCcwIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react"
+import { CopyIcon, ExternalLinkIcon, RotateCcwIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { getWidgetDemoPath } from "@/components/support-chat/demo-navigation"
@@ -313,13 +313,6 @@ function parseEmailChannelConfig(configJson: string): EmailChannelConfig {
     return {
       emailAddress: parsed.emailAddress?.trim() || "",
       senderName: parsed.senderName?.trim() || "",
-      provider: parsed.provider?.trim() || "brevo",
-      apiKey: parsed.apiKey?.trim() || "",
-      smtpHost: parsed.smtpHost?.trim() || "",
-      smtpPort: parsed.smtpPort || 587,
-      smtpUser: parsed.smtpUser?.trim() || "",
-      smtpPassword: parsed.smtpPassword?.trim() || "",
-      webhookSecret: parsed.webhookSecret?.trim() || "",
     }
   } catch {
     return {}
@@ -507,13 +500,6 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
         ? JSON.stringify({
             emailAddress: form.emailAddress.trim(),
             senderName: form.senderName.trim(),
-            provider: form.emailProvider.trim(),
-            apiKey: form.emailApiKey.trim(),
-            smtpHost: form.smtpHost.trim(),
-            smtpPort: form.smtpPort || 587,
-            smtpUser: form.smtpUser.trim(),
-            smtpPassword: form.smtpPassword.trim(),
-            webhookSecret: form.webhookSecret.trim(),
           })
         : channelType === "telegram"
           ? JSON.stringify({
@@ -638,12 +624,10 @@ function ChannelFormBody({
   const aiAgentId = useWatch({ control, name: "aiAgentId" })
   const openKfId = useWatch({ control, name: "openKfId" })
   const userTokenSecret = useWatch({ control, name: "userTokenSecret" })
-  const emailProvider = useWatch({ control, name: "emailProvider" })
   const emailAddressValue = useWatch({ control, name: "emailAddress" })
   const nameValue = useWatch({ control, name: "name" })
 	const previousRolloutPercent = channelDetail?.previousAiAgentRolloutPercent ?? 0
   const [orgSlug, setOrgSlug] = useState<string>("org")
-  const [showAdvancedDelivery, setShowAdvancedDelivery] = useState(false)
 
   useEffect(() => {
     async function loadOrg() {
@@ -1007,130 +991,6 @@ function ChannelFormBody({
                       </Button>
                     </div>
                   </div>
-                </div>
-
-                <div className="pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setShowAdvancedDelivery(!showAdvancedDelivery)}
-                    className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                  >
-                    {showAdvancedDelivery ? (
-                      <ChevronDownIcon className="size-3.5" />
-                    ) : (
-                      <ChevronRightIcon className="size-3.5" />
-                    )}
-                    <span>{t("channel.customDeliveryToggle")}</span>
-                  </button>
-
-                  {showAdvancedDelivery && (
-                    <div className="mt-3 space-y-4 rounded-md border border-dashed p-3.5 bg-muted/20">
-                      <p className="text-xs text-muted-foreground leading-relaxed">{t("channel.customDeliveryDescription")}</p>
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <Field data-invalid={!!errors.emailProvider}>
-                          <FieldLabel htmlFor="channel-email-provider">{t("channel.emailProvider")}</FieldLabel>
-                          <FieldContent>
-                            <select
-                              id="channel-email-provider"
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                              {...register("emailProvider")}
-                            >
-                              <option value="default">{t("channel.emailProviderDefault")}</option>
-                              <option value="smtp">{t("channel.emailProviderSmtp")}</option>
-                              <option value="brevo">{t("channel.emailProviderBrevo")}</option>
-                              <option value="sendgrid">{t("channel.emailProviderSendGrid")}</option>
-                              <option value="resend">{t("channel.emailProviderResend")}</option>
-                              <option value="postmark">{t("channel.emailProviderPostmark")}</option>
-                              <option value="mailgun">{t("channel.emailProviderMailgun")}</option>
-                            </select>
-                            <FieldError errors={[errors.emailProvider]} />
-                          </FieldContent>
-                        </Field>
-
-                        <Field data-invalid={!!errors.webhookSecret}>
-                          <FieldLabel htmlFor="channel-email-webhook-secret">{t("channel.webhookSecret")}</FieldLabel>
-                          <FieldContent>
-                            <Input
-                              id="channel-email-webhook-secret"
-                              placeholder="Secret for Inbound Webhook"
-                              {...register("webhookSecret")}
-                            />
-                            <FieldError errors={[errors.webhookSecret]} />
-                          </FieldContent>
-                        </Field>
-                      </div>
-
-                      {emailProvider === "brevo" || emailProvider === "sendgrid" || emailProvider === "resend" || emailProvider === "postmark" || emailProvider === "mailgun" ? (
-                        <Field data-invalid={!!errors.emailApiKey}>
-                          <FieldLabel htmlFor="channel-email-apikey">{t("channel.emailApiKey")}</FieldLabel>
-                          <FieldContent>
-                            <Input
-                              id="channel-email-apikey"
-                              type="password"
-                              placeholder="API Key / Server Token"
-                              {...register("emailApiKey")}
-                            />
-                            <FieldError errors={[errors.emailApiKey]} />
-                          </FieldContent>
-                        </Field>
-                      ) : emailProvider === "smtp" ? (
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                            <div className="sm:col-span-2">
-                              <Field data-invalid={!!errors.smtpHost}>
-                                <FieldLabel htmlFor="channel-smtp-host">SMTP Host</FieldLabel>
-                                <FieldContent>
-                                  <Input
-                                    id="channel-smtp-host"
-                                    placeholder="smtp.example.com"
-                                    {...register("smtpHost")}
-                                  />
-                                  <FieldError errors={[errors.smtpHost]} />
-                                </FieldContent>
-                              </Field>
-                            </div>
-                            <Field data-invalid={!!errors.smtpPort}>
-                              <FieldLabel htmlFor="channel-smtp-port">SMTP Port</FieldLabel>
-                              <FieldContent>
-                                <Input
-                                  id="channel-smtp-port"
-                                  type="number"
-                                  placeholder="587"
-                                  {...register("smtpPort")}
-                                />
-                                <FieldError errors={[errors.smtpPort]} />
-                              </FieldContent>
-                            </Field>
-                          </div>
-                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <Field data-invalid={!!errors.smtpUser}>
-                              <FieldLabel htmlFor="channel-smtp-user">SMTP Username</FieldLabel>
-                              <FieldContent>
-                                <Input
-                                  id="channel-smtp-user"
-                                  placeholder="user@example.com"
-                                  {...register("smtpUser")}
-                                />
-                                <FieldError errors={[errors.smtpUser]} />
-                              </FieldContent>
-                            </Field>
-                            <Field data-invalid={!!errors.smtpPassword}>
-                              <FieldLabel htmlFor="channel-smtp-password">SMTP Password</FieldLabel>
-                              <FieldContent>
-                                <Input
-                                  id="channel-smtp-password"
-                                  type="password"
-                                  placeholder="••••••••"
-                                  {...register("smtpPassword")}
-                                />
-                                <FieldError errors={[errors.smtpPassword]} />
-                              </FieldContent>
-                            </Field>
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  )}
                 </div>
               </div>
             ) : null}
