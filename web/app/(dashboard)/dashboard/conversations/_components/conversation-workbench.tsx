@@ -18,6 +18,7 @@ import type { PanelImperativeHandle } from "react-resizable-panels";
 
 import { ConversationCloseDialog } from "@/components/conversation-actions/close-dialog";
 import { ConversationTransferDialog } from "@/components/conversation-actions/transfer-dialog";
+import { ChannelIcon } from "@/components/channel-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -282,17 +283,24 @@ export function ConversationWorkbench() {
             )}
           </Button>
           {conversation ? (
-            <>
-              <Avatar className="size-8 shrink-0 lg:size-9">
-                <AvatarImage src="" />
-                <AvatarFallback className="bg-primary/10 text-sm text-primary">
-                  {t("conversation.customerAvatar")}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div
+                className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-muted/40 text-muted-foreground"
+                title={conversation.channelName || conversation.channelType || "Channel"}
+              >
+                <ChannelIcon channelType={conversation.channelType} className="size-4" />
+              </div>
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="min-w-0 truncate text-sm font-medium leading-tight">
-                    {conversation.customerName ||
+                  <span className="shrink-0 font-mono text-xs font-semibold text-muted-foreground">
+                    #{conversation.id}
+                  </span>
+                  <p
+                    className="min-w-0 truncate text-sm font-semibold leading-tight text-foreground"
+                    title={conversation.title || conversation.customerName || `Conversation #${conversation.id}`}
+                  >
+                    {conversation.title ||
+                      conversation.customerName ||
                       t("conversation.customerFallback", {
                         id: conversation.customerId || conversation.id,
                       })}
@@ -312,17 +320,33 @@ export function ConversationWorkbench() {
                       : t("conversation.customerOffline")}
                   </span>
                 </div>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  <span>{t("conversation.channelNumber", { id: conversation.channelId || "-" })}</span>
-                  {conversation.customerId ? (
+                <div className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+                  <span className="truncate font-medium text-foreground/80">
+                    {conversation.customerName ||
+                      t("conversation.customerFallback", {
+                        id: conversation.customerId || conversation.id,
+                      })}
+                  </span>
+                  {conversation.channelName ? (
                     <>
-                      <span className="text-muted-foreground/60"> / </span>
-                      <span>{t("conversation.linkedCustomer")}</span>
+                      <span className="text-muted-foreground/40">•</span>
+                      <span className="truncate text-muted-foreground">{conversation.channelName}</span>
+                    </>
+                  ) : conversation.channelType ? (
+                    <>
+                      <span className="text-muted-foreground/40">•</span>
+                      <span className="capitalize">{conversation.channelType}</span>
                     </>
                   ) : null}
-                </p>
+                  {conversation.currentAssigneeName ? (
+                    <>
+                      <span className="text-muted-foreground/40">•</span>
+                      <span className="truncate text-primary/80">@{conversation.currentAssigneeName}</span>
+                    </>
+                  ) : null}
+                </div>
               </div>
-            </>
+            </div>
           ) : (
             <div className="min-w-0">
               <p className="truncate font-medium text-[14px] leading-tight">

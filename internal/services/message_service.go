@@ -494,7 +494,7 @@ func (s *messageService) sendValidatedMessage(conversation *models.Conversation,
 		conversation.UpdatedAt = now
 		conversation.AgentUnreadCount = int(agentUnreadCount)
 		conversation.CustomerUnreadCount = int(customerUnreadCount)
-		if err := repositories.ConversationRepository.Updates(ctx.Tx, conversation.ID, map[string]any{
+		updates := map[string]any{
 			"last_message_id":       conversation.LastMessageID,
 			"last_message_at":       conversation.LastMessageAt,
 			"last_active_at":        conversation.LastActiveAt,
@@ -504,7 +504,12 @@ func (s *messageService) sendValidatedMessage(conversation *models.Conversation,
 			"updated_at":            conversation.UpdatedAt,
 			"agent_unread_count":    conversation.AgentUnreadCount,
 			"customer_unread_count": conversation.CustomerUnreadCount,
-		}); err != nil {
+		}
+		if conversation.Title == "" && summary != "" {
+			conversation.Title = limitText(summary, 255)
+			updates["title"] = conversation.Title
+		}
+		if err := repositories.ConversationRepository.Updates(ctx.Tx, conversation.ID, updates); err != nil {
 			return err
 		}
 

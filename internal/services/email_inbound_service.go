@@ -146,6 +146,12 @@ func (s *emailInboundService) processInboundItem(ctx context.Context, channel *m
 		}
 	}
 
+	// Ensure conversation title is set from email subject if empty
+	if item.Subject != "" && conversation.Title == "" {
+		_ = repositories.ConversationRepository.UpdateColumn(sqls.DB(), conversation.ID, "title", strings.TrimSpace(item.Subject))
+		conversation.Title = strings.TrimSpace(item.Subject)
+	}
+
 	// Ensure customer primary_email is populated
 	if conversation.CustomerID > 0 {
 		customer := repositories.CustomerRepository.Get(sqls.DB(), conversation.CustomerID)

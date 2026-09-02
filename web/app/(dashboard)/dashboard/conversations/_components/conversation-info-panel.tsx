@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { type CustomerFormSavePayload } from "@/components/customer-form";
 import { CustomerFormDialog } from "@/components/customer-form-dialog";
 import { CustomerLinkOrCreateDialog } from "@/components/customer-link-or-create-dialog";
+import { ChannelIcon } from "@/components/channel-icon";
 import { JsonTreeViewer } from "@/components/json-tree-viewer";
 import { ProjectDialog } from "@/components/project-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -255,12 +256,34 @@ export function ConversationInfoPanel({
           </p>
         ) : (
           <div className="space-y-4 py-3">
-            <section>
-              <DetailRow
-                label={t("conversation.conversationId")}
-                value={`${conversation.id}`}
-                valueClassName="font-mono text-xs"
-              />
+            <section className="space-y-2 rounded-lg border bg-muted/20 p-2.5">
+              <SectionHeading>{t("conversation.conversationAttributes")}</SectionHeading>
+              <div className="space-y-1.5">
+                <DetailRow
+                  label={t("conversation.conversationId")}
+                  value={`#${conversation.id}`}
+                  valueClassName="font-mono text-xs font-semibold"
+                />
+                {conversation.title ? (
+                  <DetailRow
+                    label={t("conversation.threadSubject")}
+                    value={conversation.title}
+                  />
+                ) : null}
+                <div className="flex gap-2.5 text-sm leading-snug">
+                  <span className="w-17 shrink-0 pt-px text-xs text-muted-foreground">{t("conversation.channel")}</span>
+                  <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-foreground">
+                    <ChannelIcon channelType={conversation.channelType} className="size-3.5 shrink-0" />
+                    <span className="truncate font-medium">{conversation.channelName || conversation.channelType || "—"}</span>
+                  </div>
+                </div>
+                {conversation.currentAssigneeName ? (
+                  <DetailRow
+                    label={t("conversation.assignee")}
+                    value={conversation.currentAssigneeName}
+                  />
+                ) : null}
+              </div>
             </section>
             <CustomerBody conversation={conversation} />
             <WorkflowRunsSection conversation={conversation} />

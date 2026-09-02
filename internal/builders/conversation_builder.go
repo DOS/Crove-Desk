@@ -21,6 +21,7 @@ func BuildConversationWithLocale(item *models.Conversation, locale string) respo
 	agentReadState, customerReadState := services.ConversationReadStateService.GetConversationReadStates(item.ID)
 	ret := response.ConversationResponse{
 		ID:                        item.ID,
+		Title:                     item.Title,
 		AIAgentID:                 item.AIAgentID,
 		ChannelID:                 item.ChannelID,
 		CustomerID:                item.CustomerID,
@@ -43,6 +44,15 @@ func BuildConversationWithLocale(item *models.Conversation, locale string) respo
 		ClosedAt:                  utils.FormatTimePtr(item.ClosedAt),
 		ClosedBy:                  item.ClosedBy,
 		CloseReason:               item.CloseReason,
+	}
+	if ret.Title == "" && item.LastMessageSummary != "" {
+		ret.Title = item.LastMessageSummary
+	}
+	if item.ChannelID > 0 {
+		if channel := services.ChannelService.Get(item.ChannelID); channel != nil {
+			ret.ChannelType = channel.ChannelType
+			ret.ChannelName = channel.Name
+		}
 	}
 	if identity := services.ConversationService.GetConversationExternalIdentity(item); identity != nil {
 		ret.CustomerOnline = services.WsService.IsGuestOnline(identity.ExternalID)
