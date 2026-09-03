@@ -225,3 +225,78 @@ func ChannelGetSlackOAuthURL(ctx *gin.Context) {
 		"redirectUri": redirectURI,
 	}))
 }
+
+// ChannelGetXOAuthURL returns the 1-Click OAuth 2.0 authorization URL for X (Twitter) API v2.
+func ChannelGetXOAuthURL(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionChannelView); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+
+	clientID := strings.TrimSpace(os.Getenv("X_CLIENT_ID"))
+	if clientID == "" {
+		clientID = strings.TrimSpace(os.Getenv("TWITTER_CLIENT_ID"))
+	}
+	if clientID == "" {
+		clientID = strings.TrimSpace(ctx.Query("client_id"))
+	}
+	redirectURI := strings.TrimSpace(ctx.Query("redirect_uri"))
+
+	if clientID == "" {
+		clientID = "x_oauth_client_id_placeholder"
+	}
+
+	state := strings.TrimSpace(ctx.Query("state"))
+	if state == "" {
+		state = "crove_x_connect"
+	}
+
+	authURL := fmt.Sprintf(
+		"https://twitter.com/i/oauth2/authorize?response_type=code&client_id=%s&redirect_uri=%s&scope=dm.read+dm.write+users.read+offline.access&state=%s&code_challenge=challenge&code_challenge_method=plain",
+		url.QueryEscape(clientID),
+		url.QueryEscape(redirectURI),
+		url.QueryEscape(state),
+	)
+
+	httpx.WriteJSON(ctx, web.JsonData(gin.H{
+		"authUrl":     authURL,
+		"clientId":    clientID,
+		"redirectUri": redirectURI,
+	}))
+}
+
+// ChannelGetTikTokOAuthURL returns the 1-Click OAuth authorization URL for TikTok Business Messaging.
+func ChannelGetTikTokOAuthURL(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionChannelView); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+
+	clientKey := strings.TrimSpace(os.Getenv("TIKTOK_CLIENT_KEY"))
+	if clientKey == "" {
+		clientKey = strings.TrimSpace(ctx.Query("client_key"))
+	}
+	redirectURI := strings.TrimSpace(ctx.Query("redirect_uri"))
+
+	if clientKey == "" {
+		clientKey = "tiktok_client_key_placeholder"
+	}
+
+	state := strings.TrimSpace(ctx.Query("state"))
+	if state == "" {
+		state = "crove_tiktok_connect"
+	}
+
+	authURL := fmt.Sprintf(
+		"https://business-api.tiktok.com/portal/auth?app_id=%s&state=%s&redirect_uri=%s",
+		url.QueryEscape(clientKey),
+		url.QueryEscape(state),
+		url.QueryEscape(redirectURI),
+	)
+
+	httpx.WriteJSON(ctx, web.JsonData(gin.H{
+		"authUrl":     authURL,
+		"clientKey":   clientKey,
+		"redirectUri": redirectURI,
+	}))
+}

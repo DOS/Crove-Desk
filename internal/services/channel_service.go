@@ -802,7 +802,7 @@ func (s *channelService) GetEnabledChannel(ctx *gin.Context) *models.Channel {
 
 func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRequest) (*models.Channel, error) {
 	channelType := strings.TrimSpace(req.ChannelType)
-	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeEmail && channelType != enums.ChannelTypeDiscord && channelType != enums.ChannelTypeMessenger && channelType != enums.ChannelTypeInstagram && channelType != enums.ChannelTypeWhatsApp && channelType != enums.ChannelTypeSlack {
+	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeEmail && channelType != enums.ChannelTypeDiscord && channelType != enums.ChannelTypeMessenger && channelType != enums.ChannelTypeInstagram && channelType != enums.ChannelTypeWhatsApp && channelType != enums.ChannelTypeSlack && channelType != enums.ChannelTypeX && channelType != enums.ChannelTypeTikTok {
 		return nil, errorsx.InvalidParamI18n("error.e0250")
 	}
 	name := strings.TrimSpace(req.Name)
