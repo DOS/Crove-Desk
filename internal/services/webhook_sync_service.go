@@ -151,6 +151,14 @@ func (s *webhookSyncService) HandleOrgSync(req request.OrgSyncWebhookRequest) er
 		return s.handleCompanyUpsert(data)
 	case "customer.created", "customer.updated":
 		return s.handleCustomerUpsert(data)
+	case "team.created", "team.updated":
+		return s.handleTeamUpsert(data)
+	case "team.deleted":
+		return s.handleTeamDelete(data)
+	case "team.member_added", "team.member_updated", "team.member.added", "team.member.updated":
+		return s.handleTeamMemberUpsert(data)
+	case "team.member_removed", "team.member.removed":
+		return s.handleTeamMemberRemove(data)
 	default:
 		return nil
 	}
@@ -699,6 +707,178 @@ func (s *webhookSyncService) handleCustomerUpsert(data request.OrgSyncEventData)
 			}
 		}
 
+		return nil
+	})
+}
+
+func (s *webhookSyncService) handleTeamUpsert(data request.OrgSyncEventData) error {
+	teamName := strings.TrimSpace(data.TeamName)
+	if teamName == "" {
+		teamName = strings.TrimSpace(data.Name)
+	}
+	if teamName == "" {
+		teamName = strings.TrimSpace(data.TeamSlug)
+	}
+	if teamName == "" {
+		return errorsx.InvalidParam("team name or slug is required")
+	}
+	slug := strings.TrimSpace(data.TeamSlug)
+	if slug == "" {
+		slug = strings.TrimSpace(data.Slug)
+	}
+
+	now := time.Now()
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		team := repositories.AgentTeamRepository.FindOne(ctx.Tx, sqls.NewCnd().
+			Where("name = ? OR description = ?", teamName, slug).
+			Eq("status", enums.StatusOk))
+		if team == nil {
+			team = &models.AgentTeam{
+				Name:         teamName,
+				Description:  slug,
+				LeaderUserID: 0,
+				Status:       enums.StatusOk,
+				AuditFields: models.AuditFields{
+					CreatedAt:      now,
+					CreateUserID:   0,
+					CreateUserName: "webhook-sync",
+					UpdatedAt:      now,
+					UpdateUserID:   0,
+					UpdateUserName: "webhook-sync",
+				},
+			}
+			return repositories.AgentTeamRepository.Create(ctx.Tx, team)
+		}
+
+		updates := map[string]any{
+			"name":             teamName,
+			"description":      slug,
+			"status":           enums.StatusOk,
+			"update_user_id":   0,
+			"update_user_name": "webhook-sync",
+			"updated_at":       now,
+		}
+		return repositories.AgentTeamRepository.Updates(ctx.Tx, team.ID, updates)
+	})
+}
+
+func (s *webhookSyncService) handleTeamDelete(data request.OrgSyncEventData) error {
+	teamName := strings.TrimSpace(data.TeamName)
+	if teamName == "" {
+		teamName = strings.TrimSpace(data.Name)
+	}
+	slug := strings.TrimSpace(data.TeamSlug)
+	if slug == "" {
+		slug = strings.TrimSpace(data.Slug)
+	}
+
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		team := repositories.AgentTeamRepository.FindOne(ctx.Tx, sqls.NewCnd().
+			Where("name = ? OR description = ?", teamName, slug).
+			Eq("status", enums.StatusOk))
+		if team != nil {
+			return repositories.AgentTeamRepository.UpdateColumn(ctx.Tx, team.ID, "status", enums.StatusDisabled)
+		}
+		return nil
+	})
+}
+
+func (s *webhookSyncService) handleTeamMemberUpsert(data request.OrgSyncEventData) error {
+	teamName := strings.TrimSpace(data.TeamName)
+	if teamName == "" {
+		teamName = strings.TrimSpace(data.Name)
+	}
+	slug := strings.TrimSpace(data.TeamSlug)
+	if slug == "" {
+		slug = strings.TrimSpace(data.Slug)
+	}
+	userEmail := strings.TrimSpace(strings.ToLower(data.UserEmail))
+	userSubject := strings.TrimSpace(data.UserID)
+	role := strings.ToUpper(strings.TrimSpace(data.Role))
+
+	now := time.Now()
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		team := repositories.AgentTeamRepository.FindOne(ctx.Tx, sqls.NewCnd().
+			Where("name = ? OR description = ?", teamName, slug).
+			Eq("status", enums.StatusOk))
+		if team == nil {
+			team = &models.AgentTeam{
+				Name:         teamName,
+				Description:  slug,
+				LeaderUserID: 0,
+				Status:       enums.StatusOk,
+				AuditFields: models.AuditFields{
+					CreatedAt:      now,
+					CreateUserID:   0,
+					CreateUserName: "webhook-sync",
+					UpdatedAt:      now,
+					UpdateUserID:   0,
+					UpdateUserName: "webhook-sync",
+				},
+			}
+			if err := repositories.AgentTeamRepository.Create(ctx.Tx, team); err != nil {
+				return err
+			}
+		}
+
+		var user *models.User
+		if userSubject != "" {
+			identity := repositories.UserIdentityRepository.GetBy(ctx.Tx, enums.ThirdProviderOIDC, "", userSubject)
+			if identity != nil {
+				user = repositories.UserRepository.Get(ctx.Tx, identity.UserID)
+			}
+		}
+		if user == nil && userEmail != "" {
+			user = repositories.UserRepository.GetByEmail(ctx.Tx, userEmail)
+		}
+		if user == nil {
+			return nil
+		}
+
+		if role == "LEAD" || role == "ADMIN" || role == "OWNER" {
+			_ = repositories.AgentTeamRepository.UpdateColumn(ctx.Tx, team.ID, "leader_user_id", user.ID)
+		}
+
+		agentProfile, _ := AgentProfileService.EnsureAgentProfileForUser(ctx.Tx, user)
+		if agentProfile != nil && agentProfile.TeamID != team.ID {
+			updates := map[string]any{
+				"team_id":          team.ID,
+				"update_user_id":   user.ID,
+				"update_user_name": user.Username,
+				"updated_at":       now,
+			}
+			if role == "LEAD" {
+				updates["priority_level"] = 10
+			}
+			_ = repositories.AgentProfileRepository.Updates(ctx.Tx, agentProfile.ID, updates)
+		}
+		return nil
+	})
+}
+
+func (s *webhookSyncService) handleTeamMemberRemove(data request.OrgSyncEventData) error {
+	userEmail := strings.TrimSpace(strings.ToLower(data.UserEmail))
+	userSubject := strings.TrimSpace(data.UserID)
+
+	return sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		var user *models.User
+		if userSubject != "" {
+			identity := repositories.UserIdentityRepository.GetBy(ctx.Tx, enums.ThirdProviderOIDC, "", userSubject)
+			if identity != nil {
+				user = repositories.UserRepository.Get(ctx.Tx, identity.UserID)
+			}
+		}
+		if user == nil && userEmail != "" {
+			user = repositories.UserRepository.GetByEmail(ctx.Tx, userEmail)
+		}
+		if user == nil {
+			return nil
+		}
+
+		agentProfile, _ := AgentProfileService.EnsureAgentProfileForUser(ctx.Tx, user)
+		if agentProfile != nil {
+			_ = repositories.AgentProfileRepository.UpdateColumn(ctx.Tx, agentProfile.ID, "team_id", 0)
+		}
 		return nil
 	})
 }

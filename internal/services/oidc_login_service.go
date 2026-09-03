@@ -27,6 +27,8 @@ type oidcLoginService struct {
 }
 
 type oidcLoginProfile = oidcclient.Profile
+type oidcLoginProfileOrg = oidcclient.OrganizationClaim
+type oidcLoginProfileTeam = oidcclient.TeamClaim
 
 func newOIDCLoginService() *oidcLoginService {
 	return &oidcLoginService{}
@@ -112,6 +114,7 @@ func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authC
 
 		s.ensureDefaultOIDCRole(ctx.Tx, user)
 		s.syncOIDCUserOrganizations(ctx.Tx, user, profile)
+		s.syncOIDCUserTeams(ctx.Tx, user, profile)
 		_, _ = AgentProfileService.EnsureAgentProfileForUser(ctx.Tx, user)
 
 		if err = repositories.UserIdentityRepository.Updates(ctx.Tx, identity.ID, map[string]any{
@@ -412,5 +415,114 @@ func (s *oidcLoginService) syncOIDCUserOrganizations(tx *gorm.DB, user *models.U
 	if activeOrgID > 0 && user.ActiveOrgID != activeOrgID {
 		user.ActiveOrgID = activeOrgID
 		_ = repositories.UserRepository.UpdateColumn(tx, user.ID, "active_org_id", activeOrgID)
+	}
+}
+
+func (s *oidcLoginService) syncOIDCUserTeams(tx *gorm.DB, user *models.User, profile *oidcLoginProfile) {
+	if user == nil || user.ID <= 0 || profile == nil {
+		return
+	}
+	now := time.Now()
+
+	agentProfile, _ := AgentProfileService.EnsureAgentProfileForUser(tx, user)
+	if agentProfile == nil {
+		return
+	}
+
+	var targetTeamID int64 = 0
+	var isTeamLead bool = false
+
+	if len(profile.Teams) > 0 {
+		for _, teamClaim := range profile.Teams {
+			teamName := strings.TrimSpace(teamClaim.Name)
+			if teamName == "" {
+				teamName = strings.TrimSpace(teamClaim.Slug)
+			}
+			if teamName == "" {
+				teamName = "Customer Support"
+			}
+			slug := strings.TrimSpace(teamClaim.Slug)
+			role := strings.ToUpper(strings.TrimSpace(teamClaim.Role))
+
+			team := repositories.AgentTeamRepository.FindOne(tx, sqls.NewCnd().
+				Where("name = ? OR description = ?", teamName, slug).
+				Eq("status", enums.StatusOk))
+			if team == nil {
+				team = &models.AgentTeam{
+					Name:         teamName,
+					Description:  slug,
+					LeaderUserID: 0,
+					Status:       enums.StatusOk,
+					AuditFields: models.AuditFields{
+						CreatedAt:      now,
+						CreateUserID:   user.ID,
+						CreateUserName: user.Username,
+						UpdatedAt:      now,
+						UpdateUserID:   user.ID,
+						UpdateUserName: user.Username,
+					},
+				}
+				if err := repositories.AgentTeamRepository.Create(tx, team); err != nil {
+					continue
+				}
+			}
+
+			if role == "LEAD" || role == "ADMIN" || role == "OWNER" {
+				isTeamLead = true
+				if team.LeaderUserID == 0 || team.LeaderUserID == user.ID {
+					_ = repositories.AgentTeamRepository.UpdateColumn(tx, team.ID, "leader_user_id", user.ID)
+				}
+			}
+
+			if targetTeamID == 0 || slug == "customer-support" || strings.Contains(strings.ToLower(slug), "support") || strings.Contains(strings.ToLower(teamName), "support") {
+				targetTeamID = team.ID
+			}
+		}
+	}
+
+	if targetTeamID > 0 && agentProfile.TeamID != targetTeamID {
+		profileUpdates := map[string]any{
+			"team_id":          targetTeamID,
+			"update_user_id":   user.ID,
+			"update_user_name": user.Username,
+			"updated_at":       now,
+		}
+		if isTeamLead {
+			profileUpdates["priority_level"] = 10
+		}
+		_ = repositories.AgentProfileRepository.Updates(tx, agentProfile.ID, profileUpdates)
+	}
+
+	if isTeamLead {
+		s.ensureSupervisorRole(tx, user)
+	}
+}
+
+func (s *oidcLoginService) ensureSupervisorRole(tx *gorm.DB, user *models.User) {
+	if user == nil || user.ID <= 0 {
+		return
+	}
+	adminRole := repositories.RoleRepository.GetByCode(tx, constants.RoleCodeAdmin)
+	if adminRole == nil {
+		adminRole = repositories.RoleRepository.GetByCode(tx, constants.RoleCodeSuperAdmin)
+	}
+	if adminRole == nil {
+		return
+	}
+	existing := repositories.UserRoleRepository.FindOne(tx, sqls.NewCnd().Eq("user_id", user.ID).Eq("role_id", adminRole.ID))
+	if existing == nil {
+		now := time.Now()
+		_ = repositories.UserRoleRepository.Create(tx, &models.UserRole{
+			UserID: user.ID,
+			RoleID: adminRole.ID,
+			AuditFields: models.AuditFields{
+				CreatedAt:      now,
+				CreateUserID:   user.ID,
+				CreateUserName: user.Username,
+				UpdatedAt:      now,
+				UpdateUserID:   user.ID,
+				UpdateUserName: user.Username,
+			},
+		})
 	}
 }

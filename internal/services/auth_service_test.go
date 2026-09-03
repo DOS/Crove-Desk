@@ -395,6 +395,8 @@ func setupAuthServiceTestDB(t *testing.T) *gorm.DB {
 		&models.UserPermission{},
 		&models.LoginSession{},
 		&models.LoginCredentialLog{},
+		&models.AgentProfile{},
+		&models.AgentTeam{},
 	); err != nil {
 		t.Fatalf("migrate auth tables: %v", err)
 	}

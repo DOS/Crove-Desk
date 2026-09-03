@@ -42,6 +42,14 @@ type OrganizationClaim struct {
 	Role string `json:"role"`
 }
 
+type TeamClaim struct {
+	ID    string `json:"id"`
+	OrgID string `json:"org_id,omitempty"`
+	Name  string `json:"name"`
+	Slug  string `json:"slug,omitempty"`
+	Role  string `json:"role"`
+}
+
 type Profile struct {
 	Subject           string              `json:"sub"`
 	Email             string              `json:"email,omitempty"`
@@ -50,6 +58,7 @@ type Profile struct {
 	Picture           string              `json:"picture,omitempty"`
 	ActiveOrgID       string              `json:"active_org_id,omitempty"`
 	Organizations     []OrganizationClaim `json:"organizations,omitempty"`
+	Teams             []TeamClaim         `json:"teams,omitempty"`
 	RawProfile        string              `json:"-"`
 }
 
@@ -314,6 +323,7 @@ func profileFromIDToken(idToken *gooidc.IDToken) (*Profile, error) {
 		Picture:           firstNonEmpty(claimString(claims, "picture"), claimString(claims, "avatar_url")),
 		ActiveOrgID:       firstNonEmpty(claimString(claims, "active_org_id"), claimString(claims, "activeOrgId")),
 		Organizations:     claimOrganizations(claims),
+		Teams:             claimTeams(claims),
 		RawProfile:        string(raw),
 	}
 	if strings.TrimSpace(profile.Subject) == "" {
@@ -336,6 +346,7 @@ func profileFromUserInfo(userInfo *gooidc.UserInfo, fallback *Profile) (*Profile
 		Picture:           firstNonEmpty(claimString(claims, "picture"), claimString(claims, "avatar_url")),
 		ActiveOrgID:       firstNonEmpty(claimString(claims, "active_org_id"), claimString(claims, "activeOrgId")),
 		Organizations:     claimOrganizations(claims),
+		Teams:             claimTeams(claims),
 		RawProfile:        string(raw),
 	}
 	if fallback != nil {
@@ -349,6 +360,9 @@ func profileFromUserInfo(userInfo *gooidc.UserInfo, fallback *Profile) (*Profile
 		if len(profile.Organizations) == 0 {
 			profile.Organizations = fallback.Organizations
 		}
+		if len(profile.Teams) == 0 {
+			profile.Teams = fallback.Teams
+		}
 	}
 	if profile.RawProfile == "" {
 		if fallback != nil {
@@ -359,6 +373,43 @@ func profileFromUserInfo(userInfo *gooidc.UserInfo, fallback *Profile) (*Profile
 		return nil, errorsx.UnauthorizedI18n("error.e0043")
 	}
 	return profile, nil
+}
+
+func claimTeams(claims map[string]any) []TeamClaim {
+	raw, ok := claims["teams"]
+	if !ok || raw == nil {
+		return nil
+	}
+
+	bytes, err := json.Marshal(raw)
+	if err != nil {
+		return nil
+	}
+	var teams []TeamClaim
+	if err := json.Unmarshal(bytes, &teams); err == nil && len(teams) > 0 {
+		return teams
+	}
+
+	var list []map[string]any
+	if err := json.Unmarshal(bytes, &list); err == nil {
+		for _, item := range list {
+			id := firstNonEmpty(claimString(item, "id"), claimString(item, "team_id"), claimString(item, "slug"), claimString(item, "code"))
+			orgID := firstNonEmpty(claimString(item, "org_id"), claimString(item, "organization_id"))
+			slug := claimString(item, "slug")
+			name := firstNonEmpty(claimString(item, "name"), claimString(item, "team_name"), slug, id)
+			role := firstNonEmpty(claimString(item, "role"), "MEMBER")
+			if id != "" {
+				teams = append(teams, TeamClaim{
+					ID:    id,
+					OrgID: orgID,
+					Name:  name,
+					Slug:  slug,
+					Role:  strings.ToUpper(role),
+				})
+			}
+		}
+	}
+	return teams
 }
 
 func claimOrganizations(claims map[string]any) []OrganizationClaim {

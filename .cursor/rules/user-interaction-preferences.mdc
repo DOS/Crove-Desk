@@ -6,13 +6,16 @@ alwaysApply: true
 # User Interaction & Selection Preferences
 
 ## 1. Tương tác lựa chọn bằng Popup Form (`AskQuestion`)
-- **KHÔNG BAO GIỜ** yêu cầu hoặc để người dùng gõ số text (ví dụ: `1`, `2`, `3`) để chọn phương án hay tác vụ, tránh nhầm lẫn lệch ngữ cảnh.
-- **LUÔN LUÔN** sử dụng công cụ `AskQuestion` để hiển thị popup lựa chọn trực quan (hỗ trợ `allow_multiple: true` khi có thể chọn nhiều task cùng lúc) mỗi khi:
-  - Đề xuất các bước phát triển tiếp theo (Next Dev Tasks).
-  - Cần người dùng đưa ra quyết định kỹ thuật / phương án kiến trúc.
+- **KHÔNG BAO GIỜ** yêu cầu hoặc để người dùng phải gõ số text (ví dụ: `1`, `2`, `3`) để chọn phương án hay tác vụ, tránh triệt để nhầm lẫn hoặc lệch ngữ cảnh.
+- **LUÔN LUÔN** gọi công cụ `AskQuestion` với popup lựa chọn trực quan (hỗ trợ `allow_multiple: true` khi có thể chọn nhiều task cùng lúc) mỗi khi:
+  - Báo cáo kết quả và đề xuất danh sách các task phát triển tiếp theo (Next Dev Tasks).
+  - Cần người dùng đưa ra quyết định kỹ thuật / lựa chọn phương án kiến trúc.
   - Phân nhánh các hành động cần xác nhận.
 
-## 2. Tư duy thiết kế All-in-One Lean & AI-Native
+## 2. Quy chuẩn Định dạng Văn bản (Formatting Cleanliness)
+- **Tuyệt đối không sử dụng cú pháp LaTeX toán học** như `$\leftarrow$`, `$\rightarrow$` trong văn bản báo cáo hoặc giải thích vì sẽ bị lỗi render raw text xấu. Thay vào đó dùng các ký tự Unicode chuẩn như `←`, `→`, `->`, `<-`.
+
+## 3. Tư duy thiết kế All-in-One Lean & AI-Native
 - **Tránh bloatware/complex settings**: Không sao chép các hệ thống cài đặt rườm rà, thủ công hàng chục bước như Zendesk truyền thống.
 - **Tự động hóa tối đa**: Tận dụng AI và cơ chế Zero-config / Auto-provisioning ngầm để người dùng không phải cấu hình thủ công nếu hệ thống có thể tự suy luận an toàn.
 - **Giao diện tinh gọn**: Giữ UI hiện đại, tập trung vào trải nghiệm hội thoại đa kênh (Conversations-First).
