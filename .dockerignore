@@ -20,6 +20,11 @@ config/config.yaml
 
 node_modules
 .pnpm-store
+**/node_modules
+
+flowgram-editor/node_modules
+flowgram-editor/dist
+flowgram-editor/.rsbuild
 
 web/node_modules
 web/.next
