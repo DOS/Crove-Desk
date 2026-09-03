@@ -17,7 +17,9 @@ const (
 	ExternalSourceMessenger ExternalSource = "messenger"  // Facebook Messenger
 	ExternalSourceInstagram ExternalSource = "instagram"  // Instagram Direct
 	ExternalSourceWhatsApp  ExternalSource = "whatsapp"   // WhatsApp Business
-	ExternalSourceSlack     ExternalSource = "slack"       // Slack Bot
+	ExternalSourceSlack     ExternalSource = "slack"      // Slack Bot
+	ExternalSourceX         ExternalSource = "x"          // X (Twitter)
+	ExternalSourceTikTok    ExternalSource = "tiktok"     // TikTok Direct Messages
 )
 
 var externalSourceLabelMap = map[ExternalSource]string{
@@ -33,6 +35,8 @@ var externalSourceLabelMap = map[ExternalSource]string{
 	ExternalSourceInstagram: "Instagram",
 	ExternalSourceWhatsApp:  "WhatsApp",
 	ExternalSourceSlack:     "Slack",
+	ExternalSourceX:         "X",
+	ExternalSourceTikTok:    "TikTok",
 }
 
 func GetExternalSourceLabel(v ExternalSource) string {

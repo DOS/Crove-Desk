@@ -617,6 +617,24 @@ func (s *messageService) sendValidatedMessage(conversation *models.Conversation,
 			"error", enqueueErr,
 		)
 	}
+
+	// X (Twitter) 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueXMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue x outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
+	// TikTok 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueTikTokMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue tiktok outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
 	// 客户发送消息，触发AI回复
 	if senderType == enums.IMSenderTypeCustomer {
 		if TriggerAIReplyAsyncHook != nil {

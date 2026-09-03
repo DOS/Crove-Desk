@@ -544,6 +544,45 @@ func (s *channelService) ParseSlackChannelConfig(raw string) (*dto.SlackChannelC
 	return cfg, nil
 }
 
+func (s *channelService) ParseXChannelConfig(raw string) (*dto.XChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.XChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.BearerToken = strings.TrimSpace(cfg.BearerToken)
+	cfg.APIKey = strings.TrimSpace(cfg.APIKey)
+	cfg.APISecretKey = strings.TrimSpace(cfg.APISecretKey)
+	cfg.AccessToken = strings.TrimSpace(cfg.AccessToken)
+	cfg.AccessTokenSecret = strings.TrimSpace(cfg.AccessTokenSecret)
+	cfg.AccountID = strings.TrimSpace(cfg.AccountID)
+	cfg.Username = strings.TrimSpace(cfg.Username)
+	cfg.WebhookEnv = strings.TrimSpace(cfg.WebhookEnv)
+	cfg.WebhookCRCSecret = strings.TrimSpace(cfg.WebhookCRCSecret)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
+func (s *channelService) ParseTikTokChannelConfig(raw string) (*dto.TikTokChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.TikTokChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.ClientKey = strings.TrimSpace(cfg.ClientKey)
+	cfg.ClientSecret = strings.TrimSpace(cfg.ClientSecret)
+	cfg.AccessToken = strings.TrimSpace(cfg.AccessToken)
+	cfg.OpenID = strings.TrimSpace(cfg.OpenID)
+	cfg.Username = strings.TrimSpace(cfg.Username)
+	cfg.WebhookVerifyToken = strings.TrimSpace(cfg.WebhookVerifyToken)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
 func (s *channelService) GetUserTokenSecret(channel *models.Channel) string {
 	if channel == nil {
 		return ""
@@ -721,7 +760,7 @@ func extractTenantSlugFromEmail(emailAddress string) string {
 	}
 	localPart, domain := parts[0], parts[1]
 
-	// Check plus addressing (e.g. help+dos@crove.io -> "dos")
+	// 1. Check plus addressing (e.g. help+dos@crove.io -> "dos", support+acme@crove.io -> "acme")
 	if strings.Contains(localPart, "+") {
 		plusParts := strings.Split(localPart, "+")
 		if len(plusParts) > 1 && plusParts[1] != "" {
@@ -729,7 +768,16 @@ func extractTenantSlugFromEmail(emailAddress string) string {
 		}
 	}
 
-	// Check subdomains (e.g. dos.crove.io -> "dos", dos.on.crove.email -> "dos")
+	// 2. Check direct tenant addressing (e.g. dos@crove.io -> "dos", acme@crove.io -> "acme")
+	genericPrefixes := map[string]bool{
+		"help": true, "support": true, "contact": true, "inbound": true,
+		"admin": true, "info": true, "sales": true, "hello": true, "service": true, "desk": true,
+	}
+	if !genericPrefixes[localPart] {
+		return localPart
+	}
+
+	// 3. Check subdomains (e.g. help@dos.crove.io -> "dos", help@dos.on.crove.email -> "dos")
 	domainParts := strings.Split(domain, ".")
 	if len(domainParts) >= 3 {
 		if domainParts[0] != "mail" && domainParts[0] != "smtp" && domainParts[0] != "email" && domainParts[0] != "inbound" {
@@ -1019,6 +1067,43 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 		cfg, err := s.ParseSlackChannelConfig(configJSON)
 		if err != nil {
 			return nil, errorsx.InvalidParam("invalid slack configuration")
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeX:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseXChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid x configuration")
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeTikTok:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseTikTokChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid tiktok configuration")
+		}
+		if cfg.WebhookVerifyToken == "" {
+			if secret, err := generateUserTokenSecret(); err == nil {
+				cfg.WebhookVerifyToken = secret
+			}
 		}
 		configBytes, err := json.Marshal(cfg)
 		if err != nil {

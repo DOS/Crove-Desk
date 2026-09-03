@@ -111,3 +111,26 @@ type SlackChannelConfig struct {
 	DefaultChannel string `json:"defaultChannel,omitempty"` // Default channel to post
 	WelcomeMessage string `json:"welcomeMessage,omitempty"`
 }
+
+type XChannelConfig struct {
+	BearerToken        string `json:"bearerToken,omitempty"`        // X API v2 Bearer Token
+	APIKey             string `json:"apiKey,omitempty"`             // Consumer Key
+	APISecretKey       string `json:"apiSecretKey,omitempty"`       // Consumer Secret
+	AccessToken        string `json:"accessToken,omitempty"`        // Access Token
+	AccessTokenSecret  string `json:"accessTokenSecret,omitempty"`  // Access Token Secret
+	AccountID          string `json:"accountId,omitempty"`          // X Numeric User/Account ID
+	Username           string `json:"username,omitempty"`           // @handle
+	WebhookEnv         string `json:"webhookEnv,omitempty"`         // Webhook environment name
+	WebhookCRCSecret   string `json:"webhookCRCSecret,omitempty"`   // CRC response secret
+	WelcomeMessage     string `json:"welcomeMessage,omitempty"`
+}
+
+type TikTokChannelConfig struct {
+	ClientKey          string `json:"clientKey,omitempty"`          // TikTok App Client Key
+	ClientSecret       string `json:"clientSecret,omitempty"`       // TikTok App Client Secret
+	AccessToken        string `json:"accessToken,omitempty"`        // Business User Access Token
+	OpenID             string `json:"openId,omitempty"`             // TikTok Business Account OpenID
+	Username           string `json:"username,omitempty"`           // @username
+	WebhookVerifyToken string `json:"webhookVerifyToken,omitempty"` // Verification Token
+	WelcomeMessage     string `json:"welcomeMessage,omitempty"`
+}
