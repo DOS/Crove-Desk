@@ -11,6 +11,7 @@ import (
 	"agent-desk/internal/pkg/httpx"
 	"agent-desk/internal/pkg/utils"
 	"agent-desk/internal/repositories"
+	"agent-desk/internal/messenger"
 	"agent-desk/internal/telegram"
 	"agent-desk/internal/wxwork"
 	"context"
@@ -96,6 +97,7 @@ func (s *channelService) CreateChannel(req request.CreateChannelRequest, operato
 		return nil, err
 	}
 	go s.syncTelegramWebhook(item, item.Status)
+	go s.syncMessengerPageWebhook(item, item.Status)
 	return item, nil
 }
 
@@ -131,6 +133,7 @@ func (s *channelService) UpdateChannel(req request.UpdateChannelRequest, operato
 		return err
 	}
 	go s.syncTelegramWebhook(item, item.Status)
+	go s.syncMessengerPageWebhook(item, item.Status)
 	return nil
 }
 
@@ -180,6 +183,7 @@ func (s *channelService) UpdateStatus(id int64, status int, operator *dto.AuthPr
 	})
 	if err == nil {
 		go s.syncTelegramWebhook(item, enums.Status(status))
+		go s.syncMessengerPageWebhook(item, enums.Status(status))
 	}
 	return err
 }
@@ -200,6 +204,7 @@ func (s *channelService) DeleteChannel(id int64, operator *dto.AuthPrincipal) er
 	})
 	if err == nil {
 		go s.syncTelegramWebhook(item, enums.StatusDeleted)
+		go s.syncMessengerPageWebhook(item, enums.StatusDeleted)
 	}
 	return err
 }
@@ -240,6 +245,35 @@ func (s *channelService) syncTelegramWebhook(channel *models.Channel, targetStat
 			slog.Warn("auto delete telegram webhook failed", "channel_id", channel.ChannelID, "error", err)
 		} else {
 			slog.Info("auto delete telegram webhook succeeded", "channel_id", channel.ChannelID)
+		}
+	}
+}
+
+func (s *channelService) syncMessengerPageWebhook(channel *models.Channel, targetStatus enums.Status) {
+	if channel == nil || channel.ChannelType != enums.ChannelTypeMessenger {
+		return
+	}
+	cfg, err := s.ParseMessengerChannelConfig(channel.ConfigJSON)
+	if err != nil || cfg == nil || cfg.PageAccessToken == "" {
+		return
+	}
+	pageID := strings.TrimSpace(cfg.PageID)
+	if pageID == "" {
+		pageID = strings.TrimSpace(channel.ChannelID)
+	}
+	if pageID == "" {
+		return
+	}
+
+	client := messenger.NewClient(cfg.PageAccessToken)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if targetStatus == enums.StatusOk {
+		if err := client.SubscribeAppToPage(ctx, pageID); err != nil {
+			slog.Warn("auto subscribe messenger page webhook failed", "channel_id", channel.ChannelID, "page_id", pageID, "error", err)
+		} else {
+			slog.Info("auto subscribe messenger page webhook succeeded", "channel_id", channel.ChannelID, "page_id", pageID)
 		}
 	}
 }
