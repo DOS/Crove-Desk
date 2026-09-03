@@ -509,6 +509,41 @@ func (s *channelService) ParseInstagramChannelConfig(raw string) (*dto.Instagram
 	return cfg, nil
 }
 
+func (s *channelService) ParseWhatsAppChannelConfig(raw string) (*dto.WhatsAppChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.WhatsAppChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.PhoneNumberID = strings.TrimSpace(cfg.PhoneNumberID)
+	cfg.WABAID = strings.TrimSpace(cfg.WABAID)
+	cfg.AccessToken = strings.TrimSpace(cfg.AccessToken)
+	cfg.WebhookVerifyToken = strings.TrimSpace(cfg.WebhookVerifyToken)
+	cfg.AppSecret = strings.TrimSpace(cfg.AppSecret)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
+func (s *channelService) ParseSlackChannelConfig(raw string) (*dto.SlackChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.SlackChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.BotToken = strings.TrimSpace(cfg.BotToken)
+	cfg.SigningSecret = strings.TrimSpace(cfg.SigningSecret)
+	cfg.AppID = strings.TrimSpace(cfg.AppID)
+	cfg.TeamID = strings.TrimSpace(cfg.TeamID)
+	cfg.TeamName = strings.TrimSpace(cfg.TeamName)
+	cfg.DefaultChannel = strings.TrimSpace(cfg.DefaultChannel)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
 func (s *channelService) GetUserTokenSecret(channel *models.Channel) string {
 	if channel == nil {
 		return ""
@@ -719,7 +754,7 @@ func (s *channelService) GetEnabledChannel(ctx *gin.Context) *models.Channel {
 
 func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRequest) (*models.Channel, error) {
 	channelType := strings.TrimSpace(req.ChannelType)
-	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeEmail && channelType != enums.ChannelTypeDiscord && channelType != enums.ChannelTypeMessenger && channelType != enums.ChannelTypeInstagram {
+	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeEmail && channelType != enums.ChannelTypeDiscord && channelType != enums.ChannelTypeMessenger && channelType != enums.ChannelTypeInstagram && channelType != enums.ChannelTypeWhatsApp && channelType != enums.ChannelTypeSlack {
 		return nil, errorsx.InvalidParamI18n("error.e0250")
 	}
 	name := strings.TrimSpace(req.Name)
@@ -947,6 +982,43 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 			if secret, err := generateUserTokenSecret(); err == nil {
 				cfg.WebhookVerifyToken = secret
 			}
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeWhatsApp:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseWhatsAppChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid whatsapp configuration")
+		}
+		if cfg.WebhookVerifyToken == "" {
+			if secret, err := generateUserTokenSecret(); err == nil {
+				cfg.WebhookVerifyToken = secret
+			}
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeSlack:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseSlackChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid slack configuration")
 		}
 		configBytes, err := json.Marshal(cfg)
 		if err != nil {

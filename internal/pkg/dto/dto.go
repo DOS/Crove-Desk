@@ -92,3 +92,22 @@ type InstagramChannelConfig struct {
 	AppSecret          string `json:"appSecret,omitempty"`          // Meta App Secret
 	WelcomeMessage     string `json:"welcomeMessage,omitempty"`
 }
+
+type WhatsAppChannelConfig struct {
+	PhoneNumberID      string `json:"phoneNumberId,omitempty"`      // WhatsApp Business Phone Number ID
+	WABAID             string `json:"wabaId,omitempty"`             // WhatsApp Business Account ID
+	AccessToken        string `json:"accessToken,omitempty"`        // System User Access Token
+	WebhookVerifyToken string `json:"webhookVerifyToken,omitempty"` // Webhook verification token
+	AppSecret          string `json:"appSecret,omitempty"`          // Meta App Secret
+	WelcomeMessage     string `json:"welcomeMessage,omitempty"`
+}
+
+type SlackChannelConfig struct {
+	BotToken       string `json:"botToken,omitempty"`       // xoxb-... Bot Token
+	SigningSecret  string `json:"signingSecret,omitempty"`  // Slack Signing Secret
+	AppID          string `json:"appId,omitempty"`          // Slack App ID
+	TeamID         string `json:"teamId,omitempty"`         // Slack Workspace Team ID
+	TeamName       string `json:"teamName,omitempty"`       // Slack Workspace Name
+	DefaultChannel string `json:"defaultChannel,omitempty"` // Default channel to post
+	WelcomeMessage string `json:"welcomeMessage,omitempty"`
+}

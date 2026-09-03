@@ -201,6 +201,8 @@ func addRouter(app *gin.Engine) {
 	registerThirdDiscordRoutes(thirdGroup.Group("/discord"))
 	registerThirdMessengerRoutes(thirdGroup.Group("/messenger"))
 	registerThirdInstagramRoutes(thirdGroup.Group("/instagram"))
+	registerThirdWhatsAppRoutes(thirdGroup.Group("/whatsapp"))
+	registerThirdSlackRoutes(thirdGroup.Group("/slack"))
 }
 
 type spaShellRewrite struct {

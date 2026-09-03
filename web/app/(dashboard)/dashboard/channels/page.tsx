@@ -3,11 +3,13 @@
 import {
   Building2Icon,
   Gamepad2Icon,
+  HashIcon,
   InstagramIcon,
   MailIcon,
   MessageCircleIcon,
   MessagesSquareIcon,
   MessageSquareMoreIcon,
+  PhoneIcon,
   SendIcon,
 } from "lucide-react"
 
@@ -42,6 +44,12 @@ function getChannelTypeLabel(channelType: string, t: (key: string) => string) {
   }
   if (channelType === "instagram") {
     return t("channel.typeInstagram")
+  }
+  if (channelType === "whatsapp") {
+    return t("channel.typeWhatsApp")
+  }
+  if (channelType === "slack") {
+    return t("channel.typeSlack")
   }
   if (channelType === "wechat_mp") {
     return t("channel.typeWechatMp")
@@ -81,6 +89,12 @@ function ChannelIcon({ channelType }: { channelType: string }) {
   if (channelType === "instagram") {
     return <InstagramIcon className="size-4" />
   }
+  if (channelType === "whatsapp") {
+    return <PhoneIcon className="size-4" />
+  }
+  if (channelType === "slack") {
+    return <HashIcon className="size-4" />
+  }
   if (channelType === "wechat_mp") {
     return <MessagesSquareIcon className="size-4" />
   }
@@ -109,6 +123,8 @@ export default function DashboardChannelsPage() {
     { value: "discord", label: t("channel.typeDiscord") },
     { value: "messenger", label: t("channel.typeMessenger") },
     { value: "instagram", label: t("channel.typeInstagram") },
+    { value: "whatsapp", label: t("channel.typeWhatsApp") },
+    { value: "slack", label: t("channel.typeSlack") },
     { value: "telegram", label: t("channel.typeTelegram") },
     { value: "zalo_oa", label: t("channel.typeZaloOa") },
     { value: "wechat_mp", label: t("channel.typeWechatMp") },

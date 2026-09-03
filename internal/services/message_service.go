@@ -599,6 +599,24 @@ func (s *messageService) sendValidatedMessage(conversation *models.Conversation,
 			"error", enqueueErr,
 		)
 	}
+
+	// WhatsApp 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueWhatsAppMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue whatsapp outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
+	// Slack 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueSlackMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue slack outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
 	// 客户发送消息，触发AI回复
 	if senderType == enums.IMSenderTypeCustomer {
 		if TriggerAIReplyAsyncHook != nil {

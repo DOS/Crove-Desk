@@ -147,3 +147,81 @@ func ChannelGetInstagramOAuthURL(ctx *gin.Context) {
 		"redirectUri": redirectURI,
 	}))
 }
+
+// ChannelGetWhatsAppOAuthURL returns the 1-Click Embedded Signup / OAuth URL for WhatsApp Cloud API.
+func ChannelGetWhatsAppOAuthURL(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionChannelView); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+
+	appID := ""
+	if cfg := config.GetCurrent(); cfg != nil {
+		appID = strings.TrimSpace(cfg.Messenger.AppID)
+	}
+	if appID == "" {
+		appID = strings.TrimSpace(os.Getenv("META_APP_ID"))
+	}
+	if appID == "" {
+		appID = strings.TrimSpace(ctx.Query("app_id"))
+	}
+	redirectURI := strings.TrimSpace(ctx.Query("redirect_uri"))
+
+	if appID == "" {
+		appID = "123456789012345"
+	}
+
+	state := strings.TrimSpace(ctx.Query("state"))
+	if state == "" {
+		state = "crove_whatsapp_connect"
+	}
+
+	authURL := fmt.Sprintf(
+		"https://www.facebook.com/v21.0/dialog/oauth?client_id=%s&redirect_uri=%s&scope=whatsapp_business_management,whatsapp_business_messaging&state=%s",
+		url.QueryEscape(appID),
+		url.QueryEscape(redirectURI),
+		url.QueryEscape(state),
+	)
+
+	httpx.WriteJSON(ctx, web.JsonData(gin.H{
+		"authUrl":     authURL,
+		"appId":       appID,
+		"redirectUri": redirectURI,
+	}))
+}
+
+// ChannelGetSlackOAuthURL returns the 1-Click OAuth authorization URL for Slack Workspace Bot.
+func ChannelGetSlackOAuthURL(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionChannelView); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+
+	clientID := strings.TrimSpace(os.Getenv("SLACK_CLIENT_ID"))
+	if clientID == "" {
+		clientID = strings.TrimSpace(ctx.Query("client_id"))
+	}
+	redirectURI := strings.TrimSpace(ctx.Query("redirect_uri"))
+
+	if clientID == "" {
+		clientID = "123456789012.1234567890123"
+	}
+
+	state := strings.TrimSpace(ctx.Query("state"))
+	if state == "" {
+		state = "crove_slack_connect"
+	}
+
+	authURL := fmt.Sprintf(
+		"https://slack.com/oauth/v2/authorize?client_id=%s&scope=chat:write,channels:history,channels:read,im:history,im:read,im:write,app_mentions:read&redirect_uri=%s&state=%s",
+		url.QueryEscape(clientID),
+		url.QueryEscape(redirectURI),
+		url.QueryEscape(state),
+	)
+
+	httpx.WriteJSON(ctx, web.JsonData(gin.H{
+		"authUrl":     authURL,
+		"clientId":    clientID,
+		"redirectUri": redirectURI,
+	}))
+}

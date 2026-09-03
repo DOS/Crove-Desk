@@ -84,6 +84,8 @@ export enum ExternalSource {
   Discord = "discord",
   Messenger = "messenger",
   Instagram = "instagram",
+  WhatsApp = "whatsapp",
+  Slack = "slack",
 }
 export const ExternalSourceLabels: Record<ExternalSource, string> = {
   [ExternalSource.Guest]: "访客",
@@ -96,6 +98,8 @@ export const ExternalSourceLabels: Record<ExternalSource, string> = {
   [ExternalSource.Discord]: "Discord",
   [ExternalSource.Messenger]: "Messenger",
   [ExternalSource.Instagram]: "Instagram",
+  [ExternalSource.WhatsApp]: "WhatsApp",
+  [ExternalSource.Slack]: "Slack",
 }
 
 export enum Gender {

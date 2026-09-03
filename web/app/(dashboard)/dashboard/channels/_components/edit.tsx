@@ -111,6 +111,23 @@ type InstagramChannelConfig = {
   appSecret?: string
 }
 
+type WhatsAppChannelConfig = {
+  phoneNumberId?: string
+  wabaId?: string
+  accessToken?: string
+  webhookVerifyToken?: string
+  appSecret?: string
+}
+
+type SlackChannelConfig = {
+  botToken?: string
+  signingSecret?: string
+  appId?: string
+  teamId?: string
+  teamName?: string
+  defaultChannel?: string
+}
+
 function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
   return {
     title: t("channel.defaultTitleWeb"),
@@ -125,7 +142,7 @@ function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
 function createSchema(t: Translate) {
   return z
     .object({
-      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "email", "discord", "messenger", "instagram"], t("channel.typeRequired")),
+      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "email", "discord", "messenger", "instagram", "whatsapp", "slack"], t("channel.typeRequired")),
       aiAgentId: z.string().trim().regex(/^\d+$/, t("channel.agentRequired")),
 		aiAgentRolloutPercent: z.coerce.number().int().min(1).max(100),
       name: z.string().trim().min(1, t("channel.nameRequired")),
@@ -151,6 +168,16 @@ function createSchema(t: Translate) {
       instagramPageAccessToken: z.string().trim(),
       instagramWebhookVerifyToken: z.string().trim(),
       instagramAppSecret: z.string().trim(),
+      whatsAppPhoneNumberId: z.string().trim(),
+      whatsAppWabaId: z.string().trim(),
+      whatsAppAccessToken: z.string().trim(),
+      whatsAppWebhookVerifyToken: z.string().trim(),
+      slackBotToken: z.string().trim(),
+      slackSigningSecret: z.string().trim(),
+      slackAppId: z.string().trim(),
+      slackTeamId: z.string().trim(),
+      slackTeamName: z.string().trim(),
+      slackDefaultChannel: z.string().trim(),
       emailAddress: z.string().trim(),
       senderName: z.string().trim(),
       emailProvider: z.string().trim(),
@@ -200,7 +227,7 @@ function createSchema(t: Translate) {
 }
 
 type EditForm = {
-  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "email" | "discord" | "messenger" | "instagram"
+  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "email" | "discord" | "messenger" | "instagram" | "whatsapp" | "slack"
   aiAgentId: string
 	aiAgentRolloutPercent: number
   name: string
@@ -226,6 +253,16 @@ type EditForm = {
   instagramPageAccessToken: string
   instagramWebhookVerifyToken: string
   instagramAppSecret: string
+  whatsAppPhoneNumberId: string
+  whatsAppWabaId: string
+  whatsAppAccessToken: string
+  whatsAppWebhookVerifyToken: string
+  slackBotToken: string
+  slackSigningSecret: string
+  slackAppId: string
+  slackTeamId: string
+  slackTeamName: string
+  slackDefaultChannel: string
   emailAddress: string
   senderName: string
   emailProvider: string
@@ -272,6 +309,16 @@ function createEmptyForm(t: Translate): EditForm {
     instagramPageAccessToken: "",
     instagramWebhookVerifyToken: "",
     instagramAppSecret: "",
+    whatsAppPhoneNumberId: "",
+    whatsAppWabaId: "",
+    whatsAppAccessToken: "",
+    whatsAppWebhookVerifyToken: "",
+    slackBotToken: "",
+    slackSigningSecret: "",
+    slackAppId: "",
+    slackTeamId: "",
+    slackTeamName: "",
+    slackDefaultChannel: "",
     emailAddress: "help@crove.com",
     senderName: "Crove Desk Support",
     emailProvider: "brevo",
@@ -442,6 +489,39 @@ function parseInstagramChannelConfig(configJson: string): InstagramChannelConfig
   }
 }
 
+function parseWhatsAppChannelConfig(configJson: string): WhatsAppChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as WhatsAppChannelConfig
+    return {
+      phoneNumberId: parsed.phoneNumberId?.trim() || "",
+      wabaId: parsed.wabaId?.trim() || "",
+      accessToken: parsed.accessToken?.trim() || "",
+      webhookVerifyToken: parsed.webhookVerifyToken?.trim() || "",
+      appSecret: parsed.appSecret?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseSlackChannelConfig(configJson: string): SlackChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as SlackChannelConfig
+    return {
+      botToken: parsed.botToken?.trim() || "",
+      signingSecret: parsed.signingSecret?.trim() || "",
+      appId: parsed.appId?.trim() || "",
+      teamId: parsed.teamId?.trim() || "",
+      teamName: parsed.teamName?.trim() || "",
+      defaultChannel: parsed.defaultChannel?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
 function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   if (!item) {
     return createEmptyForm(t)
@@ -453,6 +533,8 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const isDiscord = item.channelType === "discord"
   const isMessenger = item.channelType === "messenger"
   const isInstagram = item.channelType === "instagram"
+  const isWhatsApp = item.channelType === "whatsapp"
+  const isSlack = item.channelType === "slack"
   const webConfig = parseWebChannelConfig(item.configJson, t)
   const wechatConfig = isWechatMP
     ? parseWechatMPChannelConfig(item.configJson, t)
@@ -475,6 +557,12 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const instagramConfig = isInstagram
     ? parseInstagramChannelConfig(item.configJson)
     : null
+  const whatsAppConfig = isWhatsApp
+    ? parseWhatsAppChannelConfig(item.configJson)
+    : null
+  const slackConfig = isSlack
+    ? parseSlackChannelConfig(item.configJson)
+    : null
   return {
     channelType:
       item.channelType === "wxwork_kf"
@@ -489,11 +577,15 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
                 ? "messenger"
                 : item.channelType === "instagram"
                   ? "instagram"
-                  : item.channelType === "email"
-                    ? "email"
-                    : item.channelType === "wechat_mp"
-                      ? "wechat_mp"
-                      : "web",
+                  : item.channelType === "whatsapp"
+                    ? "whatsapp"
+                    : item.channelType === "slack"
+                      ? "slack"
+                      : item.channelType === "email"
+                        ? "email"
+                        : item.channelType === "wechat_mp"
+                          ? "wechat_mp"
+                          : "web",
     aiAgentId: item.aiAgentId > 0 ? String(item.aiAgentId) : "",
 		aiAgentRolloutPercent: item.aiAgentRolloutPercent || 100,
     name: item.name,
@@ -519,6 +611,16 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
     instagramPageAccessToken: instagramConfig?.pageAccessToken ?? "",
     instagramWebhookVerifyToken: instagramConfig?.webhookVerifyToken ?? "",
     instagramAppSecret: instagramConfig?.appSecret ?? "",
+    whatsAppPhoneNumberId: whatsAppConfig?.phoneNumberId ?? "",
+    whatsAppWabaId: whatsAppConfig?.wabaId ?? "",
+    whatsAppAccessToken: whatsAppConfig?.accessToken ?? "",
+    whatsAppWebhookVerifyToken: whatsAppConfig?.webhookVerifyToken ?? "",
+    slackBotToken: slackConfig?.botToken ?? "",
+    slackSigningSecret: slackConfig?.signingSecret ?? "",
+    slackAppId: slackConfig?.appId ?? "",
+    slackTeamId: slackConfig?.teamId ?? "",
+    slackTeamName: slackConfig?.teamName ?? "",
+    slackDefaultChannel: slackConfig?.defaultChannel ?? "",
     emailAddress: emailConfig?.emailAddress || "help@crove.com",
     senderName: emailConfig?.senderName || "Crove Desk Support",
     emailProvider: emailConfig?.provider || "brevo",
@@ -594,6 +696,22 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
                 pageAccessToken: form.instagramPageAccessToken.trim(),
                 webhookVerifyToken: form.instagramWebhookVerifyToken.trim(),
                 appSecret: form.instagramAppSecret.trim(),
+              })
+          : channelType === "whatsapp"
+            ? JSON.stringify({
+                phoneNumberId: form.whatsAppPhoneNumberId.trim(),
+                wabaId: form.whatsAppWabaId.trim(),
+                accessToken: form.whatsAppAccessToken.trim(),
+                webhookVerifyToken: form.whatsAppWebhookVerifyToken.trim(),
+              })
+          : channelType === "slack"
+            ? JSON.stringify({
+                botToken: form.slackBotToken.trim(),
+                signingSecret: form.slackSigningSecret.trim(),
+                appId: form.slackAppId.trim(),
+                teamId: form.slackTeamId.trim(),
+                teamName: form.slackTeamName.trim(),
+                defaultChannel: form.slackDefaultChannel.trim(),
               })
             : channelType === "wechat_mp"
               ? JSON.stringify(webLikeConfig)
@@ -832,6 +950,8 @@ function ChannelFormBody({
     { value: "discord", label: t("channel.typeDiscord") },
     { value: "messenger", label: t("channel.typeMessenger") },
     { value: "instagram", label: t("channel.typeInstagram") },
+    { value: "whatsapp", label: t("channel.typeWhatsApp") },
+    { value: "slack", label: t("channel.typeSlack") },
     { value: "telegram", label: t("channel.typeTelegram") },
     { value: "zalo_oa", label: t("channel.typeZaloOa") },
     { value: "wechat_mp", label: t("channel.typeWechatMp") },
@@ -1358,6 +1478,151 @@ function ChannelFormBody({
                     <FieldError errors={[errors.instagramPageAccessToken]} />
                   </FieldContent>
                 </Field>
+              </div>
+            ) : null}
+
+            {channelType === "whatsapp" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.whatsappConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.whatsappConnectDescription")}</div>
+                  <div>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        const redirectUri = window.location.origin + "/dashboard/channels"
+                        window.open(`/api/dashboard/channel/whatsapp_oauth_url?redirect_uri=${encodeURIComponent(redirectUri)}`, "_blank")
+                      }}
+                    >
+                      <ExternalLinkIcon className="size-3.5 mr-1" />
+                      {t("channel.connectWhatsAppButton")}
+                    </Button>
+                  </div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/whatsapp/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.whatsAppPhoneNumberId}>
+                    <FieldLabel htmlFor="channel-wa-phoneid">{t("channel.whatsappPhoneId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-wa-phoneid"
+                        placeholder="e.g. 104928374650192"
+                        {...register("whatsAppPhoneNumberId")}
+                      />
+                      <FieldError errors={[errors.whatsAppPhoneNumberId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.whatsAppWabaId}>
+                    <FieldLabel htmlFor="channel-wa-wabaid">{t("channel.whatsappWabaId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-wa-wabaid"
+                        placeholder="e.g. 293847561029384"
+                        {...register("whatsAppWabaId")}
+                      />
+                      <FieldError errors={[errors.whatsAppWabaId]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.whatsAppAccessToken}>
+                  <FieldLabel htmlFor="channel-wa-token">{t("channel.whatsappAccessToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-wa-token"
+                      type="password"
+                      placeholder="Permanent System User Access Token"
+                      {...register("whatsAppAccessToken")}
+                    />
+                    <FieldError errors={[errors.whatsAppAccessToken]} />
+                  </FieldContent>
+                </Field>
+              </div>
+            ) : null}
+
+            {channelType === "slack" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.slackConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.slackConnectDescription")}</div>
+                  <div>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        const redirectUri = window.location.origin + "/dashboard/channels"
+                        window.open(`/api/dashboard/channel/slack_oauth_url?redirect_uri=${encodeURIComponent(redirectUri)}`, "_blank")
+                      }}
+                    >
+                      <ExternalLinkIcon className="size-3.5 mr-1" />
+                      {t("channel.connectSlackButton")}
+                    </Button>
+                  </div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/slack/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.slackTeamName}>
+                    <FieldLabel htmlFor="channel-slack-teamname">{t("channel.slackTeamName")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-slack-teamname"
+                        placeholder="e.g. Acme Corp Workspace"
+                        {...register("slackTeamName")}
+                      />
+                      <FieldError errors={[errors.slackTeamName]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.slackDefaultChannel}>
+                    <FieldLabel htmlFor="channel-slack-defchan">{t("channel.slackDefaultChannel")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-slack-defchan"
+                        placeholder="e.g. C0123456789 (channel ID)"
+                        {...register("slackDefaultChannel")}
+                      />
+                      <FieldError errors={[errors.slackDefaultChannel]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.slackBotToken}>
+                    <FieldLabel htmlFor="channel-slack-token">{t("channel.slackBotToken")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-slack-token"
+                        type="password"
+                        placeholder="xoxb-your-bot-token"
+                        {...register("slackBotToken")}
+                      />
+                      <FieldError errors={[errors.slackBotToken]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.slackSigningSecret}>
+                    <FieldLabel htmlFor="channel-slack-secret">{t("channel.slackSigningSecret")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-slack-secret"
+                        type="password"
+                        placeholder="Slack Signing Secret"
+                        {...register("slackSigningSecret")}
+                      />
+                      <FieldError errors={[errors.slackSigningSecret]} />
+                    </FieldContent>
+                  </Field>
+                </div>
               </div>
             ) : null}
 

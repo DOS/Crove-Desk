@@ -50,6 +50,14 @@ func Init() {
 		if instagramCount > 0 {
 			slog.Info("instagram outbox dispatched", "count", instagramCount)
 		}
+		whatsappCount := services.WhatsAppOutboundService.DispatchPendingOutbox()
+		if whatsappCount > 0 {
+			slog.Info("whatsapp outbox dispatched", "count", whatsappCount)
+		}
+		slackCount := services.SlackOutboundService.DispatchPendingOutbox()
+		if slackCount > 0 {
+			slog.Info("slack outbox dispatched", "count", slackCount)
+		}
 	})
 
 	c.Start()
