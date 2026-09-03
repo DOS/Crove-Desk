@@ -15,6 +15,7 @@ const (
 	ExternalSourceEmail     ExternalSource = "email"      // Email
 	ExternalSourceDiscord   ExternalSource = "discord"    // Discord
 	ExternalSourceMessenger ExternalSource = "messenger"  // Facebook Messenger
+	ExternalSourceInstagram ExternalSource = "instagram"  // Instagram Direct
 )
 
 var externalSourceLabelMap = map[ExternalSource]string{
@@ -27,6 +28,7 @@ var externalSourceLabelMap = map[ExternalSource]string{
 	ExternalSourceEmail:     "Email",
 	ExternalSourceDiscord:   "Discord",
 	ExternalSourceMessenger: "Messenger",
+	ExternalSourceInstagram: "Instagram",
 }
 
 func GetExternalSourceLabel(v ExternalSource) string {

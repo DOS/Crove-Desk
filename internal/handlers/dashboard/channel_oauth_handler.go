@@ -102,3 +102,48 @@ func ChannelGetMessengerOAuthURL(ctx *gin.Context) {
 		"redirectUri": redirectURI,
 	}))
 }
+
+// ChannelGetInstagramOAuthURL returns the 1-Click OAuth authorization URL for Instagram Messaging.
+func ChannelGetInstagramOAuthURL(ctx *gin.Context) {
+	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionChannelView); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+
+	appID := ""
+	if cfg := config.GetCurrent(); cfg != nil {
+		appID = strings.TrimSpace(cfg.Messenger.AppID)
+	}
+	if appID == "" {
+		appID = strings.TrimSpace(os.Getenv("META_APP_ID"))
+	}
+	if appID == "" {
+		appID = strings.TrimSpace(os.Getenv("FB_APP_ID"))
+	}
+	if appID == "" {
+		appID = strings.TrimSpace(ctx.Query("app_id"))
+	}
+	redirectURI := strings.TrimSpace(ctx.Query("redirect_uri"))
+
+	if appID == "" {
+		appID = "123456789012345"
+	}
+
+	state := strings.TrimSpace(ctx.Query("state"))
+	if state == "" {
+		state = "crove_instagram_connect"
+	}
+
+	authURL := fmt.Sprintf(
+		"https://www.facebook.com/v21.0/dialog/oauth?client_id=%s&redirect_uri=%s&scope=instagram_basic,instagram_manage_messages,pages_show_list,pages_manage_metadata&state=%s",
+		url.QueryEscape(appID),
+		url.QueryEscape(redirectURI),
+		url.QueryEscape(state),
+	)
+
+	httpx.WriteJSON(ctx, web.JsonData(gin.H{
+		"authUrl":     authURL,
+		"appId":       appID,
+		"redirectUri": redirectURI,
+	}))
+}

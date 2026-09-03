@@ -46,6 +46,10 @@ func Init() {
 		if messengerCount > 0 {
 			slog.Info("messenger outbox dispatched", "count", messengerCount)
 		}
+		instagramCount := services.InstagramOutboundService.DispatchPendingOutbox()
+		if instagramCount > 0 {
+			slog.Info("instagram outbox dispatched", "count", instagramCount)
+		}
 	})
 
 	c.Start()

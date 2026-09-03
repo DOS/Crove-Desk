@@ -491,6 +491,24 @@ func (s *channelService) ParseMessengerChannelConfig(raw string) (*dto.Messenger
 	return cfg, nil
 }
 
+func (s *channelService) ParseInstagramChannelConfig(raw string) (*dto.InstagramChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.InstagramChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.InstagramID = strings.TrimSpace(cfg.InstagramID)
+	cfg.InstagramUsername = strings.TrimSpace(cfg.InstagramUsername)
+	cfg.PageID = strings.TrimSpace(cfg.PageID)
+	cfg.PageAccessToken = strings.TrimSpace(cfg.PageAccessToken)
+	cfg.WebhookVerifyToken = strings.TrimSpace(cfg.WebhookVerifyToken)
+	cfg.AppSecret = strings.TrimSpace(cfg.AppSecret)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
 func (s *channelService) GetUserTokenSecret(channel *models.Channel) string {
 	if channel == nil {
 		return ""
@@ -701,7 +719,7 @@ func (s *channelService) GetEnabledChannel(ctx *gin.Context) *models.Channel {
 
 func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRequest) (*models.Channel, error) {
 	channelType := strings.TrimSpace(req.ChannelType)
-	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeEmail && channelType != enums.ChannelTypeDiscord && channelType != enums.ChannelTypeMessenger {
+	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeEmail && channelType != enums.ChannelTypeDiscord && channelType != enums.ChannelTypeMessenger && channelType != enums.ChannelTypeInstagram {
 		return nil, errorsx.InvalidParamI18n("error.e0250")
 	}
 	name := strings.TrimSpace(req.Name)
@@ -903,6 +921,27 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 		cfg, err := s.ParseMessengerChannelConfig(configJSON)
 		if err != nil {
 			return nil, errorsx.InvalidParam("invalid messenger configuration")
+		}
+		if cfg.WebhookVerifyToken == "" {
+			if secret, err := generateUserTokenSecret(); err == nil {
+				cfg.WebhookVerifyToken = secret
+			}
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeInstagram:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseInstagramChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid instagram configuration")
 		}
 		if cfg.WebhookVerifyToken == "" {
 			if secret, err := generateUserTokenSecret(); err == nil {

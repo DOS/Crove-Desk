@@ -26,6 +26,7 @@ const (
 	ChannelTypeEmail     = "email"
 	ChannelTypeDiscord   = "discord"
 	ChannelTypeMessenger = "messenger"
+	ChannelTypeInstagram = "instagram"
 )
 
 type WxWorkKFMessageSendStatus string

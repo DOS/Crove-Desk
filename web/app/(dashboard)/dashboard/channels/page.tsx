@@ -3,6 +3,7 @@
 import {
   Building2Icon,
   Gamepad2Icon,
+  InstagramIcon,
   MailIcon,
   MessageCircleIcon,
   MessagesSquareIcon,
@@ -39,6 +40,9 @@ function getChannelTypeLabel(channelType: string, t: (key: string) => string) {
   if (channelType === "messenger") {
     return t("channel.typeMessenger")
   }
+  if (channelType === "instagram") {
+    return t("channel.typeInstagram")
+  }
   if (channelType === "wechat_mp") {
     return t("channel.typeWechatMp")
   }
@@ -74,6 +78,9 @@ function ChannelIcon({ channelType }: { channelType: string }) {
   if (channelType === "messenger") {
     return <MessageCircleIcon className="size-4" />
   }
+  if (channelType === "instagram") {
+    return <InstagramIcon className="size-4" />
+  }
   if (channelType === "wechat_mp") {
     return <MessagesSquareIcon className="size-4" />
   }
@@ -101,6 +108,7 @@ export default function DashboardChannelsPage() {
     { value: "email", label: t("channel.typeEmail") },
     { value: "discord", label: t("channel.typeDiscord") },
     { value: "messenger", label: t("channel.typeMessenger") },
+    { value: "instagram", label: t("channel.typeInstagram") },
     { value: "telegram", label: t("channel.typeTelegram") },
     { value: "zalo_oa", label: t("channel.typeZaloOa") },
     { value: "wechat_mp", label: t("channel.typeWechatMp") },

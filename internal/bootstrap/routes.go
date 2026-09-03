@@ -233,6 +233,7 @@ func registerDashboardChannelRoutes(group *gin.RouterGroup) {
 	group.POST("/update_status", dashboard.ChannelPostUpdate_status)
 	group.GET("/discord_oauth_url", dashboard.ChannelGetDiscordOAuthURL)
 	group.GET("/messenger_oauth_url", dashboard.ChannelGetMessengerOAuthURL)
+	group.GET("/instagram_oauth_url", dashboard.ChannelGetInstagramOAuthURL)
 	group.Any("/wxwork/kf/accounts", dashboard.ChannelAnyWxworkKfAccounts)
 	group.Any("/wxwork/outbox/failed/list", dashboard.ChannelAnyWxworkOutboxFailedList)
 	group.POST("/wxwork/outbox/retry", dashboard.ChannelPostWxworkOutboxRetry)
@@ -461,4 +462,11 @@ func registerThirdMessengerRoutes(group *gin.RouterGroup) {
 	group.GET("/webhook/:channel_id", third.MessengerGetWebhook)
 	group.POST("/webhook", third.MessengerPostWebhook)
 	group.POST("/webhook/:channel_id", third.MessengerPostWebhook)
+}
+
+func registerThirdInstagramRoutes(group *gin.RouterGroup) {
+	group.GET("/webhook", third.InstagramGetWebhook)
+	group.GET("/webhook/:channel_id", third.InstagramGetWebhook)
+	group.POST("/webhook", third.InstagramPostWebhook)
+	group.POST("/webhook/:channel_id", third.InstagramPostWebhook)
 }

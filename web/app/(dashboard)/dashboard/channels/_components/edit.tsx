@@ -102,6 +102,15 @@ type MessengerChannelConfig = {
   appSecret?: string
 }
 
+type InstagramChannelConfig = {
+  instagramId?: string
+  instagramUsername?: string
+  pageId?: string
+  pageAccessToken?: string
+  webhookVerifyToken?: string
+  appSecret?: string
+}
+
 function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
   return {
     title: t("channel.defaultTitleWeb"),
@@ -116,7 +125,7 @@ function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
 function createSchema(t: Translate) {
   return z
     .object({
-      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "email", "discord", "messenger"], t("channel.typeRequired")),
+      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "email", "discord", "messenger", "instagram"], t("channel.typeRequired")),
       aiAgentId: z.string().trim().regex(/^\d+$/, t("channel.agentRequired")),
 		aiAgentRolloutPercent: z.coerce.number().int().min(1).max(100),
       name: z.string().trim().min(1, t("channel.nameRequired")),
@@ -136,6 +145,12 @@ function createSchema(t: Translate) {
       messengerPageAccessToken: z.string().trim(),
       messengerWebhookVerifyToken: z.string().trim(),
       messengerAppSecret: z.string().trim(),
+      instagramId: z.string().trim(),
+      instagramUsername: z.string().trim(),
+      instagramPageId: z.string().trim(),
+      instagramPageAccessToken: z.string().trim(),
+      instagramWebhookVerifyToken: z.string().trim(),
+      instagramAppSecret: z.string().trim(),
       emailAddress: z.string().trim(),
       senderName: z.string().trim(),
       emailProvider: z.string().trim(),
@@ -185,7 +200,7 @@ function createSchema(t: Translate) {
 }
 
 type EditForm = {
-  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "email" | "discord" | "messenger"
+  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "email" | "discord" | "messenger" | "instagram"
   aiAgentId: string
 	aiAgentRolloutPercent: number
   name: string
@@ -205,6 +220,12 @@ type EditForm = {
   messengerPageAccessToken: string
   messengerWebhookVerifyToken: string
   messengerAppSecret: string
+  instagramId: string
+  instagramUsername: string
+  instagramPageId: string
+  instagramPageAccessToken: string
+  instagramWebhookVerifyToken: string
+  instagramAppSecret: string
   emailAddress: string
   senderName: string
   emailProvider: string
@@ -245,6 +266,12 @@ function createEmptyForm(t: Translate): EditForm {
     messengerPageAccessToken: "",
     messengerWebhookVerifyToken: "",
     messengerAppSecret: "",
+    instagramId: "",
+    instagramUsername: "",
+    instagramPageId: "",
+    instagramPageAccessToken: "",
+    instagramWebhookVerifyToken: "",
+    instagramAppSecret: "",
     emailAddress: "help@crove.com",
     senderName: "Crove Desk Support",
     emailProvider: "brevo",
@@ -398,6 +425,23 @@ function parseMessengerChannelConfig(configJson: string): MessengerChannelConfig
   }
 }
 
+function parseInstagramChannelConfig(configJson: string): InstagramChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as InstagramChannelConfig
+    return {
+      instagramId: parsed.instagramId?.trim() || "",
+      instagramUsername: parsed.instagramUsername?.trim() || "",
+      pageId: parsed.pageId?.trim() || "",
+      pageAccessToken: parsed.pageAccessToken?.trim() || "",
+      webhookVerifyToken: parsed.webhookVerifyToken?.trim() || "",
+      appSecret: parsed.appSecret?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
 function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   if (!item) {
     return createEmptyForm(t)
@@ -408,6 +452,7 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const isEmail = item.channelType === "email"
   const isDiscord = item.channelType === "discord"
   const isMessenger = item.channelType === "messenger"
+  const isInstagram = item.channelType === "instagram"
   const webConfig = parseWebChannelConfig(item.configJson, t)
   const wechatConfig = isWechatMP
     ? parseWechatMPChannelConfig(item.configJson, t)
@@ -427,6 +472,9 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const messengerConfig = isMessenger
     ? parseMessengerChannelConfig(item.configJson)
     : null
+  const instagramConfig = isInstagram
+    ? parseInstagramChannelConfig(item.configJson)
+    : null
   return {
     channelType:
       item.channelType === "wxwork_kf"
@@ -439,11 +487,13 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
               ? "discord"
               : item.channelType === "messenger"
                 ? "messenger"
-                : item.channelType === "email"
-                  ? "email"
-                  : item.channelType === "wechat_mp"
-                    ? "wechat_mp"
-                    : "web",
+                : item.channelType === "instagram"
+                  ? "instagram"
+                  : item.channelType === "email"
+                    ? "email"
+                    : item.channelType === "wechat_mp"
+                      ? "wechat_mp"
+                      : "web",
     aiAgentId: item.aiAgentId > 0 ? String(item.aiAgentId) : "",
 		aiAgentRolloutPercent: item.aiAgentRolloutPercent || 100,
     name: item.name,
@@ -463,6 +513,12 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
     messengerPageAccessToken: messengerConfig?.pageAccessToken ?? "",
     messengerWebhookVerifyToken: messengerConfig?.webhookVerifyToken ?? "",
     messengerAppSecret: messengerConfig?.appSecret ?? "",
+    instagramId: instagramConfig?.instagramId ?? "",
+    instagramUsername: instagramConfig?.instagramUsername ?? "",
+    instagramPageId: instagramConfig?.pageId ?? "",
+    instagramPageAccessToken: instagramConfig?.pageAccessToken ?? "",
+    instagramWebhookVerifyToken: instagramConfig?.webhookVerifyToken ?? "",
+    instagramAppSecret: instagramConfig?.appSecret ?? "",
     emailAddress: emailConfig?.emailAddress || "help@crove.com",
     senderName: emailConfig?.senderName || "Crove Desk Support",
     emailProvider: emailConfig?.provider || "brevo",
@@ -529,6 +585,15 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
                 pageAccessToken: form.messengerPageAccessToken.trim(),
                 webhookVerifyToken: form.messengerWebhookVerifyToken.trim(),
                 appSecret: form.messengerAppSecret.trim(),
+              })
+          : channelType === "instagram"
+            ? JSON.stringify({
+                instagramId: form.instagramId.trim(),
+                instagramUsername: form.instagramUsername.trim(),
+                pageId: form.instagramPageId.trim(),
+                pageAccessToken: form.instagramPageAccessToken.trim(),
+                webhookVerifyToken: form.instagramWebhookVerifyToken.trim(),
+                appSecret: form.instagramAppSecret.trim(),
               })
             : channelType === "wechat_mp"
               ? JSON.stringify(webLikeConfig)
@@ -757,6 +822,7 @@ function ChannelFormBody({
     { value: "email", label: t("channel.typeEmail") },
     { value: "discord", label: t("channel.typeDiscord") },
     { value: "messenger", label: t("channel.typeMessenger") },
+    { value: "instagram", label: t("channel.typeInstagram") },
     { value: "telegram", label: t("channel.typeTelegram") },
     { value: "zalo_oa", label: t("channel.typeZaloOa") },
     { value: "wechat_mp", label: t("channel.typeWechatMp") },
@@ -1216,6 +1282,71 @@ function ChannelFormBody({
                       {...register("messengerPageAccessToken")}
                     />
                     <FieldError errors={[errors.messengerPageAccessToken]} />
+                  </FieldContent>
+                </Field>
+              </div>
+            ) : null}
+
+            {channelType === "instagram" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.instagramConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.instagramConnectDescription")}</div>
+                  <div>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        const redirectUri = window.location.origin + "/dashboard/channels"
+                        window.open(`/api/dashboard/channel/instagram_oauth_url?redirect_uri=${encodeURIComponent(redirectUri)}`, "_blank")
+                      }}
+                    >
+                      <ExternalLinkIcon className="size-3.5 mr-1" />
+                      {t("channel.connectInstagramButton")}
+                    </Button>
+                  </div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/instagram/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.instagramUsername}>
+                    <FieldLabel htmlFor="channel-instagram-username">{t("channel.instagramUsername")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-instagram-username"
+                        placeholder="e.g. acme_support"
+                        {...register("instagramUsername")}
+                      />
+                      <FieldError errors={[errors.instagramUsername]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.instagramId}>
+                    <FieldLabel htmlFor="channel-instagram-id">{t("channel.instagramId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-instagram-id"
+                        placeholder="e.g. 17841400000000000"
+                        {...register("instagramId")}
+                      />
+                      <FieldError errors={[errors.instagramId]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.instagramPageAccessToken}>
+                  <FieldLabel htmlFor="channel-instagram-token">{t("channel.instagramPageAccessToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-instagram-token"
+                      type="password"
+                      placeholder="Instagram / Page Access Token"
+                      {...register("instagramPageAccessToken")}
+                    />
+                    <FieldError errors={[errors.instagramPageAccessToken]} />
                   </FieldContent>
                 </Field>
               </div>

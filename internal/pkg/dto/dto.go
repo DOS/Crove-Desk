@@ -82,3 +82,13 @@ type MessengerChannelConfig struct {
 	AppSecret          string `json:"appSecret,omitempty"` // Meta App Secret
 	WelcomeMessage     string `json:"welcomeMessage,omitempty"`
 }
+
+type InstagramChannelConfig struct {
+	InstagramID        string `json:"instagramId,omitempty"`        // Instagram Business Account ID
+	InstagramUsername  string `json:"instagramUsername,omitempty"`  // @username
+	PageID             string `json:"pageId,omitempty"`             // Linked Facebook Page ID
+	PageAccessToken    string `json:"pageAccessToken,omitempty"`    // Page Access Token
+	WebhookVerifyToken string `json:"webhookVerifyToken,omitempty"` // Webhook verify token
+	AppSecret          string `json:"appSecret,omitempty"`          // Meta App Secret
+	WelcomeMessage     string `json:"welcomeMessage,omitempty"`
+}
