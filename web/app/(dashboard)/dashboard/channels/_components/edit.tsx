@@ -843,8 +843,13 @@ function ChannelFormBody({
     if (raw.endsWith(".crove.io") || raw.endsWith(".on.crove.email") || raw.endsWith(".crove-mail.com")) {
       return raw
     }
-    const slug = (orgSlug || "org").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
-    return `help@${slug}.crove.io`
+    const cleanSlug = (orgSlug || "dos")
+      .trim()
+      .toLowerCase()
+      .replace(/^org[-_]/, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+    return `help+${cleanSlug || "dos"}@crove.io`
   }, [emailAddressValue, orgSlug])
 
 	async function rollbackRolloutPercent() {
