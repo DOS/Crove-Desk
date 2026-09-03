@@ -701,8 +701,17 @@ function ChannelFormBody({
         const active =
           res.organizations.find((o) => o.id === res.currentOrganizationId) ||
           res.organizations[0]
-        if (active?.code) {
-          setOrgSlug(active.code.toLowerCase())
+        if (active) {
+          let slug = ""
+          if (active.code && !active.code.startsWith("org_") && !active.code.startsWith("org-")) {
+            slug = active.code.toLowerCase()
+          } else if (active.name) {
+            slug = active.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+          }
+          if (!slug && active.code) {
+            slug = active.code.toLowerCase()
+          }
+          setOrgSlug(slug || "dos")
         }
       } catch {
         // fallback to default org
