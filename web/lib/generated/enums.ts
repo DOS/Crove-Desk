@@ -88,6 +88,8 @@ export enum ExternalSource {
   Slack = "slack",
   X = "x",
   TikTok = "tiktok",
+  Line = "line",
+  Viber = "viber",
 }
 export const ExternalSourceLabels: Record<ExternalSource, string> = {
   [ExternalSource.Guest]: "访客",
@@ -104,6 +106,8 @@ export const ExternalSourceLabels: Record<ExternalSource, string> = {
   [ExternalSource.Slack]: "Slack",
   [ExternalSource.X]: "X",
   [ExternalSource.TikTok]: "TikTok",
+  [ExternalSource.Line]: "LINE",
+  [ExternalSource.Viber]: "Viber",
 }
 
 export enum Gender {

@@ -134,3 +134,18 @@ type TikTokChannelConfig struct {
 	WebhookVerifyToken string `json:"webhookVerifyToken,omitempty"` // Verification Token
 	WelcomeMessage     string `json:"welcomeMessage,omitempty"`
 }
+
+type LineChannelConfig struct {
+	ChannelID          string `json:"channelId,omitempty"`          // LINE Messaging Channel ID
+	ChannelSecret      string `json:"channelSecret,omitempty"`      // Channel Secret for signature verification
+	ChannelAccessToken string `json:"channelAccessToken,omitempty"` // Long-lived Channel Access Token
+	WelcomeMessage     string `json:"welcomeMessage,omitempty"`
+}
+
+type ViberChannelConfig struct {
+	AuthToken      string `json:"authToken,omitempty"`      // Viber Bot Authentication Token
+	BotName        string `json:"botName,omitempty"`        // Sender Name
+	AvatarURL      string `json:"avatarUrl,omitempty"`      // Sender Avatar URL
+	WebhookSecret  string `json:"webhookSecret,omitempty"`  // Secret string in webhook event
+	WelcomeMessage string `json:"welcomeMessage,omitempty"`
+}

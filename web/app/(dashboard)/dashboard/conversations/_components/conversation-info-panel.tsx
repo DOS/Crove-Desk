@@ -17,6 +17,7 @@ import { type CustomerFormSavePayload } from "@/components/customer-form";
 import { CustomerFormDialog } from "@/components/customer-form-dialog";
 import { CustomerLinkOrCreateDialog } from "@/components/customer-link-or-create-dialog";
 import { ChannelIcon } from "@/components/channel-icon";
+import { AssigneeSelector } from "./assignee-selector";
 import { JsonTreeViewer } from "@/components/json-tree-viewer";
 import { ProjectDialog } from "@/components/project-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -277,12 +278,7 @@ export function ConversationInfoPanel({
                     <span className="truncate font-medium">{conversation.channelName || conversation.channelType || "—"}</span>
                   </div>
                 </div>
-                {conversation.currentAssigneeName ? (
-                  <DetailRow
-                    label={t("conversation.assignee")}
-                    value={conversation.currentAssigneeName}
-                  />
-                ) : null}
+                <AssigneeSelector conversation={conversation} variant="sidebar" />
               </div>
             </section>
             <CustomerBody conversation={conversation} />

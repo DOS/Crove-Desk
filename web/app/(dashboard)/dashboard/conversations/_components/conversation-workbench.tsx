@@ -44,6 +44,7 @@ import {
   useAgentConversationsStore,
 } from "@/lib/stores/agent-conversations";
 import { CreateTicketFromConversationDialog } from "../../tickets/_components/create-ticket-from-conversation-dialog";
+import { AssigneeSelector } from "./assignee-selector";
 import { ChatPanel } from "./chat-panel";
 import { ConversationInfoPanel } from "./conversation-info-panel";
 import { ConversationList } from "./conversation-list";
@@ -338,12 +339,8 @@ export function ConversationWorkbench() {
                       <span className="capitalize">{conversation.channelType}</span>
                     </>
                   ) : null}
-                  {conversation.currentAssigneeName ? (
-                    <>
-                      <span className="text-muted-foreground/40">•</span>
-                      <span className="truncate text-primary/80">@{conversation.currentAssigneeName}</span>
-                    </>
-                  ) : null}
+                  <span className="text-muted-foreground/40">•</span>
+                  <AssigneeSelector conversation={conversation} variant="header" />
                 </div>
               </div>
             </div>

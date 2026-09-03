@@ -20,6 +20,8 @@ const (
 	ExternalSourceSlack     ExternalSource = "slack"      // Slack Bot
 	ExternalSourceX         ExternalSource = "x"          // X (Twitter)
 	ExternalSourceTikTok    ExternalSource = "tiktok"     // TikTok Direct Messages
+	ExternalSourceLine      ExternalSource = "line"       // LINE Official Account
+	ExternalSourceViber     ExternalSource = "viber"      // Viber Business Bot
 )
 
 var externalSourceLabelMap = map[ExternalSource]string{
@@ -37,6 +39,8 @@ var externalSourceLabelMap = map[ExternalSource]string{
 	ExternalSourceSlack:     "Slack",
 	ExternalSourceX:         "X",
 	ExternalSourceTikTok:    "TikTok",
+	ExternalSourceLine:      "LINE",
+	ExternalSourceViber:     "Viber",
 }
 
 func GetExternalSourceLabel(v ExternalSource) string {
