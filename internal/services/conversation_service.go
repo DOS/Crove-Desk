@@ -64,15 +64,15 @@ func (s *conversationService) ListConversations(userID int64, filter request.Age
 
 	switch filter {
 	case request.AgentConversationFilterAIServing:
-		cnd.Eq("current_assignee_id", 0).Eq("status", enums.IMConversationStatusAIServing).Desc("last_active_at").Desc("id")
+		cnd.Eq("status", enums.IMConversationStatusAIServing).Desc("last_active_at").Desc("id")
 	case request.AgentConversationFilterMine:
-		cnd.Eq("current_assignee_id", userID).Desc("last_active_at").Desc("id")
+		cnd.Eq("current_assignee_id", userID).Ne("status", enums.IMConversationStatusClosed).Desc("last_active_at").Desc("id")
 	case request.AgentConversationFilterActive:
-		cnd.Eq("current_assignee_id", userID).Eq("status", enums.IMConversationStatusActive).Desc("last_active_at").Desc("id")
+		cnd.Eq("status", enums.IMConversationStatusActive).Desc("last_active_at").Desc("id")
 	case request.AgentConversationFilterPending:
-		cnd.Eq("current_assignee_id", 0).Eq("status", enums.IMConversationStatusPending).Asc("last_active_at").Desc("id")
+		cnd.Eq("status", enums.IMConversationStatusPending).Asc("last_active_at").Desc("id")
 	case request.AgentConversationFilterClosed:
-		cnd.Eq("current_assignee_id", userID).Eq("status", enums.IMConversationStatusClosed).Desc("last_active_at").Desc("id")
+		cnd.Eq("status", enums.IMConversationStatusClosed).Desc("last_active_at").Desc("id")
 	default:
 		return nil, nil, errorsx.InvalidParamI18n("error.e0121")
 	}

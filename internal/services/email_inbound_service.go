@@ -110,11 +110,8 @@ func (s *emailInboundService) processInboundItem(ctx context.Context, channel *m
 		bodyText = "(Empty email body)"
 	}
 
-	// Format content with subject if provided
+	// Use body text directly for message content (subject is tracked at conversation level)
 	content := bodyText
-	if item.Subject != "" {
-		content = fmt.Sprintf("[%s]\n\n%s", item.Subject, bodyText)
-	}
 
 	// 1. Resolve customer identity
 	externalUser := openidentity.ExternalUser{

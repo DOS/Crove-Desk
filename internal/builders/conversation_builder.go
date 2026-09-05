@@ -45,9 +45,6 @@ func BuildConversationWithLocale(item *models.Conversation, locale string) respo
 		ClosedBy:                  item.ClosedBy,
 		CloseReason:               item.CloseReason,
 	}
-	if ret.Title == "" && item.LastMessageSummary != "" {
-		ret.Title = item.LastMessageSummary
-	}
 	if item.ChannelID > 0 {
 		if channel := services.ChannelService.Get(item.ChannelID); channel != nil {
 			ret.ChannelType = channel.ChannelType

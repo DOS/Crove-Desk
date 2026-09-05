@@ -265,12 +265,6 @@ export function ConversationInfoPanel({
                   value={`#${conversation.id}`}
                   valueClassName="font-mono text-xs font-semibold"
                 />
-                {conversation.title ? (
-                  <DetailRow
-                    label={t("conversation.threadSubject")}
-                    value={conversation.title}
-                  />
-                ) : null}
                 <div className="flex gap-2.5 text-sm leading-snug">
                   <span className="w-17 shrink-0 pt-px text-xs text-muted-foreground">{t("conversation.channel")}</span>
                   <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-foreground">
