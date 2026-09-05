@@ -993,7 +993,7 @@ function ChannelFormBody({
       .replace(/^org[-_]/, "")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
-    return `help+${cleanSlug || "dos"}@crove.io`
+    return `help@${cleanSlug || "dos"}.crove.io`
   }, [emailAddressValue, orgSlug])
 
 	async function rollbackRolloutPercent() {
