@@ -787,7 +787,28 @@ function CustomerLinkedBody({ conversation, customerId }: CustomerLinkedBodyProp
         </div>
       </section>
 
-      <section className="space-y-2">
+      {customer.identities && customer.identities.length > 0 ? (
+        <section className="space-y-2 border-t pt-2">
+          <SectionHeading>{t("conversation.connectedChannels")}</SectionHeading>
+          <div className="flex flex-wrap gap-1.5">
+            {customer.identities.map((identity) => (
+              <div
+                key={identity.id}
+                className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-xs text-foreground shadow-2xs"
+                title={`${identity.externalSource}: ${identity.externalId}`}
+              >
+                <ChannelIcon channelType={identity.externalSource} className="size-3.5 text-muted-foreground shrink-0" />
+                <span className="capitalize font-medium">{identity.externalSource}</span>
+                <span className="font-mono text-[11px] text-muted-foreground truncate max-w-28">
+                  {identity.externalId}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="space-y-2 border-t pt-2">
         {contacts.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("conversation.noContacts")}</p>
         ) : (

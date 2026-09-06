@@ -3,6 +3,7 @@
 import { BanIcon, CheckCircle2Icon, GitMergeIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { ChannelIcon } from "@/components/channel-icon";
 import { type CustomerFormSavePayload } from "@/components/customer-form";
 import { CustomerMergeDialog } from "@/components/customer-merge-dialog";
 import {
@@ -180,6 +181,28 @@ export default function DashboardCustomersPage() {
           <span className="text-muted-foreground">
             {item.primaryEmail || "-"}
           </span>
+        ),
+      },
+      {
+        key: "channels",
+        label: t("customer.columnChannels"),
+        className: "w-28",
+        render: (item) => (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {item.channels && item.channels.length > 0 ? (
+              item.channels.map((ch) => (
+                <span
+                  key={ch}
+                  className="flex size-6 items-center justify-center rounded-md bg-muted/60 text-muted-foreground border border-border/50"
+                  title={ch}
+                >
+                  <ChannelIcon channelType={ch} className="size-3.5" />
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-muted-foreground">—</span>
+            )}
+          </div>
         ),
       },
       createDashboardStatusColumn<AdminCustomer, number>({

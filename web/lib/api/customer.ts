@@ -3,6 +3,15 @@ import type { PageResult } from "@/lib/api/admin"
 import type { ContactType } from "@/lib/generated/enums"
 import { AdminCompany } from "./company"
 
+export type CustomerIdentity = {
+  id: number
+  customerId: number
+  externalSource: string
+  externalId: string
+  status: number
+  createdAt?: string
+}
+
 export type AdminCustomer = {
   id: number
   name: string
@@ -14,6 +23,8 @@ export type AdminCustomer = {
   primaryEmail: string
   status: number
   remark: string
+  identities?: CustomerIdentity[]
+  channels?: string[]
   createdAt: string
   updatedAt: string
 }
