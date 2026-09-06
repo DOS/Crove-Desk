@@ -148,3 +148,23 @@ func CustomerPostUpdate_status(ctx *gin.Context) {
 	}
 	httpx.WriteJSON(ctx, nil)
 }
+
+func CustomerPostMerge(ctx *gin.Context) {
+	user, err := services.AuthService.RequirePermission(ctx, constants.PermissionCustomerUpdate)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	req := request.MergeCustomerRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	item, err := services.CustomerService.MergeCustomer(req, user)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	ret := builders.BuildCustomer(item)
+	httpx.WriteJSON(ctx, &ret)
+}

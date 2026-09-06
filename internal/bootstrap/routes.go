@@ -123,6 +123,7 @@ func registerDashboardCustomerRoutes(group *gin.RouterGroup) {
 	group.POST("/create", dashboard.CustomerPostCreate)
 	group.POST("/delete", dashboard.CustomerPostDelete)
 	group.POST("/list", dashboard.CustomerPostList)
+	group.POST("/merge", dashboard.CustomerPostMerge)
 	group.POST("/save_profile", dashboard.CustomerPostSave_profile)
 	group.POST("/update", dashboard.CustomerPostUpdate)
 	group.POST("/update_status", dashboard.CustomerPostUpdate_status)

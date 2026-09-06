@@ -1011,6 +1011,25 @@
     "collapseCreate": "收起新建表单",
     "showCreate": "未找到？填写新客户"
   },
+  "customerMerge": {
+    "title": "合并客户档案",
+    "description": "将两份客户档案合并为一份。原档案的所有会话记录、渠道身份和工单将全部转移至主客户档案。",
+    "primaryCustomer": "主客户档案（保留）",
+    "sourceCustomer": "副客户档案（合并并归档）",
+    "searchCustomer": "搜索待合并的客户...",
+    "searchPlaceholder": "按姓名、邮箱、手机号或公司搜索",
+    "swap": "交换主副档案",
+    "warningNotice": "副客户的所有会话、工单、渠道身份（邮件、Telegram、Zalo、网页等）及联系方式将全部合并至主客户，副客户档案将被标记合并并关闭。",
+    "reason": "合并原因（选填）",
+    "reasonPlaceholder": "例如：同一客户通过 Telegram 与邮件咨询",
+    "confirmButton": "确认合并客户",
+    "merging": "合并中...",
+    "mergeSuccess": "客户合并成功。",
+    "mergeFailed": "合并客户失败。",
+    "selectCustomerPrompt": "选择要合并的客户档案",
+    "sameCustomerError": "无法将客户合并到自身。",
+    "mergeAction": "合并客户"
+  },
   "conversationAction": {
     "closeReasonRequired": "请输入关闭原因",
     "conversationMissing": "会话不存在",

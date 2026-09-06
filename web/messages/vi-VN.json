@@ -1018,6 +1018,25 @@
     "collapseCreate": "Hide new customer form",
     "showCreate": "Not found? Fill out a new customer"
   },
+  "customerMerge": {
+    "title": "Gộp Hồ sơ Khách hàng (Merge)",
+    "description": "Gộp 2 hồ sơ khách hàng thành 1. Toàn bộ lịch sử hội thoại, định danh các kênh liên lạc và ticket sẽ được chuyển về hồ sơ chính.",
+    "primaryCustomer": "Hồ sơ Chính (Giữ lại)",
+    "sourceCustomer": "Hồ sơ Phụ (Gộp vào & Đóng)",
+    "searchCustomer": "Tìm kiếm khách hàng cần gộp...",
+    "searchPlaceholder": "Tìm theo tên, email, số điện thoại hoặc công ty",
+    "swap": "Đổi vị trí Chính & Phụ",
+    "warningNotice": "Toàn bộ hội thoại, ticket, định danh kênh (Email, Telegram, Zalo, Web, v.v.) và liên hệ của hồ sơ phụ sẽ được chuyển sang hồ sơ chính. Hồ sơ phụ sau đó sẽ được đóng lại.",
+    "reason": "Lý do gộp (Tùy chọn)",
+    "reasonPlaceholder": "Ví dụ: Cùng một khách hàng nhắn qua Telegram và Email",
+    "confirmButton": "Xác nhận Gộp khách hàng",
+    "merging": "Đang gộp hồ sơ...",
+    "mergeSuccess": "Gộp khách hàng thành công.",
+    "mergeFailed": "Không thể gộp khách hàng.",
+    "selectCustomerPrompt": "Chọn một khách hàng để tiến hành gộp",
+    "sameCustomerError": "Không thể gộp một khách hàng vào chính họ.",
+    "mergeAction": "Gộp khách hàng"
+  },
   "conversationAction": {
     "closeReasonRequired": "Enter a close reason.",
     "conversationMissing": "Conversation not found.",

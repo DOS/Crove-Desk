@@ -106,3 +106,16 @@ export function deleteCustomer(id: number) {
     body: JSON.stringify({ id }),
   })
 }
+
+export type MergeCustomerPayload = {
+  targetCustomerId: number
+  sourceCustomerId: number
+  reason?: string
+}
+
+export function mergeCustomer(payload: MergeCustomerPayload) {
+  return request<AdminCustomer>("/api/dashboard/customer/merge", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+}

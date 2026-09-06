@@ -1011,6 +1011,25 @@
     "collapseCreate": "Hide new customer form",
     "showCreate": "Not found? Fill out a new customer"
   },
+  "customerMerge": {
+    "title": "Merge Customers",
+    "description": "Combine two customer profiles into one. All conversation history, channel identities, and tickets will be moved to the primary customer.",
+    "primaryCustomer": "Primary Customer (Keep)",
+    "sourceCustomer": "Duplicate Customer (Merge & Remove)",
+    "searchCustomer": "Search customer to merge...",
+    "searchPlaceholder": "Search by name, email, phone, or company",
+    "swap": "Swap Primary & Duplicate",
+    "warningNotice": "All conversations, tickets, channel identities (Email, Telegram, Zalo, Web, etc.), and contact methods from the duplicate customer will be moved to the primary customer. The duplicate profile will be closed.",
+    "reason": "Merge Reason (Optional)",
+    "reasonPlaceholder": "e.g. Same customer chatting from Telegram and Email",
+    "confirmButton": "Merge Customers",
+    "merging": "Merging...",
+    "mergeSuccess": "Customers merged successfully.",
+    "mergeFailed": "Could not merge customers.",
+    "selectCustomerPrompt": "Select a customer to merge with",
+    "sameCustomerError": "Cannot merge a customer into itself.",
+    "mergeAction": "Merge Customer"
+  },
   "conversationAction": {
     "closeReasonRequired": "Enter a close reason.",
     "conversationMissing": "Conversation not found.",
