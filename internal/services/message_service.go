@@ -635,6 +635,33 @@ func (s *messageService) sendValidatedMessage(conversation *models.Conversation,
 			"error", enqueueErr,
 		)
 	}
+
+	// LINE 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueLineMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue line outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
+	// Viber 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueViberMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue viber outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
+	// Threads 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueThreadsMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue threads outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
 	// 客户发送消息，触发AI回复
 	if senderType == enums.IMSenderTypeCustomer {
 		if TriggerAIReplyAsyncHook != nil {

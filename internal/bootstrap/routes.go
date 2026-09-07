@@ -501,3 +501,20 @@ func registerThirdTikTokRoutes(group *gin.RouterGroup) {
 	group.POST("/webhook", third.TikTokPostWebhook)
 	group.POST("/webhook/:channel_id", third.TikTokPostWebhook)
 }
+
+func registerThirdLineRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.LinePostWebhook)
+	group.POST("/webhook/:channel_id", third.LinePostWebhook)
+}
+
+func registerThirdViberRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.ViberPostWebhook)
+	group.POST("/webhook/:channel_id", third.ViberPostWebhook)
+}
+
+func registerThirdThreadsRoutes(group *gin.RouterGroup) {
+	group.GET("/webhook", third.ThreadsGetWebhook)
+	group.GET("/webhook/:channel_id", third.ThreadsGetWebhook)
+	group.POST("/webhook", third.ThreadsPostWebhook)
+	group.POST("/webhook/:channel_id", third.ThreadsPostWebhook)
+}

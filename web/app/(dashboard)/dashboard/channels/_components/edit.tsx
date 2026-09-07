@@ -148,6 +148,26 @@ type TikTokChannelConfig = {
   webhookVerifyToken?: string
 }
 
+type LineChannelConfig = {
+  channelId?: string
+  channelSecret?: string
+  channelAccessToken?: string
+}
+
+type ViberChannelConfig = {
+  authToken?: string
+  botName?: string
+  avatarUrl?: string
+}
+
+type ThreadsChannelConfig = {
+  threadsUserId?: string
+  username?: string
+  accessToken?: string
+  webhookVerifyToken?: string
+  appSecret?: string
+}
+
 function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
   return {
     title: t("channel.defaultTitleWeb"),
@@ -162,7 +182,7 @@ function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
 function createSchema(t: Translate) {
   return z
     .object({
-      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "email", "discord", "messenger", "instagram", "whatsapp", "slack", "x", "tiktok"], t("channel.typeRequired")),
+      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "email", "discord", "messenger", "instagram", "whatsapp", "slack", "x", "tiktok", "line", "viber", "threads"], t("channel.typeRequired")),
       aiAgentId: z.string().trim().regex(/^\d+$/, t("channel.agentRequired")),
 		aiAgentRolloutPercent: z.coerce.number().int().min(1).max(100),
       name: z.string().trim().min(1, t("channel.nameRequired")),
@@ -212,6 +232,16 @@ function createSchema(t: Translate) {
       tiktokOpenId: z.string().trim(),
       tiktokUsername: z.string().trim(),
       tiktokWebhookVerifyToken: z.string().trim(),
+      lineChannelId: z.string().trim(),
+      lineChannelSecret: z.string().trim(),
+      lineChannelAccessToken: z.string().trim(),
+      viberAuthToken: z.string().trim(),
+      viberBotName: z.string().trim(),
+      threadsUserId: z.string().trim(),
+      threadsUsername: z.string().trim(),
+      threadsAccessToken: z.string().trim(),
+      threadsAppSecret: z.string().trim(),
+      threadsWebhookVerifyToken: z.string().trim(),
       emailAddress: z.string().trim(),
       senderName: z.string().trim(),
       emailProvider: z.string().trim(),
@@ -257,11 +287,46 @@ function createSchema(t: Translate) {
           message: "Zalo OA Access Token is required",
         })
       }
+      if (values.channelType === "line" && !values.lineChannelAccessToken.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["lineChannelAccessToken"],
+          message: "LINE Channel Access Token is required",
+        })
+      }
+      if (values.channelType === "line" && !values.lineChannelSecret.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["lineChannelSecret"],
+          message: "LINE Channel Secret is required",
+        })
+      }
+      if (values.channelType === "viber" && !values.viberAuthToken.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["viberAuthToken"],
+          message: "Viber Auth Token is required",
+        })
+      }
+      if (values.channelType === "threads" && !values.threadsAccessToken.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["threadsAccessToken"],
+          message: "Threads Access Token is required",
+        })
+      }
+      if (values.channelType === "threads" && !values.threadsUserId.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["threadsUserId"],
+          message: "Threads User ID is required",
+        })
+      }
     })
 }
 
 type EditForm = {
-  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "email" | "discord" | "messenger" | "instagram" | "whatsapp" | "slack" | "x" | "tiktok"
+  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "email" | "discord" | "messenger" | "instagram" | "whatsapp" | "slack" | "x" | "tiktok" | "line" | "viber" | "threads"
   aiAgentId: string
 	aiAgentRolloutPercent: number
   name: string
@@ -311,6 +376,16 @@ type EditForm = {
   tiktokOpenId: string
   tiktokUsername: string
   tiktokWebhookVerifyToken: string
+  lineChannelId: string
+  lineChannelSecret: string
+  lineChannelAccessToken: string
+  viberAuthToken: string
+  viberBotName: string
+  threadsUserId: string
+  threadsUsername: string
+  threadsAccessToken: string
+  threadsAppSecret: string
+  threadsWebhookVerifyToken: string
   emailAddress: string
   senderName: string
   emailProvider: string
@@ -381,6 +456,16 @@ function createEmptyForm(t: Translate): EditForm {
     tiktokOpenId: "",
     tiktokUsername: "",
     tiktokWebhookVerifyToken: "",
+    lineChannelId: "",
+    lineChannelSecret: "",
+    lineChannelAccessToken: "",
+    viberAuthToken: "",
+    viberBotName: "",
+    threadsUserId: "",
+    threadsUsername: "",
+    threadsAccessToken: "",
+    threadsAppSecret: "",
+    threadsWebhookVerifyToken: "",
     emailAddress: "help@crove.com",
     senderName: "Crove Desk Support",
     emailProvider: "brevo",
@@ -620,6 +705,50 @@ function parseTikTokChannelConfig(configJson: string): TikTokChannelConfig {
   }
 }
 
+function parseLineChannelConfig(configJson: string): LineChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as LineChannelConfig
+    return {
+      channelId: parsed.channelId?.trim() || "",
+      channelSecret: parsed.channelSecret?.trim() || "",
+      channelAccessToken: parsed.channelAccessToken?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseViberChannelConfig(configJson: string): ViberChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as ViberChannelConfig
+    return {
+      authToken: parsed.authToken?.trim() || "",
+      botName: parsed.botName?.trim() || "",
+      avatarUrl: parsed.avatarUrl?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseThreadsChannelConfig(configJson: string): ThreadsChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as ThreadsChannelConfig
+    return {
+      threadsUserId: parsed.threadsUserId?.trim() || "",
+      username: parsed.username?.trim() || "",
+      accessToken: parsed.accessToken?.trim() || "",
+      webhookVerifyToken: parsed.webhookVerifyToken?.trim() || "",
+      appSecret: parsed.appSecret?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
 function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   if (!item) {
     return createEmptyForm(t)
@@ -635,6 +764,9 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const isSlack = item.channelType === "slack"
   const isX = item.channelType === "x"
   const isTikTok = item.channelType === "tiktok"
+  const isLine = item.channelType === "line"
+  const isViber = item.channelType === "viber"
+  const isThreads = item.channelType === "threads"
   const webConfig = parseWebChannelConfig(item.configJson, t)
   const wechatConfig = isWechatMP
     ? parseWechatMPChannelConfig(item.configJson, t)
@@ -669,6 +801,15 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const tiktokConfig = isTikTok
     ? parseTikTokChannelConfig(item.configJson)
     : null
+  const lineConfig = isLine
+    ? parseLineChannelConfig(item.configJson)
+    : null
+  const viberConfig = isViber
+    ? parseViberChannelConfig(item.configJson)
+    : null
+  const threadsConfig = isThreads
+    ? parseThreadsChannelConfig(item.configJson)
+    : null
   return {
     channelType:
       item.channelType === "wxwork_kf"
@@ -691,7 +832,13 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
                         ? "x"
                         : item.channelType === "tiktok"
                           ? "tiktok"
-                          : item.channelType === "email"
+                          : item.channelType === "line"
+                            ? "line"
+                            : item.channelType === "viber"
+                              ? "viber"
+                              : item.channelType === "threads"
+                                ? "threads"
+                                : item.channelType === "email"
                             ? "email"
                             : item.channelType === "wechat_mp"
                               ? "wechat_mp"
@@ -745,6 +892,16 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
     tiktokOpenId: tiktokConfig?.openId ?? "",
     tiktokUsername: tiktokConfig?.username ?? "",
     tiktokWebhookVerifyToken: tiktokConfig?.webhookVerifyToken ?? "",
+    lineChannelId: lineConfig?.channelId ?? "",
+    lineChannelSecret: lineConfig?.channelSecret ?? "",
+    lineChannelAccessToken: lineConfig?.channelAccessToken ?? "",
+    viberAuthToken: viberConfig?.authToken ?? "",
+    viberBotName: viberConfig?.botName ?? "",
+    threadsUserId: threadsConfig?.threadsUserId ?? "",
+    threadsUsername: threadsConfig?.username ?? "",
+    threadsAccessToken: threadsConfig?.accessToken ?? "",
+    threadsAppSecret: threadsConfig?.appSecret ?? "",
+    threadsWebhookVerifyToken: threadsConfig?.webhookVerifyToken ?? "",
     emailAddress: emailConfig?.emailAddress || "help@crove.com",
     senderName: emailConfig?.senderName || "Crove Desk Support",
     emailProvider: emailConfig?.provider || "brevo",
@@ -856,6 +1013,25 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
                 openId: form.tiktokOpenId.trim(),
                 username: form.tiktokUsername.trim(),
                 webhookVerifyToken: form.tiktokWebhookVerifyToken.trim(),
+              })
+          : channelType === "line"
+            ? JSON.stringify({
+                channelId: form.lineChannelId.trim(),
+                channelSecret: form.lineChannelSecret.trim(),
+                channelAccessToken: form.lineChannelAccessToken.trim(),
+              })
+          : channelType === "viber"
+            ? JSON.stringify({
+                authToken: form.viberAuthToken.trim(),
+                botName: form.viberBotName.trim(),
+              })
+          : channelType === "threads"
+            ? JSON.stringify({
+                threadsUserId: form.threadsUserId.trim(),
+                username: form.threadsUsername.trim(),
+                accessToken: form.threadsAccessToken.trim(),
+                appSecret: form.threadsAppSecret.trim(),
+                webhookVerifyToken: form.threadsWebhookVerifyToken.trim(),
               })
             : channelType === "wechat_mp"
               ? JSON.stringify(webLikeConfig)
@@ -1103,6 +1279,9 @@ function ChannelFormBody({
     { value: "slack", label: t("channel.typeSlack") },
     { value: "x", label: t("channel.typeX") },
     { value: "tiktok", label: t("channel.typeTikTok") },
+    { value: "line", label: t("channel.typeLine") },
+    { value: "viber", label: t("channel.typeViber") },
+    { value: "threads", label: t("channel.typeThreads") },
     { value: "telegram", label: t("channel.typeTelegram") },
     { value: "zalo_oa", label: t("channel.typeZaloOa") },
     { value: "wechat_mp", label: t("channel.typeWechatMp") },
@@ -1959,6 +2138,161 @@ function ChannelFormBody({
                     </FieldContent>
                   </Field>
                 </div>
+              </div>
+            ) : null}
+
+            {channelType === "line" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.lineConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.lineConnectDescription")}</div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/line/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.lineChannelId}>
+                    <FieldLabel htmlFor="channel-line-id">{t("channel.lineChannelId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-line-id"
+                        placeholder="e.g. 2001234567"
+                        {...register("lineChannelId")}
+                      />
+                      <FieldError errors={[errors.lineChannelId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.lineChannelSecret}>
+                    <FieldLabel htmlFor="channel-line-secret">{t("channel.lineChannelSecret")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-line-secret"
+                        type="password"
+                        placeholder="Channel Secret"
+                        {...register("lineChannelSecret")}
+                      />
+                      <FieldError errors={[errors.lineChannelSecret]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.lineChannelAccessToken}>
+                  <FieldLabel htmlFor="channel-line-token">{t("channel.lineChannelAccessToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-line-token"
+                      type="password"
+                      placeholder="Channel Access Token"
+                      {...register("lineChannelAccessToken")}
+                    />
+                    <FieldError errors={[errors.lineChannelAccessToken]} />
+                  </FieldContent>
+                </Field>
+              </div>
+            ) : null}
+
+            {channelType === "viber" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.viberConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.viberConnectDescription")}</div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/viber/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.viberAuthToken}>
+                    <FieldLabel htmlFor="channel-viber-token">{t("channel.viberAuthToken")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-viber-token"
+                        type="password"
+                        placeholder="e.g. 4453b0dcd47c3ae3-5e6c9866b2b1c3f7-..."
+                        {...register("viberAuthToken")}
+                      />
+                      <FieldError errors={[errors.viberAuthToken]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.viberBotName}>
+                    <FieldLabel htmlFor="channel-viber-botname">{t("channel.viberBotName")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-viber-botname"
+                        placeholder="e.g. Crove Support"
+                        {...register("viberBotName")}
+                      />
+                      <FieldError errors={[errors.viberBotName]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+              </div>
+            ) : null}
+
+            {channelType === "threads" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.threadsConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.threadsConnectDescription")}</div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/threads/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.threadsUserId}>
+                    <FieldLabel htmlFor="channel-threads-userid">{t("channel.threadsUserId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-threads-userid"
+                        placeholder="e.g. 1234567890"
+                        {...register("threadsUserId")}
+                      />
+                      <FieldError errors={[errors.threadsUserId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.threadsUsername}>
+                    <FieldLabel htmlFor="channel-threads-username">{t("channel.threadsUsername")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-threads-username"
+                        placeholder="e.g. @acme_official"
+                        {...register("threadsUsername")}
+                      />
+                      <FieldError errors={[errors.threadsUsername]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.threadsAccessToken}>
+                  <FieldLabel htmlFor="channel-threads-token">{t("channel.threadsAccessToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-threads-token"
+                      type="password"
+                      placeholder="Threads Long-lived Access Token"
+                      {...register("threadsAccessToken")}
+                    />
+                    <FieldError errors={[errors.threadsAccessToken]} />
+                  </FieldContent>
+                </Field>
+
+                <Field data-invalid={!!errors.threadsAppSecret}>
+                  <FieldLabel htmlFor="channel-threads-appsecret">{t("channel.threadsAppSecret")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-threads-appsecret"
+                      type="password"
+                      placeholder="Meta App Secret"
+                      {...register("threadsAppSecret")}
+                    />
+                    <FieldError errors={[errors.threadsAppSecret]} />
+                  </FieldContent>
+                </Field>
               </div>
             ) : null}
 

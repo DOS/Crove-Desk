@@ -8,10 +8,12 @@ import {
   InstagramIcon,
   MailIcon,
   MessageCircleIcon,
+  MessageCircleMoreIcon,
   MessagesSquareIcon,
   MessageSquareMoreIcon,
   PhoneIcon,
   SendIcon,
+  SmartphoneIcon,
   VideoIcon,
 } from "lucide-react"
 
@@ -58,6 +60,15 @@ function getChannelTypeLabel(channelType: string, t: (key: string) => string) {
   }
   if (channelType === "tiktok") {
     return t("channel.typeTikTok")
+  }
+  if (channelType === "line") {
+    return t("channel.typeLine")
+  }
+  if (channelType === "viber") {
+    return t("channel.typeViber")
+  }
+  if (channelType === "threads") {
+    return t("channel.typeThreads")
   }
   if (channelType === "wechat_mp") {
     return t("channel.typeWechatMp")
@@ -109,6 +120,15 @@ function ChannelIcon({ channelType }: { channelType: string }) {
   if (channelType === "tiktok") {
     return <VideoIcon className="size-4" />
   }
+  if (channelType === "line") {
+    return <MessageCircleMoreIcon className="size-4" />
+  }
+  if (channelType === "viber") {
+    return <SmartphoneIcon className="size-4" />
+  }
+  if (channelType === "threads") {
+    return <AtSignIcon className="size-4" />
+  }
   if (channelType === "wechat_mp") {
     return <MessagesSquareIcon className="size-4" />
   }
@@ -141,6 +161,9 @@ export default function DashboardChannelsPage() {
     { value: "slack", label: t("channel.typeSlack") },
     { value: "x", label: t("channel.typeX") },
     { value: "tiktok", label: t("channel.typeTikTok") },
+    { value: "line", label: t("channel.typeLine") },
+    { value: "viber", label: t("channel.typeViber") },
+    { value: "threads", label: t("channel.typeThreads") },
     { value: "telegram", label: t("channel.typeTelegram") },
     { value: "zalo_oa", label: t("channel.typeZaloOa") },
     { value: "wechat_mp", label: t("channel.typeWechatMp") },

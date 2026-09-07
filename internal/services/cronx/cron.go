@@ -58,6 +58,18 @@ func Init() {
 		if slackCount > 0 {
 			slog.Info("slack outbox dispatched", "count", slackCount)
 		}
+		lineCount := services.LineOutboundService.DispatchPendingOutbox()
+		if lineCount > 0 {
+			slog.Info("line outbox dispatched", "count", lineCount)
+		}
+		viberCount := services.ViberOutboundService.DispatchPendingOutbox()
+		if viberCount > 0 {
+			slog.Info("viber outbox dispatched", "count", viberCount)
+		}
+		threadsCount := services.ThreadsOutboundService.DispatchPendingOutbox()
+		if threadsCount > 0 {
+			slog.Info("threads outbox dispatched", "count", threadsCount)
+		}
 	})
 
 	c.Start()

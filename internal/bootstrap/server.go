@@ -205,6 +205,9 @@ func addRouter(app *gin.Engine) {
 	registerThirdSlackRoutes(thirdGroup.Group("/slack"))
 	registerThirdXRoutes(thirdGroup.Group("/x"))
 	registerThirdTikTokRoutes(thirdGroup.Group("/tiktok"))
+	registerThirdLineRoutes(thirdGroup.Group("/line"))
+	registerThirdViberRoutes(thirdGroup.Group("/viber"))
+	registerThirdThreadsRoutes(thirdGroup.Group("/threads"))
 }
 
 type spaShellRewrite struct {

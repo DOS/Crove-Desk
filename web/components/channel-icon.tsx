@@ -1,10 +1,18 @@
 import {
+  AtSignIcon,
+  Gamepad2Icon,
   GlobeIcon,
+  HashIcon,
+  InstagramIcon,
   MailIcon,
   MessageCircleIcon,
+  MessageCircleMoreIcon,
   MessagesSquareIcon,
   MessageSquareMoreIcon,
+  PhoneIcon,
   SendIcon,
+  SmartphoneIcon,
+  VideoIcon,
 } from "lucide-react"
 
 export type ChannelIconProps = {
@@ -24,6 +32,22 @@ export function ChannelIcon({ channelType, className = "size-3.5" }: ChannelIcon
       return <MessagesSquareIcon className={className} />
     case "messenger":
       return <MessageCircleIcon className={className} />
+    case "instagram":
+      return <InstagramIcon className={className} />
+    case "whatsapp":
+      return <PhoneIcon className={className} />
+    case "slack":
+      return <HashIcon className={className} />
+    case "x":
+      return <AtSignIcon className={className} />
+    case "tiktok":
+      return <VideoIcon className={className} />
+    case "line":
+      return <MessageCircleMoreIcon className={className} />
+    case "viber":
+      return <SmartphoneIcon className={className} />
+    case "threads":
+      return <AtSignIcon className={className} />
     case "wxwork_kf":
       return <MessageSquareMoreIcon className={className} />
     case "wechat_mp":

@@ -33,6 +33,7 @@ const (
 	ChannelTypeTikTok    = "tiktok"
 	ChannelTypeLine      = "line"
 	ChannelTypeViber     = "viber"
+	ChannelTypeThreads   = "threads"
 )
 
 type WxWorkKFMessageSendStatus string

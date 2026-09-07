@@ -113,16 +113,16 @@ type SlackChannelConfig struct {
 }
 
 type XChannelConfig struct {
-	BearerToken        string `json:"bearerToken,omitempty"`        // X API v2 Bearer Token
-	APIKey             string `json:"apiKey,omitempty"`             // Consumer Key
-	APISecretKey       string `json:"apiSecretKey,omitempty"`       // Consumer Secret
-	AccessToken        string `json:"accessToken,omitempty"`        // Access Token
-	AccessTokenSecret  string `json:"accessTokenSecret,omitempty"`  // Access Token Secret
-	AccountID          string `json:"accountId,omitempty"`          // X Numeric User/Account ID
-	Username           string `json:"username,omitempty"`           // @handle
-	WebhookEnv         string `json:"webhookEnv,omitempty"`         // Webhook environment name
-	WebhookCRCSecret   string `json:"webhookCRCSecret,omitempty"`   // CRC response secret
-	WelcomeMessage     string `json:"welcomeMessage,omitempty"`
+	BearerToken       string `json:"bearerToken,omitempty"`       // X API v2 Bearer Token
+	APIKey            string `json:"apiKey,omitempty"`            // Consumer Key
+	APISecretKey      string `json:"apiSecretKey,omitempty"`      // Consumer Secret
+	AccessToken       string `json:"accessToken,omitempty"`       // Access Token
+	AccessTokenSecret string `json:"accessTokenSecret,omitempty"` // Access Token Secret
+	AccountID         string `json:"accountId,omitempty"`         // X Numeric User/Account ID
+	Username          string `json:"username,omitempty"`          // @handle
+	WebhookEnv        string `json:"webhookEnv,omitempty"`        // Webhook environment name
+	WebhookCRCSecret  string `json:"webhookCRCSecret,omitempty"`  // CRC response secret
+	WelcomeMessage    string `json:"welcomeMessage,omitempty"`
 }
 
 type TikTokChannelConfig struct {
@@ -143,9 +143,18 @@ type LineChannelConfig struct {
 }
 
 type ViberChannelConfig struct {
-	AuthToken      string `json:"authToken,omitempty"`      // Viber Bot Authentication Token
-	BotName        string `json:"botName,omitempty"`        // Sender Name
-	AvatarURL      string `json:"avatarUrl,omitempty"`      // Sender Avatar URL
-	WebhookSecret  string `json:"webhookSecret,omitempty"`  // Secret string in webhook event
+	AuthToken      string `json:"authToken,omitempty"`     // Viber Bot Authentication Token
+	BotName        string `json:"botName,omitempty"`       // Sender Name
+	AvatarURL      string `json:"avatarUrl,omitempty"`     // Sender Avatar URL
+	WebhookSecret  string `json:"webhookSecret,omitempty"` // Secret string in webhook event
 	WelcomeMessage string `json:"welcomeMessage,omitempty"`
+}
+
+type ThreadsChannelConfig struct {
+	ThreadsUserID      string `json:"threadsUserId,omitempty"`      // Threads App-Scoped User ID of the business account
+	Username           string `json:"username,omitempty"`           // @username of the Threads account
+	AccessToken        string `json:"accessToken,omitempty"`        // Long-lived Threads User Access Token
+	WebhookVerifyToken string `json:"webhookVerifyToken,omitempty"` // Meta webhook verification token
+	AppSecret          string `json:"appSecret,omitempty"`          // Meta App Secret for X-Hub-Signature-256
+	WelcomeMessage     string `json:"welcomeMessage,omitempty"`
 }
