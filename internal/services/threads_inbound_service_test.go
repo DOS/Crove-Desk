@@ -80,12 +80,13 @@ func TestThreadsInboundAndOutbound(t *testing.T) {
 		t.Fatalf("expected invalid signature to be rejected")
 	}
 
-	// Verify customer identity
+	// Verify customer identity - username is the stable external id, so
+	// both replies from the same person map to one customer.
 	identity := repositories.CustomerIdentityRepository.FindOne(sqls.DB(), sqls.NewCnd().
 		Eq("external_source", enums.ExternalSourceThreads).
-		Eq("external_id", "reply_9001"))
+		Eq("external_id", "threads_customer"))
 	if identity == nil {
-		t.Fatalf("expected customer identity for reply_9001")
+		t.Fatalf("expected customer identity for threads_customer")
 	}
 
 	// Verify conversation
@@ -134,10 +135,11 @@ func TestThreadsInboundAndOutbound(t *testing.T) {
 	if err := ThreadsInboundService.HandleWebhook(ctx, "", topicSignature, topicPayload); err != nil {
 		t.Fatalf("topic envelope HandleWebhook failed: %v", err)
 	}
-	identity2 := repositories.CustomerIdentityRepository.FindOne(sqls.DB(), sqls.NewCnd().
+	// Same username must reuse the same customer identity (no fragmentation).
+	identities := repositories.CustomerIdentityRepository.Find(sqls.DB(), sqls.NewCnd().
 		Eq("external_source", enums.ExternalSourceThreads).
-		Eq("external_id", "reply_9002"))
-	if identity2 == nil {
-		t.Fatalf("expected customer identity for reply_9002")
+		Eq("external_id", "threads_customer"))
+	if len(identities) != 1 {
+		t.Fatalf("expected exactly 1 customer identity for threads_customer, got %d", len(identities))
 	}
 }

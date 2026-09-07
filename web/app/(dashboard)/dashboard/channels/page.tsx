@@ -127,7 +127,7 @@ function ChannelIcon({ channelType }: { channelType: string }) {
     return <SmartphoneIcon className="size-4" />
   }
   if (channelType === "threads") {
-    return <AtSignIcon className="size-4" />
+    return <MessagesSquareIcon className="size-4" />
   }
   if (channelType === "wechat_mp") {
     return <MessagesSquareIcon className="size-4" />

@@ -40,9 +40,10 @@ func (s *threadsInboundService) HandleWebhook(ctx context.Context, channelID str
 		return errorsx.InvalidParam("threads channel config invalid")
 	}
 
-	// Optional but recommended: verify X-Hub-Signature-256 when the app
-	// secret is configured, mirroring the Meta WhatsApp integration.
-	if cfg.AppSecret != "" && strings.TrimSpace(signature) != "" {
+	// Verify X-Hub-Signature-256 when the app secret is configured. The
+	// check is fail-closed: once a secret is set, webhooks without a valid
+	// signature are rejected.
+	if cfg.AppSecret != "" {
 		if !threads.VerifyWebhookSignature(cfg.AppSecret, signature, rawPayload) {
 			return errorsx.UnauthorizedI18n("error.auth.invalidSignature")
 		}
@@ -87,17 +88,25 @@ func collectThreadsReplyValues(payload *threads.WebhookPayload) []*threads.Webho
 }
 
 func (s *threadsInboundService) processReply(channel *models.Channel, value *threads.WebhookValue) error {
-	externalID := strings.TrimSpace(value.ID)
-	if externalID == "" {
-		externalID = strings.TrimSpace(value.MediaID)
+	replyMediaID := strings.TrimSpace(value.ID)
+	if replyMediaID == "" {
+		replyMediaID = strings.TrimSpace(value.MediaID)
 	}
-	if externalID == "" {
+	if replyMediaID == "" {
 		return nil
+	}
+
+	// Threads reply webhooks do not carry a stable user id, but the
+	// @username is stable, so use it as the external identity to keep one
+	// customer per person. Fall back to the reply media id when missing.
+	externalID := strings.TrimSpace(value.Username)
+	if externalID == "" {
+		externalID = replyMediaID
 	}
 
 	name := strings.TrimSpace(value.Username)
 	if name == "" {
-		name = fmt.Sprintf("Threads User %s", externalID)
+		name = fmt.Sprintf("Threads User %s", replyMediaID)
 	}
 
 	externalUser := openidentity.ExternalUser{
@@ -111,9 +120,9 @@ func (s *threadsInboundService) processReply(channel *models.Channel, value *thr
 		return fmt.Errorf("create threads conversation failed: %w", err)
 	}
 
-	clientMsgID := fmt.Sprintf("threads_%s", externalID)
+	clientMsgID := fmt.Sprintf("threads_%s", replyMediaID)
 	payloadMap := map[string]any{
-		"threads_media_id":   externalID,
+		"threads_media_id":   replyMediaID,
 		"threads_username":   strings.TrimSpace(value.Username),
 		"threads_media_type": strings.TrimSpace(value.MediaType),
 		"threads_permalink":  strings.TrimSpace(value.Permalink),

@@ -152,12 +152,15 @@ type LineChannelConfig = {
   channelId?: string
   channelSecret?: string
   channelAccessToken?: string
+  welcomeMessage?: string
 }
 
 type ViberChannelConfig = {
   authToken?: string
   botName?: string
   avatarUrl?: string
+  webhookSecret?: string
+  welcomeMessage?: string
 }
 
 type ThreadsChannelConfig = {
@@ -235,8 +238,12 @@ function createSchema(t: Translate) {
       lineChannelId: z.string().trim(),
       lineChannelSecret: z.string().trim(),
       lineChannelAccessToken: z.string().trim(),
+      lineWelcomeMessage: z.string().trim(),
       viberAuthToken: z.string().trim(),
       viberBotName: z.string().trim(),
+      viberAvatarUrl: z.string().trim(),
+      viberWelcomeMessage: z.string().trim(),
+      viberWebhookSecret: z.string().trim(),
       threadsUserId: z.string().trim(),
       threadsUsername: z.string().trim(),
       threadsAccessToken: z.string().trim(),
@@ -379,8 +386,12 @@ type EditForm = {
   lineChannelId: string
   lineChannelSecret: string
   lineChannelAccessToken: string
+  lineWelcomeMessage: string
   viberAuthToken: string
   viberBotName: string
+  viberAvatarUrl: string
+  viberWelcomeMessage: string
+  viberWebhookSecret: string
   threadsUserId: string
   threadsUsername: string
   threadsAccessToken: string
@@ -459,8 +470,12 @@ function createEmptyForm(t: Translate): EditForm {
     lineChannelId: "",
     lineChannelSecret: "",
     lineChannelAccessToken: "",
+    lineWelcomeMessage: "",
     viberAuthToken: "",
     viberBotName: "",
+    viberAvatarUrl: "",
+    viberWelcomeMessage: "",
+    viberWebhookSecret: "",
     threadsUserId: "",
     threadsUsername: "",
     threadsAccessToken: "",
@@ -713,6 +728,7 @@ function parseLineChannelConfig(configJson: string): LineChannelConfig {
       channelId: parsed.channelId?.trim() || "",
       channelSecret: parsed.channelSecret?.trim() || "",
       channelAccessToken: parsed.channelAccessToken?.trim() || "",
+      welcomeMessage: parsed.welcomeMessage?.trim() || "",
     }
   } catch {
     return {}
@@ -727,6 +743,8 @@ function parseViberChannelConfig(configJson: string): ViberChannelConfig {
       authToken: parsed.authToken?.trim() || "",
       botName: parsed.botName?.trim() || "",
       avatarUrl: parsed.avatarUrl?.trim() || "",
+      webhookSecret: parsed.webhookSecret?.trim() || "",
+      welcomeMessage: parsed.welcomeMessage?.trim() || "",
     }
   } catch {
     return {}
@@ -895,8 +913,12 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
     lineChannelId: lineConfig?.channelId ?? "",
     lineChannelSecret: lineConfig?.channelSecret ?? "",
     lineChannelAccessToken: lineConfig?.channelAccessToken ?? "",
+    lineWelcomeMessage: lineConfig?.welcomeMessage ?? "",
     viberAuthToken: viberConfig?.authToken ?? "",
     viberBotName: viberConfig?.botName ?? "",
+    viberAvatarUrl: viberConfig?.avatarUrl ?? "",
+    viberWelcomeMessage: viberConfig?.welcomeMessage ?? "",
+    viberWebhookSecret: viberConfig?.webhookSecret ?? "",
     threadsUserId: threadsConfig?.threadsUserId ?? "",
     threadsUsername: threadsConfig?.username ?? "",
     threadsAccessToken: threadsConfig?.accessToken ?? "",
@@ -1019,11 +1041,15 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
                 channelId: form.lineChannelId.trim(),
                 channelSecret: form.lineChannelSecret.trim(),
                 channelAccessToken: form.lineChannelAccessToken.trim(),
+                welcomeMessage: form.lineWelcomeMessage.trim(),
               })
           : channelType === "viber"
             ? JSON.stringify({
                 authToken: form.viberAuthToken.trim(),
                 botName: form.viberBotName.trim(),
+                avatarUrl: form.viberAvatarUrl.trim(),
+                welcomeMessage: form.viberWelcomeMessage.trim(),
+                webhookSecret: form.viberWebhookSecret.trim(),
               })
           : channelType === "threads"
             ? JSON.stringify({
@@ -2190,6 +2216,18 @@ function ChannelFormBody({
                     <FieldError errors={[errors.lineChannelAccessToken]} />
                   </FieldContent>
                 </Field>
+
+                <Field data-invalid={!!errors.lineWelcomeMessage}>
+                  <FieldLabel htmlFor="channel-line-welcome">{t("channel.welcomeMessageLabel")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-line-welcome"
+                      placeholder="e.g. Thanks for adding us! How can we help?"
+                      {...register("lineWelcomeMessage")}
+                    />
+                    <FieldError errors={[errors.lineWelcomeMessage]} />
+                  </FieldContent>
+                </Field>
               </div>
             ) : null}
 
@@ -2229,6 +2267,30 @@ function ChannelFormBody({
                     </FieldContent>
                   </Field>
                 </div>
+
+                <Field data-invalid={!!errors.viberAvatarUrl}>
+                  <FieldLabel htmlFor="channel-viber-avatar">{t("channel.viberAvatarUrl")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-viber-avatar"
+                      placeholder="https://example.com/avatar.jpg"
+                      {...register("viberAvatarUrl")}
+                    />
+                    <FieldError errors={[errors.viberAvatarUrl]} />
+                  </FieldContent>
+                </Field>
+
+                <Field data-invalid={!!errors.viberWelcomeMessage}>
+                  <FieldLabel htmlFor="channel-viber-welcome">{t("channel.welcomeMessageLabel")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-viber-welcome"
+                      placeholder="e.g. Welcome! How can we help?"
+                      {...register("viberWelcomeMessage")}
+                    />
+                    <FieldError errors={[errors.viberWelcomeMessage]} />
+                  </FieldContent>
+                </Field>
               </div>
             ) : null}
 
@@ -2291,6 +2353,19 @@ function ChannelFormBody({
                       {...register("threadsAppSecret")}
                     />
                     <FieldError errors={[errors.threadsAppSecret]} />
+                  </FieldContent>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="channel-threads-verify-token">{t("channel.threadsWebhookVerifyToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-threads-verify-token"
+                      readOnly
+                      disabled
+                      placeholder={t("channel.threadsVerifyTokenHint")}
+                      {...register("threadsWebhookVerifyToken")}
+                    />
                   </FieldContent>
                 </Field>
               </div>

@@ -767,7 +767,7 @@ func (s *channelMessageOutboxService) EnqueueLineMessage(conversation *models.Co
 	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
 		return nil
 	}
-	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML {
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
 		return nil
 	}
 	if existing := s.GetByMessageID(enums.ChannelTypeLine, message.ID); existing != nil {
@@ -830,7 +830,7 @@ func (s *channelMessageOutboxService) EnqueueViberMessage(conversation *models.C
 	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
 		return nil
 	}
-	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML {
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
 		return nil
 	}
 	if existing := s.GetByMessageID(enums.ChannelTypeViber, message.ID); existing != nil {
@@ -893,7 +893,7 @@ func (s *channelMessageOutboxService) EnqueueThreadsMessage(conversation *models
 	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
 		return nil
 	}
-	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML {
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
 		return nil
 	}
 	if existing := s.GetByMessageID(enums.ChannelTypeThreads, message.ID); existing != nil {

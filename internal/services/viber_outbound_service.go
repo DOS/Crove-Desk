@@ -9,6 +9,7 @@ import (
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/repositories"
+	"agent-desk/internal/services/storage"
 	"agent-desk/internal/viber"
 
 	"github.com/mlogclub/simple/sqls"
@@ -107,8 +108,33 @@ func (s *viberOutboundService) processOutbox(outboxID int64) error {
 	}
 
 	text := strings.TrimSpace(message.Content)
+	if message.MessageType == enums.IMMessageTypeImage || message.MessageType == enums.IMMessageTypeAttachment {
+		assetPayload, err := parseIMMessageAssetPayload(message.Payload)
+		if err == nil && assetPayload != nil {
+			assetPayload = hydrateIMMessageAssetPayload(assetPayload)
+			if assetPayload.Provider != "" && assetPayload.StorageKey != "" {
+				if provider, err := storage.NewProvider(assetPayload.Provider); err == nil {
+					fileURL := provider.GetSignedURL(assetPayload.StorageKey)
+					if fileURL != "" {
+						if text != "" {
+							text += "\n" + fileURL
+						} else {
+							text = fileURL
+						}
+					}
+				}
+			}
+		}
+	}
 	if text == "" {
-		return s.markOutboxFailed(outbox, "viber only supports text content")
+		return s.markOutboxFailed(outbox, "viber message has no text or resolvable media url")
+	}
+
+	// Viber requires a sender name on send_message; fall back to the
+	// channel name when no display name is configured.
+	senderName := strings.TrimSpace(cfg.BotName)
+	if senderName == "" {
+		senderName = strings.TrimSpace(channel.Name)
 	}
 
 	client := viber.NewClient(cfg.AuthToken)

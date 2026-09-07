@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"agent-desk/internal/line"
 	"agent-desk/internal/models"
+	"agent-desk/internal/pkg/dto"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/pkg/openidentity"
@@ -51,19 +53,41 @@ func (s *lineInboundService) HandleWebhook(ctx context.Context, channelID string
 	}
 
 	for i := range event.Events {
-		if err := s.processEvent(channel, &event.Events[i]); err != nil {
+		if err := s.processEvent(channel, cfg, &event.Events[i]); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *lineInboundService) processEvent(channel *models.Channel, event *line.Event) error {
-	if event.Type != "message" || event.Message == nil || event.Source == nil {
+func (s *lineInboundService) processEvent(channel *models.Channel, cfg *dto.LineChannelConfig, event *line.Event) error {
+	if event.Source == nil {
 		return nil
 	}
-	// Only handle 1:1 user messages for now.
+	// Only handle 1:1 user events for now.
 	if event.Source.Type != "user" || strings.TrimSpace(event.Source.UserID) == "" {
+		return nil
+	}
+
+	// Send the configured welcome message when a user follows the account.
+	if event.Type == "follow" {
+		welcome := strings.TrimSpace(cfg.WelcomeMessage)
+		if welcome == "" {
+			return nil
+		}
+		client := line.NewClient(cfg.ChannelAccessToken)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if _, err := client.PushMessage(ctx, line.PushMessageRequest{
+			To:       strings.TrimSpace(event.Source.UserID),
+			Messages: []line.MessageObject{{Type: "text", Text: welcome}},
+		}); err != nil {
+			return fmt.Errorf("send line welcome message failed: %w", err)
+		}
+		return nil
+	}
+
+	if event.Type != "message" || event.Message == nil {
 		return nil
 	}
 	if event.Message.Type != "text" {

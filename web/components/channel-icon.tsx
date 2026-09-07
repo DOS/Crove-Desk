@@ -47,7 +47,7 @@ export function ChannelIcon({ channelType, className = "size-3.5" }: ChannelIcon
     case "viber":
       return <SmartphoneIcon className={className} />
     case "threads":
-      return <AtSignIcon className={className} />
+      return <MessagesSquareIcon className={className} />
     case "wxwork_kf":
       return <MessageSquareMoreIcon className={className} />
     case "wechat_mp":
