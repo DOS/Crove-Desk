@@ -315,27 +315,30 @@ func bindConfigDefaults(v *viper.Viper) {
 }
 
 func bindEnvironmentAliases(v *viper.Viper) {
-	_ = v.BindEnv("server.port", "PORT", "SERVER_PORT", "AGENT_DESK_SERVER_PORT")
-	_ = v.BindEnv("server.companyName", "COMPANY_NAME", "NEXT_PUBLIC_COMPANY_NAME", "BRAND_NAME", "BRAND_COMPANY_NAME", "AGENT_DESK_SERVER_COMPANYNAME")
-	_ = v.BindEnv("server.companyLogoUrl", "COMPANY_LOGO_URL", "NEXT_PUBLIC_COMPANY_LOGO_URL", "BRAND_LOGO_URL", "AGENT_DESK_SERVER_COMPANYLOGOURL")
-	_ = v.BindEnv("db.type", "DATABASE_TYPE", "DB_TYPE", "AGENT_DESK_DB_TYPE")
-	_ = v.BindEnv("db.dsn", "DATABASE_URL", "DB_DSN", "AGENT_DESK_DB_DSN")
-	_ = v.BindEnv("auth.passwordLoginEnabled", "PASSWORD_LOGIN_ENABLED", "AGENT_DESK_AUTH_PASSWORDLOGINENABLED")
-	_ = v.BindEnv("auth.tokenTTLHours", "AUTH_TOKEN_TTL_HOURS", "AGENT_DESK_AUTH_TOKENTTLHOURS")
-	_ = v.BindEnv("customerSession.secret", "CUSTOMER_SESSION_SECRET", "SESSION_SECRET", "JWT_SECRET", "AGENT_DESK_CUSTOMERSESSION_SECRET")
-	_ = v.BindEnv("storage.default", "STORAGE_DEFAULT", "STORAGE_TYPE", "AGENT_DESK_STORAGE_DEFAULT")
-	_ = v.BindEnv("storage.local.root", "STORAGE_LOCAL_ROOT", "AGENT_DESK_STORAGE_LOCAL_ROOT")
-	_ = v.BindEnv("storage.local.baseUrl", "STORAGE_LOCAL_BASE_URL", "AGENT_DESK_STORAGE_LOCAL_BASEURL")
-	_ = v.BindEnv("vectorDB.type", "VECTOR_DB_TYPE", "AGENT_DESK_VECTORDB_TYPE")
-	_ = v.BindEnv("vectorDB.qdrant.host", "QDRANT_HOST", "AGENT_DESK_VECTORDB_QDRANT_HOST")
-	_ = v.BindEnv("vectorDB.qdrant.grpcPort", "QDRANT_GRPC_PORT", "QDRANT_PORT", "AGENT_DESK_VECTORDB_QDRANT_GRPCPORT")
-	_ = v.BindEnv("vectorDB.qdrant.apiKey", "QDRANT_API_KEY", "AGENT_DESK_VECTORDB_QDRANT_APIKEY")
-	_ = v.BindEnv("oidc.enabled", "OIDC_ENABLED", "AGENT_DESK_OIDC_ENABLED")
-	_ = v.BindEnv("oidc.issuer", "OIDC_ISSUER", "AGENT_DESK_OIDC_ISSUER")
-	_ = v.BindEnv("oidc.clientId", "OIDC_CLIENT_ID", "CUSTOM_OAUTH_CLIENT_ID", "AGENT_DESK_OIDC_CLIENTID")
-	_ = v.BindEnv("oidc.clientSecret", "OIDC_CLIENT_SECRET", "CUSTOM_OAUTH_CLIENT_SECRET", "AGENT_DESK_OIDC_CLIENTSECRET")
-	_ = v.BindEnv("oidc.redirectUrl", "OIDC_REDIRECT_URL", "CUSTOM_OAUTH_REDIRECT_URI", "AGENT_DESK_OIDC_REDIRECTURL")
-	_ = v.BindEnv("webhook.orgSyncSecret", "ORG_SYNC_SECRET", "WEBHOOK_SECRET", "AGENT_DESK_WEBHOOK_ORGSYNCSECRET")
+	// Prefixed AGENT_DESK_* aliases are listed first so that ambient legacy
+	// variables (PORT, DATABASE_URL, ...) cannot silently override the
+	// documented configuration.
+	_ = v.BindEnv("server.port", "AGENT_DESK_SERVER_PORT", "PORT", "SERVER_PORT")
+	_ = v.BindEnv("server.companyName", "AGENT_DESK_SERVER_COMPANYNAME", "COMPANY_NAME", "NEXT_PUBLIC_COMPANY_NAME", "BRAND_NAME", "BRAND_COMPANY_NAME")
+	_ = v.BindEnv("server.companyLogoUrl", "AGENT_DESK_SERVER_COMPANYLOGOURL", "COMPANY_LOGO_URL", "NEXT_PUBLIC_COMPANY_LOGO_URL", "BRAND_LOGO_URL")
+	_ = v.BindEnv("db.type", "AGENT_DESK_DB_TYPE", "DATABASE_TYPE", "DB_TYPE")
+	_ = v.BindEnv("db.dsn", "AGENT_DESK_DB_DSN", "DATABASE_URL", "DB_DSN")
+	_ = v.BindEnv("auth.passwordLoginEnabled", "AGENT_DESK_AUTH_PASSWORDLOGINENABLED", "PASSWORD_LOGIN_ENABLED")
+	_ = v.BindEnv("auth.tokenTTLHours", "AGENT_DESK_AUTH_TOKENTTLHOURS", "AUTH_TOKEN_TTL_HOURS")
+	_ = v.BindEnv("customerSession.secret", "AGENT_DESK_CUSTOMERSESSION_SECRET", "CUSTOMER_SESSION_SECRET", "SESSION_SECRET", "JWT_SECRET")
+	_ = v.BindEnv("storage.default", "AGENT_DESK_STORAGE_DEFAULT", "STORAGE_DEFAULT", "STORAGE_TYPE")
+	_ = v.BindEnv("storage.local.root", "AGENT_DESK_STORAGE_LOCAL_ROOT", "STORAGE_LOCAL_ROOT")
+	_ = v.BindEnv("storage.local.baseUrl", "AGENT_DESK_STORAGE_LOCAL_BASEURL", "STORAGE_LOCAL_BASE_URL")
+	_ = v.BindEnv("vectorDB.type", "AGENT_DESK_VECTORDB_TYPE", "VECTOR_DB_TYPE")
+	_ = v.BindEnv("vectorDB.qdrant.host", "AGENT_DESK_VECTORDB_QDRANT_HOST", "QDRANT_HOST")
+	_ = v.BindEnv("vectorDB.qdrant.grpcPort", "AGENT_DESK_VECTORDB_QDRANT_GRPCPORT", "QDRANT_GRPC_PORT", "QDRANT_PORT")
+	_ = v.BindEnv("vectorDB.qdrant.apiKey", "AGENT_DESK_VECTORDB_QDRANT_APIKEY", "QDRANT_API_KEY")
+	_ = v.BindEnv("oidc.enabled", "AGENT_DESK_OIDC_ENABLED", "OIDC_ENABLED")
+	_ = v.BindEnv("oidc.issuer", "AGENT_DESK_OIDC_ISSUER", "OIDC_ISSUER")
+	_ = v.BindEnv("oidc.clientId", "AGENT_DESK_OIDC_CLIENTID", "OIDC_CLIENT_ID", "CUSTOM_OAUTH_CLIENT_ID")
+	_ = v.BindEnv("oidc.clientSecret", "AGENT_DESK_OIDC_CLIENTSECRET", "OIDC_CLIENT_SECRET", "CUSTOM_OAUTH_CLIENT_SECRET")
+	_ = v.BindEnv("oidc.redirectUrl", "AGENT_DESK_OIDC_REDIRECTURL", "OIDC_REDIRECT_URL", "CUSTOM_OAUTH_REDIRECT_URI")
+	_ = v.BindEnv("webhook.orgSyncSecret", "AGENT_DESK_WEBHOOK_ORGSYNCSECRET", "ORG_SYNC_SECRET", "WEBHOOK_SECRET")
 }
 
 func normalizeLoadedConfig(cfg *Config) {
