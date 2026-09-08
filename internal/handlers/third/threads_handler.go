@@ -2,6 +2,7 @@ package third
 
 import (
 	"bytes"
+	"crypto/subtle"
 	"io"
 	"net/http"
 	"strings"
@@ -23,24 +24,38 @@ func ThreadsGetWebhook(ctx *gin.Context) {
 		channelID = strings.TrimSpace(ctx.Query("channel_id"))
 	}
 
-	if mode == "subscribe" {
-		if channelID != "" {
-			channel := services.ChannelService.Take("channel_id = ? AND channel_type = ? AND status = ?", channelID, enums.ChannelTypeThreads, enums.StatusOk)
-			if channel != nil {
-				if cfg, err := services.ChannelService.ParseThreadsChannelConfig(channel.ConfigJSON); err == nil && cfg != nil {
-					if cfg.WebhookVerifyToken != "" && cfg.WebhookVerifyToken != token {
-						ctx.String(http.StatusForbidden, "Verification token mismatch")
-						return
-					}
-				}
-			}
-		}
-
-		ctx.String(http.StatusOK, challenge)
+	if mode != "subscribe" {
+		ctx.String(http.StatusBadRequest, "Invalid verification request")
 		return
 	}
 
-	ctx.String(http.StatusBadRequest, "Invalid verification request")
+	// Meta's hub.challenge echo is only safe once the request is bound to a
+	// configured channel and the verify token matches. Echoing the challenge
+	// for an unbound request lets anyone confirm a webhook subscription they
+	// do not own.
+	if channelID == "" {
+		ctx.String(http.StatusForbidden, "Missing channel id")
+		return
+	}
+
+	channel := services.ChannelService.Take("channel_id = ? AND channel_type = ? AND status = ?", channelID, enums.ChannelTypeThreads, enums.StatusOk)
+	if channel == nil {
+		ctx.String(http.StatusForbidden, "Channel not found")
+		return
+	}
+
+	cfg, err := services.ChannelService.ParseThreadsChannelConfig(channel.ConfigJSON)
+	if err != nil || cfg == nil || cfg.WebhookVerifyToken == "" {
+		ctx.String(http.StatusForbidden, "Webhook verify token is not configured")
+		return
+	}
+
+	if subtle.ConstantTimeCompare([]byte(cfg.WebhookVerifyToken), []byte(token)) != 1 {
+		ctx.String(http.StatusForbidden, "Verification token mismatch")
+		return
+	}
+
+	ctx.String(http.StatusOK, challenge)
 }
 
 // ThreadsPostWebhook receives incoming webhook events from Meta Threads.

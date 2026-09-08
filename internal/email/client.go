@@ -13,6 +13,7 @@ import (
 	"net/mail"
 	"net/smtp"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -305,7 +306,7 @@ func (c *emailClient) sendViaSMTP(ctx context.Context, req SendEmailParams) erro
 		return fmt.Errorf("smtp host is not configured")
 	}
 
-	addr := fmt.Sprintf("%s:%d", c.cfg.SMTPHost, c.cfg.SMTPPort)
+	addr := net.JoinHostPort(c.cfg.SMTPHost, strconv.Itoa(c.cfg.SMTPPort))
 	fromHeader := req.FromEmail
 	if req.FromName != "" {
 		fromHeader = fmt.Sprintf("%s <%s>", req.FromName, req.FromEmail)

@@ -22,7 +22,14 @@
     "cancel": "Cancel",
     "status": "Status",
     "save": "Save",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "refresh": "Refresh",
+    "actions": "Actions",
+    "name": "Name",
+    "description": "Description"
   },
   "language": {
     "enUS": "English",

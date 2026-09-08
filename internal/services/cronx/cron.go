@@ -70,6 +70,14 @@ func Init() {
 		if threadsCount > 0 {
 			slog.Info("threads outbox dispatched", "count", threadsCount)
 		}
+		xCount := services.XOutboundService.DispatchPendingOutbox()
+		if xCount > 0 {
+			slog.Info("x outbox dispatched", "count", xCount)
+		}
+		tiktokCount := services.TikTokOutboundService.DispatchPendingOutbox()
+		if tiktokCount > 0 {
+			slog.Info("tiktok outbox dispatched", "count", tiktokCount)
+		}
 	})
 
 	c.Start()

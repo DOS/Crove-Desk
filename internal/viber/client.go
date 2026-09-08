@@ -112,6 +112,10 @@ func (c *Client) doRequest(ctx context.Context, path string, payload any, result
 		return fmt.Errorf("read viber response failed: %w", err)
 	}
 
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return fmt.Errorf("viber api error (status %d): %s", res.StatusCode, string(respBytes))
+	}
+
 	if err := json.Unmarshal(respBytes, result); err != nil {
 		return fmt.Errorf("unmarshal viber response failed: %w (body: %s)", err, string(respBytes))
 	}

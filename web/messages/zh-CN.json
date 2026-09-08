@@ -22,7 +22,14 @@
     "cancel": "取消",
     "status": "状态",
     "save": "保存",
-    "confirm": "确认"
+    "confirm": "确认",
+    "delete": "删除",
+    "edit": "编辑",
+    "create": "创建",
+    "refresh": "刷新",
+    "actions": "操作",
+    "name": "名称",
+    "description": "描述"
   },
   "language": {
     "enUS": "English (英文)",
@@ -2165,6 +2172,7 @@
     "resumeReply": "恢复回复"
   },
   "knowledge": {
+    "status": "状态",
     "document": "文档",
     "faq": "FAQ",
     "retrieveLogs": "检索日志",

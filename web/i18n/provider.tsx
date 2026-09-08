@@ -66,7 +66,6 @@ export function AppI18nProvider({ children }: { children: ReactNode }) {
       window.localStorage.setItem("app_locale", next)
     } catch (_) {}
     document.documentElement.lang = next
-    applyBranding(next, publicConfig)
   }
 
   useEffect(() => {

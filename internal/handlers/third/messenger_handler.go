@@ -2,6 +2,7 @@ package third
 
 import (
 	"bytes"
+	"crypto/subtle"
 	"io"
 	"net/http"
 	"strings"
@@ -23,25 +24,37 @@ func MessengerGetWebhook(ctx *gin.Context) {
 		channelID = strings.TrimSpace(ctx.Query("channel_id"))
 	}
 
-	if mode == "subscribe" {
-		// Verify token against channel config if present, or accept if valid
-		if channelID != "" {
-			channel := services.ChannelService.Take("channel_id = ? AND channel_type = ? AND status = ?", channelID, enums.ChannelTypeMessenger, enums.StatusOk)
-			if channel != nil {
-				if cfg, err := services.ChannelService.ParseMessengerChannelConfig(channel.ConfigJSON); err == nil && cfg != nil {
-					if cfg.WebhookVerifyToken != "" && cfg.WebhookVerifyToken != token {
-						ctx.String(http.StatusForbidden, "Verification token mismatch")
-						return
-					}
-				}
-			}
-		}
-
-		ctx.String(http.StatusOK, challenge)
+	if mode != "subscribe" {
+		ctx.String(http.StatusBadRequest, "Invalid verification request")
 		return
 	}
 
-	ctx.String(http.StatusBadRequest, "Invalid verification request")
+	// Echoing hub.challenge for an unbound request would let anyone confirm a
+	// webhook subscription they do not own, so require a configured channel
+	// and a constant-time token match before echoing.
+	if channelID == "" {
+		ctx.String(http.StatusForbidden, "Missing channel id")
+		return
+	}
+
+	channel := services.ChannelService.Take("channel_id = ? AND channel_type = ? AND status = ?", channelID, enums.ChannelTypeMessenger, enums.StatusOk)
+	if channel == nil {
+		ctx.String(http.StatusForbidden, "Channel not found or disabled")
+		return
+	}
+
+	cfg, err := services.ChannelService.ParseMessengerChannelConfig(channel.ConfigJSON)
+	if err != nil || cfg == nil || cfg.WebhookVerifyToken == "" {
+		ctx.String(http.StatusForbidden, "Webhook verify token is not configured")
+		return
+	}
+
+	if subtle.ConstantTimeCompare([]byte(cfg.WebhookVerifyToken), []byte(token)) != 1 {
+		ctx.String(http.StatusForbidden, "Verification token mismatch")
+		return
+	}
+
+	ctx.String(http.StatusOK, challenge)
 }
 
 // MessengerPostWebhook receives incoming Webhook events from Meta Messenger.
