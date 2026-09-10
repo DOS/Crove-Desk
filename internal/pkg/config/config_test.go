@@ -108,6 +108,11 @@ EMAIL_FROM=help@example.com
 EMAIL_FROM_NAME=Helpdesk Team
 BREVO_API_KEY=xkeysib-test-123
 EMAIL_INBOUND_SECRET=inbound-secret-456
+DISCORD_CLIENT_ID=discord-app-123
+DISCORD_BOT_TOKEN=discord-bot-token-xyz
+META_APP_ID=meta-app-999
+META_APP_SECRET=meta-app-secret-888
+MESSENGER_VERIFY_TOKEN=meta-verify-token-777
 `)
 	if err := os.WriteFile(envPath, envContent, 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
@@ -194,5 +199,20 @@ EMAIL_INBOUND_SECRET=inbound-secret-456
 	}
 	if cfg.Email.InboundSecret != "inbound-secret-456" {
 		t.Fatalf("Email.InboundSecret=%q want inbound-secret-456", cfg.Email.InboundSecret)
+	}
+	if cfg.Discord.ClientID != "discord-app-123" {
+		t.Fatalf("Discord.ClientID=%q want discord-app-123", cfg.Discord.ClientID)
+	}
+	if cfg.Discord.BotToken != "discord-bot-token-xyz" {
+		t.Fatalf("Discord.BotToken=%q want discord-bot-token-xyz", cfg.Discord.BotToken)
+	}
+	if cfg.Messenger.AppID != "meta-app-999" {
+		t.Fatalf("Messenger.AppID=%q want meta-app-999", cfg.Messenger.AppID)
+	}
+	if cfg.Messenger.AppSecret != "meta-app-secret-888" {
+		t.Fatalf("Messenger.AppSecret=%q want meta-app-secret-888", cfg.Messenger.AppSecret)
+	}
+	if cfg.Messenger.VerifyToken != "meta-verify-token-777" {
+		t.Fatalf("Messenger.VerifyToken=%q want meta-verify-token-777", cfg.Messenger.VerifyToken)
 	}
 }

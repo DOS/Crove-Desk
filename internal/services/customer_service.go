@@ -381,3 +381,173 @@ func (s *customerService) SaveCustomerProfile(req request.SaveCustomerProfileReq
 	}
 	return out, nil
 }
+
+func (s *customerService) MergeCustomer(req request.MergeCustomerRequest, operator *dto.AuthPrincipal) (*models.Customer, error) {
+	if operator == nil {
+		return nil, errorsx.UnauthorizedI18n("error.auth.expired")
+	}
+	if req.TargetCustomerID <= 0 || req.SourceCustomerID <= 0 {
+		return nil, errorsx.InvalidParamI18n("error.e0155")
+	}
+	if req.TargetCustomerID == req.SourceCustomerID {
+		return nil, errorsx.InvalidParam("cannot merge customer into itself")
+	}
+
+	target := s.Get(req.TargetCustomerID)
+	if target == nil || target.Status == enums.StatusDeleted {
+		return nil, errorsx.InvalidParamI18n("error.e0155")
+	}
+
+	source := s.Get(req.SourceCustomerID)
+	if source == nil || source.Status == enums.StatusDeleted {
+		return nil, errorsx.InvalidParamI18n("error.e0155")
+	}
+
+	now := time.Now()
+	err := sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+		// 1. Move/merge CustomerIdentities from source to target
+		sourceIdentities := repositories.CustomerIdentityRepository.FindByCustomerID(ctx.Tx, source.ID)
+		targetIdentities := repositories.CustomerIdentityRepository.FindByCustomerID(ctx.Tx, target.ID)
+		targetIdentityMap := make(map[string]bool)
+		for _, ti := range targetIdentities {
+			key := string(ti.ExternalSource) + ":" + ti.ExternalID
+			targetIdentityMap[key] = true
+		}
+
+		for _, si := range sourceIdentities {
+			key := string(si.ExternalSource) + ":" + si.ExternalID
+			if targetIdentityMap[key] {
+				// Target already has this exact identity, remove duplicate from source
+				_ = repositories.CustomerIdentityRepository.Updates(ctx.Tx, si.ID, map[string]any{
+					"status":           enums.StatusDeleted,
+					"update_user_id":   operator.UserID,
+					"update_user_name": operator.Username,
+					"updated_at":       now,
+				})
+			} else {
+				// Move identity to target
+				if err := repositories.CustomerIdentityRepository.Updates(ctx.Tx, si.ID, map[string]any{
+					"customer_id":      target.ID,
+					"update_user_id":   operator.UserID,
+					"update_user_name": operator.Username,
+					"updated_at":       now,
+				}); err != nil {
+					return err
+				}
+				targetIdentityMap[key] = true
+			}
+		}
+
+		// 2. Move/merge CustomerContacts from source to target
+		sourceContacts := repositories.CustomerContactRepository.FindByCustomerID(ctx.Tx, source.ID)
+		targetContacts := repositories.CustomerContactRepository.FindByCustomerID(ctx.Tx, target.ID)
+		targetContactMap := make(map[string]bool)
+		for _, tc := range targetContacts {
+			key := string(tc.ContactType) + ":" + strings.ToLower(tc.ContactValue)
+			targetContactMap[key] = true
+		}
+
+		for _, sc := range sourceContacts {
+			key := string(sc.ContactType) + ":" + strings.ToLower(sc.ContactValue)
+			if targetContactMap[key] {
+				// Target already has this contact, mark duplicate contact deleted
+				_ = repositories.CustomerContactRepository.Updates(ctx.Tx, sc.ID, map[string]any{
+					"status":           enums.StatusDeleted,
+					"update_user_id":   operator.UserID,
+					"update_user_name": operator.Username,
+					"updated_at":       now,
+				})
+			} else {
+				// Move contact to target (set is_primary = false to preserve target's primary contact)
+				if err := repositories.CustomerContactRepository.Updates(ctx.Tx, sc.ID, map[string]any{
+					"customer_id":      target.ID,
+					"is_primary":       false,
+					"update_user_id":   operator.UserID,
+					"update_user_name": operator.Username,
+					"updated_at":       now,
+				}); err != nil {
+					return err
+				}
+				targetContactMap[key] = true
+			}
+		}
+
+		// 3. Move Conversations from source to target
+		if err := ctx.Tx.Model(&models.Conversation{}).
+			Where("customer_id = ?", source.ID).
+			Updates(map[string]any{
+				"customer_id":      target.ID,
+				"customer_name":    target.Name,
+				"update_user_id":   operator.UserID,
+				"update_user_name": operator.Username,
+				"updated_at":       now,
+			}).Error; err != nil {
+			return err
+		}
+
+		// 4. Move Tickets from source to target
+		if err := ctx.Tx.Model(&models.Ticket{}).
+			Where("customer_id = ?", source.ID).
+			Updates(map[string]any{
+				"customer_id":      target.ID,
+				"update_user_id":   operator.UserID,
+				"update_user_name": operator.Username,
+				"updated_at":       now,
+			}).Error; err != nil {
+			return err
+		}
+
+		// 5. Fill empty profile fields in target if available in source
+		targetUpdates := map[string]any{
+			"update_user_id":   operator.UserID,
+			"update_user_name": operator.Username,
+			"updated_at":       now,
+		}
+		if target.PrimaryEmail == "" && source.PrimaryEmail != "" {
+			target.PrimaryEmail = source.PrimaryEmail
+			targetUpdates["primary_email"] = target.PrimaryEmail
+		}
+		if target.PrimaryMobile == "" && source.PrimaryMobile != "" {
+			target.PrimaryMobile = source.PrimaryMobile
+			targetUpdates["primary_mobile"] = target.PrimaryMobile
+		}
+		if target.CompanyID == 0 && source.CompanyID > 0 {
+			target.CompanyID = source.CompanyID
+			targetUpdates["company_id"] = target.CompanyID
+		}
+		if target.Gender == 0 && source.Gender != 0 {
+			target.Gender = source.Gender
+			targetUpdates["gender"] = target.Gender
+		}
+
+		mergeRemark := fmt.Sprintf("Merged from Customer #%d (%s)", source.ID, source.Name)
+		if trimmedReason := strings.TrimSpace(req.Reason); trimmedReason != "" {
+			mergeRemark += fmt.Sprintf(". Reason: %s", trimmedReason)
+		}
+		if target.Remark != "" {
+			target.Remark = target.Remark + "\n" + mergeRemark
+		} else {
+			target.Remark = mergeRemark
+		}
+		targetUpdates["remark"] = target.Remark
+
+		if err := repositories.CustomerRepository.Updates(ctx.Tx, target.ID, targetUpdates); err != nil {
+			return err
+		}
+
+		// 6. Soft-delete Source Customer
+		sourceUpdates := map[string]any{
+			"status":           enums.StatusDeleted,
+			"remark":           fmt.Sprintf("Merged into Customer #%d (%s)", target.ID, target.Name),
+			"update_user_id":   operator.UserID,
+			"update_user_name": operator.Username,
+			"updated_at":       now,
+		}
+		return repositories.CustomerRepository.Updates(ctx.Tx, source.ID, sourceUpdates)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return s.Get(target.ID), nil
+}

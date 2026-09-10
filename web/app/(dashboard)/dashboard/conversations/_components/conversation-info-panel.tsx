@@ -2,6 +2,7 @@
 import {
   AlertTriangleIcon,
   Building2Icon,
+  GitMergeIcon,
   Link2Icon,
   MailIcon,
   PencilIcon,
@@ -16,6 +17,9 @@ import { toast } from "sonner";
 import { type CustomerFormSavePayload } from "@/components/customer-form";
 import { CustomerFormDialog } from "@/components/customer-form-dialog";
 import { CustomerLinkOrCreateDialog } from "@/components/customer-link-or-create-dialog";
+import { CustomerMergeDialog } from "@/components/customer-merge-dialog";
+import { ChannelIcon } from "@/components/channel-icon";
+import { AssigneeSelector } from "./assignee-selector";
 import { JsonTreeViewer } from "@/components/json-tree-viewer";
 import { ProjectDialog } from "@/components/project-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -255,12 +259,23 @@ export function ConversationInfoPanel({
           </p>
         ) : (
           <div className="space-y-4 py-3">
-            <section>
-              <DetailRow
-                label={t("conversation.conversationId")}
-                value={`${conversation.id}`}
-                valueClassName="font-mono text-xs"
-              />
+            <section className="space-y-2 rounded-lg border bg-muted/20 p-2.5">
+              <SectionHeading>{t("conversation.conversationAttributes")}</SectionHeading>
+              <div className="space-y-1.5">
+                <DetailRow
+                  label={t("conversation.conversationId")}
+                  value={`#${conversation.id}`}
+                  valueClassName="font-mono text-xs font-semibold"
+                />
+                <div className="flex gap-2.5 text-sm leading-snug">
+                  <span className="w-17 shrink-0 pt-px text-xs text-muted-foreground">{t("conversation.channel")}</span>
+                  <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-foreground">
+                    <ChannelIcon channelType={conversation.channelType} className="size-3.5 shrink-0" />
+                    <span className="truncate font-medium">{conversation.channelName || conversation.channelType || "—"}</span>
+                  </div>
+                </div>
+                <AssigneeSelector conversation={conversation} variant="sidebar" />
+              </div>
             </section>
             <CustomerBody conversation={conversation} />
             <WorkflowRunsSection conversation={conversation} />
@@ -628,12 +643,14 @@ type CustomerLinkedBodyProps = {
 
 function CustomerLinkedBody({ conversation, customerId }: CustomerLinkedBodyProps) {
   const t = useI18n();
+  const loadConversations = useAgentConversationsStore((s) => s.loadConversations);
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState<AdminCustomer | null>(null);
   const [contacts, setContacts] = useState<AdminCustomerContact[]>([]);
 
   const [customerEditOpen, setCustomerEditOpen] = useState(false);
   const [customerEditSaving, setCustomerEditSaving] = useState(false);
+  const [customerMergeOpen, setCustomerMergeOpen] = useState(false);
   const [companyEditOpen, setCompanyEditOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -720,16 +737,29 @@ function CustomerLinkedBody({ conversation, customerId }: CustomerLinkedBodyProp
               </p>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 shrink-0 gap-1 px-2 text-xs"
-            onClick={() => setCustomerEditOpen(true)}
-          >
-            <PencilIcon className="size-3.5" />
-            {t("conversation.edit")}
-          </Button>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setCustomerMergeOpen(true)}
+              title={t("customerMerge.mergeAction")}
+            >
+              <GitMergeIcon className="size-3.5" />
+              <span>{t("customerMerge.mergeAction")}</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs"
+              onClick={() => setCustomerEditOpen(true)}
+            >
+              <PencilIcon className="size-3.5" />
+              {t("conversation.edit")}
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -757,7 +787,28 @@ function CustomerLinkedBody({ conversation, customerId }: CustomerLinkedBodyProp
         </div>
       </section>
 
-      <section className="space-y-2">
+      {customer.identities && customer.identities.length > 0 ? (
+        <section className="space-y-2 border-t pt-2">
+          <SectionHeading>{t("conversation.connectedChannels")}</SectionHeading>
+          <div className="flex flex-wrap gap-1.5">
+            {customer.identities.map((identity) => (
+              <div
+                key={identity.id}
+                className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-xs text-foreground shadow-2xs"
+                title={`${identity.externalSource}: ${identity.externalId}`}
+              >
+                <ChannelIcon channelType={identity.externalSource} className="size-3.5 text-muted-foreground shrink-0" />
+                <span className="capitalize font-medium">{identity.externalSource}</span>
+                <span className="font-mono text-[11px] text-muted-foreground truncate max-w-28">
+                  {identity.externalId}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="space-y-2 border-t pt-2">
         {contacts.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("conversation.noContacts")}</p>
         ) : (
@@ -880,6 +931,15 @@ function CustomerLinkedBody({ conversation, customerId }: CustomerLinkedBodyProp
           } finally {
             setCustomerEditSaving(false);
           }
+        }}
+      />
+      <CustomerMergeDialog
+        open={customerMergeOpen}
+        onOpenChange={setCustomerMergeOpen}
+        currentCustomer={customer}
+        onSuccess={async () => {
+          void load();
+          await loadConversations();
         }}
       />
       {company ? (

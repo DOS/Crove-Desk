@@ -35,6 +35,11 @@ type OrgSyncEventData struct {
 	JobTitle       string `json:"job_title,omitempty"`
 	CompanyName    string `json:"company_name,omitempty"`
 	Source         string `json:"source,omitempty"`
+
+	// Team fields
+	TeamID   string `json:"team_id,omitempty"`
+	TeamName string `json:"team_name,omitempty"`
+	TeamSlug string `json:"team_slug,omitempty"`
 }
 
 type OrgSyncWebhookRequest struct {

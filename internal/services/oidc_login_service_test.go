@@ -94,3 +94,85 @@ func TestOIDCLoginReusesExistingIdentity(t *testing.T) {
 		t.Fatalf("expected existing identity to reuse user, got %d users", count)
 	}
 }
+
+func TestOIDCLoginSyncsOrganizationsAndTeams(t *testing.T) {
+	db := setupAuthServiceTestDB(t)
+	svc := newOIDCLoginService()
+
+	profile := &oidcLoginProfile{
+		Subject:           "7a3562bb-f529-45e0-bdfa-b73ca55ce8c8",
+		Email:             "agent@acme.com",
+		PreferredUsername: "janedoe",
+		Name:              "Jane Doe",
+		Picture:           "https://avatar.dos.me/jane.png",
+		ActiveOrgID:       "org_987654321",
+		Organizations: []oidcLoginProfileOrg{
+			{
+				ID:   "org_987654321",
+				Name: "Acme Corporation",
+				Slug: "acme",
+				Role: "ADMIN",
+			},
+		},
+		Teams: []oidcLoginProfileTeam{
+			{
+				ID:    "team_11223344",
+				OrgID: "org_987654321",
+				Name:  "Customer Support",
+				Slug:  "customer-support",
+				Role:  "LEAD",
+			},
+			{
+				ID:    "team_55667788",
+				OrgID: "org_987654321",
+				Name:  "Sales & Outreach",
+				Slug:  "sales-outreach",
+				Role:  "MEMBER",
+			},
+		},
+		RawProfile: `{"sub":"7a3562bb-f529-45e0-bdfa-b73ca55ce8c8"}`,
+	}
+
+	ret, err := svc.loginWithOIDCProfile(profile, config.AuthConfig{TokenTTLHours: 2}, "127.0.0.1", "go-test")
+	if err != nil {
+		t.Fatalf("loginWithOIDCProfile() error = %v", err)
+	}
+	if ret == nil {
+		t.Fatalf("expected non-nil login response")
+	}
+
+	// Verify User created and mapped to Active Org
+	var user models.User
+	if err := db.Take(&user, "username = ?", "janedoe").Error; err != nil {
+		t.Fatalf("expected user created: %v", err)
+	}
+
+	var org models.Organization
+	if err := db.Take(&org, "code = ?", "org_987654321").Error; err != nil {
+		t.Fatalf("expected organization created: %v", err)
+	}
+	if user.ActiveOrgID != org.ID {
+		t.Fatalf("expected active org id %d, got %d", org.ID, user.ActiveOrgID)
+	}
+
+	// Verify AgentTeam created for Customer Support
+	var team models.AgentTeam
+	if err := db.Take(&team, "name = ?", "Customer Support").Error; err != nil {
+		t.Fatalf("expected Customer Support team created: %v", err)
+	}
+	if team.LeaderUserID != user.ID {
+		t.Fatalf("expected user to be team lead, got leader_user_id = %d", team.LeaderUserID)
+	}
+
+	// Verify AgentProfile mapped to Customer Support team with Lead priority
+	var agentProfile models.AgentProfile
+	if err := db.Take(&agentProfile, "user_id = ?", user.ID).Error; err != nil {
+		t.Fatalf("expected agent profile created: %v", err)
+	}
+	if agentProfile.TeamID != team.ID {
+		t.Fatalf("expected agent profile mapped to team %d, got %d", team.ID, agentProfile.TeamID)
+	}
+	if agentProfile.PriorityLevel != 10 {
+		t.Fatalf("expected priority level 10 for LEAD, got %d", agentProfile.PriorityLevel)
+	}
+}

@@ -1,15 +1,18 @@
 "use client";
 
-import { BanIcon, CheckCircle2Icon } from "lucide-react";
+import { BanIcon, CheckCircle2Icon, GitMergeIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { ChannelIcon } from "@/components/channel-icon";
 import { type CustomerFormSavePayload } from "@/components/customer-form";
+import { CustomerMergeDialog } from "@/components/customer-merge-dialog";
 import {
   DashboardCrudPage,
   createDashboardStatusColumn,
   createDashboardStatusToggleAction,
   type DashboardCrudColumn,
   type DashboardCrudFilter,
+  type DashboardCrudRowActionContext,
 } from "@/components/dashboard/crud";
 import { type ComboboxOption } from "@/components/option-combobox";
 import { fetchCompanies, type AdminCompany } from "@/lib/api/company";
@@ -34,6 +37,8 @@ function getGenderText(gender: number, t: TFunction) {
 
 export default function DashboardCustomersPage() {
   const t = useI18n();
+  const [mergeTarget, setMergeTarget] = useState<AdminCustomer | null>(null);
+  const [mergeOpen, setMergeOpen] = useState(false);
   const [companyOptions, setCompanyOptions] = useState<ComboboxOption[]>([
     { value: "0", label: t("customer.allCompanies") },
   ]);
@@ -178,6 +183,28 @@ export default function DashboardCustomersPage() {
           </span>
         ),
       },
+      {
+        key: "channels",
+        label: t("customer.columnChannels"),
+        className: "w-28",
+        render: (item) => (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {item.channels && item.channels.length > 0 ? (
+              item.channels.map((ch) => (
+                <span
+                  key={ch}
+                  className="flex size-6 items-center justify-center rounded-md bg-muted/60 text-muted-foreground border border-border/50"
+                  title={ch}
+                >
+                  <ChannelIcon channelType={ch} className="size-3.5" />
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-muted-foreground">—</span>
+            )}
+          </div>
+        ),
+      },
       createDashboardStatusColumn<AdminCustomer, number>({
         label: t("customer.columnStatus"),
         className: "w-24",
@@ -192,75 +219,92 @@ export default function DashboardCustomersPage() {
   );
 
   return (
-    <DashboardCrudPage<AdminCustomer, CustomerFormSavePayload>
-      filters={filters}
-      columns={columns}
-      fetchList={(query) =>
-        fetchCustomers({
-          keyword:
-            typeof query.keyword === "string" ? query.keyword : undefined,
-          status:
-            typeof query.status === "number" ? query.status : undefined,
-          gender:
-            typeof query.gender === "number" ? query.gender : undefined,
-          companyId:
-            typeof query.companyId === "number" ? query.companyId : undefined,
-          page: Number(query.page),
-          limit: Number(query.limit),
-        })
-      }
-      getItemId={(item) => item.id}
-      createItem={saveCustomerProfile}
-      updateItem={(_item, payload) => saveCustomerProfile(payload)}
-      deleteItem={(item) => deleteCustomer(item.id)}
-      canDelete={(item) => item.status !== Status.Deleted}
-      rowActions={[
-        createDashboardStatusToggleAction<AdminCustomer, number>({
-          icon: (item) =>
-            item.status === Status.Ok ? <BanIcon /> : <CheckCircle2Icon />,
-          label: (item) =>
-            item.status === Status.Ok
-              ? t("customer.disable")
-              : t("customer.enable"),
-          disabled: (item) => item.status === Status.Deleted,
-          getNextStatus: (item) =>
-            item.status === Status.Ok ? Status.Disabled : Status.Ok,
-          updateStatus: (item, nextStatus) =>
-            updateCustomerStatus(item.id, nextStatus),
-          successMessage: (item, nextStatus) =>
-            t(nextStatus === Status.Ok ? "customer.enabled" : "customer.disabled", {
-              name: item.name,
-            }),
-          errorMessage: t("customer.statusUpdateFailed"),
-        }),
-      ]}
-      renderEditDialog={({ open, saving, itemId, onOpenChange, onSubmit }) => (
-        <EditDialog
-          open={open}
-          saving={saving}
-          itemId={itemId}
-          onOpenChange={onOpenChange}
-          onSave={onSubmit}
-        />
-      )}
-      labels={{
-        refresh: t("customer.refresh"),
-        create: t("customer.new"),
-        query: t("customer.query"),
-        loading: t("customer.loading"),
-        empty: t("customer.empty"),
-        actions: t("customer.columnActions"),
-        edit: t("customer.edit"),
-        delete: t("customer.delete"),
-        processing: t("customer.processing"),
-        moreActions: (item) => t("customer.moreActions", { name: item.name }),
-        loadFailed: t("customer.loadFailed"),
-        saveFailed: t("customer.saveFailed"),
-        deleteFailed: t("customer.deleteFailed"),
-        created: (payload) => t("customer.created", { name: payload.name }),
-        updated: (item) => t("customer.updated", { name: item.name }),
-        deleted: (item) => t("customer.deleted", { name: item.name }),
-      }}
-    />
+    <>
+      <DashboardCrudPage<AdminCustomer, CustomerFormSavePayload>
+        filters={filters}
+        columns={columns}
+        fetchList={(query) =>
+          fetchCustomers({
+            keyword:
+              typeof query.keyword === "string" ? query.keyword : undefined,
+            status:
+              typeof query.status === "number" ? query.status : undefined,
+            gender:
+              typeof query.gender === "number" ? query.gender : undefined,
+            companyId:
+              typeof query.companyId === "number" ? query.companyId : undefined,
+            page: Number(query.page),
+            limit: Number(query.limit),
+          })
+        }
+        getItemId={(item) => item.id}
+        createItem={saveCustomerProfile}
+        updateItem={(_item, payload) => saveCustomerProfile(payload)}
+        deleteItem={(item) => deleteCustomer(item.id)}
+        canDelete={(item) => item.status !== Status.Deleted}
+        rowActions={[
+          {
+            key: "merge",
+            label: t("customerMerge.mergeAction"),
+            icon: <GitMergeIcon className="size-4" />,
+            disabled: (item: AdminCustomer) => item.status === Status.Deleted,
+            run: ({ item }: DashboardCrudRowActionContext<AdminCustomer>) => {
+              setMergeTarget(item);
+              setMergeOpen(true);
+            },
+          },
+          createDashboardStatusToggleAction<AdminCustomer, number>({
+            icon: (item) =>
+              item.status === Status.Ok ? <BanIcon /> : <CheckCircle2Icon />,
+            label: (item) =>
+              item.status === Status.Ok
+                ? t("customer.disable")
+                : t("customer.enable"),
+            disabled: (item) => item.status === Status.Deleted,
+            getNextStatus: (item) =>
+              item.status === Status.Ok ? Status.Disabled : Status.Ok,
+            updateStatus: (item, nextStatus) =>
+              updateCustomerStatus(item.id, nextStatus),
+            successMessage: (item, nextStatus) =>
+              t(nextStatus === Status.Ok ? "customer.enabled" : "customer.disabled", {
+                name: item.name,
+              }),
+            errorMessage: t("customer.statusUpdateFailed"),
+          }),
+        ]}
+        renderEditDialog={({ open, saving, itemId, onOpenChange, onSubmit }) => (
+          <EditDialog
+            open={open}
+            saving={saving}
+            itemId={itemId}
+            onOpenChange={onOpenChange}
+            onSave={onSubmit}
+          />
+        )}
+        labels={{
+          refresh: t("customer.refresh"),
+          create: t("customer.new"),
+          query: t("customer.query"),
+          loading: t("customer.loading"),
+          empty: t("customer.empty"),
+          actions: t("customer.columnActions"),
+          edit: t("customer.edit"),
+          delete: t("customer.delete"),
+          processing: t("customer.processing"),
+          moreActions: (item) => t("customer.moreActions", { name: item.name }),
+          loadFailed: t("customer.loadFailed"),
+          saveFailed: t("customer.saveFailed"),
+          deleteFailed: t("customer.deleteFailed"),
+          created: (payload) => t("customer.created", { name: payload.name }),
+          updated: (item) => t("customer.updated", { name: item.name }),
+          deleted: (item) => t("customer.deleted", { name: item.name }),
+        }}
+      />
+      <CustomerMergeDialog
+        open={mergeOpen}
+        onOpenChange={setMergeOpen}
+        currentCustomer={mergeTarget}
+      />
+    </>
   );
 }

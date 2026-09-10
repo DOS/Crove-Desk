@@ -19,8 +19,11 @@ type ConversationParticipantResponse struct {
 
 type ConversationResponse struct {
 	ID                        int64                           `json:"id"`
+	Title                     string                          `json:"title,omitempty"`
 	AIAgentID                 int64                           `json:"aiAgentId"`
 	ChannelID                 int64                           `json:"channelId"`
+	ChannelType               string                          `json:"channelType,omitempty"`
+	ChannelName               string                          `json:"channelName,omitempty"`
 	CustomerID                int64                           `json:"customerId"`
 	CustomerName              string                          `json:"customerName"`
 	Status                    enums.IMConversationStatus      `json:"status"`

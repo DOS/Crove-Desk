@@ -92,7 +92,7 @@ func setupCustomerServiceTestDB(t *testing.T) *gorm.DB {
 			_ = sqlDB.Close()
 		}
 	})
-	if err := db.AutoMigrate(&models.Customer{}, &models.CustomerIdentity{}, &models.Conversation{}); err != nil {
+	if err := db.AutoMigrate(&models.Customer{}, &models.CustomerIdentity{}, &models.CustomerContact{}, &models.Conversation{}, &models.Ticket{}, &models.Company{}); err != nil {
 		t.Fatalf("auto migrate error = %v", err)
 	}
 	sqls.SetDB(db)

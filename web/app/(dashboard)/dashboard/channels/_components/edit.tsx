@@ -30,6 +30,7 @@ import {
 	rollbackChannelAIAgentRollout,
   resetChannelUserTokenSecret,
 } from "@/lib/api/admin"
+import { listMyOrganizations } from "@/lib/api/organization"
 import { useI18n } from "@/i18n/provider"
 
 type ChannelFormDialogProps = {
@@ -85,6 +86,91 @@ type EmailChannelConfig = {
   webhookSecret?: string
 }
 
+type DiscordChannelConfig = {
+  guildId?: string
+  guildName?: string
+  botToken?: string
+  channelScope?: string
+  webhookSecret?: string
+}
+
+type MessengerChannelConfig = {
+  pageId?: string
+  pageName?: string
+  pageAccessToken?: string
+  webhookVerifyToken?: string
+  appSecret?: string
+}
+
+type InstagramChannelConfig = {
+  instagramId?: string
+  instagramUsername?: string
+  pageId?: string
+  pageAccessToken?: string
+  webhookVerifyToken?: string
+  appSecret?: string
+}
+
+type WhatsAppChannelConfig = {
+  phoneNumberId?: string
+  wabaId?: string
+  accessToken?: string
+  webhookVerifyToken?: string
+  appSecret?: string
+}
+
+type SlackChannelConfig = {
+  botToken?: string
+  signingSecret?: string
+  appId?: string
+  teamId?: string
+  teamName?: string
+  defaultChannel?: string
+}
+
+type XChannelConfig = {
+  bearerToken?: string
+  apiKey?: string
+  apiSecretKey?: string
+  accessToken?: string
+  accessTokenSecret?: string
+  accountId?: string
+  username?: string
+  webhookCRCSecret?: string
+}
+
+type TikTokChannelConfig = {
+  clientKey?: string
+  clientSecret?: string
+  accessToken?: string
+  openId?: string
+  username?: string
+  webhookVerifyToken?: string
+}
+
+type LineChannelConfig = {
+  channelId?: string
+  channelSecret?: string
+  channelAccessToken?: string
+  welcomeMessage?: string
+}
+
+type ViberChannelConfig = {
+  authToken?: string
+  botName?: string
+  avatarUrl?: string
+  webhookSecret?: string
+  welcomeMessage?: string
+}
+
+type ThreadsChannelConfig = {
+  threadsUserId?: string
+  username?: string
+  accessToken?: string
+  webhookVerifyToken?: string
+  appSecret?: string
+}
+
 function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
   return {
     title: t("channel.defaultTitleWeb"),
@@ -99,7 +185,7 @@ function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
 function createSchema(t: Translate) {
   return z
     .object({
-      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "email"], t("channel.typeRequired")),
+      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "email", "discord", "messenger", "instagram", "whatsapp", "slack", "x", "tiktok", "line", "viber", "threads"], t("channel.typeRequired")),
       aiAgentId: z.string().trim().regex(/^\d+$/, t("channel.agentRequired")),
 		aiAgentRolloutPercent: z.coerce.number().int().min(1).max(100),
       name: z.string().trim().min(1, t("channel.nameRequired")),
@@ -111,6 +197,58 @@ function createSchema(t: Translate) {
       zaloOaId: z.string().trim(),
       zaloAccessToken: z.string().trim(),
       zaloSecretKey: z.string().trim(),
+      discordGuildId: z.string().trim(),
+      discordGuildName: z.string().trim(),
+      discordBotToken: z.string().trim(),
+      messengerPageId: z.string().trim(),
+      messengerPageName: z.string().trim(),
+      messengerPageAccessToken: z.string().trim(),
+      messengerWebhookVerifyToken: z.string().trim(),
+      messengerAppSecret: z.string().trim(),
+      instagramId: z.string().trim(),
+      instagramUsername: z.string().trim(),
+      instagramPageId: z.string().trim(),
+      instagramPageAccessToken: z.string().trim(),
+      instagramWebhookVerifyToken: z.string().trim(),
+      instagramAppSecret: z.string().trim(),
+      whatsAppPhoneNumberId: z.string().trim(),
+      whatsAppWabaId: z.string().trim(),
+      whatsAppAccessToken: z.string().trim(),
+      whatsAppWebhookVerifyToken: z.string().trim(),
+      slackBotToken: z.string().trim(),
+      slackSigningSecret: z.string().trim(),
+      slackAppId: z.string().trim(),
+      slackTeamId: z.string().trim(),
+      slackTeamName: z.string().trim(),
+      slackDefaultChannel: z.string().trim(),
+      xBearerToken: z.string().trim(),
+      xApiKey: z.string().trim(),
+      xApiSecretKey: z.string().trim(),
+      xAccessToken: z.string().trim(),
+      xAccessTokenSecret: z.string().trim(),
+      xAccountId: z.string().trim(),
+      xUsername: z.string().trim(),
+      xWebhookCRCSecret: z.string().trim(),
+      tiktokClientKey: z.string().trim(),
+      tiktokClientSecret: z.string().trim(),
+      tiktokAccessToken: z.string().trim(),
+      tiktokOpenId: z.string().trim(),
+      tiktokUsername: z.string().trim(),
+      tiktokWebhookVerifyToken: z.string().trim(),
+      lineChannelId: z.string().trim(),
+      lineChannelSecret: z.string().trim(),
+      lineChannelAccessToken: z.string().trim(),
+      lineWelcomeMessage: z.string().trim(),
+      viberAuthToken: z.string().trim(),
+      viberBotName: z.string().trim(),
+      viberAvatarUrl: z.string().trim(),
+      viberWelcomeMessage: z.string().trim(),
+      viberWebhookSecret: z.string().trim(),
+      threadsUserId: z.string().trim(),
+      threadsUsername: z.string().trim(),
+      threadsAccessToken: z.string().trim(),
+      threadsAppSecret: z.string().trim(),
+      threadsWebhookVerifyToken: z.string().trim(),
       emailAddress: z.string().trim(),
       senderName: z.string().trim(),
       emailProvider: z.string().trim(),
@@ -156,11 +294,46 @@ function createSchema(t: Translate) {
           message: "Zalo OA Access Token is required",
         })
       }
+      if (values.channelType === "line" && !values.lineChannelAccessToken.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["lineChannelAccessToken"],
+          message: "LINE Channel Access Token is required",
+        })
+      }
+      if (values.channelType === "line" && !values.lineChannelSecret.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["lineChannelSecret"],
+          message: "LINE Channel Secret is required",
+        })
+      }
+      if (values.channelType === "viber" && !values.viberAuthToken.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["viberAuthToken"],
+          message: "Viber Auth Token is required",
+        })
+      }
+      if (values.channelType === "threads" && !values.threadsAccessToken.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["threadsAccessToken"],
+          message: "Threads Access Token is required",
+        })
+      }
+      if (values.channelType === "threads" && !values.threadsUserId.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["threadsUserId"],
+          message: "Threads User ID is required",
+        })
+      }
     })
 }
 
 type EditForm = {
-  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "email"
+  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "email" | "discord" | "messenger" | "instagram" | "whatsapp" | "slack" | "x" | "tiktok" | "line" | "viber" | "threads"
   aiAgentId: string
 	aiAgentRolloutPercent: number
   name: string
@@ -172,6 +345,58 @@ type EditForm = {
   zaloOaId: string
   zaloAccessToken: string
   zaloSecretKey: string
+  discordGuildId: string
+  discordGuildName: string
+  discordBotToken: string
+  messengerPageId: string
+  messengerPageName: string
+  messengerPageAccessToken: string
+  messengerWebhookVerifyToken: string
+  messengerAppSecret: string
+  instagramId: string
+  instagramUsername: string
+  instagramPageId: string
+  instagramPageAccessToken: string
+  instagramWebhookVerifyToken: string
+  instagramAppSecret: string
+  whatsAppPhoneNumberId: string
+  whatsAppWabaId: string
+  whatsAppAccessToken: string
+  whatsAppWebhookVerifyToken: string
+  slackBotToken: string
+  slackSigningSecret: string
+  slackAppId: string
+  slackTeamId: string
+  slackTeamName: string
+  slackDefaultChannel: string
+  xBearerToken: string
+  xApiKey: string
+  xApiSecretKey: string
+  xAccessToken: string
+  xAccessTokenSecret: string
+  xAccountId: string
+  xUsername: string
+  xWebhookCRCSecret: string
+  tiktokClientKey: string
+  tiktokClientSecret: string
+  tiktokAccessToken: string
+  tiktokOpenId: string
+  tiktokUsername: string
+  tiktokWebhookVerifyToken: string
+  lineChannelId: string
+  lineChannelSecret: string
+  lineChannelAccessToken: string
+  lineWelcomeMessage: string
+  viberAuthToken: string
+  viberBotName: string
+  viberAvatarUrl: string
+  viberWelcomeMessage: string
+  viberWebhookSecret: string
+  threadsUserId: string
+  threadsUsername: string
+  threadsAccessToken: string
+  threadsAppSecret: string
+  threadsWebhookVerifyToken: string
   emailAddress: string
   senderName: string
   emailProvider: string
@@ -204,6 +429,58 @@ function createEmptyForm(t: Translate): EditForm {
     zaloOaId: "",
     zaloAccessToken: "",
     zaloSecretKey: "",
+    discordGuildId: "",
+    discordGuildName: "",
+    discordBotToken: "",
+    messengerPageId: "",
+    messengerPageName: "",
+    messengerPageAccessToken: "",
+    messengerWebhookVerifyToken: "",
+    messengerAppSecret: "",
+    instagramId: "",
+    instagramUsername: "",
+    instagramPageId: "",
+    instagramPageAccessToken: "",
+    instagramWebhookVerifyToken: "",
+    instagramAppSecret: "",
+    whatsAppPhoneNumberId: "",
+    whatsAppWabaId: "",
+    whatsAppAccessToken: "",
+    whatsAppWebhookVerifyToken: "",
+    slackBotToken: "",
+    slackSigningSecret: "",
+    slackAppId: "",
+    slackTeamId: "",
+    slackTeamName: "",
+    slackDefaultChannel: "",
+    xBearerToken: "",
+    xApiKey: "",
+    xApiSecretKey: "",
+    xAccessToken: "",
+    xAccessTokenSecret: "",
+    xAccountId: "",
+    xUsername: "",
+    xWebhookCRCSecret: "",
+    tiktokClientKey: "",
+    tiktokClientSecret: "",
+    tiktokAccessToken: "",
+    tiktokOpenId: "",
+    tiktokUsername: "",
+    tiktokWebhookVerifyToken: "",
+    lineChannelId: "",
+    lineChannelSecret: "",
+    lineChannelAccessToken: "",
+    lineWelcomeMessage: "",
+    viberAuthToken: "",
+    viberBotName: "",
+    viberAvatarUrl: "",
+    viberWelcomeMessage: "",
+    viberWebhookSecret: "",
+    threadsUserId: "",
+    threadsUsername: "",
+    threadsAccessToken: "",
+    threadsAppSecret: "",
+    threadsWebhookVerifyToken: "",
     emailAddress: "help@crove.com",
     senderName: "Crove Desk Support",
     emailProvider: "brevo",
@@ -272,13 +549,6 @@ function parseEmailChannelConfig(configJson: string): EmailChannelConfig {
     return {
       emailAddress: parsed.emailAddress?.trim() || "",
       senderName: parsed.senderName?.trim() || "",
-      provider: parsed.provider?.trim() || "brevo",
-      apiKey: parsed.apiKey?.trim() || "",
-      smtpHost: parsed.smtpHost?.trim() || "",
-      smtpPort: parsed.smtpPort || 587,
-      smtpUser: parsed.smtpUser?.trim() || "",
-      smtpPassword: parsed.smtpPassword?.trim() || "",
-      webhookSecret: parsed.webhookSecret?.trim() || "",
     }
   } catch {
     return {}
@@ -332,6 +602,171 @@ function parseWechatMPChannelConfig(configJson: string, t: Translate): Required<
   }
 }
 
+function parseDiscordChannelConfig(configJson: string): DiscordChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as DiscordChannelConfig
+    return {
+      guildId: parsed.guildId?.trim() || "",
+      guildName: parsed.guildName?.trim() || "",
+      botToken: parsed.botToken?.trim() || "",
+      channelScope: parsed.channelScope?.trim() || "all",
+      webhookSecret: parsed.webhookSecret?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseMessengerChannelConfig(configJson: string): MessengerChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as MessengerChannelConfig
+    return {
+      pageId: parsed.pageId?.trim() || "",
+      pageName: parsed.pageName?.trim() || "",
+      pageAccessToken: parsed.pageAccessToken?.trim() || "",
+      webhookVerifyToken: parsed.webhookVerifyToken?.trim() || "",
+      appSecret: parsed.appSecret?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseInstagramChannelConfig(configJson: string): InstagramChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as InstagramChannelConfig
+    return {
+      instagramId: parsed.instagramId?.trim() || "",
+      instagramUsername: parsed.instagramUsername?.trim() || "",
+      pageId: parsed.pageId?.trim() || "",
+      pageAccessToken: parsed.pageAccessToken?.trim() || "",
+      webhookVerifyToken: parsed.webhookVerifyToken?.trim() || "",
+      appSecret: parsed.appSecret?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseWhatsAppChannelConfig(configJson: string): WhatsAppChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as WhatsAppChannelConfig
+    return {
+      phoneNumberId: parsed.phoneNumberId?.trim() || "",
+      wabaId: parsed.wabaId?.trim() || "",
+      accessToken: parsed.accessToken?.trim() || "",
+      webhookVerifyToken: parsed.webhookVerifyToken?.trim() || "",
+      appSecret: parsed.appSecret?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseSlackChannelConfig(configJson: string): SlackChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as SlackChannelConfig
+    return {
+      botToken: parsed.botToken?.trim() || "",
+      signingSecret: parsed.signingSecret?.trim() || "",
+      appId: parsed.appId?.trim() || "",
+      teamId: parsed.teamId?.trim() || "",
+      teamName: parsed.teamName?.trim() || "",
+      defaultChannel: parsed.defaultChannel?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseXChannelConfig(configJson: string): XChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as XChannelConfig
+    return {
+      bearerToken: parsed.bearerToken?.trim() || "",
+      apiKey: parsed.apiKey?.trim() || "",
+      apiSecretKey: parsed.apiSecretKey?.trim() || "",
+      accessToken: parsed.accessToken?.trim() || "",
+      accessTokenSecret: parsed.accessTokenSecret?.trim() || "",
+      accountId: parsed.accountId?.trim() || "",
+      username: parsed.username?.trim() || "",
+      webhookCRCSecret: parsed.webhookCRCSecret?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseTikTokChannelConfig(configJson: string): TikTokChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as TikTokChannelConfig
+    return {
+      clientKey: parsed.clientKey?.trim() || "",
+      clientSecret: parsed.clientSecret?.trim() || "",
+      accessToken: parsed.accessToken?.trim() || "",
+      openId: parsed.openId?.trim() || "",
+      username: parsed.username?.trim() || "",
+      webhookVerifyToken: parsed.webhookVerifyToken?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseLineChannelConfig(configJson: string): LineChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as LineChannelConfig
+    return {
+      channelId: parsed.channelId?.trim() || "",
+      channelSecret: parsed.channelSecret?.trim() || "",
+      channelAccessToken: parsed.channelAccessToken?.trim() || "",
+      welcomeMessage: parsed.welcomeMessage?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseViberChannelConfig(configJson: string): ViberChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as ViberChannelConfig
+    return {
+      authToken: parsed.authToken?.trim() || "",
+      botName: parsed.botName?.trim() || "",
+      avatarUrl: parsed.avatarUrl?.trim() || "",
+      webhookSecret: parsed.webhookSecret?.trim() || "",
+      welcomeMessage: parsed.welcomeMessage?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseThreadsChannelConfig(configJson: string): ThreadsChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as ThreadsChannelConfig
+    return {
+      threadsUserId: parsed.threadsUserId?.trim() || "",
+      username: parsed.username?.trim() || "",
+      accessToken: parsed.accessToken?.trim() || "",
+      webhookVerifyToken: parsed.webhookVerifyToken?.trim() || "",
+      appSecret: parsed.appSecret?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
 function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   if (!item) {
     return createEmptyForm(t)
@@ -340,6 +775,16 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const isTelegram = item.channelType === "telegram"
   const isZaloOA = item.channelType === "zalo_oa"
   const isEmail = item.channelType === "email"
+  const isDiscord = item.channelType === "discord"
+  const isMessenger = item.channelType === "messenger"
+  const isInstagram = item.channelType === "instagram"
+  const isWhatsApp = item.channelType === "whatsapp"
+  const isSlack = item.channelType === "slack"
+  const isX = item.channelType === "x"
+  const isTikTok = item.channelType === "tiktok"
+  const isLine = item.channelType === "line"
+  const isViber = item.channelType === "viber"
+  const isThreads = item.channelType === "threads"
   const webConfig = parseWebChannelConfig(item.configJson, t)
   const wechatConfig = isWechatMP
     ? parseWechatMPChannelConfig(item.configJson, t)
@@ -353,6 +798,36 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const emailConfig = isEmail
     ? parseEmailChannelConfig(item.configJson)
     : null
+  const discordConfig = isDiscord
+    ? parseDiscordChannelConfig(item.configJson)
+    : null
+  const messengerConfig = isMessenger
+    ? parseMessengerChannelConfig(item.configJson)
+    : null
+  const instagramConfig = isInstagram
+    ? parseInstagramChannelConfig(item.configJson)
+    : null
+  const whatsAppConfig = isWhatsApp
+    ? parseWhatsAppChannelConfig(item.configJson)
+    : null
+  const slackConfig = isSlack
+    ? parseSlackChannelConfig(item.configJson)
+    : null
+  const xConfig = isX
+    ? parseXChannelConfig(item.configJson)
+    : null
+  const tiktokConfig = isTikTok
+    ? parseTikTokChannelConfig(item.configJson)
+    : null
+  const lineConfig = isLine
+    ? parseLineChannelConfig(item.configJson)
+    : null
+  const viberConfig = isViber
+    ? parseViberChannelConfig(item.configJson)
+    : null
+  const threadsConfig = isThreads
+    ? parseThreadsChannelConfig(item.configJson)
+    : null
   return {
     channelType:
       item.channelType === "wxwork_kf"
@@ -361,22 +836,94 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
           ? "telegram"
           : item.channelType === "zalo_oa"
             ? "zalo_oa"
-            : item.channelType === "email"
-              ? "email"
-              : item.channelType === "wechat_mp"
-                ? "wechat_mp"
-                : "web",
+            : item.channelType === "discord"
+              ? "discord"
+              : item.channelType === "messenger"
+                ? "messenger"
+                : item.channelType === "instagram"
+                  ? "instagram"
+                  : item.channelType === "whatsapp"
+                    ? "whatsapp"
+                    : item.channelType === "slack"
+                      ? "slack"
+                      : item.channelType === "x"
+                        ? "x"
+                        : item.channelType === "tiktok"
+                          ? "tiktok"
+                          : item.channelType === "line"
+                            ? "line"
+                            : item.channelType === "viber"
+                              ? "viber"
+                              : item.channelType === "threads"
+                                ? "threads"
+                                : item.channelType === "email"
+                            ? "email"
+                            : item.channelType === "wechat_mp"
+                              ? "wechat_mp"
+                              : "web",
     aiAgentId: item.aiAgentId > 0 ? String(item.aiAgentId) : "",
 		aiAgentRolloutPercent: item.aiAgentRolloutPercent || 100,
     name: item.name,
     openKfId: parseOpenKfId(item.configJson),
-    botToken: telegramConfig?.botToken ?? "",
+    botToken: telegramConfig?.botToken || discordConfig?.botToken || "",
     botUsername: telegramConfig?.botUsername ?? "",
-    webhookSecret: telegramConfig?.webhookSecret ?? zaloConfig?.webhookSecret ?? emailConfig?.webhookSecret ?? "",
+    webhookSecret: telegramConfig?.webhookSecret || zaloConfig?.webhookSecret || emailConfig?.webhookSecret || discordConfig?.webhookSecret || "",
     zaloAppId: zaloConfig?.appId ?? "",
     zaloOaId: zaloConfig?.oaId ?? "",
     zaloAccessToken: zaloConfig?.accessToken ?? "",
     zaloSecretKey: zaloConfig?.secretKey ?? "",
+    discordGuildId: discordConfig?.guildId ?? "",
+    discordGuildName: discordConfig?.guildName ?? "",
+    discordBotToken: discordConfig?.botToken ?? "",
+    messengerPageId: messengerConfig?.pageId ?? "",
+    messengerPageName: messengerConfig?.pageName ?? "",
+    messengerPageAccessToken: messengerConfig?.pageAccessToken ?? "",
+    messengerWebhookVerifyToken: messengerConfig?.webhookVerifyToken ?? "",
+    messengerAppSecret: messengerConfig?.appSecret ?? "",
+    instagramId: instagramConfig?.instagramId ?? "",
+    instagramUsername: instagramConfig?.instagramUsername ?? "",
+    instagramPageId: instagramConfig?.pageId ?? "",
+    instagramPageAccessToken: instagramConfig?.pageAccessToken ?? "",
+    instagramWebhookVerifyToken: instagramConfig?.webhookVerifyToken ?? "",
+    instagramAppSecret: instagramConfig?.appSecret ?? "",
+    whatsAppPhoneNumberId: whatsAppConfig?.phoneNumberId ?? "",
+    whatsAppWabaId: whatsAppConfig?.wabaId ?? "",
+    whatsAppAccessToken: whatsAppConfig?.accessToken ?? "",
+    whatsAppWebhookVerifyToken: whatsAppConfig?.webhookVerifyToken ?? "",
+    slackBotToken: slackConfig?.botToken ?? "",
+    slackSigningSecret: slackConfig?.signingSecret ?? "",
+    slackAppId: slackConfig?.appId ?? "",
+    slackTeamId: slackConfig?.teamId ?? "",
+    slackTeamName: slackConfig?.teamName ?? "",
+    slackDefaultChannel: slackConfig?.defaultChannel ?? "",
+    xBearerToken: xConfig?.bearerToken ?? "",
+    xApiKey: xConfig?.apiKey ?? "",
+    xApiSecretKey: xConfig?.apiSecretKey ?? "",
+    xAccessToken: xConfig?.accessToken ?? "",
+    xAccessTokenSecret: xConfig?.accessTokenSecret ?? "",
+    xAccountId: xConfig?.accountId ?? "",
+    xUsername: xConfig?.username ?? "",
+    xWebhookCRCSecret: xConfig?.webhookCRCSecret ?? "",
+    tiktokClientKey: tiktokConfig?.clientKey ?? "",
+    tiktokClientSecret: tiktokConfig?.clientSecret ?? "",
+    tiktokAccessToken: tiktokConfig?.accessToken ?? "",
+    tiktokOpenId: tiktokConfig?.openId ?? "",
+    tiktokUsername: tiktokConfig?.username ?? "",
+    tiktokWebhookVerifyToken: tiktokConfig?.webhookVerifyToken ?? "",
+    lineChannelId: lineConfig?.channelId ?? "",
+    lineChannelSecret: lineConfig?.channelSecret ?? "",
+    lineChannelAccessToken: lineConfig?.channelAccessToken ?? "",
+    lineWelcomeMessage: lineConfig?.welcomeMessage ?? "",
+    viberAuthToken: viberConfig?.authToken ?? "",
+    viberBotName: viberConfig?.botName ?? "",
+    viberAvatarUrl: viberConfig?.avatarUrl ?? "",
+    viberWelcomeMessage: viberConfig?.welcomeMessage ?? "",
+    viberWebhookSecret: viberConfig?.webhookSecret ?? "",
+    threadsUserId: threadsConfig?.threadsUserId ?? "",
+    threadsUsername: threadsConfig?.username ?? "",
+    threadsAccessToken: threadsConfig?.accessToken ?? "",
+    threadsAppSecret: threadsConfig?.appSecret ?? "",
+    threadsWebhookVerifyToken: threadsConfig?.webhookVerifyToken ?? "",
     emailAddress: emailConfig?.emailAddress || "help@crove.com",
     senderName: emailConfig?.senderName || "Crove Desk Support",
     emailProvider: emailConfig?.provider || "brevo",
@@ -414,13 +961,6 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
         ? JSON.stringify({
             emailAddress: form.emailAddress.trim(),
             senderName: form.senderName.trim(),
-            provider: form.emailProvider.trim(),
-            apiKey: form.emailApiKey.trim(),
-            smtpHost: form.smtpHost.trim(),
-            smtpPort: form.smtpPort || 587,
-            smtpUser: form.smtpUser.trim(),
-            smtpPassword: form.smtpPassword.trim(),
-            webhookSecret: form.webhookSecret.trim(),
           })
         : channelType === "telegram"
           ? JSON.stringify({
@@ -435,6 +975,89 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
                 accessToken: form.zaloAccessToken.trim(),
                 secretKey: form.zaloSecretKey.trim(),
                 webhookSecret: form.webhookSecret.trim(),
+              })
+          : channelType === "discord"
+            ? JSON.stringify({
+                guildId: form.discordGuildId.trim(),
+                guildName: form.discordGuildName.trim(),
+                botToken: form.discordBotToken.trim(),
+                webhookSecret: form.webhookSecret.trim(),
+              })
+          : channelType === "messenger"
+            ? JSON.stringify({
+                pageId: form.messengerPageId.trim(),
+                pageName: form.messengerPageName.trim(),
+                pageAccessToken: form.messengerPageAccessToken.trim(),
+                webhookVerifyToken: form.messengerWebhookVerifyToken.trim(),
+                appSecret: form.messengerAppSecret.trim(),
+              })
+          : channelType === "instagram"
+            ? JSON.stringify({
+                instagramId: form.instagramId.trim(),
+                instagramUsername: form.instagramUsername.trim(),
+                pageId: form.instagramPageId.trim(),
+                pageAccessToken: form.instagramPageAccessToken.trim(),
+                webhookVerifyToken: form.instagramWebhookVerifyToken.trim(),
+                appSecret: form.instagramAppSecret.trim(),
+              })
+          : channelType === "whatsapp"
+            ? JSON.stringify({
+                phoneNumberId: form.whatsAppPhoneNumberId.trim(),
+                wabaId: form.whatsAppWabaId.trim(),
+                accessToken: form.whatsAppAccessToken.trim(),
+                webhookVerifyToken: form.whatsAppWebhookVerifyToken.trim(),
+              })
+          : channelType === "slack"
+            ? JSON.stringify({
+                botToken: form.slackBotToken.trim(),
+                signingSecret: form.slackSigningSecret.trim(),
+                appId: form.slackAppId.trim(),
+                teamId: form.slackTeamId.trim(),
+                teamName: form.slackTeamName.trim(),
+                defaultChannel: form.slackDefaultChannel.trim(),
+              })
+          : channelType === "x"
+            ? JSON.stringify({
+                bearerToken: form.xBearerToken.trim(),
+                apiKey: form.xApiKey.trim(),
+                apiSecretKey: form.xApiSecretKey.trim(),
+                accessToken: form.xAccessToken.trim(),
+                accessTokenSecret: form.xAccessTokenSecret.trim(),
+                accountId: form.xAccountId.trim(),
+                username: form.xUsername.trim(),
+                webhookCRCSecret: form.xWebhookCRCSecret.trim(),
+              })
+          : channelType === "tiktok"
+            ? JSON.stringify({
+                clientKey: form.tiktokClientKey.trim(),
+                clientSecret: form.tiktokClientSecret.trim(),
+                accessToken: form.tiktokAccessToken.trim(),
+                openId: form.tiktokOpenId.trim(),
+                username: form.tiktokUsername.trim(),
+                webhookVerifyToken: form.tiktokWebhookVerifyToken.trim(),
+              })
+          : channelType === "line"
+            ? JSON.stringify({
+                channelId: form.lineChannelId.trim(),
+                channelSecret: form.lineChannelSecret.trim(),
+                channelAccessToken: form.lineChannelAccessToken.trim(),
+                welcomeMessage: form.lineWelcomeMessage.trim(),
+              })
+          : channelType === "viber"
+            ? JSON.stringify({
+                authToken: form.viberAuthToken.trim(),
+                botName: form.viberBotName.trim(),
+                avatarUrl: form.viberAvatarUrl.trim(),
+                welcomeMessage: form.viberWelcomeMessage.trim(),
+                webhookSecret: form.viberWebhookSecret.trim(),
+              })
+          : channelType === "threads"
+            ? JSON.stringify({
+                threadsUserId: form.threadsUserId.trim(),
+                username: form.threadsUsername.trim(),
+                accessToken: form.threadsAccessToken.trim(),
+                appSecret: form.threadsAppSecret.trim(),
+                webhookVerifyToken: form.threadsWebhookVerifyToken.trim(),
               })
             : channelType === "wechat_mp"
               ? JSON.stringify(webLikeConfig)
@@ -530,19 +1153,50 @@ function ChannelFormBody({
   const aiAgentId = useWatch({ control, name: "aiAgentId" })
   const openKfId = useWatch({ control, name: "openKfId" })
   const userTokenSecret = useWatch({ control, name: "userTokenSecret" })
-  const emailProvider = useWatch({ control, name: "emailProvider" })
   const emailAddressValue = useWatch({ control, name: "emailAddress" })
   const nameValue = useWatch({ control, name: "name" })
 	const previousRolloutPercent = channelDetail?.previousAiAgentRolloutPercent ?? 0
+  const [orgSlug, setOrgSlug] = useState<string>("org")
+
+  useEffect(() => {
+    async function loadOrg() {
+      try {
+        const res = await listMyOrganizations()
+        const active =
+          res.organizations.find((o) => o.id === res.currentOrganizationId) ||
+          res.organizations[0]
+        if (active) {
+          let slug = ""
+          if (active.code && !active.code.startsWith("org_") && !active.code.startsWith("org-")) {
+            slug = active.code.toLowerCase()
+          } else if (active.name) {
+            slug = active.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+          }
+          if (!slug && active.code) {
+            slug = active.code.toLowerCase()
+          }
+          setOrgSlug(slug || "dos")
+        }
+      } catch {
+        // fallback to default org
+      }
+    }
+    void loadOrg()
+  }, [])
 
   const forwardingAddressPreview = useMemo(() => {
     const raw = (emailAddressValue || "").trim().toLowerCase()
     if (raw.endsWith(".crove.io") || raw.endsWith(".on.crove.email") || raw.endsWith(".crove-mail.com")) {
       return raw
     }
-    const cleanName = (nameValue || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "org"
-    return `help@${cleanName}.crove.io`
-  }, [emailAddressValue, nameValue])
+    const cleanSlug = (orgSlug || "dos")
+      .trim()
+      .toLowerCase()
+      .replace(/^org[-_]/, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+    return `help@${cleanSlug || "dos"}.crove.io`
+  }, [emailAddressValue, orgSlug])
 
 	async function rollbackRolloutPercent() {
 		if (!channelDetail || previousRolloutPercent < 1) return
@@ -644,6 +1298,16 @@ function ChannelFormBody({
   const channelTypeOptions = [
     { value: "web", label: t("channel.typeWeb") },
     { value: "email", label: t("channel.typeEmail") },
+    { value: "discord", label: t("channel.typeDiscord") },
+    { value: "messenger", label: t("channel.typeMessenger") },
+    { value: "instagram", label: t("channel.typeInstagram") },
+    { value: "whatsapp", label: t("channel.typeWhatsApp") },
+    { value: "slack", label: t("channel.typeSlack") },
+    { value: "x", label: t("channel.typeX") },
+    { value: "tiktok", label: t("channel.typeTikTok") },
+    { value: "line", label: t("channel.typeLine") },
+    { value: "viber", label: t("channel.typeViber") },
+    { value: "threads", label: t("channel.typeThreads") },
     { value: "telegram", label: t("channel.typeTelegram") },
     { value: "zalo_oa", label: t("channel.typeZaloOa") },
     { value: "wechat_mp", label: t("channel.typeWechatMp") },
@@ -851,117 +1515,13 @@ function ChannelFormBody({
                   </Field>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field data-invalid={!!errors.emailProvider}>
-                    <FieldLabel htmlFor="channel-email-provider">{t("channel.emailProvider")}</FieldLabel>
-                    <FieldContent>
-                      <select
-                        id="channel-email-provider"
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        {...register("emailProvider")}
-                      >
-                        <option value="default">{t("channel.emailProviderDefault")}</option>
-                        <option value="smtp">{t("channel.emailProviderSmtp")}</option>
-                        <option value="brevo">{t("channel.emailProviderBrevo")}</option>
-                        <option value="sendgrid">{t("channel.emailProviderSendGrid")}</option>
-                        <option value="resend">{t("channel.emailProviderResend")}</option>
-                        <option value="postmark">{t("channel.emailProviderPostmark")}</option>
-                        <option value="mailgun">{t("channel.emailProviderMailgun")}</option>
-                      </select>
-                      <FieldError errors={[errors.emailProvider]} />
-                    </FieldContent>
-                  </Field>
-
-                  <Field data-invalid={!!errors.webhookSecret}>
-                    <FieldLabel htmlFor="channel-email-webhook-secret">{t("channel.webhookSecret")}</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="channel-email-webhook-secret"
-                        placeholder="Secret for Inbound Webhook"
-                        {...register("webhookSecret")}
-                      />
-                      <FieldError errors={[errors.webhookSecret]} />
-                    </FieldContent>
-                  </Field>
-                </div>
-
-                {emailProvider === "brevo" || emailProvider === "sendgrid" || emailProvider === "resend" || emailProvider === "postmark" || emailProvider === "mailgun" ? (
-                  <Field data-invalid={!!errors.emailApiKey}>
-                    <FieldLabel htmlFor="channel-email-apikey">{t("channel.emailApiKey")}</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="channel-email-apikey"
-                        type="password"
-                        placeholder="API Key / Server Token"
-                        {...register("emailApiKey")}
-                      />
-                      <FieldError errors={[errors.emailApiKey]} />
-                    </FieldContent>
-                  </Field>
-                ) : emailProvider === "smtp" ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                      <div className="sm:col-span-2">
-                        <Field data-invalid={!!errors.smtpHost}>
-                          <FieldLabel htmlFor="channel-smtp-host">SMTP Host</FieldLabel>
-                          <FieldContent>
-                            <Input
-                              id="channel-smtp-host"
-                              placeholder="smtp.example.com"
-                              {...register("smtpHost")}
-                            />
-                            <FieldError errors={[errors.smtpHost]} />
-                          </FieldContent>
-                        </Field>
-                      </div>
-                      <Field data-invalid={!!errors.smtpPort}>
-                        <FieldLabel htmlFor="channel-smtp-port">SMTP Port</FieldLabel>
-                        <FieldContent>
-                          <Input
-                            id="channel-smtp-port"
-                            type="number"
-                            placeholder="587"
-                            {...register("smtpPort")}
-                          />
-                          <FieldError errors={[errors.smtpPort]} />
-                        </FieldContent>
-                      </Field>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <Field data-invalid={!!errors.smtpUser}>
-                        <FieldLabel htmlFor="channel-smtp-user">SMTP Username</FieldLabel>
-                        <FieldContent>
-                          <Input
-                            id="channel-smtp-user"
-                            placeholder="user@example.com"
-                            {...register("smtpUser")}
-                          />
-                          <FieldError errors={[errors.smtpUser]} />
-                        </FieldContent>
-                      </Field>
-                      <Field data-invalid={!!errors.smtpPassword}>
-                        <FieldLabel htmlFor="channel-smtp-password">SMTP Password</FieldLabel>
-                        <FieldContent>
-                          <Input
-                            id="channel-smtp-password"
-                            type="password"
-                            placeholder="••••••••"
-                            {...register("smtpPassword")}
-                          />
-                          <FieldError errors={[errors.smtpPassword]} />
-                        </FieldContent>
-                      </Field>
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-2.5">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-4 text-xs text-muted-foreground space-y-3">
                   <div className="font-medium text-sm text-foreground">{t("channel.emailAutoConnectTitle")}</div>
                   <div className="leading-relaxed">{t("channel.emailAutoConnectDescription")}</div>
-                  <div className="flex flex-col gap-1 pt-1">
+                  <div className="flex flex-col gap-1.5 pt-1">
                     <span className="font-medium text-foreground">{t("channel.forwardingAddressLabel")}</span>
                     <div className="flex items-center gap-2">
-                      <code className="flex-1 rounded bg-background px-2.5 py-1.5 font-mono text-[12px] font-semibold text-primary border">
+                      <code className="flex-1 rounded bg-background px-3 py-2 font-mono text-xs font-semibold text-primary border">
                         {forwardingAddressPreview}
                       </code>
                       <Button
@@ -981,9 +1541,6 @@ function ChannelFormBody({
                         {t("channel.copy")}
                       </Button>
                     </div>
-                  </div>
-                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
-                    {t("channel.inboundWebhookUrl")}: /api/third/email/webhook
                   </div>
                 </div>
               </div>
@@ -1082,6 +1639,735 @@ function ChannelFormBody({
                   <div className="font-medium text-foreground">{t("channel.telegramAutoConnectTitle")}</div>
                   <div className="mt-1">{t("channel.telegramAutoConnectDescription")}</div>
                 </div>
+              </div>
+            ) : null}
+
+            {channelType === "discord" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.discordConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.discordConnectDescription")}</div>
+                  <div>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        const redirectUri = window.location.origin + "/dashboard/channels"
+                        window.open(`/api/dashboard/channel/discord_oauth_url?redirect_uri=${encodeURIComponent(redirectUri)}`, "_blank")
+                      }}
+                    >
+                      <ExternalLinkIcon className="size-3.5 mr-1" />
+                      {t("channel.connectDiscordButton")}
+                    </Button>
+                  </div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/discord/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.discordGuildId}>
+                    <FieldLabel htmlFor="channel-discord-guildid">{t("channel.discordGuildId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-discord-guildid"
+                        placeholder="e.g. 123456789012345678"
+                        {...register("discordGuildId")}
+                      />
+                      <FieldError errors={[errors.discordGuildId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.discordGuildName}>
+                    <FieldLabel htmlFor="channel-discord-guildname">{t("channel.discordGuildName")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-discord-guildname"
+                        placeholder="e.g. My Community"
+                        {...register("discordGuildName")}
+                      />
+                      <FieldError errors={[errors.discordGuildName]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.discordBotToken}>
+                  <FieldLabel htmlFor="channel-discord-bottoken">{t("channel.discordBotToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-discord-bottoken"
+                      type="password"
+                      placeholder="Optional Custom Discord Bot Token"
+                      {...register("discordBotToken")}
+                    />
+                    <FieldError errors={[errors.discordBotToken]} />
+                  </FieldContent>
+                </Field>
+              </div>
+            ) : null}
+
+            {channelType === "messenger" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.messengerConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.messengerConnectDescription")}</div>
+                  <div>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        const redirectUri = window.location.origin + "/dashboard/channels"
+                        window.open(`/api/dashboard/channel/messenger_oauth_url?redirect_uri=${encodeURIComponent(redirectUri)}`, "_blank")
+                      }}
+                    >
+                      <ExternalLinkIcon className="size-3.5 mr-1" />
+                      {t("channel.connectMessengerButton")}
+                    </Button>
+                  </div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/messenger/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.messengerPageId}>
+                    <FieldLabel htmlFor="channel-messenger-pageid">{t("channel.messengerPageId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-messenger-pageid"
+                        placeholder="e.g. 1029384756"
+                        {...register("messengerPageId")}
+                      />
+                      <FieldError errors={[errors.messengerPageId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.messengerPageName}>
+                    <FieldLabel htmlFor="channel-messenger-pagename">{t("channel.messengerPageName")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-messenger-pagename"
+                        placeholder="e.g. Acme Support Page"
+                        {...register("messengerPageName")}
+                      />
+                      <FieldError errors={[errors.messengerPageName]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.messengerPageAccessToken}>
+                  <FieldLabel htmlFor="channel-messenger-token">{t("channel.messengerPageAccessToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-messenger-token"
+                      type="password"
+                      placeholder="Page Access Token"
+                      {...register("messengerPageAccessToken")}
+                    />
+                    <FieldError errors={[errors.messengerPageAccessToken]} />
+                  </FieldContent>
+                </Field>
+              </div>
+            ) : null}
+
+            {channelType === "instagram" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.instagramConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.instagramConnectDescription")}</div>
+                  <div>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        const redirectUri = window.location.origin + "/dashboard/channels"
+                        window.open(`/api/dashboard/channel/instagram_oauth_url?redirect_uri=${encodeURIComponent(redirectUri)}`, "_blank")
+                      }}
+                    >
+                      <ExternalLinkIcon className="size-3.5 mr-1" />
+                      {t("channel.connectInstagramButton")}
+                    </Button>
+                  </div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/instagram/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.instagramUsername}>
+                    <FieldLabel htmlFor="channel-instagram-username">{t("channel.instagramUsername")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-instagram-username"
+                        placeholder="e.g. acme_support"
+                        {...register("instagramUsername")}
+                      />
+                      <FieldError errors={[errors.instagramUsername]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.instagramId}>
+                    <FieldLabel htmlFor="channel-instagram-id">{t("channel.instagramId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-instagram-id"
+                        placeholder="e.g. 17841400000000000"
+                        {...register("instagramId")}
+                      />
+                      <FieldError errors={[errors.instagramId]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.instagramPageAccessToken}>
+                  <FieldLabel htmlFor="channel-instagram-token">{t("channel.instagramPageAccessToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-instagram-token"
+                      type="password"
+                      placeholder="Instagram / Page Access Token"
+                      {...register("instagramPageAccessToken")}
+                    />
+                    <FieldError errors={[errors.instagramPageAccessToken]} />
+                  </FieldContent>
+                </Field>
+              </div>
+            ) : null}
+
+            {channelType === "whatsapp" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.whatsappConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.whatsappConnectDescription")}</div>
+                  <div>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        const redirectUri = window.location.origin + "/dashboard/channels"
+                        window.open(`/api/dashboard/channel/whatsapp_oauth_url?redirect_uri=${encodeURIComponent(redirectUri)}`, "_blank")
+                      }}
+                    >
+                      <ExternalLinkIcon className="size-3.5 mr-1" />
+                      {t("channel.connectWhatsAppButton")}
+                    </Button>
+                  </div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/whatsapp/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.whatsAppPhoneNumberId}>
+                    <FieldLabel htmlFor="channel-wa-phoneid">{t("channel.whatsappPhoneId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-wa-phoneid"
+                        placeholder="e.g. 104928374650192"
+                        {...register("whatsAppPhoneNumberId")}
+                      />
+                      <FieldError errors={[errors.whatsAppPhoneNumberId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.whatsAppWabaId}>
+                    <FieldLabel htmlFor="channel-wa-wabaid">{t("channel.whatsappWabaId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-wa-wabaid"
+                        placeholder="e.g. 293847561029384"
+                        {...register("whatsAppWabaId")}
+                      />
+                      <FieldError errors={[errors.whatsAppWabaId]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.whatsAppAccessToken}>
+                  <FieldLabel htmlFor="channel-wa-token">{t("channel.whatsappAccessToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-wa-token"
+                      type="password"
+                      placeholder="Permanent System User Access Token"
+                      {...register("whatsAppAccessToken")}
+                    />
+                    <FieldError errors={[errors.whatsAppAccessToken]} />
+                  </FieldContent>
+                </Field>
+              </div>
+            ) : null}
+
+            {channelType === "slack" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.slackConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.slackConnectDescription")}</div>
+                  <div>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        const redirectUri = window.location.origin + "/dashboard/channels"
+                        window.open(`/api/dashboard/channel/slack_oauth_url?redirect_uri=${encodeURIComponent(redirectUri)}`, "_blank")
+                      }}
+                    >
+                      <ExternalLinkIcon className="size-3.5 mr-1" />
+                      {t("channel.connectSlackButton")}
+                    </Button>
+                  </div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/slack/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.slackTeamName}>
+                    <FieldLabel htmlFor="channel-slack-teamname">{t("channel.slackTeamName")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-slack-teamname"
+                        placeholder="e.g. Acme Corp Workspace"
+                        {...register("slackTeamName")}
+                      />
+                      <FieldError errors={[errors.slackTeamName]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.slackDefaultChannel}>
+                    <FieldLabel htmlFor="channel-slack-defchan">{t("channel.slackDefaultChannel")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-slack-defchan"
+                        placeholder="e.g. C0123456789 (channel ID)"
+                        {...register("slackDefaultChannel")}
+                      />
+                      <FieldError errors={[errors.slackDefaultChannel]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.slackBotToken}>
+                    <FieldLabel htmlFor="channel-slack-token">{t("channel.slackBotToken")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-slack-token"
+                        type="password"
+                        placeholder="xoxb-your-bot-token"
+                        {...register("slackBotToken")}
+                      />
+                      <FieldError errors={[errors.slackBotToken]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.slackSigningSecret}>
+                    <FieldLabel htmlFor="channel-slack-secret">{t("channel.slackSigningSecret")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-slack-secret"
+                        type="password"
+                        placeholder="Slack Signing Secret"
+                        {...register("slackSigningSecret")}
+                      />
+                      <FieldError errors={[errors.slackSigningSecret]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+              </div>
+            ) : null}
+
+            {channelType === "x" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.xConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.xConnectDescription")}</div>
+                  <div>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        const redirectUri = window.location.origin + "/dashboard/channels"
+                        window.open(`/api/dashboard/channel/x_oauth_url?redirect_uri=${encodeURIComponent(redirectUri)}`, "_blank")
+                      }}
+                    >
+                      <ExternalLinkIcon className="size-3.5 mr-1" />
+                      {t("channel.connectXButton")}
+                    </Button>
+                  </div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/x/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.xUsername}>
+                    <FieldLabel htmlFor="channel-x-username">{t("channel.xUsername")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-x-username"
+                        placeholder="e.g. acme_support"
+                        {...register("xUsername")}
+                      />
+                      <FieldError errors={[errors.xUsername]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.xAccountId}>
+                    <FieldLabel htmlFor="channel-x-accountid">{t("channel.xAccountId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-x-accountid"
+                        placeholder="e.g. 1234567890"
+                        {...register("xAccountId")}
+                      />
+                      <FieldError errors={[errors.xAccountId]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.xBearerToken}>
+                  <FieldLabel htmlFor="channel-x-bearertoken">{t("channel.xBearerToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-x-bearertoken"
+                      type="password"
+                      placeholder="X API v2 Bearer Token"
+                      {...register("xBearerToken")}
+                    />
+                    <FieldError errors={[errors.xBearerToken]} />
+                  </FieldContent>
+                </Field>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.xApiKey}>
+                    <FieldLabel htmlFor="channel-x-apikey">{t("channel.xApiKey")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-x-apikey"
+                        type="password"
+                        placeholder="Consumer API Key"
+                        {...register("xApiKey")}
+                      />
+                      <FieldError errors={[errors.xApiKey]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.xApiSecretKey}>
+                    <FieldLabel htmlFor="channel-x-apisecret">{t("channel.xApiSecretKey")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-x-apisecret"
+                        type="password"
+                        placeholder="Consumer API Secret Key"
+                        {...register("xApiSecretKey")}
+                      />
+                      <FieldError errors={[errors.xApiSecretKey]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+              </div>
+            ) : null}
+
+            {channelType === "tiktok" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.tiktokConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.tiktokConnectDescription")}</div>
+                  <div>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        const redirectUri = window.location.origin + "/dashboard/channels"
+                        window.open(`/api/dashboard/channel/tiktok_oauth_url?redirect_uri=${encodeURIComponent(redirectUri)}`, "_blank")
+                      }}
+                    >
+                      <ExternalLinkIcon className="size-3.5 mr-1" />
+                      {t("channel.connectTikTokButton")}
+                    </Button>
+                  </div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/tiktok/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.tiktokUsername}>
+                    <FieldLabel htmlFor="channel-tiktok-username">{t("channel.tiktokUsername")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-tiktok-username"
+                        placeholder="e.g. @acme_official"
+                        {...register("tiktokUsername")}
+                      />
+                      <FieldError errors={[errors.tiktokUsername]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.tiktokOpenId}>
+                    <FieldLabel htmlFor="channel-tiktok-openid">{t("channel.tiktokOpenId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-tiktok-openid"
+                        placeholder="e.g. _000abc123xyz"
+                        {...register("tiktokOpenId")}
+                      />
+                      <FieldError errors={[errors.tiktokOpenId]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.tiktokAccessToken}>
+                  <FieldLabel htmlFor="channel-tiktok-token">{t("channel.tiktokAccessToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-tiktok-token"
+                      type="password"
+                      placeholder="TikTok Business Access Token"
+                      {...register("tiktokAccessToken")}
+                    />
+                    <FieldError errors={[errors.tiktokAccessToken]} />
+                  </FieldContent>
+                </Field>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.tiktokClientKey}>
+                    <FieldLabel htmlFor="channel-tiktok-clientkey">{t("channel.tiktokClientKey")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-tiktok-clientkey"
+                        placeholder="Client Key"
+                        {...register("tiktokClientKey")}
+                      />
+                      <FieldError errors={[errors.tiktokClientKey]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.tiktokClientSecret}>
+                    <FieldLabel htmlFor="channel-tiktok-clientsecret">{t("channel.tiktokClientSecret")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-tiktok-clientsecret"
+                        type="password"
+                        placeholder="Client Secret"
+                        {...register("tiktokClientSecret")}
+                      />
+                      <FieldError errors={[errors.tiktokClientSecret]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+              </div>
+            ) : null}
+
+            {channelType === "line" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.lineConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.lineConnectDescription")}</div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/line/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.lineChannelId}>
+                    <FieldLabel htmlFor="channel-line-id">{t("channel.lineChannelId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-line-id"
+                        placeholder="e.g. 2001234567"
+                        {...register("lineChannelId")}
+                      />
+                      <FieldError errors={[errors.lineChannelId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.lineChannelSecret}>
+                    <FieldLabel htmlFor="channel-line-secret">{t("channel.lineChannelSecret")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-line-secret"
+                        type="password"
+                        placeholder="Channel Secret"
+                        {...register("lineChannelSecret")}
+                      />
+                      <FieldError errors={[errors.lineChannelSecret]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.lineChannelAccessToken}>
+                  <FieldLabel htmlFor="channel-line-token">{t("channel.lineChannelAccessToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-line-token"
+                      type="password"
+                      placeholder="Channel Access Token"
+                      {...register("lineChannelAccessToken")}
+                    />
+                    <FieldError errors={[errors.lineChannelAccessToken]} />
+                  </FieldContent>
+                </Field>
+
+                <Field data-invalid={!!errors.lineWelcomeMessage}>
+                  <FieldLabel htmlFor="channel-line-welcome">{t("channel.welcomeMessageLabel")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-line-welcome"
+                      placeholder="e.g. Thanks for adding us! How can we help?"
+                      {...register("lineWelcomeMessage")}
+                    />
+                    <FieldError errors={[errors.lineWelcomeMessage]} />
+                  </FieldContent>
+                </Field>
+              </div>
+            ) : null}
+
+            {channelType === "viber" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.viberConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.viberConnectDescription")}</div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/viber/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.viberAuthToken}>
+                    <FieldLabel htmlFor="channel-viber-token">{t("channel.viberAuthToken")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-viber-token"
+                        type="password"
+                        placeholder="e.g. 4453b0dcd47c3ae3-5e6c9866b2b1c3f7-..."
+                        {...register("viberAuthToken")}
+                      />
+                      <FieldError errors={[errors.viberAuthToken]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.viberBotName}>
+                    <FieldLabel htmlFor="channel-viber-botname">{t("channel.viberBotName")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-viber-botname"
+                        placeholder="e.g. Crove Support"
+                        {...register("viberBotName")}
+                      />
+                      <FieldError errors={[errors.viberBotName]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.viberAvatarUrl}>
+                  <FieldLabel htmlFor="channel-viber-avatar">{t("channel.viberAvatarUrl")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-viber-avatar"
+                      placeholder="https://example.com/avatar.jpg"
+                      {...register("viberAvatarUrl")}
+                    />
+                    <FieldError errors={[errors.viberAvatarUrl]} />
+                  </FieldContent>
+                </Field>
+
+                <Field data-invalid={!!errors.viberWelcomeMessage}>
+                  <FieldLabel htmlFor="channel-viber-welcome">{t("channel.welcomeMessageLabel")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-viber-welcome"
+                      placeholder="e.g. Welcome! How can we help?"
+                      {...register("viberWelcomeMessage")}
+                    />
+                    <FieldError errors={[errors.viberWelcomeMessage]} />
+                  </FieldContent>
+                </Field>
+              </div>
+            ) : null}
+
+            {channelType === "threads" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.threadsConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.threadsConnectDescription")}</div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/threads/webhook
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.threadsUserId}>
+                    <FieldLabel htmlFor="channel-threads-userid">{t("channel.threadsUserId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-threads-userid"
+                        placeholder="e.g. 1234567890"
+                        {...register("threadsUserId")}
+                      />
+                      <FieldError errors={[errors.threadsUserId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.threadsUsername}>
+                    <FieldLabel htmlFor="channel-threads-username">{t("channel.threadsUsername")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-threads-username"
+                        placeholder="e.g. @acme_official"
+                        {...register("threadsUsername")}
+                      />
+                      <FieldError errors={[errors.threadsUsername]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.threadsAccessToken}>
+                  <FieldLabel htmlFor="channel-threads-token">{t("channel.threadsAccessToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-threads-token"
+                      type="password"
+                      placeholder="Threads Long-lived Access Token"
+                      {...register("threadsAccessToken")}
+                    />
+                    <FieldError errors={[errors.threadsAccessToken]} />
+                  </FieldContent>
+                </Field>
+
+                <Field data-invalid={!!errors.threadsAppSecret}>
+                  <FieldLabel htmlFor="channel-threads-appsecret">{t("channel.threadsAppSecret")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-threads-appsecret"
+                      type="password"
+                      placeholder="Meta App Secret"
+                      {...register("threadsAppSecret")}
+                    />
+                    <FieldError errors={[errors.threadsAppSecret]} />
+                  </FieldContent>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="channel-threads-verify-token">{t("channel.threadsWebhookVerifyToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-threads-verify-token"
+                      readOnly
+                      disabled
+                      placeholder={t("channel.threadsVerifyTokenHint")}
+                      {...register("threadsWebhookVerifyToken")}
+                    />
+                  </FieldContent>
+                </Field>
               </div>
             ) : null}
 
@@ -1254,11 +2540,7 @@ function ChannelFormBody({
 
 function WebAccessGuide({ channelId }: { channelId: string }) {
   const t = useI18n()
-  const [origin, setOrigin] = useState("")
-
-  useEffect(() => {
-    setOrigin(window.location.origin)
-  }, [])
+  const [origin] = useState(() => (typeof window !== "undefined" ? window.location.origin : ""))
 
   const accessUrl = useMemo(() => {
     if (!origin || !channelId) {
@@ -1392,11 +2674,7 @@ function WebAccessGuide({ channelId }: { channelId: string }) {
 
 function WechatMPAccessGuide({ channelId }: { channelId: string }) {
   const t = useI18n()
-  const [origin, setOrigin] = useState("")
-
-  useEffect(() => {
-    setOrigin(window.location.origin)
-  }, [])
+  const [origin] = useState(() => (typeof window !== "undefined" ? window.location.origin : ""))
 
   const menuUrl = useMemo(() => {
     if (!origin || !channelId) {

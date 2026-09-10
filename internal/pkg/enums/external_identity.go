@@ -13,6 +13,16 @@ const (
 	ExternalSourceTelegram  ExternalSource = "telegram"   // Telegram Bot
 	ExternalSourceZaloOA    ExternalSource = "zalo_oa"    // Zalo Official Account
 	ExternalSourceEmail     ExternalSource = "email"      // Email
+	ExternalSourceDiscord   ExternalSource = "discord"    // Discord
+	ExternalSourceMessenger ExternalSource = "messenger"  // Facebook Messenger
+	ExternalSourceInstagram ExternalSource = "instagram"  // Instagram Direct
+	ExternalSourceWhatsApp  ExternalSource = "whatsapp"   // WhatsApp Business
+	ExternalSourceSlack     ExternalSource = "slack"      // Slack Bot
+	ExternalSourceX         ExternalSource = "x"          // X (Twitter)
+	ExternalSourceTikTok    ExternalSource = "tiktok"     // TikTok Direct Messages
+	ExternalSourceLine      ExternalSource = "line"       // LINE Official Account
+	ExternalSourceViber     ExternalSource = "viber"      // Viber Business Bot
+	ExternalSourceThreads   ExternalSource = "threads"    // Meta Threads
 )
 
 var externalSourceLabelMap = map[ExternalSource]string{
@@ -23,6 +33,16 @@ var externalSourceLabelMap = map[ExternalSource]string{
 	ExternalSourceTelegram:  "Telegram",
 	ExternalSourceZaloOA:    "Zalo OA",
 	ExternalSourceEmail:     "Email",
+	ExternalSourceDiscord:   "Discord",
+	ExternalSourceMessenger: "Messenger",
+	ExternalSourceInstagram: "Instagram",
+	ExternalSourceWhatsApp:  "WhatsApp",
+	ExternalSourceSlack:     "Slack",
+	ExternalSourceX:         "X",
+	ExternalSourceTikTok:    "TikTok",
+	ExternalSourceLine:      "LINE",
+	ExternalSourceViber:     "Viber",
+	ExternalSourceThreads:   "Threads",
 }
 
 func GetExternalSourceLabel(v ExternalSource) string {

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"agent-desk/internal/messenger"
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/dto"
@@ -96,6 +97,7 @@ func (s *channelService) CreateChannel(req request.CreateChannelRequest, operato
 		return nil, err
 	}
 	go s.syncTelegramWebhook(item, item.Status)
+	go s.syncMessengerPageWebhook(item, item.Status)
 	return item, nil
 }
 
@@ -131,6 +133,7 @@ func (s *channelService) UpdateChannel(req request.UpdateChannelRequest, operato
 		return err
 	}
 	go s.syncTelegramWebhook(item, item.Status)
+	go s.syncMessengerPageWebhook(item, item.Status)
 	return nil
 }
 
@@ -180,6 +183,7 @@ func (s *channelService) UpdateStatus(id int64, status int, operator *dto.AuthPr
 	})
 	if err == nil {
 		go s.syncTelegramWebhook(item, enums.Status(status))
+		go s.syncMessengerPageWebhook(item, enums.Status(status))
 	}
 	return err
 }
@@ -200,6 +204,7 @@ func (s *channelService) DeleteChannel(id int64, operator *dto.AuthPrincipal) er
 	})
 	if err == nil {
 		go s.syncTelegramWebhook(item, enums.StatusDeleted)
+		go s.syncMessengerPageWebhook(item, enums.StatusDeleted)
 	}
 	return err
 }
@@ -240,6 +245,35 @@ func (s *channelService) syncTelegramWebhook(channel *models.Channel, targetStat
 			slog.Warn("auto delete telegram webhook failed", "channel_id", channel.ChannelID, "error", err)
 		} else {
 			slog.Info("auto delete telegram webhook succeeded", "channel_id", channel.ChannelID)
+		}
+	}
+}
+
+func (s *channelService) syncMessengerPageWebhook(channel *models.Channel, targetStatus enums.Status) {
+	if channel == nil || channel.ChannelType != enums.ChannelTypeMessenger {
+		return
+	}
+	cfg, err := s.ParseMessengerChannelConfig(channel.ConfigJSON)
+	if err != nil || cfg == nil || cfg.PageAccessToken == "" {
+		return
+	}
+	pageID := strings.TrimSpace(cfg.PageID)
+	if pageID == "" {
+		pageID = strings.TrimSpace(channel.ChannelID)
+	}
+	if pageID == "" {
+		return
+	}
+
+	client := messenger.NewClient(cfg.PageAccessToken)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if targetStatus == enums.StatusOk {
+		if err := client.SubscribeAppToPage(ctx, pageID); err != nil {
+			slog.Warn("auto subscribe messenger page webhook failed", "channel_id", channel.ChannelID, "page_id", pageID, "error", err)
+		} else {
+			slog.Info("auto subscribe messenger page webhook succeeded", "channel_id", channel.ChannelID, "page_id", pageID)
 		}
 	}
 }
@@ -420,6 +454,183 @@ func (s *channelService) ParseEmailChannelConfig(raw string) (*dto.EmailChannelC
 	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
 	return cfg, nil
 }
+
+func (s *channelService) ParseDiscordChannelConfig(raw string) (*dto.DiscordChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.DiscordChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.GuildID = strings.TrimSpace(cfg.GuildID)
+	cfg.GuildName = strings.TrimSpace(cfg.GuildName)
+	cfg.ChannelScope = strings.TrimSpace(cfg.ChannelScope)
+	cfg.BotToken = strings.TrimSpace(cfg.BotToken)
+	cfg.ApplicationID = strings.TrimSpace(cfg.ApplicationID)
+	cfg.PublicKey = strings.TrimSpace(cfg.PublicKey)
+	cfg.WebhookSecret = strings.TrimSpace(cfg.WebhookSecret)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
+func (s *channelService) ParseMessengerChannelConfig(raw string) (*dto.MessengerChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.MessengerChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.PageID = strings.TrimSpace(cfg.PageID)
+	cfg.PageName = strings.TrimSpace(cfg.PageName)
+	cfg.PageAccessToken = strings.TrimSpace(cfg.PageAccessToken)
+	cfg.WebhookVerifyToken = strings.TrimSpace(cfg.WebhookVerifyToken)
+	cfg.AppSecret = strings.TrimSpace(cfg.AppSecret)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
+func (s *channelService) ParseInstagramChannelConfig(raw string) (*dto.InstagramChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.InstagramChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.InstagramID = strings.TrimSpace(cfg.InstagramID)
+	cfg.InstagramUsername = strings.TrimSpace(cfg.InstagramUsername)
+	cfg.PageID = strings.TrimSpace(cfg.PageID)
+	cfg.PageAccessToken = strings.TrimSpace(cfg.PageAccessToken)
+	cfg.WebhookVerifyToken = strings.TrimSpace(cfg.WebhookVerifyToken)
+	cfg.AppSecret = strings.TrimSpace(cfg.AppSecret)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
+func (s *channelService) ParseWhatsAppChannelConfig(raw string) (*dto.WhatsAppChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.WhatsAppChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.PhoneNumberID = strings.TrimSpace(cfg.PhoneNumberID)
+	cfg.WABAID = strings.TrimSpace(cfg.WABAID)
+	cfg.AccessToken = strings.TrimSpace(cfg.AccessToken)
+	cfg.WebhookVerifyToken = strings.TrimSpace(cfg.WebhookVerifyToken)
+	cfg.AppSecret = strings.TrimSpace(cfg.AppSecret)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
+func (s *channelService) ParseSlackChannelConfig(raw string) (*dto.SlackChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.SlackChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.BotToken = strings.TrimSpace(cfg.BotToken)
+	cfg.SigningSecret = strings.TrimSpace(cfg.SigningSecret)
+	cfg.AppID = strings.TrimSpace(cfg.AppID)
+	cfg.TeamID = strings.TrimSpace(cfg.TeamID)
+	cfg.TeamName = strings.TrimSpace(cfg.TeamName)
+	cfg.DefaultChannel = strings.TrimSpace(cfg.DefaultChannel)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
+func (s *channelService) ParseXChannelConfig(raw string) (*dto.XChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.XChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.BearerToken = strings.TrimSpace(cfg.BearerToken)
+	cfg.APIKey = strings.TrimSpace(cfg.APIKey)
+	cfg.APISecretKey = strings.TrimSpace(cfg.APISecretKey)
+	cfg.AccessToken = strings.TrimSpace(cfg.AccessToken)
+	cfg.AccessTokenSecret = strings.TrimSpace(cfg.AccessTokenSecret)
+	cfg.AccountID = strings.TrimSpace(cfg.AccountID)
+	cfg.Username = strings.TrimSpace(cfg.Username)
+	cfg.WebhookEnv = strings.TrimSpace(cfg.WebhookEnv)
+	cfg.WebhookCRCSecret = strings.TrimSpace(cfg.WebhookCRCSecret)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
+func (s *channelService) ParseTikTokChannelConfig(raw string) (*dto.TikTokChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.TikTokChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.ClientKey = strings.TrimSpace(cfg.ClientKey)
+	cfg.ClientSecret = strings.TrimSpace(cfg.ClientSecret)
+	cfg.AccessToken = strings.TrimSpace(cfg.AccessToken)
+	cfg.OpenID = strings.TrimSpace(cfg.OpenID)
+	cfg.Username = strings.TrimSpace(cfg.Username)
+	cfg.WebhookVerifyToken = strings.TrimSpace(cfg.WebhookVerifyToken)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
+func (s *channelService) ParseLineChannelConfig(raw string) (*dto.LineChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.LineChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.ChannelID = strings.TrimSpace(cfg.ChannelID)
+	cfg.ChannelSecret = strings.TrimSpace(cfg.ChannelSecret)
+	cfg.ChannelAccessToken = strings.TrimSpace(cfg.ChannelAccessToken)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
+func (s *channelService) ParseViberChannelConfig(raw string) (*dto.ViberChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.ViberChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.AuthToken = strings.TrimSpace(cfg.AuthToken)
+	cfg.BotName = strings.TrimSpace(cfg.BotName)
+	cfg.AvatarURL = strings.TrimSpace(cfg.AvatarURL)
+	cfg.WebhookSecret = strings.TrimSpace(cfg.WebhookSecret)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
+func (s *channelService) ParseThreadsChannelConfig(raw string) (*dto.ThreadsChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.ThreadsChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.ThreadsUserID = strings.TrimSpace(cfg.ThreadsUserID)
+	cfg.Username = strings.TrimSpace(cfg.Username)
+	cfg.AccessToken = strings.TrimSpace(cfg.AccessToken)
+	cfg.WebhookVerifyToken = strings.TrimSpace(cfg.WebhookVerifyToken)
+	cfg.AppSecret = strings.TrimSpace(cfg.AppSecret)
+	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+	return cfg, nil
+}
+
 func (s *channelService) GetUserTokenSecret(channel *models.Channel) string {
 	if channel == nil {
 		return ""
@@ -597,7 +808,7 @@ func extractTenantSlugFromEmail(emailAddress string) string {
 	}
 	localPart, domain := parts[0], parts[1]
 
-	// Check plus addressing (e.g. help+dos@crove.io -> "dos")
+	// 1. Check plus addressing (e.g. help+dos@crove.io -> "dos", support+acme@crove.io -> "acme")
 	if strings.Contains(localPart, "+") {
 		plusParts := strings.Split(localPart, "+")
 		if len(plusParts) > 1 && plusParts[1] != "" {
@@ -605,7 +816,16 @@ func extractTenantSlugFromEmail(emailAddress string) string {
 		}
 	}
 
-	// Check subdomains (e.g. dos.crove.io -> "dos", dos.on.crove.email -> "dos")
+	// 2. Check direct tenant addressing (e.g. dos@crove.io -> "dos", acme@crove.io -> "acme")
+	genericPrefixes := map[string]bool{
+		"help": true, "support": true, "contact": true, "inbound": true,
+		"admin": true, "info": true, "sales": true, "hello": true, "service": true, "desk": true,
+	}
+	if !genericPrefixes[localPart] {
+		return localPart
+	}
+
+	// 3. Check subdomains (e.g. help@dos.crove.io -> "dos", help@dos.on.crove.email -> "dos")
 	domainParts := strings.Split(domain, ".")
 	if len(domainParts) >= 3 {
 		if domainParts[0] != "mail" && domainParts[0] != "smtp" && domainParts[0] != "email" && domainParts[0] != "inbound" {
@@ -630,7 +850,7 @@ func (s *channelService) GetEnabledChannel(ctx *gin.Context) *models.Channel {
 
 func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRequest) (*models.Channel, error) {
 	channelType := strings.TrimSpace(req.ChannelType)
-	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeEmail {
+	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeEmail && channelType != enums.ChannelTypeDiscord && channelType != enums.ChannelTypeMessenger && channelType != enums.ChannelTypeInstagram && channelType != enums.ChannelTypeWhatsApp && channelType != enums.ChannelTypeSlack && channelType != enums.ChannelTypeX && channelType != enums.ChannelTypeTikTok && channelType != enums.ChannelTypeLine && channelType != enums.ChannelTypeViber && channelType != enums.ChannelTypeThreads {
 		return nil, errorsx.InvalidParamI18n("error.e0250")
 	}
 	name := strings.TrimSpace(req.Name)
@@ -794,6 +1014,205 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 		if cfg.WebhookSecret == "" {
 			if secret, err := generateUserTokenSecret(); err == nil {
 				cfg.WebhookSecret = secret
+			}
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeDiscord:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseDiscordChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid discord configuration")
+		}
+		if cfg.WebhookSecret == "" {
+			if secret, err := generateUserTokenSecret(); err == nil {
+				cfg.WebhookSecret = secret
+			}
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeMessenger:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseMessengerChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid messenger configuration")
+		}
+		if cfg.WebhookVerifyToken == "" {
+			if secret, err := generateUserTokenSecret(); err == nil {
+				cfg.WebhookVerifyToken = secret
+			}
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeInstagram:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseInstagramChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid instagram configuration")
+		}
+		if cfg.WebhookVerifyToken == "" {
+			if secret, err := generateUserTokenSecret(); err == nil {
+				cfg.WebhookVerifyToken = secret
+			}
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeWhatsApp:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseWhatsAppChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid whatsapp configuration")
+		}
+		if cfg.WebhookVerifyToken == "" {
+			if secret, err := generateUserTokenSecret(); err == nil {
+				cfg.WebhookVerifyToken = secret
+			}
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeSlack:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseSlackChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid slack configuration")
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeX:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseXChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid x configuration")
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeTikTok:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseTikTokChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid tiktok configuration")
+		}
+		if cfg.WebhookVerifyToken == "" {
+			if secret, err := generateUserTokenSecret(); err == nil {
+				cfg.WebhookVerifyToken = secret
+			}
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeLine:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseLineChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid line configuration")
+		}
+		if cfg == nil || cfg.ChannelAccessToken == "" {
+			return nil, errorsx.InvalidParam("line channelAccessToken is required")
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeViber:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseViberChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid viber configuration")
+		}
+		if cfg == nil || cfg.AuthToken == "" {
+			return nil, errorsx.InvalidParam("viber authToken is required")
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeThreads:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseThreadsChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid threads configuration")
+		}
+		if cfg == nil || cfg.AccessToken == "" || cfg.ThreadsUserID == "" {
+			return nil, errorsx.InvalidParam("threads accessToken and threadsUserId are required")
+		}
+		if cfg.WebhookVerifyToken == "" {
+			if secret, err := generateUserTokenSecret(); err == nil {
+				cfg.WebhookVerifyToken = secret
 			}
 		}
 		configBytes, err := json.Marshal(cfg)

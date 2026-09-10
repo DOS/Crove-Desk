@@ -1,8 +1,6 @@
 "use client"
 
-import { UserIcon } from "lucide-react";
-
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ChannelIcon } from "@/components/channel-icon";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { IMConversationStatus } from "@/lib/generated/enums";
 import { useAgentConversationsStore } from "@/lib/stores/agent-conversations";
@@ -29,10 +27,14 @@ export function ConversationList({ onAfterSelect }: ConversationListProps) {
       ) : conversations.length > 0 ? (
         conversations.map((conversation) => {
           const isSelected = selectedId === conversation.id
+          const displayTitle = conversation.title && conversation.title !== conversation.customerName
+            ? conversation.title
+            : null
+
           return (
             <div
               key={conversation.id}
-              className={`cursor-pointer border-b border-border/80 px-3 py-2 transition-colors hover:bg-muted/40 ${
+              className={`cursor-pointer border-b border-border/80 px-3 py-2.5 transition-colors hover:bg-muted/40 ${
                 isSelected ? "bg-accent/70" : ""
               }`}
               onClick={() => {
@@ -44,44 +46,52 @@ export function ConversationList({ onAfterSelect }: ConversationListProps) {
                 )
               }}
             >
-              <div className="overflow-hidden">
-                <div className="flex items-center gap-2">
-                  <Avatar className="size-7 shrink-0">
-                    <AvatarImage src="" />
-                    <AvatarFallback className="bg-primary/10 text-primary">
-                      <UserIcon className="size-3.5 text-primary" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="min-w-0 flex-1 truncate font-medium text-sm leading-4">
-                        {conversation.customerName ||
-                          t("conversation.customerFallback", {
-                            id: conversation.customerId || conversation.id,
-                          })}
-                      </span>
-                      {conversation.agentUnreadCount > 0 ? (
-                        <div className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
-                          {conversation.agentUnreadCount > 99
-                            ? "99+"
-                            : conversation.agentUnreadCount}
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+              <div className="overflow-hidden space-y-1">
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    <span
+                      className="flex size-5 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground"
+                      title={conversation.channelName || conversation.channelType || "Channel"}
+                    >
+                      <ChannelIcon channelType={conversation.channelType} className="size-3" />
+                    </span>
+                    <span className="truncate font-semibold text-xs text-foreground">
+                      {conversation.customerName ||
+                        t("conversation.customerFallback", {
+                          id: conversation.customerId || conversation.id,
+                        })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-[11px] text-muted-foreground">
                       {conversation.lastMessageAt
                         ? formatDateTime(conversation.lastMessageAt)
                         : t("conversation.noTime")}
-                    </div>
+                    </span>
+                    {conversation.agentUnreadCount > 0 ? (
+                      <div className="flex size-4 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
+                        {conversation.agentUnreadCount > 99
+                          ? "99+"
+                          : conversation.agentUnreadCount}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
-                <div className="mt-0.5 truncate text-xs leading-4 text-muted-foreground">
+
+                {displayTitle ? (
+                  <div className="truncate text-xs font-medium text-foreground/90">
+                    {displayTitle}
+                  </div>
+                ) : null}
+
+                <div className="truncate text-xs text-muted-foreground">
                   {conversation.lastMessageSummary || t("conversation.noLatestMessage")}
                 </div>
+
                 {conversation.status === IMConversationStatus.Pending &&
                 conversation.currentTeamName ? (
                   <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <span className="rounded-md bg-muted px-1.5 py-0.5">
+                    <span className="rounded-md bg-muted px-1.5 py-0.5 font-medium">
                       {t("conversation.teamOnDuty", {
                         name: conversation.currentTeamName,
                       })}

@@ -198,6 +198,16 @@ func addRouter(app *gin.Engine) {
 	registerThirdTelegramRoutes(thirdGroup.Group("/telegram"))
 	registerThirdZaloRoutes(thirdGroup.Group("/zalo"))
 	registerThirdEmailRoutes(thirdGroup.Group("/email"))
+	registerThirdDiscordRoutes(thirdGroup.Group("/discord"))
+	registerThirdMessengerRoutes(thirdGroup.Group("/messenger"))
+	registerThirdInstagramRoutes(thirdGroup.Group("/instagram"))
+	registerThirdWhatsAppRoutes(thirdGroup.Group("/whatsapp"))
+	registerThirdSlackRoutes(thirdGroup.Group("/slack"))
+	registerThirdXRoutes(thirdGroup.Group("/x"))
+	registerThirdTikTokRoutes(thirdGroup.Group("/tiktok"))
+	registerThirdLineRoutes(thirdGroup.Group("/line"))
+	registerThirdViberRoutes(thirdGroup.Group("/viber"))
+	registerThirdThreadsRoutes(thirdGroup.Group("/threads"))
 }
 
 type spaShellRewrite struct {

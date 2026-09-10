@@ -2,7 +2,7 @@ package repositories
 
 import (
 	"agent-desk/internal/models"
-
+	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/httpx/params"
 
 	"github.com/mlogclub/simple/sqls"
@@ -45,6 +45,13 @@ func (r *customerContactRepository) FindOne(db *gorm.DB, cnd *sqls.Cnd) *models.
 		return nil
 	}
 	return ret
+}
+
+func (r *customerContactRepository) FindByCustomerID(db *gorm.DB, customerID int64) []models.CustomerContact {
+	if customerID <= 0 {
+		return nil
+	}
+	return r.Find(db, sqls.NewCnd().Eq("customer_id", customerID).Eq("status", enums.StatusOk).Desc("id"))
 }
 
 func (r *customerContactRepository) FindPageByParams(db *gorm.DB, params *params.QueryParams) (list []models.CustomerContact, paging *sqls.Paging) {

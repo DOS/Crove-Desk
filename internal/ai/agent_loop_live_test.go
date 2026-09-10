@@ -33,7 +33,7 @@ func setupTestAIEnvironment(t *testing.T) (*gorm.DB, models.AIConfig) {
 		apiKey = os.Getenv("OPENAI_API_KEY")
 	}
 	if apiKey == "" {
-		apiKey = "dos_sk_IIv2Nii7JGqCLk3i0r29ExujvFYl7inY"
+		t.Skip("skipping live test: no AI API key configured (set config.yaml AI.apiKey, AI_API_KEY or OPENAI_API_KEY)")
 	}
 	baseURL := "https://api.dos.ai/v1"
 	if cfg != nil && cfg.AI.BaseURL != "" {

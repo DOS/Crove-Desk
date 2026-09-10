@@ -3,6 +3,15 @@ import type { PageResult } from "@/lib/api/admin"
 import type { ContactType } from "@/lib/generated/enums"
 import { AdminCompany } from "./company"
 
+export type CustomerIdentity = {
+  id: number
+  customerId: number
+  externalSource: string
+  externalId: string
+  status: number
+  createdAt?: string
+}
+
 export type AdminCustomer = {
   id: number
   name: string
@@ -14,6 +23,8 @@ export type AdminCustomer = {
   primaryEmail: string
   status: number
   remark: string
+  identities?: CustomerIdentity[]
+  channels?: string[]
   createdAt: string
   updatedAt: string
 }
@@ -104,5 +115,18 @@ export function deleteCustomer(id: number) {
   return request<void>("/api/dashboard/customer/delete", {
     method: "POST",
     body: JSON.stringify({ id }),
+  })
+}
+
+export type MergeCustomerPayload = {
+  targetCustomerId: number
+  sourceCustomerId: number
+  reason?: string
+}
+
+export function mergeCustomer(payload: MergeCustomerPayload) {
+  return request<AdminCustomer>("/api/dashboard/customer/merge", {
+    method: "POST",
+    body: JSON.stringify(payload),
   })
 }

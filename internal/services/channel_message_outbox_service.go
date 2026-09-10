@@ -89,7 +89,7 @@ func (s *channelMessageOutboxService) EnqueueWxWorkKFMessage(conversation *model
 	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
 		return nil
 	}
-	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML {
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
 		return nil
 	}
 	if existing := s.GetByMessageID(enums.ChannelTypeWxWorkKF, message.ID); existing != nil {
@@ -137,7 +137,7 @@ func (s *channelMessageOutboxService) EnqueueTelegramMessage(conversation *model
 	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
 		return nil
 	}
-	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML {
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
 		return nil
 	}
 	if existing := s.GetByMessageID(enums.ChannelTypeTelegram, message.ID); existing != nil {
@@ -200,7 +200,7 @@ func (s *channelMessageOutboxService) EnqueueZaloOAMessage(conversation *models.
 	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
 		return nil
 	}
-	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML {
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
 		return nil
 	}
 	if existing := s.GetByMessageID(enums.ChannelTypeZaloOA, message.ID); existing != nil {
@@ -263,7 +263,7 @@ func (s *channelMessageOutboxService) EnqueueEmailMessage(conversation *models.C
 	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
 		return nil
 	}
-	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML {
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
 		return nil
 	}
 	if existing := s.GetByMessageID(enums.ChannelTypeEmail, message.ID); existing != nil {
@@ -310,6 +310,636 @@ func (s *channelMessageOutboxService) EnqueueEmailMessage(conversation *models.C
 			}
 		}()
 		EmailOutboundService.DispatchPendingOutbox()
+	}()
+
+	return nil
+}
+
+func (s *channelMessageOutboxService) EnqueueDiscordMessage(conversation *models.Conversation, message *models.Message) error {
+	if conversation == nil || message == nil {
+		return nil
+	}
+	channel := ChannelService.Get(conversation.ChannelID)
+	if channel == nil || channel.ChannelType != enums.ChannelTypeDiscord {
+		return nil
+	}
+	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
+		return nil
+	}
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
+		return nil
+	}
+	if existing := s.GetByMessageID(enums.ChannelTypeDiscord, message.ID); existing != nil {
+		return nil
+	}
+
+	payload, err := json.Marshal(map[string]any{
+		"conversationId": conversation.ID,
+		"messageId":      message.ID,
+		"messageType":    message.MessageType,
+		"content":        strings.TrimSpace(message.Content),
+		"payload":        strings.TrimSpace(message.Payload),
+		"senderId":       message.SenderID,
+	})
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	err = s.Create(&models.ChannelMessageOutbox{
+		ChannelType:    enums.ChannelTypeDiscord,
+		ConversationID: conversation.ID,
+		MessageID:      message.ID,
+		Payload:        string(payload),
+		SendStatus:     string(enums.ChannelMessageOutboxStatusPending),
+		AuditFields: models.AuditFields{
+			CreatedAt:      now,
+			CreateUserID:   message.UpdateUserID,
+			CreateUserName: message.UpdateUserName,
+			UpdatedAt:      now,
+			UpdateUserID:   message.UpdateUserID,
+			UpdateUserName: message.UpdateUserName,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Trigger async dispatch immediately
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered from panic in discord outbound dispatch", "error", r)
+			}
+		}()
+		DiscordOutboundService.DispatchPendingOutbox()
+	}()
+
+	return nil
+}
+
+func (s *channelMessageOutboxService) EnqueueMessengerMessage(conversation *models.Conversation, message *models.Message) error {
+	if conversation == nil || message == nil {
+		return nil
+	}
+	channel := ChannelService.Get(conversation.ChannelID)
+	if channel == nil || channel.ChannelType != enums.ChannelTypeMessenger {
+		return nil
+	}
+	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
+		return nil
+	}
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
+		return nil
+	}
+	if existing := s.GetByMessageID(enums.ChannelTypeMessenger, message.ID); existing != nil {
+		return nil
+	}
+
+	payload, err := json.Marshal(map[string]any{
+		"conversationId": conversation.ID,
+		"messageId":      message.ID,
+		"messageType":    message.MessageType,
+		"content":        strings.TrimSpace(message.Content),
+		"payload":        strings.TrimSpace(message.Payload),
+		"senderId":       message.SenderID,
+	})
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	err = s.Create(&models.ChannelMessageOutbox{
+		ChannelType:    enums.ChannelTypeMessenger,
+		ConversationID: conversation.ID,
+		MessageID:      message.ID,
+		Payload:        string(payload),
+		SendStatus:     string(enums.ChannelMessageOutboxStatusPending),
+		AuditFields: models.AuditFields{
+			CreatedAt:      now,
+			CreateUserID:   message.UpdateUserID,
+			CreateUserName: message.UpdateUserName,
+			UpdatedAt:      now,
+			UpdateUserID:   message.UpdateUserID,
+			UpdateUserName: message.UpdateUserName,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Trigger async dispatch immediately
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered from panic in messenger outbound dispatch", "error", r)
+			}
+		}()
+		MessengerOutboundService.DispatchPendingOutbox()
+	}()
+
+	return nil
+}
+
+func (s *channelMessageOutboxService) EnqueueInstagramMessage(conversation *models.Conversation, message *models.Message) error {
+	if conversation == nil || message == nil {
+		return nil
+	}
+	channel := ChannelService.Get(conversation.ChannelID)
+	if channel == nil || channel.ChannelType != enums.ChannelTypeInstagram {
+		return nil
+	}
+	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
+		return nil
+	}
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
+		return nil
+	}
+	if existing := s.GetByMessageID(enums.ChannelTypeInstagram, message.ID); existing != nil {
+		return nil
+	}
+
+	payload, err := json.Marshal(map[string]any{
+		"conversationId": conversation.ID,
+		"messageId":      message.ID,
+		"messageType":    message.MessageType,
+		"content":        strings.TrimSpace(message.Content),
+		"payload":        strings.TrimSpace(message.Payload),
+		"senderId":       message.SenderID,
+	})
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	err = s.Create(&models.ChannelMessageOutbox{
+		ChannelType:    enums.ChannelTypeInstagram,
+		ConversationID: conversation.ID,
+		MessageID:      message.ID,
+		Payload:        string(payload),
+		SendStatus:     string(enums.ChannelMessageOutboxStatusPending),
+		AuditFields: models.AuditFields{
+			CreatedAt:      now,
+			CreateUserID:   message.UpdateUserID,
+			CreateUserName: message.UpdateUserName,
+			UpdatedAt:      now,
+			UpdateUserID:   message.UpdateUserID,
+			UpdateUserName: message.UpdateUserName,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Trigger async dispatch immediately
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered from panic in instagram outbound dispatch", "error", r)
+			}
+		}()
+		InstagramOutboundService.DispatchPendingOutbox()
+	}()
+
+	return nil
+}
+
+func (s *channelMessageOutboxService) EnqueueWhatsAppMessage(conversation *models.Conversation, message *models.Message) error {
+	if conversation == nil || message == nil {
+		return nil
+	}
+	channel := ChannelService.Get(conversation.ChannelID)
+	if channel == nil || channel.ChannelType != enums.ChannelTypeWhatsApp {
+		return nil
+	}
+	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
+		return nil
+	}
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
+		return nil
+	}
+	if existing := s.GetByMessageID(enums.ChannelTypeWhatsApp, message.ID); existing != nil {
+		return nil
+	}
+
+	payload, err := json.Marshal(map[string]any{
+		"conversationId": conversation.ID,
+		"messageId":      message.ID,
+		"messageType":    message.MessageType,
+		"content":        strings.TrimSpace(message.Content),
+		"payload":        strings.TrimSpace(message.Payload),
+		"senderId":       message.SenderID,
+	})
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	err = s.Create(&models.ChannelMessageOutbox{
+		ChannelType:    enums.ChannelTypeWhatsApp,
+		ConversationID: conversation.ID,
+		MessageID:      message.ID,
+		Payload:        string(payload),
+		SendStatus:     string(enums.ChannelMessageOutboxStatusPending),
+		AuditFields: models.AuditFields{
+			CreatedAt:      now,
+			CreateUserID:   message.UpdateUserID,
+			CreateUserName: message.UpdateUserName,
+			UpdatedAt:      now,
+			UpdateUserID:   message.UpdateUserID,
+			UpdateUserName: message.UpdateUserName,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Trigger async dispatch immediately
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered from panic in whatsapp outbound dispatch", "error", r)
+			}
+		}()
+		WhatsAppOutboundService.DispatchPendingOutbox()
+	}()
+
+	return nil
+}
+
+func (s *channelMessageOutboxService) EnqueueSlackMessage(conversation *models.Conversation, message *models.Message) error {
+	if conversation == nil || message == nil {
+		return nil
+	}
+	channel := ChannelService.Get(conversation.ChannelID)
+	if channel == nil || channel.ChannelType != enums.ChannelTypeSlack {
+		return nil
+	}
+	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
+		return nil
+	}
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
+		return nil
+	}
+	if existing := s.GetByMessageID(enums.ChannelTypeSlack, message.ID); existing != nil {
+		return nil
+	}
+
+	payload, err := json.Marshal(map[string]any{
+		"conversationId": conversation.ID,
+		"messageId":      message.ID,
+		"messageType":    message.MessageType,
+		"content":        strings.TrimSpace(message.Content),
+		"payload":        strings.TrimSpace(message.Payload),
+		"senderId":       message.SenderID,
+	})
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	err = s.Create(&models.ChannelMessageOutbox{
+		ChannelType:    enums.ChannelTypeSlack,
+		ConversationID: conversation.ID,
+		MessageID:      message.ID,
+		Payload:        string(payload),
+		SendStatus:     string(enums.ChannelMessageOutboxStatusPending),
+		AuditFields: models.AuditFields{
+			CreatedAt:      now,
+			CreateUserID:   message.UpdateUserID,
+			CreateUserName: message.UpdateUserName,
+			UpdatedAt:      now,
+			UpdateUserID:   message.UpdateUserID,
+			UpdateUserName: message.UpdateUserName,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Trigger async dispatch immediately
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered from panic in slack outbound dispatch", "error", r)
+			}
+		}()
+		SlackOutboundService.DispatchPendingOutbox()
+	}()
+
+	return nil
+}
+
+func (s *channelMessageOutboxService) EnqueueXMessage(conversation *models.Conversation, message *models.Message) error {
+	if conversation == nil || message == nil {
+		return nil
+	}
+	channel := ChannelService.Get(conversation.ChannelID)
+	if channel == nil || channel.ChannelType != enums.ChannelTypeX {
+		return nil
+	}
+	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
+		return nil
+	}
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
+		return nil
+	}
+	if existing := s.GetByMessageID(enums.ChannelTypeX, message.ID); existing != nil {
+		return nil
+	}
+
+	payload, err := json.Marshal(map[string]any{
+		"conversationId": conversation.ID,
+		"messageId":      message.ID,
+		"messageType":    message.MessageType,
+		"content":        strings.TrimSpace(message.Content),
+		"payload":        strings.TrimSpace(message.Payload),
+		"senderId":       message.SenderID,
+	})
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	err = s.Create(&models.ChannelMessageOutbox{
+		ChannelType:    enums.ChannelTypeX,
+		ConversationID: conversation.ID,
+		MessageID:      message.ID,
+		Payload:        string(payload),
+		SendStatus:     string(enums.ChannelMessageOutboxStatusPending),
+		AuditFields: models.AuditFields{
+			CreatedAt:      now,
+			CreateUserID:   message.UpdateUserID,
+			CreateUserName: message.UpdateUserName,
+			UpdatedAt:      now,
+			UpdateUserID:   message.UpdateUserID,
+			UpdateUserName: message.UpdateUserName,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Trigger async dispatch immediately
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered from panic in x outbound dispatch", "error", r)
+			}
+		}()
+		XOutboundService.DispatchPendingOutbox()
+	}()
+
+	return nil
+}
+
+func (s *channelMessageOutboxService) EnqueueTikTokMessage(conversation *models.Conversation, message *models.Message) error {
+	if conversation == nil || message == nil {
+		return nil
+	}
+	channel := ChannelService.Get(conversation.ChannelID)
+	if channel == nil || channel.ChannelType != enums.ChannelTypeTikTok {
+		return nil
+	}
+	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
+		return nil
+	}
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
+		return nil
+	}
+	if existing := s.GetByMessageID(enums.ChannelTypeTikTok, message.ID); existing != nil {
+		return nil
+	}
+
+	payload, err := json.Marshal(map[string]any{
+		"conversationId": conversation.ID,
+		"messageId":      message.ID,
+		"messageType":    message.MessageType,
+		"content":        strings.TrimSpace(message.Content),
+		"payload":        strings.TrimSpace(message.Payload),
+		"senderId":       message.SenderID,
+	})
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	err = s.Create(&models.ChannelMessageOutbox{
+		ChannelType:    enums.ChannelTypeTikTok,
+		ConversationID: conversation.ID,
+		MessageID:      message.ID,
+		Payload:        string(payload),
+		SendStatus:     string(enums.ChannelMessageOutboxStatusPending),
+		AuditFields: models.AuditFields{
+			CreatedAt:      now,
+			CreateUserID:   message.UpdateUserID,
+			CreateUserName: message.UpdateUserName,
+			UpdatedAt:      now,
+			UpdateUserID:   message.UpdateUserID,
+			UpdateUserName: message.UpdateUserName,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Trigger async dispatch immediately
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered from panic in tiktok outbound dispatch", "error", r)
+			}
+		}()
+		TikTokOutboundService.DispatchPendingOutbox()
+	}()
+
+	return nil
+}
+
+func (s *channelMessageOutboxService) EnqueueLineMessage(conversation *models.Conversation, message *models.Message) error {
+	if conversation == nil || message == nil {
+		return nil
+	}
+	channel := ChannelService.Get(conversation.ChannelID)
+	if channel == nil || channel.ChannelType != enums.ChannelTypeLine {
+		return nil
+	}
+	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
+		return nil
+	}
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
+		return nil
+	}
+	if existing := s.GetByMessageID(enums.ChannelTypeLine, message.ID); existing != nil {
+		return nil
+	}
+
+	payload, err := json.Marshal(map[string]any{
+		"conversationId": conversation.ID,
+		"messageId":      message.ID,
+		"messageType":    message.MessageType,
+		"content":        strings.TrimSpace(message.Content),
+		"payload":        strings.TrimSpace(message.Payload),
+		"senderId":       message.SenderID,
+	})
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	err = s.Create(&models.ChannelMessageOutbox{
+		ChannelType:    enums.ChannelTypeLine,
+		ConversationID: conversation.ID,
+		MessageID:      message.ID,
+		Payload:        string(payload),
+		SendStatus:     string(enums.ChannelMessageOutboxStatusPending),
+		AuditFields: models.AuditFields{
+			CreatedAt:      now,
+			CreateUserID:   message.UpdateUserID,
+			CreateUserName: message.UpdateUserName,
+			UpdatedAt:      now,
+			UpdateUserID:   message.UpdateUserID,
+			UpdateUserName: message.UpdateUserName,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Trigger async dispatch immediately
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered from panic in line outbound dispatch", "error", r)
+			}
+		}()
+		LineOutboundService.DispatchPendingOutbox()
+	}()
+
+	return nil
+}
+
+func (s *channelMessageOutboxService) EnqueueViberMessage(conversation *models.Conversation, message *models.Message) error {
+	if conversation == nil || message == nil {
+		return nil
+	}
+	channel := ChannelService.Get(conversation.ChannelID)
+	if channel == nil || channel.ChannelType != enums.ChannelTypeViber {
+		return nil
+	}
+	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
+		return nil
+	}
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
+		return nil
+	}
+	if existing := s.GetByMessageID(enums.ChannelTypeViber, message.ID); existing != nil {
+		return nil
+	}
+
+	payload, err := json.Marshal(map[string]any{
+		"conversationId": conversation.ID,
+		"messageId":      message.ID,
+		"messageType":    message.MessageType,
+		"content":        strings.TrimSpace(message.Content),
+		"payload":        strings.TrimSpace(message.Payload),
+		"senderId":       message.SenderID,
+	})
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	err = s.Create(&models.ChannelMessageOutbox{
+		ChannelType:    enums.ChannelTypeViber,
+		ConversationID: conversation.ID,
+		MessageID:      message.ID,
+		Payload:        string(payload),
+		SendStatus:     string(enums.ChannelMessageOutboxStatusPending),
+		AuditFields: models.AuditFields{
+			CreatedAt:      now,
+			CreateUserID:   message.UpdateUserID,
+			CreateUserName: message.UpdateUserName,
+			UpdatedAt:      now,
+			UpdateUserID:   message.UpdateUserID,
+			UpdateUserName: message.UpdateUserName,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Trigger async dispatch immediately
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered from panic in viber outbound dispatch", "error", r)
+			}
+		}()
+		ViberOutboundService.DispatchPendingOutbox()
+	}()
+
+	return nil
+}
+
+func (s *channelMessageOutboxService) EnqueueThreadsMessage(conversation *models.Conversation, message *models.Message) error {
+	if conversation == nil || message == nil {
+		return nil
+	}
+	channel := ChannelService.Get(conversation.ChannelID)
+	if channel == nil || channel.ChannelType != enums.ChannelTypeThreads {
+		return nil
+	}
+	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
+		return nil
+	}
+	if message.MessageType != enums.IMMessageTypeText && message.MessageType != enums.IMMessageTypeHTML && message.MessageType != enums.IMMessageTypeImage && message.MessageType != enums.IMMessageTypeAttachment {
+		return nil
+	}
+	if existing := s.GetByMessageID(enums.ChannelTypeThreads, message.ID); existing != nil {
+		return nil
+	}
+
+	payload, err := json.Marshal(map[string]any{
+		"conversationId": conversation.ID,
+		"messageId":      message.ID,
+		"messageType":    message.MessageType,
+		"content":        strings.TrimSpace(message.Content),
+		"payload":        strings.TrimSpace(message.Payload),
+		"senderId":       message.SenderID,
+	})
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	err = s.Create(&models.ChannelMessageOutbox{
+		ChannelType:    enums.ChannelTypeThreads,
+		ConversationID: conversation.ID,
+		MessageID:      message.ID,
+		Payload:        string(payload),
+		SendStatus:     string(enums.ChannelMessageOutboxStatusPending),
+		AuditFields: models.AuditFields{
+			CreatedAt:      now,
+			CreateUserID:   message.UpdateUserID,
+			CreateUserName: message.UpdateUserName,
+			UpdatedAt:      now,
+			UpdateUserID:   message.UpdateUserID,
+			UpdateUserName: message.UpdateUserName,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Trigger async dispatch immediately
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered from panic in threads outbound dispatch", "error", r)
+			}
+		}()
+		ThreadsOutboundService.DispatchPendingOutbox()
 	}()
 
 	return nil

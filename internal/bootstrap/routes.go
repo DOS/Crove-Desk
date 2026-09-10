@@ -123,6 +123,7 @@ func registerDashboardCustomerRoutes(group *gin.RouterGroup) {
 	group.POST("/create", dashboard.CustomerPostCreate)
 	group.POST("/delete", dashboard.CustomerPostDelete)
 	group.POST("/list", dashboard.CustomerPostList)
+	group.POST("/merge", dashboard.CustomerPostMerge)
 	group.POST("/save_profile", dashboard.CustomerPostSave_profile)
 	group.POST("/update", dashboard.CustomerPostUpdate)
 	group.POST("/update_status", dashboard.CustomerPostUpdate_status)
@@ -231,6 +232,13 @@ func registerDashboardChannelRoutes(group *gin.RouterGroup) {
 	group.POST("/rollback_ai_agent_rollout", dashboard.ChannelPostRollback_ai_agent_rollout)
 	group.POST("/update", dashboard.ChannelPostUpdate)
 	group.POST("/update_status", dashboard.ChannelPostUpdate_status)
+	group.GET("/discord_oauth_url", dashboard.ChannelGetDiscordOAuthURL)
+	group.GET("/messenger_oauth_url", dashboard.ChannelGetMessengerOAuthURL)
+	group.GET("/instagram_oauth_url", dashboard.ChannelGetInstagramOAuthURL)
+	group.GET("/whatsapp_oauth_url", dashboard.ChannelGetWhatsAppOAuthURL)
+	group.GET("/slack_oauth_url", dashboard.ChannelGetSlackOAuthURL)
+	group.GET("/x_oauth_url", dashboard.ChannelGetXOAuthURL)
+	group.GET("/tiktok_oauth_url", dashboard.ChannelGetTikTokOAuthURL)
 	group.Any("/wxwork/kf/accounts", dashboard.ChannelAnyWxworkKfAccounts)
 	group.Any("/wxwork/outbox/failed/list", dashboard.ChannelAnyWxworkOutboxFailedList)
 	group.POST("/wxwork/outbox/retry", dashboard.ChannelPostWxworkOutboxRetry)
@@ -447,4 +455,66 @@ func registerThirdZaloRoutes(group *gin.RouterGroup) {
 func registerThirdEmailRoutes(group *gin.RouterGroup) {
 	group.POST("/webhook", third.EmailPostWebhook)
 	group.POST("/webhook/:channel_id", third.EmailPostWebhook)
+}
+
+func registerThirdDiscordRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.DiscordPostWebhook)
+	group.POST("/webhook/:channel_id", third.DiscordPostWebhook)
+}
+
+func registerThirdMessengerRoutes(group *gin.RouterGroup) {
+	group.GET("/webhook", third.MessengerGetWebhook)
+	group.GET("/webhook/:channel_id", third.MessengerGetWebhook)
+	group.POST("/webhook", third.MessengerPostWebhook)
+	group.POST("/webhook/:channel_id", third.MessengerPostWebhook)
+}
+
+func registerThirdInstagramRoutes(group *gin.RouterGroup) {
+	group.GET("/webhook", third.InstagramGetWebhook)
+	group.GET("/webhook/:channel_id", third.InstagramGetWebhook)
+	group.POST("/webhook", third.InstagramPostWebhook)
+	group.POST("/webhook/:channel_id", third.InstagramPostWebhook)
+}
+
+func registerThirdWhatsAppRoutes(group *gin.RouterGroup) {
+	group.GET("/webhook", third.WhatsAppGetWebhook)
+	group.GET("/webhook/:channel_id", third.WhatsAppGetWebhook)
+	group.POST("/webhook", third.WhatsAppPostWebhook)
+	group.POST("/webhook/:channel_id", third.WhatsAppPostWebhook)
+}
+
+func registerThirdSlackRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.SlackPostWebhook)
+	group.POST("/webhook/:channel_id", third.SlackPostWebhook)
+}
+
+func registerThirdXRoutes(group *gin.RouterGroup) {
+	group.GET("/webhook", third.XGetWebhook)
+	group.GET("/webhook/:channel_id", third.XGetWebhook)
+	group.POST("/webhook", third.XPostWebhook)
+	group.POST("/webhook/:channel_id", third.XPostWebhook)
+}
+
+func registerThirdTikTokRoutes(group *gin.RouterGroup) {
+	group.GET("/webhook", third.TikTokGetWebhook)
+	group.GET("/webhook/:channel_id", third.TikTokGetWebhook)
+	group.POST("/webhook", third.TikTokPostWebhook)
+	group.POST("/webhook/:channel_id", third.TikTokPostWebhook)
+}
+
+func registerThirdLineRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.LinePostWebhook)
+	group.POST("/webhook/:channel_id", third.LinePostWebhook)
+}
+
+func registerThirdViberRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.ViberPostWebhook)
+	group.POST("/webhook/:channel_id", third.ViberPostWebhook)
+}
+
+func registerThirdThreadsRoutes(group *gin.RouterGroup) {
+	group.GET("/webhook", third.ThreadsGetWebhook)
+	group.GET("/webhook/:channel_id", third.ThreadsGetWebhook)
+	group.POST("/webhook", third.ThreadsPostWebhook)
+	group.POST("/webhook/:channel_id", third.ThreadsPostWebhook)
 }

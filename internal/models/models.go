@@ -389,6 +389,7 @@ type Tag struct {
 // Conversation 客服会话。
 type Conversation struct {
 	ID                  int64                           `gorm:"primaryKey;autoIncrement"`                    // ID 为会话主键。
+	Title               string                          `gorm:"type:varchar(255);not null;default:'';index"` // Title 为会话标题/主题（如邮件 Subject 或会话摘要）。
 	AIAgentID           int64                           `gorm:"type:bigint;not null;default:0;index"`        // AIAgentID 为当前会话绑定的 AI Agent ID。
 	ChannelID           int64                           `gorm:"type:bigint;not null;default:0;index"`        // ChannelID 为该会话来源接入渠道ID。
 	CustomerID          int64                           `gorm:"type:bigint;not null;default:0;index"`        // CustomerID 为会话所属客户 ID。

@@ -38,6 +38,46 @@ func Init() {
 		if emailCount > 0 {
 			slog.Info("email outbox dispatched", "count", emailCount)
 		}
+		discordCount := services.DiscordOutboundService.DispatchPendingOutbox()
+		if discordCount > 0 {
+			slog.Info("discord outbox dispatched", "count", discordCount)
+		}
+		messengerCount := services.MessengerOutboundService.DispatchPendingOutbox()
+		if messengerCount > 0 {
+			slog.Info("messenger outbox dispatched", "count", messengerCount)
+		}
+		instagramCount := services.InstagramOutboundService.DispatchPendingOutbox()
+		if instagramCount > 0 {
+			slog.Info("instagram outbox dispatched", "count", instagramCount)
+		}
+		whatsappCount := services.WhatsAppOutboundService.DispatchPendingOutbox()
+		if whatsappCount > 0 {
+			slog.Info("whatsapp outbox dispatched", "count", whatsappCount)
+		}
+		slackCount := services.SlackOutboundService.DispatchPendingOutbox()
+		if slackCount > 0 {
+			slog.Info("slack outbox dispatched", "count", slackCount)
+		}
+		lineCount := services.LineOutboundService.DispatchPendingOutbox()
+		if lineCount > 0 {
+			slog.Info("line outbox dispatched", "count", lineCount)
+		}
+		viberCount := services.ViberOutboundService.DispatchPendingOutbox()
+		if viberCount > 0 {
+			slog.Info("viber outbox dispatched", "count", viberCount)
+		}
+		threadsCount := services.ThreadsOutboundService.DispatchPendingOutbox()
+		if threadsCount > 0 {
+			slog.Info("threads outbox dispatched", "count", threadsCount)
+		}
+		xCount := services.XOutboundService.DispatchPendingOutbox()
+		if xCount > 0 {
+			slog.Info("x outbox dispatched", "count", xCount)
+		}
+		tiktokCount := services.TikTokOutboundService.DispatchPendingOutbox()
+		if tiktokCount > 0 {
+			slog.Info("tiktok outbox dispatched", "count", tiktokCount)
+		}
 	})
 
 	c.Start()

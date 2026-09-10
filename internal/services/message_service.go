@@ -494,7 +494,7 @@ func (s *messageService) sendValidatedMessage(conversation *models.Conversation,
 		conversation.UpdatedAt = now
 		conversation.AgentUnreadCount = int(agentUnreadCount)
 		conversation.CustomerUnreadCount = int(customerUnreadCount)
-		if err := repositories.ConversationRepository.Updates(ctx.Tx, conversation.ID, map[string]any{
+		updates := map[string]any{
 			"last_message_id":       conversation.LastMessageID,
 			"last_message_at":       conversation.LastMessageAt,
 			"last_active_at":        conversation.LastActiveAt,
@@ -504,7 +504,12 @@ func (s *messageService) sendValidatedMessage(conversation *models.Conversation,
 			"updated_at":            conversation.UpdatedAt,
 			"agent_unread_count":    conversation.AgentUnreadCount,
 			"customer_unread_count": conversation.CustomerUnreadCount,
-		}); err != nil {
+		}
+		if conversation.Title == "" && summary != "" {
+			conversation.Title = limitText(summary, 255)
+			updates["title"] = conversation.Title
+		}
+		if err := repositories.ConversationRepository.Updates(ctx.Tx, conversation.ID, updates); err != nil {
 			return err
 		}
 
@@ -562,6 +567,96 @@ func (s *messageService) sendValidatedMessage(conversation *models.Conversation,
 	// Email 渠道消息入队，异步发送
 	if enqueueErr := ChannelMessageOutboxService.EnqueueEmailMessage(conversation, message); enqueueErr != nil {
 		slog.Error("enqueue email outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
+	// Discord 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueDiscordMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue discord outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
+	// Messenger 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueMessengerMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue messenger outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
+	// Instagram 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueInstagramMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue instagram outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
+	// WhatsApp 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueWhatsAppMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue whatsapp outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
+	// Slack 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueSlackMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue slack outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
+	// X (Twitter) 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueXMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue x outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
+	// TikTok 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueTikTokMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue tiktok outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
+	// LINE 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueLineMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue line outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
+	// Viber 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueViberMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue viber outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
+	// Threads 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueThreadsMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue threads outbox failed",
 			"conversation_id", conversation.ID,
 			"message_id", message.ID,
 			"error", enqueueErr,

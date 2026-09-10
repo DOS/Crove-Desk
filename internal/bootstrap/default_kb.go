@@ -86,7 +86,7 @@ func defaultCroveDeskFAQs() []defaultFAQItem {
 		},
 		{
 			Question: "Cơ chế Single Sign-On (SSO) và Multi-tenancy trong Crove Desk hoạt động ra sao?",
-			Answer:   "Crove Desk hỗ trợ đăng nhập một chạm (SSO) qua giao thức OIDC / OAuth 2.1 với chuẩn bảo mật PKCE S256 (kết nối trực tiếp với DOS ID / Supabase Auth). Đồng thời, hệ thống hỗ trợ đa tổ chức (Multi-tenancy/Workspaces) cho phép người dùng chuyển đổi linh hoạt giữa các Workspace khác nhau với cơ chế đồng bộ 2 pha Hybrid Sync (JIT Provisioning khi đăng nhập và Realtime Webhook Sync).",
+			Answer:   "Crove Desk hỗ trợ đăng nhập một chạm (SSO) qua giao thức OIDC / OAuth 2.1 với chuẩn bảo mật PKCE S256 (kết nối trực tiếp với DOS ID / Supabase Auth). Hệ thống hỗ trợ nhiều tổ chức (Workspaces): người dùng có thể tạo và chuyển đổi giữa các Workspace để quản lý thành viên và phân quyền OWNER / ADMIN / MEMBER, được cấp phát tự động khi đăng nhập (JIT Provisioning) và đồng bộ qua Realtime Webhook Sync. Lưu ý: hiện tại dữ liệu hỗ trợ (hội thoại, ticket, khách hàng, kiến thức) được dùng chung giữa các Workspace trong cùng một triển khai — việc chuyển Workspace thay đổi bối cảnh quản lý thành viên, chưa cách ly dữ liệu theo tổ chức.",
 			SimilarQuestions: []string{
 				"Đăng nhập bằng DOS ID",
 				"Multi-tenant trong Crove Desk",

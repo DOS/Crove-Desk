@@ -18,12 +18,22 @@ const (
 )
 
 const (
-	ChannelTypeWeb      = "web"
-	ChannelTypeWechatMP = "wechat_mp"
-	ChannelTypeWxWorkKF = "wxwork_kf"
-	ChannelTypeTelegram = "telegram"
-	ChannelTypeZaloOA   = "zalo_oa"
-	ChannelTypeEmail    = "email"
+	ChannelTypeWeb       = "web"
+	ChannelTypeWechatMP  = "wechat_mp"
+	ChannelTypeWxWorkKF  = "wxwork_kf"
+	ChannelTypeTelegram  = "telegram"
+	ChannelTypeZaloOA    = "zalo_oa"
+	ChannelTypeEmail     = "email"
+	ChannelTypeDiscord   = "discord"
+	ChannelTypeMessenger = "messenger"
+	ChannelTypeInstagram = "instagram"
+	ChannelTypeWhatsApp  = "whatsapp"
+	ChannelTypeSlack     = "slack"
+	ChannelTypeX         = "x"
+	ChannelTypeTikTok    = "tiktok"
+	ChannelTypeLine      = "line"
+	ChannelTypeViber     = "viber"
+	ChannelTypeThreads   = "threads"
 )
 
 type WxWorkKFMessageSendStatus string

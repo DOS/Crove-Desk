@@ -64,15 +64,15 @@ func (s *conversationService) ListConversations(userID int64, filter request.Age
 
 	switch filter {
 	case request.AgentConversationFilterAIServing:
-		cnd.Eq("current_assignee_id", 0).Eq("status", enums.IMConversationStatusAIServing).Desc("last_active_at").Desc("id")
+		cnd.Eq("status", enums.IMConversationStatusAIServing).Desc("last_active_at").Desc("id")
 	case request.AgentConversationFilterMine:
-		cnd.Eq("current_assignee_id", userID).Desc("last_active_at").Desc("id")
+		cnd.Eq("current_assignee_id", userID).Where("status <> ?", enums.IMConversationStatusClosed).Desc("last_active_at").Desc("id")
 	case request.AgentConversationFilterActive:
-		cnd.Eq("current_assignee_id", userID).Eq("status", enums.IMConversationStatusActive).Desc("last_active_at").Desc("id")
+		cnd.Eq("status", enums.IMConversationStatusActive).Desc("last_active_at").Desc("id")
 	case request.AgentConversationFilterPending:
-		cnd.Eq("current_assignee_id", 0).Eq("status", enums.IMConversationStatusPending).Asc("last_active_at").Desc("id")
+		cnd.Eq("status", enums.IMConversationStatusPending).Asc("last_active_at").Desc("id")
 	case request.AgentConversationFilterClosed:
-		cnd.Eq("current_assignee_id", userID).Eq("status", enums.IMConversationStatusClosed).Desc("last_active_at").Desc("id")
+		cnd.Eq("status", enums.IMConversationStatusClosed).Desc("last_active_at").Desc("id")
 	default:
 		return nil, nil, errorsx.InvalidParamI18n("error.e0121")
 	}
@@ -186,24 +186,62 @@ func (s *conversationService) AssignConversation(req request.AssignConversationR
 	if operator == nil {
 		return errorsx.UnauthorizedI18n("error.auth.expired")
 	}
-	targetProfile := AgentProfileService.GetByUserID(req.AssigneeID)
-	if targetProfile == nil || targetProfile.Status != enums.StatusOk {
-		return errorsx.InvalidParamI18n("error.e0276")
-	}
+
 	var assignedEvent events.ConversationAssignedEvent
 	if err := sqls.WithTransaction(func(ctx *sqls.TxContext) error {
 		conversation := repositories.ConversationRepository.Get(ctx.Tx, req.ConversationID)
 		if conversation == nil {
 			return errorsx.InvalidParamI18n("error.e0116")
 		}
-		if conversation.Status != enums.IMConversationStatusPending {
+		if conversation.Status == enums.IMConversationStatusClosed {
 			return errorsx.InvalidParamI18n("error.e0135")
 		}
+
 		now := time.Now()
 		if err := ConversationAssignmentService.FinishActiveAssignments(ctx, req.ConversationID, now); err != nil {
 			return err
 		}
-		if err := ConversationAssignmentService.CreateAssignment(ctx, req.ConversationID, conversation.CurrentAssigneeID, req.AssigneeID, enums.IMAssignmentTypeAssign, req.Reason, operator, now); err != nil {
+
+		// If req.AssigneeID <= 0 -> Unassign conversation
+		if req.AssigneeID <= 0 {
+			if err := repositories.ConversationRepository.Updates(ctx.Tx, req.ConversationID, map[string]any{
+				"current_assignee_id": 0,
+				"status":              enums.IMConversationStatusPending,
+				"update_user_id":      operator.UserID,
+				"update_user_name":    operator.Username,
+				"updated_at":          now,
+			}); err != nil {
+				return err
+			}
+			_ = ConversationEventLogService.CreateEvent(ctx, req.ConversationID, enums.IMEventTypeAssign, enums.IMSenderTypeAgent, operator.UserID, "会话已取消分配", s.buildEventPayload(map[string]any{
+				"fromStatus":     conversation.Status,
+				"toStatus":       enums.IMConversationStatusPending,
+				"fromAssigneeId": conversation.CurrentAssigneeID,
+				"toAssigneeId":   0,
+				"reason":         strings.TrimSpace(req.Reason),
+			}))
+			assignedEvent = events.ConversationAssignedEvent{
+				ConversationID: req.ConversationID,
+				FromUserID:     conversation.CurrentAssigneeID,
+				ToUserID:       0,
+				OperatorID:     operator.UserID,
+				Reason:         strings.TrimSpace(req.Reason),
+				AssignType:     events.ConversationAssignTypeAssign,
+			}
+			return nil
+		}
+
+		targetProfile := AgentProfileService.GetByUserID(req.AssigneeID)
+		if targetProfile == nil || targetProfile.Status != enums.StatusOk {
+			return errorsx.InvalidParamI18n("error.e0276")
+		}
+
+		assignType := enums.IMAssignmentTypeAssign
+		if conversation.Status == enums.IMConversationStatusActive {
+			assignType = enums.IMAssignmentTypeTransfer
+		}
+
+		if err := ConversationAssignmentService.CreateAssignment(ctx, req.ConversationID, conversation.CurrentAssigneeID, req.AssigneeID, assignType, req.Reason, operator, now); err != nil {
 			return err
 		}
 		if err := repositories.ConversationRepository.Updates(ctx.Tx, req.ConversationID, map[string]any{
@@ -215,15 +253,13 @@ func (s *conversationService) AssignConversation(req request.AssignConversationR
 		}); err != nil {
 			return err
 		}
-		if err := ConversationEventLogService.CreateEvent(ctx, req.ConversationID, enums.IMEventTypeAssign, enums.IMSenderTypeAgent, operator.UserID, "会话已分配", s.buildEventPayload(map[string]any{
+		_ = ConversationEventLogService.CreateEvent(ctx, req.ConversationID, enums.IMEventTypeAssign, enums.IMSenderTypeAgent, operator.UserID, "会话已分配", s.buildEventPayload(map[string]any{
 			"fromStatus":     conversation.Status,
 			"toStatus":       enums.IMConversationStatusActive,
 			"fromAssigneeId": conversation.CurrentAssigneeID,
 			"toAssigneeId":   req.AssigneeID,
 			"reason":         strings.TrimSpace(req.Reason),
-		})); err != nil {
-			return err
-		}
+		}))
 		assignedEvent = events.ConversationAssignedEvent{
 			ConversationID: req.ConversationID,
 			FromUserID:     conversation.CurrentAssigneeID,

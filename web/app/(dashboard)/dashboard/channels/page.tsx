@@ -1,11 +1,20 @@
 "use client"
 
 import {
+  AtSignIcon,
   Building2Icon,
+  Gamepad2Icon,
+  HashIcon,
+  InstagramIcon,
   MailIcon,
+  MessageCircleIcon,
+  MessageCircleMoreIcon,
   MessagesSquareIcon,
   MessageSquareMoreIcon,
+  PhoneIcon,
   SendIcon,
+  SmartphoneIcon,
+  VideoIcon,
 } from "lucide-react"
 
 import {
@@ -30,6 +39,36 @@ import { EditDialog } from "./_components/edit"
 function getChannelTypeLabel(channelType: string, t: (key: string) => string) {
   if (channelType === "email") {
     return t("channel.typeEmail")
+  }
+  if (channelType === "discord") {
+    return t("channel.typeDiscord")
+  }
+  if (channelType === "messenger") {
+    return t("channel.typeMessenger")
+  }
+  if (channelType === "instagram") {
+    return t("channel.typeInstagram")
+  }
+  if (channelType === "whatsapp") {
+    return t("channel.typeWhatsApp")
+  }
+  if (channelType === "slack") {
+    return t("channel.typeSlack")
+  }
+  if (channelType === "x") {
+    return t("channel.typeX")
+  }
+  if (channelType === "tiktok") {
+    return t("channel.typeTikTok")
+  }
+  if (channelType === "line") {
+    return t("channel.typeLine")
+  }
+  if (channelType === "viber") {
+    return t("channel.typeViber")
+  }
+  if (channelType === "threads") {
+    return t("channel.typeThreads")
   }
   if (channelType === "wechat_mp") {
     return t("channel.typeWechatMp")
@@ -60,6 +99,36 @@ function ChannelIcon({ channelType }: { channelType: string }) {
   if (channelType === "email") {
     return <MailIcon className="size-4" />
   }
+  if (channelType === "discord") {
+    return <Gamepad2Icon className="size-4" />
+  }
+  if (channelType === "messenger") {
+    return <MessageCircleIcon className="size-4" />
+  }
+  if (channelType === "instagram") {
+    return <InstagramIcon className="size-4" />
+  }
+  if (channelType === "whatsapp") {
+    return <PhoneIcon className="size-4" />
+  }
+  if (channelType === "slack") {
+    return <HashIcon className="size-4" />
+  }
+  if (channelType === "x") {
+    return <AtSignIcon className="size-4" />
+  }
+  if (channelType === "tiktok") {
+    return <VideoIcon className="size-4" />
+  }
+  if (channelType === "line") {
+    return <MessageCircleMoreIcon className="size-4" />
+  }
+  if (channelType === "viber") {
+    return <SmartphoneIcon className="size-4" />
+  }
+  if (channelType === "threads") {
+    return <MessagesSquareIcon className="size-4" />
+  }
   if (channelType === "wechat_mp") {
     return <MessagesSquareIcon className="size-4" />
   }
@@ -85,6 +154,16 @@ export default function DashboardChannelsPage() {
     { value: "all", label: t("channel.allTypes") },
     { value: "web", label: t("channel.typeWeb") },
     { value: "email", label: t("channel.typeEmail") },
+    { value: "discord", label: t("channel.typeDiscord") },
+    { value: "messenger", label: t("channel.typeMessenger") },
+    { value: "instagram", label: t("channel.typeInstagram") },
+    { value: "whatsapp", label: t("channel.typeWhatsApp") },
+    { value: "slack", label: t("channel.typeSlack") },
+    { value: "x", label: t("channel.typeX") },
+    { value: "tiktok", label: t("channel.typeTikTok") },
+    { value: "line", label: t("channel.typeLine") },
+    { value: "viber", label: t("channel.typeViber") },
+    { value: "threads", label: t("channel.typeThreads") },
     { value: "telegram", label: t("channel.typeTelegram") },
     { value: "zalo_oa", label: t("channel.typeZaloOa") },
     { value: "wechat_mp", label: t("channel.typeWechatMp") },

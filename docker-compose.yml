@@ -1,24 +1,4 @@
 services:
-  mysql:
-    image: mysql:8.4
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: cs_ai_agent
-      MYSQL_USER: cs_ai_agent
-      MYSQL_PASSWORD: cs_ai_agent_password
-      MYSQL_ROOT_PASSWORD: cs_ai_agent_root_password
-      TZ: Asia/Shanghai
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-    volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u\"$${MYSQL_USER}\" -p\"$${MYSQL_PASSWORD}\" --silent"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
   qdrant:
     image: qdrant/qdrant:latest
     restart: unless-stopped
@@ -32,22 +12,26 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: mlogclub/agent-desk:latest
+    image: crove-desk:latest
     restart: unless-stopped
     depends_on:
-      mysql:
-        condition: service_healthy
       qdrant:
         condition: service_started
     ports:
       - "8083:8083"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - agent-desk-data:/app/data
       - ./docker/agent-desk.yaml:/app/config/config.yaml:ro
+    env_file:
+      - .env
     environment:
       TZ: Asia/Shanghai
+      QDRANT_HOST: qdrant
+      DB_TYPE: postgres
+      DATABASE_URL: "postgres://postgres:postgres@host.docker.internal:54322/postgres?sslmode=disable&search_path=desk"
 
 volumes:
-  mysql-data:
   qdrant-data:
   agent-desk-data:

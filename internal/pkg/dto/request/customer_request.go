@@ -70,3 +70,9 @@ type SaveCustomerProfileRequest struct {
 	Remark    string                       `json:"remark"`
 	Contacts  []CustomerProfileContactItem `json:"contacts"`
 }
+
+type MergeCustomerRequest struct {
+	TargetCustomerID int64  `json:"targetCustomerId"`
+	SourceCustomerID int64  `json:"sourceCustomerId"`
+	Reason           string `json:"reason,omitempty"`
+}

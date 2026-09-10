@@ -110,11 +110,8 @@ func (s *emailInboundService) processInboundItem(ctx context.Context, channel *m
 		bodyText = "(Empty email body)"
 	}
 
-	// Format content with subject if provided
+	// Use body text directly for message content (subject is tracked at conversation level)
 	content := bodyText
-	if item.Subject != "" {
-		content = fmt.Sprintf("[%s]\n\n%s", item.Subject, bodyText)
-	}
 
 	// 1. Resolve customer identity
 	externalUser := openidentity.ExternalUser{
@@ -144,6 +141,12 @@ func (s *emailInboundService) processInboundItem(ctx context.Context, channel *m
 		if err != nil {
 			return fmt.Errorf("create email conversation failed: %w", err)
 		}
+	}
+
+	// Ensure conversation title is set from email subject if empty
+	if item.Subject != "" && conversation.Title == "" {
+		_ = repositories.ConversationRepository.UpdateColumn(sqls.DB(), conversation.ID, "title", strings.TrimSpace(item.Subject))
+		conversation.Title = strings.TrimSpace(item.Subject)
 	}
 
 	// Ensure customer primary_email is populated
