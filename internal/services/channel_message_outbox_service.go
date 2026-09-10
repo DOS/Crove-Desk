@@ -949,12 +949,18 @@ func (s *channelMessageOutboxService) ListPending(channelType string, limit int)
 	if limit <= 0 {
 		limit = 20
 	}
+	now := time.Now()
 	cnd := sqls.NewCnd().
 		Eq("channel_type", strings.TrimSpace(channelType)).
 		In("send_status", []string{
 			string(enums.ChannelMessageOutboxStatusPending),
 			string(enums.ChannelMessageOutboxStatusFailed),
 		}).
+		// Only rows whose backoff has elapsed are eligible; ordering by
+		// next_retry_at keeps a backlog of not-yet-due retries from starving
+		// newer pending sends.
+		Lte("next_retry_at", now).
+		Asc("next_retry_at").
 		Asc("id").
 		Limit(limit)
 	return s.Find(cnd)

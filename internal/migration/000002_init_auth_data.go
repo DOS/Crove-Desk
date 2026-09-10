@@ -205,6 +205,7 @@ func ensureBootstrapAdmin(tx *gorm.DB, superAdminRole *models.Role) error {
 			Username: username,
 			Nickname: nickname,
 			Password: string(hashedPassword),
+			UserType: enums.UserTypeEmployee,
 			Status:   enums.StatusOk,
 			Remark:   "bootstrap super admin",
 			AuditFields: models.AuditFields{
