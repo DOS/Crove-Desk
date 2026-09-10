@@ -1,6 +1,7 @@
 package builders
 
 import (
+	"strings"
 	"time"
 
 	"agent-desk/internal/models"
@@ -12,6 +13,35 @@ import (
 
 	"github.com/mlogclub/simple/sqls"
 )
+
+// guestIdentityTail is how many trailing characters of a guest external id stay
+// visible. A value shorter than four times that is masked outright, because a
+// tail would give away too large a fraction of it.
+const guestIdentityTail = 4
+
+// displayExternalID redacts guest identifiers before they reach a client.
+//
+// A guest external id is the only credential the customer session exchange asks
+// for: whoever presents it is issued a session bound to that customer and can
+// then read, answer and close their conversations in their name. The value is
+// either a random guest_<uuid> that means nothing to a human or something an
+// integrating site picked for itself, so an agent loses nothing by seeing only
+// enough of it to tell two identities apart.
+//
+// Identities from real channels stay readable: the guest path in openidentity
+// only ever mints ExternalSourceGuest, so a telegram or email identifier cannot
+// be replayed through it, and support agents genuinely need those to correlate
+// with the platform.
+func displayExternalID(source enums.ExternalSource, externalID string) string {
+	if source != enums.ExternalSourceGuest {
+		return externalID
+	}
+	runes := []rune(externalID)
+	if len(runes) < guestIdentityTail*4 {
+		return strings.Repeat("*", len(runes))
+	}
+	return strings.Repeat("*", guestIdentityTail) + string(runes[len(runes)-guestIdentityTail:])
+}
 
 func BuildCustomer(item *models.Customer) *response.CustomerResponse {
 	if item == nil {
@@ -29,7 +59,7 @@ func BuildCustomer(item *models.Customer) *response.CustomerResponse {
 			ID:             idn.ID,
 			CustomerID:     idn.CustomerID,
 			ExternalSource: idn.ExternalSource,
-			ExternalID:     idn.ExternalID,
+			ExternalID:     displayExternalID(idn.ExternalSource, idn.ExternalID),
 			Status:         idn.Status,
 			CreatedAt:      utils.FormatTime(idn.CreatedAt),
 		})
@@ -79,7 +109,7 @@ func BuildCustomerList(list []models.Customer) []response.CustomerResponse {
 			ID:             idn.ID,
 			CustomerID:     idn.CustomerID,
 			ExternalSource: idn.ExternalSource,
-			ExternalID:     idn.ExternalID,
+			ExternalID:     displayExternalID(idn.ExternalSource, idn.ExternalID),
 			Status:         idn.Status,
 			CreatedAt:      utils.FormatTime(idn.CreatedAt),
 		})

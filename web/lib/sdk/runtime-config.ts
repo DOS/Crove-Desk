@@ -9,6 +9,13 @@ export function readSupportChatRuntimeConfig(): SupportChatRuntimeConfig {
     }
   }
 
+  // The query string is the bootstrap source rather than a convenience fallback:
+  // chat-shell calls bootstrap() on mount without waiting for the agent-desk:init
+  // postMessage, so these values are what the first API calls actually run with.
+  // externalId and userToken therefore cannot simply be dropped from the frame URL
+  // to keep them out of browser history and proxy logs - the widget would fall back
+  // to its own localStorage guest id and quietly attach an integrating site's
+  // returning visitor to a different customer.
   const query = new URLSearchParams(window.location.search)
   const fallback: SupportChatRuntimeConfig = {
     channelId:
