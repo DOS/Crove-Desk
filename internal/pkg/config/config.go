@@ -323,21 +323,21 @@ func Load(path string) (*Config, error) {
 
 func loadDotEnv(configPath string) {
 	if envFile := os.Getenv("AGENT_DESK_ENV_FILE"); envFile != "" {
-		_ = gotenv.Load(envFile)
+		_ = gotenv.OverLoad(envFile)
 		return
 	}
 	if envFile := os.Getenv("ENV_FILE"); envFile != "" {
-		_ = gotenv.Load(envFile)
+		_ = gotenv.OverLoad(envFile)
 		return
 	}
-	_ = gotenv.Load(".env")
-	_ = gotenv.Load("../.env")
-	_ = gotenv.Load("../../.env")
+	_ = gotenv.OverLoad(".env")
+	_ = gotenv.OverLoad("../.env")
+	_ = gotenv.OverLoad("../../.env")
 	if configPath != "" {
 		dir := filepath.Dir(configPath)
 		if dir != "." && dir != "" {
-			_ = gotenv.Load(filepath.Join(dir, ".env"))
-			_ = gotenv.Load(filepath.Join(dir, "..", ".env"))
+			_ = gotenv.OverLoad(filepath.Join(dir, ".env"))
+			_ = gotenv.OverLoad(filepath.Join(dir, "..", ".env"))
 		}
 	}
 }

@@ -54,6 +54,11 @@ mcp:
 	if err := os.WriteFile(path, content, 0600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
+	t.Setenv("ENV_FILE", os.DevNull)
+	t.Setenv("AGENT_DESK_ENV_FILE", os.DevNull)
+	t.Setenv("DB_TYPE", "sqlite")
+	t.Setenv("DB_DSN", "mysql-dsn")
+	t.Setenv("STORAGE_LOCAL_BASEURL", "/files")
 	t.Setenv("AGENT_DESK_SERVER_PORT", "8090")
 	t.Setenv("AGENT_DESK_DB_DSN", "mysql-dsn")
 	t.Setenv("AGENT_DESK_STORAGE_LOCAL_BASEURL", "/files")

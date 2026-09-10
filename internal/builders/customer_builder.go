@@ -17,7 +17,10 @@ func BuildCustomer(item *models.Customer) *response.CustomerResponse {
 	if item == nil {
 		return nil
 	}
-	identities := repositories.CustomerIdentityRepository.FindByCustomerID(sqls.DB(), item.ID)
+	var identities []models.CustomerIdentity
+	if sqls.DB() != nil {
+		identities = repositories.CustomerIdentityRepository.FindByCustomerID(sqls.DB(), item.ID)
+	}
 	identityResponses := make([]response.CustomerIdentityResponse, 0, len(identities))
 	channels := make([]string, 0, len(identities))
 	channelSeen := make(map[string]bool)
@@ -63,7 +66,10 @@ func BuildCustomerList(list []models.Customer) []response.CustomerResponse {
 	for _, item := range list {
 		customerIDs = append(customerIDs, item.ID)
 	}
-	allIdentities := repositories.CustomerIdentityRepository.Find(sqls.DB(), sqls.NewCnd().In("customer_id", customerIDs).Eq("status", enums.StatusOk).Desc("id"))
+	var allIdentities []models.CustomerIdentity
+	if sqls.DB() != nil {
+		allIdentities = repositories.CustomerIdentityRepository.Find(sqls.DB(), sqls.NewCnd().In("customer_id", customerIDs).Eq("status", enums.StatusOk).Desc("id"))
+	}
 	identityMap := make(map[int64][]response.CustomerIdentityResponse)
 	channelMap := make(map[int64][]string)
 	channelSeen := make(map[int64]map[string]bool)
