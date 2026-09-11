@@ -221,3 +221,87 @@ MESSENGER_VERIFY_TOKEN=meta-verify-token-777
 		t.Fatalf("Messenger.VerifyToken=%q want meta-verify-token-777", cfg.Messenger.VerifyToken)
 	}
 }
+
+// TestLoadPrefersPrefixedAliasOverLegacyEnv pins that the documented
+// AGENT_DESK_* spelling beats every legacy alias when both are set. That holds
+// because Load enables AutomaticEnv together with SetEnvPrefix("AGENT_DESK"), so
+// viper resolves "server.port" to AGENT_DESK_SERVER_PORT before it ever consults
+// the BindEnv alias list - the order inside bindEnvironmentAliases is not what
+// guarantees it. The existing override test sets both spellings to the same value
+// and so cannot tell the mechanisms apart; this one makes them conflict. It
+// matters because every legacy name is also a plausible ambient variable in a
+// container or a shell profile, and DATABASE_URL winning would silently point
+// the process at a different database.
+func TestLoadPrefersPrefixedAliasOverLegacyEnv(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	content := []byte(`server:
+  port: 8083
+db:
+  dsn: yaml-dsn
+storage:
+  local:
+    baseUrl: /storage
+`)
+	if err := os.WriteFile(path, content, 0600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	t.Setenv("ENV_FILE", os.DevNull)
+	t.Setenv("AGENT_DESK_ENV_FILE", os.DevNull)
+	t.Setenv("PORT", "9999")
+	t.Setenv("AGENT_DESK_SERVER_PORT", "8090")
+	t.Setenv("SERVER_PORT", "9998")
+	t.Setenv("DATABASE_URL", "legacy-dsn")
+	t.Setenv("DB_DSN", "legacy-dsn-2")
+	t.Setenv("AGENT_DESK_DB_DSN", "prefixed-dsn")
+	t.Setenv("STORAGE_LOCAL_BASE_URL", "/legacy")
+	t.Setenv("AGENT_DESK_STORAGE_LOCAL_BASEURL", "/prefixed")
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Server.Port != 8090 {
+		t.Errorf("Server.Port=%d want 8090, AGENT_DESK_SERVER_PORT must beat PORT and SERVER_PORT", cfg.Server.Port)
+	}
+	if cfg.DB.DSN != "prefixed-dsn" {
+		t.Errorf("DB.DSN=%q want prefixed-dsn, AGENT_DESK_DB_DSN must beat DATABASE_URL and DB_DSN", cfg.DB.DSN)
+	}
+	if cfg.Storage.Local.BaseURL != "/prefixed" {
+		t.Errorf("Storage.Local.BaseURL=%q want /prefixed", cfg.Storage.Local.BaseURL)
+	}
+}
+
+// TestLoadFallsBackToLegacyEnvWhenPrefixedAliasUnset keeps the alias list honest
+// in the other direction: the documented deployment files set only the legacy
+// names, so those must still apply when no prefixed alias is present, and still
+// override the YAML file as viper intends.
+func TestLoadFallsBackToLegacyEnvWhenPrefixedAliasUnset(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	content := []byte(`server:
+  port: 8083
+db:
+  dsn: yaml-dsn
+`)
+	if err := os.WriteFile(path, content, 0600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	t.Setenv("ENV_FILE", os.DevNull)
+	t.Setenv("AGENT_DESK_ENV_FILE", os.DevNull)
+	t.Setenv("PORT", "9999")
+	t.Setenv("DATABASE_URL", "legacy-dsn")
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Server.Port != 9999 {
+		t.Errorf("Server.Port=%d want 9999, PORT must still apply when AGENT_DESK_SERVER_PORT is unset", cfg.Server.Port)
+	}
+	if cfg.DB.DSN != "legacy-dsn" {
+		t.Errorf("DB.DSN=%q want legacy-dsn", cfg.DB.DSN)
+	}
+}

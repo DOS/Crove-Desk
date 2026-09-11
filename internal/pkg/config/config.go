@@ -4,6 +4,7 @@ import (
 	"agent-desk/internal/pkg/enums"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -400,67 +401,86 @@ func bindConfigDefaults(v *viper.Viper) {
 }
 
 func bindEnvironmentAliases(v *viper.Viper) {
-	_ = v.BindEnv("server.port", "PORT", "SERVER_PORT", "AGENT_DESK_SERVER_PORT")
-	_ = v.BindEnv("server.publicUrl", "PUBLIC_URL", "APP_URL", "SERVER_PUBLIC_URL", "BASE_URL", "DESK_BASE_URL", "AGENT_DESK_SERVER_PUBLICURL")
-	_ = v.BindEnv("server.companyName", "COMPANY_NAME", "NEXT_PUBLIC_COMPANY_NAME", "BRAND_NAME", "BRAND_COMPANY_NAME", "AGENT_DESK_SERVER_COMPANYNAME")
-	_ = v.BindEnv("server.companyLogoUrl", "COMPANY_LOGO_URL", "NEXT_PUBLIC_COMPANY_LOGO_URL", "BRAND_LOGO_URL", "AGENT_DESK_SERVER_COMPANYLOGOURL")
-	_ = v.BindEnv("server.companyFaviconUrl", "COMPANY_FAVICON_URL", "NEXT_PUBLIC_COMPANY_FAVICON_URL", "BRAND_FAVICON_URL", "FAVICON_URL", "AGENT_DESK_SERVER_COMPANYFAVICONURL")
-	_ = v.BindEnv("db.type", "DATABASE_TYPE", "DB_TYPE", "AGENT_DESK_DB_TYPE")
-	_ = v.BindEnv("db.dsn", "DATABASE_URL", "DB_DSN", "AGENT_DESK_DB_DSN")
-	_ = v.BindEnv("auth.passwordLoginEnabled", "PASSWORD_LOGIN_ENABLED", "AGENT_DESK_AUTH_PASSWORDLOGINENABLED")
-	_ = v.BindEnv("auth.tokenTTLHours", "AUTH_TOKEN_TTL_HOURS", "AGENT_DESK_AUTH_TOKENTTLHOURS")
-	_ = v.BindEnv("customerSession.secret", "CUSTOMER_SESSION_SECRET", "SESSION_SECRET", "JWT_SECRET", "AGENT_DESK_CUSTOMERSESSION_SECRET")
-	_ = v.BindEnv("storage.default", "STORAGE_DEFAULT", "STORAGE_TYPE", "AGENT_DESK_STORAGE_DEFAULT")
-	_ = v.BindEnv("storage.local.root", "STORAGE_LOCAL_ROOT", "AGENT_DESK_STORAGE_LOCAL_ROOT")
-	_ = v.BindEnv("storage.local.baseUrl", "STORAGE_LOCAL_BASE_URL", "AGENT_DESK_STORAGE_LOCAL_BASEURL")
-	_ = v.BindEnv("vectorDB.type", "VECTOR_DB_TYPE", "AGENT_DESK_VECTORDB_TYPE")
-	_ = v.BindEnv("vectorDB.qdrant.host", "QDRANT_HOST", "AGENT_DESK_VECTORDB_QDRANT_HOST")
-	_ = v.BindEnv("vectorDB.qdrant.grpcPort", "QDRANT_GRPC_PORT", "QDRANT_PORT", "AGENT_DESK_VECTORDB_QDRANT_GRPCPORT")
-	_ = v.BindEnv("vectorDB.qdrant.apiKey", "QDRANT_API_KEY", "AGENT_DESK_VECTORDB_QDRANT_APIKEY")
-	_ = v.BindEnv("ai.provider", "AI_PROVIDER", "OPENAI_PROVIDER", "AGENT_DESK_AI_PROVIDER")
-	_ = v.BindEnv("ai.baseUrl", "AI_BASE_URL", "OPENAI_BASE_URL", "OPENAI_API_BASE", "DOS_AI_BASE_URL", "AGENT_DESK_AI_BASEURL")
-	_ = v.BindEnv("ai.apiKey", "AI_API_KEY", "OPENAI_API_KEY", "DOS_AI_API_KEY", "CROVE_OPENAI_API_KEY", "AGENT_DESK_AI_APIKEY")
-	_ = v.BindEnv("ai.llmModel", "AI_LLM_MODEL", "OPENAI_LLM_MODEL", "OPENAI_MODEL", "LLM_MODEL", "DOS_AI_LLM_MODEL", "AGENT_DESK_AI_LLMMODEL")
-	_ = v.BindEnv("ai.embeddingModel", "AI_EMBEDDING_MODEL", "OPENAI_EMBEDDING_MODEL", "EMBEDDING_MODEL", "DOS_AI_EMBEDDING_MODEL", "AGENT_DESK_AI_EMBEDDINGMODEL")
-	_ = v.BindEnv("ai.embeddingDimension", "AI_EMBEDDING_DIMENSION", "OPENAI_EMBEDDING_DIMENSION", "EMBEDDING_DIMENSION", "DOS_AI_EMBEDDING_DIMENSION", "AGENT_DESK_AI_EMBEDDINGDIMENSION")
-	_ = v.BindEnv("ai.timeoutMs", "AI_TIMEOUT_MS", "OPENAI_TIMEOUT_MS", "AGENT_DESK_AI_TIMEOUTMS")
-	_ = v.BindEnv("ai.maxRetryCount", "AI_MAX_RETRY_COUNT", "AGENT_DESK_AI_MAXRETRYCOUNT")
-	_ = v.BindEnv("oidc.enabled", "OIDC_ENABLED", "AGENT_DESK_OIDC_ENABLED")
-	_ = v.BindEnv("oidc.issuer", "OIDC_ISSUER", "AGENT_DESK_OIDC_ISSUER")
-	_ = v.BindEnv("oidc.clientId", "OIDC_CLIENT_ID", "CUSTOM_OAUTH_CLIENT_ID", "AGENT_DESK_OIDC_CLIENTID")
-	_ = v.BindEnv("oidc.clientSecret", "OIDC_CLIENT_SECRET", "CUSTOM_OAUTH_CLIENT_SECRET", "AGENT_DESK_OIDC_CLIENTSECRET")
-	_ = v.BindEnv("oidc.authStyle", "OIDC_AUTH_STYLE", "CUSTOM_OAUTH_AUTH_STYLE", "AGENT_DESK_OIDC_AUTHSTYLE")
-	_ = v.BindEnv("oidc.redirectUrl", "OIDC_REDIRECT_URL", "CUSTOM_OAUTH_REDIRECT_URI", "AGENT_DESK_OIDC_REDIRECTURL")
-	_ = v.BindEnv("webhook.orgSyncSecret", "ORG_SYNC_SECRET", "WEBHOOK_SECRET", "AGENT_DESK_WEBHOOK_ORGSYNCSECRET")
-	_ = v.BindEnv("webhook.outboundUrl", "ORG_SYNC_OUTBOUND_URL", "DOS_ORG_SYNC_URL", "WEBHOOK_OUTBOUND_URL", "AGENT_DESK_WEBHOOK_OUTBOUNDURL")
-	_ = v.BindEnv("mcp.enabled", "MCP_ENABLED", "AGENT_DESK_MCP_ENABLED")
-	_ = v.BindEnv("email.provider", "EMAIL_PROVIDER", "AGENT_DESK_EMAIL_PROVIDER")
-	_ = v.BindEnv("email.fromAddress", "EMAIL_FROM", "EMAIL_FROM_ADDRESS", "SUPPORT_EMAIL", "AGENT_DESK_EMAIL_FROMADDRESS")
-	_ = v.BindEnv("email.fromName", "EMAIL_FROM_NAME", "EMAIL_SENDER_NAME", "SUPPORT_SENDER_NAME", "AGENT_DESK_EMAIL_FROMNAME")
-	_ = v.BindEnv("email.apiKey", "EMAIL_API_KEY", "BREVO_API_KEY", "CROVE_BREVO_API_KEY", "SENDGRID_API_KEY", "RESEND_API_KEY", "POSTMARK_API_KEY", "MAILGUN_API_KEY", "AGENT_DESK_EMAIL_APIKEY")
-	_ = v.BindEnv("email.smtpHost", "SMTP_HOST", "EMAIL_SMTP_HOST", "AGENT_DESK_EMAIL_SMTPHOST")
-	_ = v.BindEnv("email.smtpPort", "SMTP_PORT", "EMAIL_SMTP_PORT", "AGENT_DESK_EMAIL_SMTPPORT")
-	_ = v.BindEnv("email.smtpUser", "SMTP_USER", "EMAIL_SMTP_USER", "CROVE_SMTP_USER", "AGENT_DESK_EMAIL_SMTPUSER")
-	_ = v.BindEnv("email.smtpPassword", "SMTP_PASSWORD", "SMTP_PASS", "EMAIL_SMTP_PASSWORD", "CROVE_SMTP_PASSWORD", "AGENT_DESK_EMAIL_SMTPPASSWORD")
-	_ = v.BindEnv("email.smtpUseTls", "SMTP_USE_TLS", "SMTP_SSL", "AGENT_DESK_EMAIL_SMTPUSETLS")
-	_ = v.BindEnv("email.inboundSecret", "EMAIL_INBOUND_SECRET", "EMAIL_WEBHOOK_SECRET", "AGENT_DESK_EMAIL_INBOUNDSECRET")
-	_ = v.BindEnv("discord.clientId", "DISCORD_CLIENT_ID", "AGENT_DESK_DISCORD_CLIENTID")
-	_ = v.BindEnv("discord.clientSecret", "DISCORD_CLIENT_SECRET", "AGENT_DESK_DISCORD_CLIENTSECRET")
-	_ = v.BindEnv("discord.botToken", "DISCORD_BOT_TOKEN", "AGENT_DESK_DISCORD_BOTTOKEN")
-	_ = v.BindEnv("discord.publicKey", "DISCORD_PUBLIC_KEY", "AGENT_DESK_DISCORD_PUBLICKEY")
-	_ = v.BindEnv("messenger.appId", "META_APP_ID", "FB_APP_ID", "MESSENGER_APP_ID", "AGENT_DESK_MESSENGER_APPID")
-	_ = v.BindEnv("messenger.appSecret", "META_APP_SECRET", "FB_APP_SECRET", "MESSENGER_APP_SECRET", "AGENT_DESK_MESSENGER_APPSECRET")
-	_ = v.BindEnv("messenger.verifyToken", "MESSENGER_VERIFY_TOKEN", "META_VERIFY_TOKEN", "FB_VERIFY_TOKEN", "AGENT_DESK_MESSENGER_VERIFYTOKEN")
+	// Each key lists the environment variables that may supply it. viper checks
+	// the AGENT_DESK_* spelling first regardless of this order, because
+	// AutomaticEnv combined with SetEnvPrefix("AGENT_DESK") resolves
+	// "server.port" to AGENT_DESK_SERVER_PORT before the alias list is consulted;
+	// the order below only decides precedence among the legacy spellings.
+	// Keeping the prefixed name first documents that intent and stays correct if
+	// AutomaticEnv is ever dropped.
+	_ = v.BindEnv("server.port", "AGENT_DESK_SERVER_PORT", "PORT", "SERVER_PORT")
+	_ = v.BindEnv("server.publicUrl", "AGENT_DESK_SERVER_PUBLICURL", "PUBLIC_URL", "APP_URL", "SERVER_PUBLIC_URL", "BASE_URL", "DESK_BASE_URL")
+	_ = v.BindEnv("server.companyName", "AGENT_DESK_SERVER_COMPANYNAME", "COMPANY_NAME", "NEXT_PUBLIC_COMPANY_NAME", "BRAND_NAME", "BRAND_COMPANY_NAME")
+	_ = v.BindEnv("server.companyLogoUrl", "AGENT_DESK_SERVER_COMPANYLOGOURL", "COMPANY_LOGO_URL", "NEXT_PUBLIC_COMPANY_LOGO_URL", "BRAND_LOGO_URL")
+	_ = v.BindEnv("server.companyFaviconUrl", "AGENT_DESK_SERVER_COMPANYFAVICONURL", "COMPANY_FAVICON_URL", "NEXT_PUBLIC_COMPANY_FAVICON_URL", "BRAND_FAVICON_URL", "FAVICON_URL")
+	_ = v.BindEnv("db.type", "AGENT_DESK_DB_TYPE", "DATABASE_TYPE", "DB_TYPE")
+	_ = v.BindEnv("db.dsn", "AGENT_DESK_DB_DSN", "DATABASE_URL", "DB_DSN")
+	_ = v.BindEnv("auth.passwordLoginEnabled", "AGENT_DESK_AUTH_PASSWORDLOGINENABLED", "PASSWORD_LOGIN_ENABLED")
+	_ = v.BindEnv("auth.tokenTTLHours", "AGENT_DESK_AUTH_TOKENTTLHOURS", "AUTH_TOKEN_TTL_HOURS")
+	_ = v.BindEnv("customerSession.secret", "AGENT_DESK_CUSTOMERSESSION_SECRET", "CUSTOMER_SESSION_SECRET", "SESSION_SECRET", "JWT_SECRET")
+	_ = v.BindEnv("storage.default", "AGENT_DESK_STORAGE_DEFAULT", "STORAGE_DEFAULT", "STORAGE_TYPE")
+	_ = v.BindEnv("storage.local.root", "AGENT_DESK_STORAGE_LOCAL_ROOT", "STORAGE_LOCAL_ROOT")
+	_ = v.BindEnv("storage.local.baseUrl", "AGENT_DESK_STORAGE_LOCAL_BASEURL", "STORAGE_LOCAL_BASE_URL")
+	_ = v.BindEnv("vectorDB.type", "AGENT_DESK_VECTORDB_TYPE", "VECTOR_DB_TYPE")
+	_ = v.BindEnv("vectorDB.qdrant.host", "AGENT_DESK_VECTORDB_QDRANT_HOST", "QDRANT_HOST")
+	_ = v.BindEnv("vectorDB.qdrant.grpcPort", "AGENT_DESK_VECTORDB_QDRANT_GRPCPORT", "QDRANT_GRPC_PORT", "QDRANT_PORT")
+	_ = v.BindEnv("vectorDB.qdrant.apiKey", "AGENT_DESK_VECTORDB_QDRANT_APIKEY", "QDRANT_API_KEY")
+	_ = v.BindEnv("ai.provider", "AGENT_DESK_AI_PROVIDER", "AI_PROVIDER", "OPENAI_PROVIDER")
+	_ = v.BindEnv("ai.baseUrl", "AGENT_DESK_AI_BASEURL", "AI_BASE_URL", "OPENAI_BASE_URL", "OPENAI_API_BASE", "DOS_AI_BASE_URL")
+	_ = v.BindEnv("ai.apiKey", "AGENT_DESK_AI_APIKEY", "AI_API_KEY", "OPENAI_API_KEY", "DOS_AI_API_KEY", "CROVE_OPENAI_API_KEY")
+	_ = v.BindEnv("ai.llmModel", "AGENT_DESK_AI_LLMMODEL", "AI_LLM_MODEL", "OPENAI_LLM_MODEL", "OPENAI_MODEL", "LLM_MODEL", "DOS_AI_LLM_MODEL")
+	_ = v.BindEnv("ai.embeddingModel", "AGENT_DESK_AI_EMBEDDINGMODEL", "AI_EMBEDDING_MODEL", "OPENAI_EMBEDDING_MODEL", "EMBEDDING_MODEL", "DOS_AI_EMBEDDING_MODEL")
+	_ = v.BindEnv("ai.embeddingDimension", "AGENT_DESK_AI_EMBEDDINGDIMENSION", "AI_EMBEDDING_DIMENSION", "OPENAI_EMBEDDING_DIMENSION", "EMBEDDING_DIMENSION", "DOS_AI_EMBEDDING_DIMENSION")
+	_ = v.BindEnv("ai.timeoutMs", "AGENT_DESK_AI_TIMEOUTMS", "AI_TIMEOUT_MS", "OPENAI_TIMEOUT_MS")
+	_ = v.BindEnv("ai.maxRetryCount", "AGENT_DESK_AI_MAXRETRYCOUNT", "AI_MAX_RETRY_COUNT")
+	_ = v.BindEnv("oidc.enabled", "AGENT_DESK_OIDC_ENABLED", "OIDC_ENABLED")
+	_ = v.BindEnv("oidc.issuer", "AGENT_DESK_OIDC_ISSUER", "OIDC_ISSUER")
+	_ = v.BindEnv("oidc.clientId", "AGENT_DESK_OIDC_CLIENTID", "OIDC_CLIENT_ID", "CUSTOM_OAUTH_CLIENT_ID")
+	_ = v.BindEnv("oidc.clientSecret", "AGENT_DESK_OIDC_CLIENTSECRET", "OIDC_CLIENT_SECRET", "CUSTOM_OAUTH_CLIENT_SECRET")
+	_ = v.BindEnv("oidc.authStyle", "AGENT_DESK_OIDC_AUTHSTYLE", "OIDC_AUTH_STYLE", "CUSTOM_OAUTH_AUTH_STYLE")
+	_ = v.BindEnv("oidc.redirectUrl", "AGENT_DESK_OIDC_REDIRECTURL", "OIDC_REDIRECT_URL", "CUSTOM_OAUTH_REDIRECT_URI")
+	_ = v.BindEnv("webhook.orgSyncSecret", "AGENT_DESK_WEBHOOK_ORGSYNCSECRET", "ORG_SYNC_SECRET", "WEBHOOK_SECRET")
+	_ = v.BindEnv("webhook.outboundUrl", "AGENT_DESK_WEBHOOK_OUTBOUNDURL", "ORG_SYNC_OUTBOUND_URL", "DOS_ORG_SYNC_URL", "WEBHOOK_OUTBOUND_URL")
+	_ = v.BindEnv("mcp.enabled", "AGENT_DESK_MCP_ENABLED", "MCP_ENABLED")
+	_ = v.BindEnv("email.provider", "AGENT_DESK_EMAIL_PROVIDER", "EMAIL_PROVIDER")
+	_ = v.BindEnv("email.fromAddress", "AGENT_DESK_EMAIL_FROMADDRESS", "EMAIL_FROM", "EMAIL_FROM_ADDRESS", "SUPPORT_EMAIL")
+	_ = v.BindEnv("email.fromName", "AGENT_DESK_EMAIL_FROMNAME", "EMAIL_FROM_NAME", "EMAIL_SENDER_NAME", "SUPPORT_SENDER_NAME")
+	_ = v.BindEnv("email.apiKey", "AGENT_DESK_EMAIL_APIKEY", "EMAIL_API_KEY", "BREVO_API_KEY", "CROVE_BREVO_API_KEY", "SENDGRID_API_KEY", "RESEND_API_KEY", "POSTMARK_API_KEY", "MAILGUN_API_KEY")
+	_ = v.BindEnv("email.smtpHost", "AGENT_DESK_EMAIL_SMTPHOST", "SMTP_HOST", "EMAIL_SMTP_HOST")
+	_ = v.BindEnv("email.smtpPort", "AGENT_DESK_EMAIL_SMTPPORT", "SMTP_PORT", "EMAIL_SMTP_PORT")
+	_ = v.BindEnv("email.smtpUser", "AGENT_DESK_EMAIL_SMTPUSER", "SMTP_USER", "EMAIL_SMTP_USER", "CROVE_SMTP_USER")
+	_ = v.BindEnv("email.smtpPassword", "AGENT_DESK_EMAIL_SMTPPASSWORD", "SMTP_PASSWORD", "SMTP_PASS", "EMAIL_SMTP_PASSWORD", "CROVE_SMTP_PASSWORD")
+	_ = v.BindEnv("email.smtpUseTls", "AGENT_DESK_EMAIL_SMTPUSETLS", "SMTP_USE_TLS", "SMTP_SSL")
+	_ = v.BindEnv("email.inboundSecret", "AGENT_DESK_EMAIL_INBOUNDSECRET", "EMAIL_INBOUND_SECRET", "EMAIL_WEBHOOK_SECRET")
+	_ = v.BindEnv("discord.clientId", "AGENT_DESK_DISCORD_CLIENTID", "DISCORD_CLIENT_ID")
+	_ = v.BindEnv("discord.clientSecret", "AGENT_DESK_DISCORD_CLIENTSECRET", "DISCORD_CLIENT_SECRET")
+	_ = v.BindEnv("discord.botToken", "AGENT_DESK_DISCORD_BOTTOKEN", "DISCORD_BOT_TOKEN")
+	_ = v.BindEnv("discord.publicKey", "AGENT_DESK_DISCORD_PUBLICKEY", "DISCORD_PUBLIC_KEY")
+	_ = v.BindEnv("messenger.appId", "AGENT_DESK_MESSENGER_APPID", "META_APP_ID", "FB_APP_ID", "MESSENGER_APP_ID")
+	_ = v.BindEnv("messenger.appSecret", "AGENT_DESK_MESSENGER_APPSECRET", "META_APP_SECRET", "FB_APP_SECRET", "MESSENGER_APP_SECRET")
+	_ = v.BindEnv("messenger.verifyToken", "AGENT_DESK_MESSENGER_VERIFYTOKEN", "MESSENGER_VERIFY_TOKEN", "META_VERIFY_TOKEN", "FB_VERIFY_TOKEN")
 }
 
 func normalizeLoadedConfig(cfg *Config) {
 	if cfg == nil {
 		return
 	}
+	inferredDBType := ""
 	if cfg.DB.Type == "sqlite" && (strings.HasPrefix(cfg.DB.DSN, "postgres://") || strings.HasPrefix(cfg.DB.DSN, "postgresql://")) {
 		cfg.DB.Type = "postgres"
+		inferredDBType = "postgres"
 	} else if cfg.DB.Type == "sqlite" && strings.Contains(cfg.DB.DSN, "@tcp(") {
 		cfg.DB.Type = "mysql"
+		inferredDBType = "mysql"
+	}
+	if inferredDBType != "" {
+		// db.type was left at its sqlite default and the engine was inferred from
+		// the DSN instead. A stray DATABASE_URL in the environment is enough to
+		// point the whole application at a different database, so say so out loud.
+		slog.Info("database engine inferred from dsn",
+			"dbType", inferredDBType,
+			"reason", "db.type was left at its sqlite default while db.dsn names another engine",
+		)
 	}
 
 	if cfg.MCP.Servers == nil {
