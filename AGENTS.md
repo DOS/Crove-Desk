@@ -9,6 +9,10 @@ This file defines the mandatory working agreement for AI agents in this reposito
 - Inspect the relevant implementation before editing. Reuse current helpers, component APIs, generated-code workflows, and neighboring patterns instead of relying on memory.
 - Keep changes narrowly scoped. Preserve unrelated and user-owned worktree changes, including staged changes.
 - A review, investigation, or diagnosis request is read-only unless the user also asks for implementation.
+- Land work through a feature branch and a pull request into `dev`. Do not commit directly to `dev` or `main`: `deploy-beta.yml` publishes an OCI image on every push to `dev`, and a pull request is the only path where the change is reviewed and where `ci.yml` gates it before it lands.
+- Never run `git add -A` or `git add .`. Stage explicit paths only. Other agent sessions regularly hold uncommitted work in this same working tree, and a broad stage commits it under an unrelated message.
+- Do not switch branches, rebase, stash, or add a worktree while another session may hold uncommitted changes. When a commit has to be built without moving `HEAD`, build it with plumbing: a temporary `GIT_INDEX_FILE`, `read-tree`, `add`, `write-tree`, `commit-tree`, then `git branch <name> <commit>`.
+- Run `git branch --show-current` before any command that moves a ref, and re-read `git status` immediately before staging. Another session may have moved `HEAD` off `dev` or advanced `dev` between two of your own commands.
 
 ## 2. Current Architecture
 
