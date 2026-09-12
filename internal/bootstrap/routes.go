@@ -236,6 +236,7 @@ func registerDashboardChannelRoutes(group *gin.RouterGroup) {
 	group.GET("/messenger_oauth_url", dashboard.ChannelGetMessengerOAuthURL)
 	group.GET("/instagram_oauth_url", dashboard.ChannelGetInstagramOAuthURL)
 	group.GET("/whatsapp_oauth_url", dashboard.ChannelGetWhatsAppOAuthURL)
+	group.POST("/whatsapp_oauth_callback", dashboard.ChannelPostWhatsAppOAuthCallback)
 	group.GET("/slack_oauth_url", dashboard.ChannelGetSlackOAuthURL)
 	group.GET("/x_oauth_url", dashboard.ChannelGetXOAuthURL)
 	group.GET("/tiktok_oauth_url", dashboard.ChannelGetTikTokOAuthURL)

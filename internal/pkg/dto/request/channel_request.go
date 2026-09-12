@@ -35,3 +35,18 @@ type ResetChannelUserTokenSecretRequest struct {
 type ChannelMessageOutboxActionRequest struct {
 	ID int64 `json:"id"`
 }
+
+// WhatsAppOAuthCallbackRequest carries the authorization code Meta redirected
+// back with. ChannelID is optional: when set, the exchanged credentials are
+// persisted onto that existing WhatsApp channel; when empty they are only
+// returned so the operator can finish creating one.
+type WhatsAppOAuthCallbackRequest struct {
+	Code        string `json:"code"`
+	State       string `json:"state"`
+	ChannelID   int64  `json:"channelId"`
+	RedirectURI string `json:"redirectUri"`
+	// PhoneNumberID and WabaID let the operator pick one of several discovered
+	// sender numbers instead of accepting the first.
+	PhoneNumberID string `json:"phoneNumberId"`
+	WabaID        string `json:"wabaId"`
+}

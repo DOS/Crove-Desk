@@ -1,6 +1,6 @@
 {
   "app": {
-    "brand": "贝壳AGENT",
+    "brand": "Crove Desk",
     "metadataTitle": "AI 客服后台管理系统",
     "metadataDescription": "AI 客服后台管理系统"
   },
@@ -703,6 +703,25 @@
     "whatsappPhoneId": "Phone Number ID",
     "whatsappWabaId": "WABA ID (商业账号 ID)",
     "whatsappAccessToken": "System User Access Token",
+    "whatsappConnecting": "正在打开 Meta 授权页面…",
+    "whatsappConnectFailed": "无法发起 WhatsApp 授权：{error}",
+    "whatsappPopupBlocked": "浏览器拦截了 Meta 登录窗口。请允许本站弹出窗口后重试。",
+    "whatsappWebhookHint": "将此地址填入 Meta App → WhatsApp → Configuration → Webhook。必须带渠道 ID，因此请先保存渠道。",
+    "whatsappWebhookNeedsChannel": "请先保存渠道，才能获取 Webhook 地址。",
+    "whatsappFilledFromOAuth": "已从 Meta 获取并填入 WhatsApp 凭据，请确认后保存渠道。",
+    "whatsappCallbackTitle": "WhatsApp 连接",
+    "whatsappCallbackExchanging": "正在与 Meta 交换授权码…",
+    "whatsappCallbackSuccessTitle": "WhatsApp 账号已授权",
+    "whatsappCallbackSuccessSaved": "凭据已保存到渠道，可以关闭此窗口。",
+    "whatsappCallbackSuccessForm": "凭据已返回渠道表单，可以关闭此窗口。",
+    "whatsappCallbackFailedTitle": "WhatsApp 连接失败",
+    "whatsappCallbackDenied": "已取消 Meta 授权。",
+    "whatsappCallbackMissingCode": "Meta 未返回授权码。",
+    "whatsappCallbackAccountsTitle": "已找到的发送号码",
+    "whatsappCallbackNoAccounts": "未能自动获取发送号码。请在渠道表单中手动填写 WABA ID 和 Phone Number ID。",
+    "whatsappCallbackWarningsTitle": "提示",
+    "whatsappCallbackClose": "关闭窗口",
+    "whatsappCallbackBack": "返回渠道列表",
     "slackConnectTitle": "Slack Workspace 一键授权连接",
     "slackConnectDescription": "将 Crove Desk 机器人应用添加至您的 Slack 工作区，频道提及与私聊消息将自动同步至工作台。",
     "connectSlackButton": "添加到 Slack (Add to Slack)",
@@ -2879,7 +2898,7 @@
     "loadFailed": "加载企业微信 outbox 失败"
   },
   "supportPublic": {
-    "brand": "AgentDesk 支持中心",
+    "brand": "Crove Desk 支持中心",
     "nav": {
       "home": "首页",
       "help": "文档",

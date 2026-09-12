@@ -8,7 +8,11 @@ import (
 
 	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/constants"
+	"agent-desk/internal/pkg/dto/request"
+	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/pkg/httpx"
+	"agent-desk/internal/pkg/httpx/params"
+	"agent-desk/internal/pkg/i18nx"
 	"agent-desk/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -167,8 +171,15 @@ func ChannelGetWhatsAppOAuthURL(ctx *gin.Context) {
 	}
 	redirectURI := strings.TrimSpace(ctx.Query("redirect_uri"))
 
+	// A fabricated app id would send the operator to a Meta error page that
+	// looks like our bug, so an unconfigured deployment says so instead.
 	if appID == "" {
-		appID = "123456789012345"
+		httpx.WriteJSON(ctx, errorsx.InvalidParamI18n("error.e0351"))
+		return
+	}
+	if redirectURI == "" {
+		httpx.WriteJSON(ctx, errorsx.InvalidParamI18n("error.param.required", "redirect_uri"))
+		return
 	}
 
 	state := strings.TrimSpace(ctx.Query("state"))
@@ -176,18 +187,51 @@ func ChannelGetWhatsAppOAuthURL(ctx *gin.Context) {
 		state = "crove_whatsapp_connect"
 	}
 
-	authURL := fmt.Sprintf(
-		"https://www.facebook.com/v21.0/dialog/oauth?client_id=%s&redirect_uri=%s&scope=whatsapp_business_management,whatsapp_business_messaging&state=%s",
-		url.QueryEscape(appID),
-		url.QueryEscape(redirectURI),
-		url.QueryEscape(state),
-	)
+	query := url.Values{}
+	query.Set("client_id", appID)
+	query.Set("redirect_uri", redirectURI)
+	query.Set("state", state)
+	// response_type=code is what makes Meta redirect back with an authorization
+	// code; without it the dialog returns a token fragment the server never sees.
+	query.Set("response_type", "code")
+	query.Set("scope", "whatsapp_business_management,whatsapp_business_messaging")
 
 	httpx.WriteJSON(ctx, web.JsonData(gin.H{
-		"authUrl":     authURL,
+		"authUrl":     "https://www.facebook.com/v21.0/dialog/oauth?" + query.Encode(),
 		"appId":       appID,
 		"redirectUri": redirectURI,
 	}))
+}
+
+// ChannelPostWhatsAppOAuthCallback exchanges the authorization code Meta
+// redirected back with for WhatsApp Cloud API credentials, reports the sender
+// numbers that token can reach, and saves everything when channelId names an
+// existing channel.
+func ChannelPostWhatsAppOAuthCallback(ctx *gin.Context) {
+	req := request.WhatsAppOAuthCallbackRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+
+	// Saving onto an existing channel is an update; exchanging credentials for a
+	// channel that does not exist yet is part of creating one.
+	permission := constants.PermissionChannelCreate
+	if req.ChannelID > 0 {
+		permission = constants.PermissionChannelUpdate
+	}
+	operator, err := services.AuthService.RequirePermission(ctx, permission)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+
+	result, err := services.WhatsAppOAuthService.Connect(req, i18nx.Locale(ctx), operator)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, result)
 }
 
 // ChannelGetSlackOAuthURL returns the 1-Click OAuth authorization URL for Slack Workspace Bot.
