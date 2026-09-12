@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
 	"unicode"
@@ -661,10 +660,10 @@ func (s *whatsappInboundService) unsupportedContent(message *whatsapp.InboundMes
 // anyone who learns a webhook URL write into a customer conversation, trigger AI
 // replies and burn paid message quota.
 func verifyWhatsAppWebhook(cfg *dto.WhatsAppChannelConfig, signatureHeader string, rawPayload []byte) error {
-	appSecret := resolveMetaAppSecret(cfg.AppSecret)
+	appSecret := config.ResolveWhatsAppApp(cfg.AppID, cfg.AppSecret).AppSecret
 	if appSecret == "" {
 		slog.Error("whatsapp webhook rejected, no meta app secret configured",
-			"hint", "set appSecret on the WhatsApp channel or META_APP_SECRET in the environment",
+			"hint", "set WHATSAPP_APP_SECRET, or appSecret on the WhatsApp channel; FACEBOOK_APP_SECRET is only correct when one Meta app serves every product",
 		)
 		return errorsx.UnauthorizedI18n("error.e0349")
 	}
@@ -675,22 +674,6 @@ func verifyWhatsAppWebhook(cfg *dto.WhatsAppChannelConfig, signatureHeader strin
 		return errorsx.UnauthorizedI18n("error.auth.invalidSignature")
 	}
 	return nil
-}
-
-// resolveMetaAppSecret finds the Meta App Secret used to sign webhook payloads,
-// preferring the channel's own credential over the deployment-wide one.
-func resolveMetaAppSecret(channelAppSecret string) string {
-	if secret := strings.TrimSpace(channelAppSecret); secret != "" {
-		return secret
-	}
-	if serverCfg := config.GetCurrent(); serverCfg != nil {
-		if secret := strings.TrimSpace(serverCfg.Messenger.AppSecret); secret != "" {
-			return secret
-		}
-	}
-	// config already binds META_APP_SECRET, but a deployment may export it after
-	// configuration was loaded.
-	return strings.TrimSpace(os.Getenv("META_APP_SECRET"))
 }
 
 func verifyWhatsAppSignature(appSecret string, signatureHeader string, payload []byte) bool {

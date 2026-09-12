@@ -486,6 +486,7 @@ func (s *channelService) ParseMessengerChannelConfig(raw string) (*dto.Messenger
 	cfg.PageName = strings.TrimSpace(cfg.PageName)
 	cfg.PageAccessToken = strings.TrimSpace(cfg.PageAccessToken)
 	cfg.WebhookVerifyToken = strings.TrimSpace(cfg.WebhookVerifyToken)
+	cfg.AppID = strings.TrimSpace(cfg.AppID)
 	cfg.AppSecret = strings.TrimSpace(cfg.AppSecret)
 	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
 	return cfg, nil
@@ -504,6 +505,7 @@ func (s *channelService) ParseInstagramChannelConfig(raw string) (*dto.Instagram
 	cfg.PageID = strings.TrimSpace(cfg.PageID)
 	cfg.PageAccessToken = strings.TrimSpace(cfg.PageAccessToken)
 	cfg.WebhookVerifyToken = strings.TrimSpace(cfg.WebhookVerifyToken)
+	cfg.AppID = strings.TrimSpace(cfg.AppID)
 	cfg.AppSecret = strings.TrimSpace(cfg.AppSecret)
 	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
 	return cfg, nil
@@ -521,6 +523,7 @@ func (s *channelService) ParseWhatsAppChannelConfig(raw string) (*dto.WhatsAppCh
 	cfg.WABAID = strings.TrimSpace(cfg.WABAID)
 	cfg.AccessToken = strings.TrimSpace(cfg.AccessToken)
 	cfg.WebhookVerifyToken = strings.TrimSpace(cfg.WebhookVerifyToken)
+	cfg.AppID = strings.TrimSpace(cfg.AppID)
 	cfg.AppSecret = strings.TrimSpace(cfg.AppSecret)
 	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
 	return cfg, nil

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/dto"
 	"agent-desk/internal/pkg/dto/request"
@@ -59,17 +60,26 @@ func (s *whatsappOAuthService) Connect(req request.WhatsAppOAuthCallbackRequest,
 		return nil, errorsx.InvalidParamI18n("error.param.required", "code")
 	}
 
-	appID, appSecret := s.resolveAppCredentials()
-	if appID == "" || appSecret == "" {
+	// Load the target channel first. Its own Meta app decides which app the
+	// authorization code was issued for, and a code cannot be exchanged against a
+	// different app, so the credentials have to be resolved per channel rather
+	// than globally.
+	channel, channelCfg, err := s.loadTargetChannel(req.ChannelID)
+	if err != nil {
+		return nil, err
+	}
+
+	creds := config.ResolveWhatsAppApp(channelCfg.AppID, channelCfg.AppSecret)
+	if creds.AppID == "" || creds.AppSecret == "" {
 		return nil, errorsx.InvalidParamI18n("error.e0351")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), whatsappOAuthTimeout)
 	defer cancel()
 
-	token, err := newWhatsAppOAuthClient("").ExchangeCodeForToken(ctx, appID, appSecret, code, req.RedirectURI)
+	token, err := newWhatsAppOAuthClient("").ExchangeCodeForToken(ctx, creds.AppID, creds.AppSecret, code, req.RedirectURI)
 	if err != nil {
-		slog.Warn("whatsapp oauth code exchange failed", "error", err)
+		slog.Warn("whatsapp oauth code exchange failed", "app_id", creds.AppID, "error", err)
 		return nil, errorsx.InvalidParamI18n("error.e0352", err.Error())
 	}
 
@@ -84,21 +94,37 @@ func (s *whatsappOAuthService) Connect(req request.WhatsAppOAuthCallbackRequest,
 	s.discoverAccounts(ctx, token.AccessToken, locale, result)
 	s.applySingleCandidate(result)
 
-	if req.ChannelID > 0 {
-		if err := s.persist(req, result, operator); err != nil {
+	if channel != nil {
+		if err := s.persist(channel, channelCfg, req, result, operator); err != nil {
 			return nil, err
 		}
 	}
 	return result, nil
 }
 
-func (s *whatsappOAuthService) resolveAppCredentials() (string, string) {
-	var appID, appSecret string
-	if cfg := config.GetCurrent(); cfg != nil {
-		appID = strings.TrimSpace(cfg.Messenger.AppID)
-		appSecret = strings.TrimSpace(cfg.Messenger.AppSecret)
+// loadTargetChannel resolves the channel the credentials should be saved onto. A
+// zero id means the operator is still creating one, which is not an error: the
+// exchanged values are returned so the form can be filled in.
+func (s *whatsappOAuthService) loadTargetChannel(channelID int64) (*models.Channel, *dto.WhatsAppChannelConfig, error) {
+	cfg := &dto.WhatsAppChannelConfig{}
+	if channelID <= 0 {
+		return nil, cfg, nil
 	}
-	return appID, appSecret
+	channel := ChannelService.Get(channelID)
+	if channel == nil || channel.Status == enums.StatusDeleted {
+		return nil, nil, errorsx.InvalidParamI18n("error.e0208")
+	}
+	if strings.TrimSpace(channel.ChannelType) != enums.ChannelTypeWhatsApp {
+		return nil, nil, errorsx.InvalidParamI18n("error.e0250")
+	}
+	parsed, err := ChannelService.ParseWhatsAppChannelConfig(channel.ConfigJSON)
+	if err != nil {
+		return nil, nil, errorsx.InvalidParam("invalid whatsapp configuration")
+	}
+	if parsed != nil {
+		cfg = parsed
+	}
+	return channel, cfg, nil
 }
 
 // inspectToken records expiry and granted scopes so the operator can see whether
@@ -215,19 +241,7 @@ func (s *whatsappOAuthService) applySingleCandidate(result *response.WhatsAppOAu
 
 // persist writes the exchanged credentials onto an existing WhatsApp channel,
 // preserving the webhook verify token and welcome message it already has.
-func (s *whatsappOAuthService) persist(req request.WhatsAppOAuthCallbackRequest, result *response.WhatsAppOAuthConnectResponse, operator *dto.AuthPrincipal) error {
-	channel := ChannelService.Get(req.ChannelID)
-	if channel == nil || channel.Status == enums.StatusDeleted {
-		return errorsx.InvalidParamI18n("error.e0208")
-	}
-	if strings.TrimSpace(channel.ChannelType) != enums.ChannelTypeWhatsApp {
-		return errorsx.InvalidParamI18n("error.e0250")
-	}
-
-	cfg, err := ChannelService.ParseWhatsAppChannelConfig(channel.ConfigJSON)
-	if err != nil {
-		return errorsx.InvalidParam("invalid whatsapp configuration")
-	}
+func (s *whatsappOAuthService) persist(channel *models.Channel, cfg *dto.WhatsAppChannelConfig, req request.WhatsAppOAuthCallbackRequest, result *response.WhatsAppOAuthConnectResponse, operator *dto.AuthPrincipal) error {
 	if cfg == nil {
 		cfg = &dto.WhatsAppChannelConfig{}
 	}
@@ -239,13 +253,10 @@ func (s *whatsappOAuthService) persist(req request.WhatsAppOAuthCallbackRequest,
 	if phoneNumberID := s.pickPhoneNumberID(req, result, cfg.WABAID); phoneNumberID != "" {
 		cfg.PhoneNumberID = phoneNumberID
 	}
-	// Without an app secret the inbound webhook cannot be authenticated, so the
-	// deployment-wide secret is recorded on the channel when it has none.
-	if cfg.AppSecret == "" {
-		if cfgSecret := config.GetCurrent(); cfgSecret != nil {
-			cfg.AppSecret = strings.TrimSpace(cfgSecret.Messenger.AppSecret)
-		}
-	}
+	// The app id and secret are deliberately not copied onto the channel here.
+	// They resolve through the same channel -> product -> Messenger chain at
+	// webhook time, so writing the resolved value would freeze a fallback in
+	// place and keep winning after the deployment-level credential is corrected.
 
 	configBytes, err := json.Marshal(cfg)
 	if err != nil {

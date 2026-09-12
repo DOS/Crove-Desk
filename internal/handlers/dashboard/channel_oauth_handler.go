@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 
 	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/constants"
 	"agent-desk/internal/pkg/dto/request"
+	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/pkg/httpx"
 	"agent-desk/internal/pkg/httpx/params"
@@ -62,6 +64,57 @@ func ChannelGetDiscordOAuthURL(ctx *gin.Context) {
 	}))
 }
 
+// metaOAuthDialogURL is the Facebook Login authorization endpoint. The Graph API
+// version is pinned so an authorization URL and the code exchange that follows it
+// cannot drift onto different versions.
+const metaOAuthDialogURL = "https://www.facebook.com/v21.0/dialog/oauth"
+
+// Scopes each Meta product needs to send and receive support messages.
+const (
+	messengerOAuthScope = "pages_show_list,pages_messaging,pages_manage_metadata"
+	instagramOAuthScope = "instagram_basic,instagram_manage_messages,pages_show_list,pages_manage_metadata"
+	whatsAppOAuthScope  = "whatsapp_business_management,whatsapp_business_messaging"
+)
+
+// writeMetaOAuthURL builds an authorization URL for one Meta product.
+//
+// appID must already be resolved for that specific product: a deployment may
+// register a separate Meta app per product, and a code issued by one app cannot
+// be exchanged with another app's secret.
+func writeMetaOAuthURL(ctx *gin.Context, appID, appIDEnvName, redirectURI, state, scope string) {
+	appID = strings.TrimSpace(appID)
+	redirectURI = strings.TrimSpace(redirectURI)
+
+	// A fabricated app id would send the operator to a Meta error page that looks
+	// like our bug, so an unconfigured deployment says so instead.
+	if appID == "" {
+		httpx.WriteJSON(ctx, errorsx.InvalidParamI18n("error.e0353", appIDEnvName))
+		return
+	}
+	if redirectURI == "" {
+		httpx.WriteJSON(ctx, errorsx.InvalidParamI18n("error.param.required", "redirect_uri"))
+		return
+	}
+	if state = strings.TrimSpace(state); state == "" {
+		state = "crove_meta_connect"
+	}
+
+	query := url.Values{}
+	query.Set("client_id", appID)
+	query.Set("redirect_uri", redirectURI)
+	query.Set("state", state)
+	query.Set("scope", scope)
+	// response_type=code is what makes Meta redirect back with an authorization
+	// code; without it the dialog returns a token fragment the server never sees.
+	query.Set("response_type", "code")
+
+	httpx.WriteJSON(ctx, web.JsonData(gin.H{
+		"authUrl":     metaOAuthDialogURL + "?" + query.Encode(),
+		"appId":       appID,
+		"redirectUri": redirectURI,
+	}))
+}
+
 // ChannelGetMessengerOAuthURL returns the 1-Click OAuth authorization URL for Meta Messenger.
 func ChannelGetMessengerOAuthURL(ctx *gin.Context) {
 	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionChannelView); err != nil {
@@ -69,42 +122,12 @@ func ChannelGetMessengerOAuthURL(ctx *gin.Context) {
 		return
 	}
 
-	appID := ""
-	if cfg := config.GetCurrent(); cfg != nil {
-		appID = strings.TrimSpace(cfg.Messenger.AppID)
-	}
-	if appID == "" {
-		appID = strings.TrimSpace(os.Getenv("META_APP_ID"))
-	}
-	if appID == "" {
-		appID = strings.TrimSpace(os.Getenv("FB_APP_ID"))
-	}
-	if appID == "" {
-		appID = strings.TrimSpace(ctx.Query("app_id"))
-	}
-	redirectURI := strings.TrimSpace(ctx.Query("redirect_uri"))
-
-	if appID == "" {
-		appID = "123456789012345"
-	}
-
+	appID := config.ResolveMessengerApp(ctx.Query("app_id"), "").AppID
 	state := strings.TrimSpace(ctx.Query("state"))
 	if state == "" {
 		state = "crove_messenger_connect"
 	}
-
-	authURL := fmt.Sprintf(
-		"https://www.facebook.com/v21.0/dialog/oauth?client_id=%s&redirect_uri=%s&scope=pages_show_list,pages_messaging,pages_manage_metadata&state=%s",
-		url.QueryEscape(appID),
-		url.QueryEscape(redirectURI),
-		url.QueryEscape(state),
-	)
-
-	httpx.WriteJSON(ctx, web.JsonData(gin.H{
-		"authUrl":     authURL,
-		"appId":       appID,
-		"redirectUri": redirectURI,
-	}))
+	writeMetaOAuthURL(ctx, appID, "FACEBOOK_APP_ID", ctx.Query("redirect_uri"), state, messengerOAuthScope)
 }
 
 // ChannelGetInstagramOAuthURL returns the 1-Click OAuth authorization URL for Instagram Messaging.
@@ -114,42 +137,12 @@ func ChannelGetInstagramOAuthURL(ctx *gin.Context) {
 		return
 	}
 
-	appID := ""
-	if cfg := config.GetCurrent(); cfg != nil {
-		appID = strings.TrimSpace(cfg.Messenger.AppID)
-	}
-	if appID == "" {
-		appID = strings.TrimSpace(os.Getenv("META_APP_ID"))
-	}
-	if appID == "" {
-		appID = strings.TrimSpace(os.Getenv("FB_APP_ID"))
-	}
-	if appID == "" {
-		appID = strings.TrimSpace(ctx.Query("app_id"))
-	}
-	redirectURI := strings.TrimSpace(ctx.Query("redirect_uri"))
-
-	if appID == "" {
-		appID = "123456789012345"
-	}
-
+	appID := config.ResolveInstagramApp(ctx.Query("app_id"), "").AppID
 	state := strings.TrimSpace(ctx.Query("state"))
 	if state == "" {
 		state = "crove_instagram_connect"
 	}
-
-	authURL := fmt.Sprintf(
-		"https://www.facebook.com/v21.0/dialog/oauth?client_id=%s&redirect_uri=%s&scope=instagram_basic,instagram_manage_messages,pages_show_list,pages_manage_metadata&state=%s",
-		url.QueryEscape(appID),
-		url.QueryEscape(redirectURI),
-		url.QueryEscape(state),
-	)
-
-	httpx.WriteJSON(ctx, web.JsonData(gin.H{
-		"authUrl":     authURL,
-		"appId":       appID,
-		"redirectUri": redirectURI,
-	}))
+	writeMetaOAuthURL(ctx, appID, "INSTAGRAM_APP_ID", ctx.Query("redirect_uri"), state, instagramOAuthScope)
 }
 
 // ChannelGetWhatsAppOAuthURL returns the 1-Click Embedded Signup / OAuth URL for WhatsApp Cloud API.
@@ -159,48 +152,27 @@ func ChannelGetWhatsAppOAuthURL(ctx *gin.Context) {
 		return
 	}
 
-	appID := ""
-	if cfg := config.GetCurrent(); cfg != nil {
-		appID = strings.TrimSpace(cfg.Messenger.AppID)
+	// An existing channel may belong to a different Meta app than the deployment
+	// default, and the authorization code can only be exchanged by the app that
+	// issued it, so the channel's own app id wins.
+	channelAppID := ""
+	if channelID, parseErr := strconv.ParseInt(strings.TrimSpace(ctx.Query("channel_id")), 10, 64); parseErr == nil && channelID > 0 {
+		if channel := services.ChannelService.Get(channelID); channel != nil && channel.Status != enums.StatusDeleted {
+			if cfg, cfgErr := services.ChannelService.ParseWhatsAppChannelConfig(channel.ConfigJSON); cfgErr == nil && cfg != nil {
+				channelAppID = cfg.AppID
+			}
+		}
 	}
-	if appID == "" {
-		appID = strings.TrimSpace(os.Getenv("META_APP_ID"))
-	}
-	if appID == "" {
-		appID = strings.TrimSpace(ctx.Query("app_id"))
-	}
-	redirectURI := strings.TrimSpace(ctx.Query("redirect_uri"))
-
-	// A fabricated app id would send the operator to a Meta error page that
-	// looks like our bug, so an unconfigured deployment says so instead.
-	if appID == "" {
-		httpx.WriteJSON(ctx, errorsx.InvalidParamI18n("error.e0351"))
-		return
-	}
-	if redirectURI == "" {
-		httpx.WriteJSON(ctx, errorsx.InvalidParamI18n("error.param.required", "redirect_uri"))
-		return
+	if channelAppID == "" {
+		channelAppID = strings.TrimSpace(ctx.Query("app_id"))
 	}
 
+	appID := config.ResolveWhatsAppApp(channelAppID, "").AppID
 	state := strings.TrimSpace(ctx.Query("state"))
 	if state == "" {
 		state = "crove_whatsapp_connect"
 	}
-
-	query := url.Values{}
-	query.Set("client_id", appID)
-	query.Set("redirect_uri", redirectURI)
-	query.Set("state", state)
-	// response_type=code is what makes Meta redirect back with an authorization
-	// code; without it the dialog returns a token fragment the server never sees.
-	query.Set("response_type", "code")
-	query.Set("scope", "whatsapp_business_management,whatsapp_business_messaging")
-
-	httpx.WriteJSON(ctx, web.JsonData(gin.H{
-		"authUrl":     "https://www.facebook.com/v21.0/dialog/oauth?" + query.Encode(),
-		"appId":       appID,
-		"redirectUri": redirectURI,
-	}))
+	writeMetaOAuthURL(ctx, appID, "WHATSAPP_APP_ID", ctx.Query("redirect_uri"), state, whatsAppOAuthScope)
 }
 
 // ChannelPostWhatsAppOAuthCallback exchanges the authorization code Meta

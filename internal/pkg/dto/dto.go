@@ -79,6 +79,7 @@ type MessengerChannelConfig struct {
 	PageName           string `json:"pageName,omitempty"`
 	PageAccessToken    string `json:"pageAccessToken,omitempty"`
 	WebhookVerifyToken string `json:"webhookVerifyToken,omitempty"`
+	AppID              string `json:"appId,omitempty"`     // Meta App ID this channel belongs to
 	AppSecret          string `json:"appSecret,omitempty"` // Meta App Secret
 	WelcomeMessage     string `json:"welcomeMessage,omitempty"`
 }
@@ -89,6 +90,7 @@ type InstagramChannelConfig struct {
 	PageID             string `json:"pageId,omitempty"`             // Linked Facebook Page ID
 	PageAccessToken    string `json:"pageAccessToken,omitempty"`    // Page Access Token
 	WebhookVerifyToken string `json:"webhookVerifyToken,omitempty"` // Webhook verify token
+	AppID              string `json:"appId,omitempty"`              // Meta App ID this channel belongs to
 	AppSecret          string `json:"appSecret,omitempty"`          // Meta App Secret
 	WelcomeMessage     string `json:"welcomeMessage,omitempty"`
 }
@@ -98,6 +100,7 @@ type WhatsAppChannelConfig struct {
 	WABAID             string `json:"wabaId,omitempty"`             // WhatsApp Business Account ID
 	AccessToken        string `json:"accessToken,omitempty"`        // System User Access Token
 	WebhookVerifyToken string `json:"webhookVerifyToken,omitempty"` // Webhook verification token
+	AppID              string `json:"appId,omitempty"`              // Meta App ID this channel belongs to
 	AppSecret          string `json:"appSecret,omitempty"`          // Meta App Secret
 	WelcomeMessage     string `json:"welcomeMessage,omitempty"`
 }

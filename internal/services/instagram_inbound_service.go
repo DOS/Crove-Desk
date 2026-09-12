@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"agent-desk/internal/messenger"
@@ -62,21 +61,7 @@ func (s *instagramInboundService) HandleWebhook(ctx context.Context, channelID s
 		}
 
 		// Optional signature verification if appSecret is configured
-		appSecret := ""
-		if cfg != nil {
-			appSecret = strings.TrimSpace(cfg.AppSecret)
-		}
-		if appSecret == "" {
-			if serverCfg := config.GetCurrent(); serverCfg != nil {
-				appSecret = strings.TrimSpace(serverCfg.Messenger.AppSecret)
-			}
-		}
-		if appSecret == "" {
-			appSecret = strings.TrimSpace(os.Getenv("META_APP_SECRET"))
-		}
-		if appSecret == "" {
-			appSecret = strings.TrimSpace(os.Getenv("FB_APP_SECRET"))
-		}
+		appSecret := config.ResolveInstagramApp(cfg.AppID, cfg.AppSecret).AppSecret
 
 		if appSecret != "" && strings.TrimSpace(signatureHeader) != "" {
 			if !verifyMessengerSignature(appSecret, signatureHeader, rawPayload) {
