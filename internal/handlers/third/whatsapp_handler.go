@@ -3,11 +3,13 @@ package third
 import (
 	"bytes"
 	"crypto/subtle"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
 
 	"agent-desk/internal/pkg/enums"
+	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -77,6 +79,13 @@ func WhatsAppPostWebhook(ctx *gin.Context) {
 	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	if err := services.WhatsAppInboundService.HandleWebhook(ctx.Request.Context(), channelID, sigHeader, bodyBytes); err != nil {
+		// An unauthenticated delivery is answered with 401 and no detail, so the
+		// endpoint cannot be used to probe which secret a channel expects.
+		var i18nErr *errorsx.I18nError
+		if errors.As(err, &i18nErr) && i18nErr.Code == errorsx.CodeAuthUnauthorized {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "signature verification failed"})
+			return
+		}
 		ctx.JSON(http.StatusOK, gin.H{"ok": false, "error": err.Error()})
 		return
 	}

@@ -7,6 +7,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Security
+
+- **WhatsApp webhook signature verification now fails closed.** A delivery is
+  rejected unless its `X-Hub-Signature-256` verifies against a configured Meta
+  App Secret. Previously a missing secret, a missing header, or a header without
+  the `sha256=` prefix all passed, so anyone who learned a webhook URL could write
+  into a customer conversation, trigger AI replies and burn paid message quota.
+  Rejections now return `401` without echoing the reason. **Breaking for
+  deployments that never set `META_APP_SECRET` or a per-channel `appSecret`: the
+  WhatsApp webhook stops accepting messages until one is configured.**
+- `ChannelGetWhatsAppOAuthURL` no longer falls back to a fabricated app id, which
+  sent operators to a Meta error page that looked like an application bug. The
+  authorization URL now includes `response_type=code`; without it Meta returns a
+  token fragment the server never sees.
+- The Channels dialog advertised `/api/third/whatsapp/webhook` as the webhook URL,
+  but verification requires a bound channel id, so the documented URL always
+  failed. It now shows the real per-channel URL with a copy action.
+
+### Added
+
+- WhatsApp inbound media is stored instead of dropped. Images, documents, audio,
+  voice notes, videos and stickers are resolved through the Media API, downloaded
+  server-side under a size cap, and uploaded as assets, so they render in the
+  workbench and reach the AI agent. When a download or the upload policy rejects a
+  file, the message degrades to text with the caption rather than disappearing.
+- WhatsApp inbound location, shared contact cards, button and list replies, and
+  emoji reactions now become readable messages. Unsupported types are recorded
+  with their type name instead of being silently discarded.
+- WhatsApp Embedded Signup / OAuth connect:
+  `POST /api/dashboard/channel/whatsapp_oauth_callback` exchanges the
+  authorization code for an access token, inspects it with `debug_token`,
+  discovers the reachable WABAs and sender numbers, and saves the credentials onto
+  the target channel while preserving its existing webhook verify token. The
+  Channels dialog opens Meta in a popup and prefills the form from the result.
+- Focused tests for signature rejection, structured inbound types, media storage,
+  media-failure fallback, and the OAuth connect flow including discovery failure.
+
+### Changed
+
+- Both READMEs are rewritten for Crove Desk: fork attribution and the upstream
+  sync model, the 16 channel adapters, the public support portal, PostgreSQL
+  support, the actual compose topology, and the real task list. Documentation
+  links now point at `docs/` in this repository instead of the upstream site.
+- In-app brand strings in `en-US` and `zh-CN` now read `Crove Desk`; `vi-VN`
+  already did. The widget SDK's public `AgentDesk*` globals are unchanged, because
+  renaming them would break every site that has already integrated it.
+- `.env.example` no longer documents four `WHATSAPP_*` variables that nothing in
+  the codebase reads. It points at the Meta app credentials and at the channel
+  form instead.
+- The product backlog marks the WhatsApp integration as shipped, with the
+  template-message and delivery-receipt gaps listed explicitly.
+
+### Known issues
+
+- An inbound WhatsApp document's caption is dropped when the sender also supplied
+  a file name, because `normalizeMessageContent` replaces an attachment message's
+  content with the stored asset name. Preserving both needs a change to that shared
+  code path, which affects every channel.
+- WhatsApp outbound still has no template message support, so business-initiated
+  conversations outside the 24-hour customer service window are not possible, and
+  the webhook `statuses` field is not consumed, so delivery and read receipts are
+  not reflected.
+- `pnpm lint` fails on pre-existing `react-hooks/set-state-in-effect` and
+  ref-access errors across the dashboard. The WhatsApp files added here are
+  lint-clean.
+
+---
+
 ## [1.7.0-crove.1] - 2026-09-10
 
 Release tags now follow the upstream `huabeitech/agent-desk` 1.x line instead of

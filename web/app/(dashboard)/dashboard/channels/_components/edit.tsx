@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, Resolver, useForm, useWatch } from "react-hook-form"
 import { z } from "zod/v4"
-import { CopyIcon, ExternalLinkIcon, RotateCcwIcon } from "lucide-react"
+import { CopyIcon, ExternalLinkIcon, Loader2Icon, RotateCcwIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { getWidgetDemoPath } from "@/components/support-chat/demo-navigation"
@@ -23,15 +23,23 @@ import {
   type AIAgent,
   type AdminChannel,
   type CreateAdminChannelPayload,
+  type WhatsAppOAuthConnectResult,
   type WxWorkKFAccount,
   fetchAIAgentsAll,
   fetchChannel,
+  fetchWhatsAppOAuthURL,
   fetchWxWorkKFAccounts,
 	rollbackChannelAIAgentRollout,
   resetChannelUserTokenSecret,
 } from "@/lib/api/admin"
 import { listMyOrganizations } from "@/lib/api/organization"
 import { useI18n } from "@/i18n/provider"
+import {
+  WHATSAPP_OAUTH_CALLBACK_PATH,
+  WHATSAPP_OAUTH_STATE_PREFIX,
+  isWhatsAppOAuthMessage,
+  whatsAppWebhookPath,
+} from "./whatsapp-oauth"
 
 type ChannelFormDialogProps = {
   open: boolean
@@ -1133,6 +1141,8 @@ function ChannelFormBody({
   const [channelDetail, setChannelDetail] = useState<AdminChannel | null>(null)
 	const [rollingBackRollout, setRollingBackRollout] = useState(false)
   const [currentStatus, setCurrentStatus] = useState(0)
+  const [whatsAppConnecting, setWhatsAppConnecting] = useState(false)
+  const whatsAppPopup = useRef<Window | null>(null)
   const form = useForm<
     z.input<typeof schema>,
     undefined,
@@ -1337,6 +1347,102 @@ function ChannelFormBody({
     await onSubmit(buildPayload(values, currentStatus, t))
   }
 
+  // Meta redirects the popup back to our landing page, which exchanges the code
+  // and posts the credentials here. The origin check keeps another site from
+  // writing an access token into this form.
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) {
+        return
+      }
+      if (!isWhatsAppOAuthMessage(event.data)) {
+        return
+      }
+      const payload: WhatsAppOAuthConnectResult = event.data.payload
+      whatsAppPopup.current = null
+      setWhatsAppConnecting(false)
+
+      if (payload.accessToken) {
+        setValue("whatsAppAccessToken", payload.accessToken, { shouldDirty: true })
+      }
+      if (payload.wabaId) {
+        setValue("whatsAppWabaId", payload.wabaId, { shouldDirty: true })
+      }
+      if (payload.phoneNumberId) {
+        setValue("whatsAppPhoneNumberId", payload.phoneNumberId, { shouldDirty: true })
+      }
+      toast.success(t("channel.whatsappFilledFromOAuth"))
+      for (const warning of payload.warnings ?? []) {
+        toast.error(warning)
+      }
+    }
+
+    window.addEventListener("message", handleMessage)
+    return () => window.removeEventListener("message", handleMessage)
+  }, [setValue, t])
+
+  // Release the button if the operator closes the Meta window without finishing.
+  useEffect(() => {
+    if (!whatsAppConnecting) {
+      return
+    }
+    const timer = window.setInterval(() => {
+      if (whatsAppPopup.current?.closed) {
+        whatsAppPopup.current = null
+        setWhatsAppConnecting(false)
+      }
+    }, 600)
+    return () => window.clearInterval(timer)
+  }, [whatsAppConnecting])
+
+  async function handleConnectWhatsApp() {
+    if (whatsAppConnecting) {
+      return
+    }
+    setWhatsAppConnecting(true)
+    try {
+      const redirectUri = window.location.origin + WHATSAPP_OAUTH_CALLBACK_PATH
+      const state = itemId
+        ? `${WHATSAPP_OAUTH_STATE_PREFIX}:${itemId}`
+        : WHATSAPP_OAUTH_STATE_PREFIX
+      const { authUrl } = await fetchWhatsAppOAuthURL(redirectUri, state)
+      // No noopener: the landing page needs window.opener to hand the
+      // credentials back to this form.
+      const popup = window.open(
+        authUrl,
+        "crove-whatsapp-oauth",
+        "width=760,height=820,menubar=no,toolbar=no,location=yes"
+      )
+      if (!popup) {
+        setWhatsAppConnecting(false)
+        toast.error(t("channel.whatsappPopupBlocked"))
+        return
+      }
+      whatsAppPopup.current = popup
+    } catch (error) {
+      whatsAppPopup.current = null
+      setWhatsAppConnecting(false)
+      toast.error(
+        t("channel.whatsappConnectFailed", {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      )
+    }
+  }
+
+  async function copyWhatsAppWebhookUrl() {
+    const webhookPath = whatsAppWebhookPath(channelDetail?.channelId)
+    if (!webhookPath) {
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(window.location.origin + webhookPath)
+      toast.success(t("channel.copySecretSuccess"))
+    } catch {
+      toast.error(t("channel.copyFailed"))
+    }
+  }
+
   async function handleResetUserTokenSecret() {
     if (!itemId) {
       return
@@ -1374,6 +1480,8 @@ function ChannelFormBody({
       toast.error(t("channel.copyFailed"))
     }
   }
+
+  const whatsAppWebhookUrl = whatsAppWebhookPath(channelDetail?.channelId)
 
   return (
     <ProjectDialog
@@ -1847,17 +1955,42 @@ function ChannelFormBody({
                       type="button"
                       variant="default"
                       size="sm"
-                      onClick={() => {
-                        const redirectUri = window.location.origin + "/dashboard/channels"
-                        window.open(`/api/dashboard/channel/whatsapp_oauth_url?redirect_uri=${encodeURIComponent(redirectUri)}`, "_blank")
-                      }}
+                      disabled={whatsAppConnecting}
+                      onClick={() => void handleConnectWhatsApp()}
                     >
-                      <ExternalLinkIcon className="size-3.5 mr-1" />
-                      {t("channel.connectWhatsAppButton")}
+                      {whatsAppConnecting ? (
+                        <Loader2Icon className="size-3.5 mr-1 animate-spin" />
+                      ) : (
+                        <ExternalLinkIcon className="size-3.5 mr-1" />
+                      )}
+                      {whatsAppConnecting
+                        ? t("channel.whatsappConnecting")
+                        : t("channel.connectWhatsAppButton")}
                     </Button>
                   </div>
-                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
-                    {t("channel.inboundWebhookUrl")}: /api/third/whatsapp/webhook
+                  <div className="space-y-1.5 pt-0.5">
+                    {whatsAppWebhookUrl ? (
+                      <>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-[11px] break-all">
+                            {t("channel.inboundWebhookUrl")}: {whatsAppWebhookUrl}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => void copyWhatsAppWebhookUrl()}
+                            aria-label={t("channel.copy")}
+                            title={t("channel.copy")}
+                          >
+                            <CopyIcon className="size-3.5" />
+                          </Button>
+                        </div>
+                        <div className="leading-relaxed">{t("channel.whatsappWebhookHint")}</div>
+                      </>
+                    ) : (
+                      <div className="leading-relaxed">{t("channel.whatsappWebhookNeedsChannel")}</div>
+                    )}
                   </div>
                 </div>
 

@@ -235,6 +235,51 @@ export type ResetChannelUserTokenSecretResult = {
   userTokenSecret: string
 }
 
+export type WhatsAppOAuthURLResult = {
+  authUrl: string
+  appId: string
+  redirectUri: string
+}
+
+export type WhatsAppOAuthPhoneNumber = {
+  phoneNumberId: string
+  displayPhoneNumber: string
+  verifiedName: string
+  qualityRating: string
+  codeVerificationStatus: string
+}
+
+export type WhatsAppOAuthAccount = {
+  wabaId: string
+  wabaName: string
+  businessId: string
+  businessName: string
+  phoneNumbers: WhatsAppOAuthPhoneNumber[]
+}
+
+export type WhatsAppOAuthConnectResult = {
+  connected: boolean
+  channelId?: number
+  accessToken: string
+  tokenMasked: string
+  tokenType?: string
+  expiresAt?: string
+  scopes?: string[]
+  phoneNumberId?: string
+  wabaId?: string
+  accounts: WhatsAppOAuthAccount[]
+  warnings?: string[]
+}
+
+export type ConnectWhatsAppOAuthPayload = {
+  code: string
+  state?: string
+  channelId?: number
+  redirectUri?: string
+  phoneNumberId?: string
+  wabaId?: string
+}
+
 export type AIAgent = {
   id: number
   name: string
@@ -998,6 +1043,25 @@ export function deleteChannel(id: number) {
     method: "POST",
     body: JSON.stringify({ id }),
   })
+}
+
+export function fetchWhatsAppOAuthURL(redirectUri: string, state?: string) {
+  return request<WhatsAppOAuthURLResult>(
+    `/api/dashboard/channel/whatsapp_oauth_url${toQueryString({
+      redirect_uri: redirectUri,
+      state,
+    })}`
+  )
+}
+
+export function connectWhatsAppOAuth(payload: ConnectWhatsAppOAuthPayload) {
+  return request<WhatsAppOAuthConnectResult>(
+    "/api/dashboard/channel/whatsapp_oauth_callback",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  )
 }
 
 export function fetchAIAgents(

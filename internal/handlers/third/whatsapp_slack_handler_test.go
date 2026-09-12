@@ -2,6 +2,9 @@ package third
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +21,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mlogclub/simple/sqls"
 )
+
+// whatsAppTestSecret is the Meta App Secret the test channel is configured with.
+const whatsAppTestSecret = "wa_app_secret_test_123"
+
+// signWhatsAppTestPayload builds the X-Hub-Signature-256 value Meta would send.
+func signWhatsAppTestPayload(payload []byte) string {
+	mac := hmac.New(sha256.New, []byte(whatsAppTestSecret))
+	mac.Write(payload)
+	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
+}
 
 func TestWhatsAppWebhook_Handler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -39,6 +52,7 @@ func TestWhatsAppWebhook_Handler(t *testing.T) {
 		WABAID:             "waba_445566",
 		AccessToken:        "test_wa_token",
 		WebhookVerifyToken: "my_wa_verify_token_999",
+		AppSecret:          whatsAppTestSecret,
 	})
 
 	operator := &dto.AuthPrincipal{UserID: 1, Username: "admin"}
@@ -108,13 +122,31 @@ func TestWhatsAppWebhook_Handler(t *testing.T) {
 		]
 	}`)
 
+	// 2. An unsigned POST must be rejected. Accepting it would let anyone who
+	// learns the webhook URL write into a customer conversation.
+	reqUnsigned, _ := http.NewRequest(http.MethodPost, "/api/third/whatsapp/webhook/"+channel.ChannelID, bytes.NewBuffer(payload))
+	reqUnsigned.Header.Set("Content-Type", "application/json")
+	recUnsigned := httptest.NewRecorder()
+	router.ServeHTTP(recUnsigned, reqUnsigned)
+
+	if recUnsigned.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for an unsigned POST webhook, got: %d", recUnsigned.Code)
+	}
+	if unsigned := repositories.CustomerIdentityRepository.FindOne(db, sqls.NewCnd().
+		Eq("external_source", enums.ExternalSourceWhatsApp).
+		Eq("external_id", "1234567890")); unsigned != nil {
+		t.Fatalf("the unsigned webhook created a customer identity")
+	}
+
+	// 3. A correctly signed POST is accepted.
 	reqPost, _ := http.NewRequest(http.MethodPost, "/api/third/whatsapp/webhook/"+channel.ChannelID, bytes.NewBuffer(payload))
 	reqPost.Header.Set("Content-Type", "application/json")
+	reqPost.Header.Set("X-Hub-Signature-256", signWhatsAppTestPayload(payload))
 	recPost := httptest.NewRecorder()
 	router.ServeHTTP(recPost, reqPost)
 
 	if recPost.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK for POST webhook, got: %d", recPost.Code)
+		t.Fatalf("expected 200 OK for POST webhook, got: %d (body: %s)", recPost.Code, recPost.Body.String())
 	}
 
 	// Verify identity in DB

@@ -1,6 +1,6 @@
 {
   "app": {
-    "brand": "Agent Desk",
+    "brand": "Crove Desk",
     "metadataTitle": "AI Customer Support Admin",
     "metadataDescription": "AI Customer Support Admin"
   },
@@ -703,6 +703,25 @@
     "whatsappPhoneId": "Phone Number ID",
     "whatsappWabaId": "WABA ID (Business Account ID)",
     "whatsappAccessToken": "System User Access Token",
+    "whatsappConnecting": "Opening Meta authorization…",
+    "whatsappConnectFailed": "Could not start WhatsApp authorization: {error}",
+    "whatsappPopupBlocked": "Your browser blocked the Meta sign-in window. Allow pop-ups for this site and try again.",
+    "whatsappWebhookHint": "Paste this URL into Meta App → WhatsApp → Configuration → Webhook. The channel id is required, so save the channel first.",
+    "whatsappWebhookNeedsChannel": "Save the channel first to get its webhook URL.",
+    "whatsappFilledFromOAuth": "WhatsApp credentials were filled in from Meta. Review them and save the channel.",
+    "whatsappCallbackTitle": "WhatsApp connection",
+    "whatsappCallbackExchanging": "Exchanging the authorization code with Meta…",
+    "whatsappCallbackSuccessTitle": "WhatsApp account authorized",
+    "whatsappCallbackSuccessSaved": "Credentials were saved to the channel. You can close this window.",
+    "whatsappCallbackSuccessForm": "Credentials were sent back to the channel form. You can close this window.",
+    "whatsappCallbackFailedTitle": "WhatsApp connection failed",
+    "whatsappCallbackDenied": "The Meta authorization was cancelled.",
+    "whatsappCallbackMissingCode": "Meta did not return an authorization code.",
+    "whatsappCallbackAccountsTitle": "Sender numbers found",
+    "whatsappCallbackNoAccounts": "No sender number could be discovered automatically. Enter the WABA ID and Phone Number ID on the channel form.",
+    "whatsappCallbackWarningsTitle": "Warnings",
+    "whatsappCallbackClose": "Close window",
+    "whatsappCallbackBack": "Back to Channels",
     "slackConnectTitle": "1-Click Slack App / Bot Connection",
     "slackConnectDescription": "Connect your company Slack workspace to Crove Desk. Channel mentions and direct messages will create tickets and trigger AI agent support.",
     "connectSlackButton": "Add to Slack",
@@ -2879,7 +2898,7 @@
     "loadFailed": "Failed to load outbox messages"
   },
   "supportPublic": {
-    "brand": "AgentDesk Support",
+    "brand": "Crove Desk Support",
     "nav": {
       "home": "Home",
       "help": "Docs",
