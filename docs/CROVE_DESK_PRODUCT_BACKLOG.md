@@ -33,14 +33,20 @@ This document defines the complete product backlog and feature roadmap for **Cro
   - Thread ID parsing (In-Reply-To / References header matching).
   - Outbound email dispatching with custom support address formatting.
 
-### [Under Consideration] WhatsApp Business API & Cloud Gateway
-- **Status**: `Under Consideration`
+### [Shipped] WhatsApp Business API & Cloud Gateway
+- **Status**: `Shipped`
 - **Topics**: `Integrations 🔗`
-- **Description**: Connect WhatsApp Business Cloud API to Crove Desk. Support template messages, interactive buttons, and real-time chat sync for international customer support.
+- **Description**: Connect WhatsApp Business Cloud API to Crove Desk. Incoming customer chats, media and interactive replies flow into the workbench and trigger AI replies; agent and AI answers are delivered back through a retrying outbox.
 - **Key Capabilities**:
-  - Meta Graph API webhook ingestion for incoming WhatsApp chats.
-  - Message status delivery receipts (sent, delivered, read).
-  - Pre-approved HSM template message triggers for re-engagement.
+  - Meta Graph API webhook ingestion for incoming WhatsApp chats, with HMAC-SHA256 signature verification that fails closed.
+  - Inbound media (image, document, audio, voice, video, sticker) resolved through the Media API and stored as first-class assets.
+  - Inbound location, contact cards, button and list replies, and reactions rendered as readable message content.
+  - Embedded Signup / OAuth code exchange that saves the access token and discovers the WABA ID and Phone Number ID.
+  - Outbound text, image and document delivery queued through the channel outbox with backoff retry.
+- **Not shipped yet**:
+  - Message status delivery receipts (sent, delivered, read) — the webhook `statuses` field is not consumed.
+  - Pre-approved HSM template message triggers for re-engagement, so business-initiated conversations outside the 24-hour customer service window are not supported.
+  - Outbound interactive buttons and list messages.
 
 ### [Shipped] Live Chat Web Widget SDK with Custom Theming & JWT Verification
 - **Status**: `Shipped`

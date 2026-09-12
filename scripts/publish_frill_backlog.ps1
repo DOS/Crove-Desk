@@ -36,8 +36,8 @@ $backlog = @(
     },
     @{
         name = "WhatsApp Business API & Cloud Gateway"
-        description = "Connect WhatsApp Business Cloud API to Crove Desk. Support template messages, interactive buttons, and real-time chat sync for international customer support."
-        status_idx = "status_xz33599z" # Under consideration
+        description = "Connect WhatsApp Business Cloud API to Crove Desk. Incoming chats, media and interactive replies flow into the workbench and trigger AI answers; outbound delivery runs through a retrying queue. Template messages and delivery receipts are not shipped yet."
+        status_idx = "status_p47lj9oz" # Shipped
         topic_idxs = @("topic_63pxlq1v")
     },
     @{
