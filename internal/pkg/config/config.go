@@ -31,6 +31,8 @@ type Config struct {
 	Email           EmailConfig           `yaml:"email"`
 	Discord         DiscordConfig         `yaml:"discord"`
 	Messenger       MessengerConfig       `yaml:"messenger"`
+	Instagram       InstagramConfig       `yaml:"instagram"`
+	WhatsApp        WhatsAppConfig        `yaml:"whatsApp"`
 }
 
 func (c Config) LanguageOrDefault() string {
@@ -289,6 +291,84 @@ type MessengerConfig struct {
 	VerifyToken string `yaml:"verifyToken"`
 }
 
+// InstagramConfig and WhatsAppConfig are separate from MessengerConfig because a
+// deployment may register a distinct Meta app per product. One app secret cannot
+// verify webhooks for two apps, so sharing a single credential silently breaks
+// whichever product it does not belong to.
+type InstagramConfig struct {
+	AppID       string `yaml:"appId"`
+	AppSecret   string `yaml:"appSecret"`
+	VerifyToken string `yaml:"verifyToken"`
+}
+
+type WhatsAppConfig struct {
+	AppID       string `yaml:"appId"`
+	AppSecret   string `yaml:"appSecret"`
+	VerifyToken string `yaml:"verifyToken"`
+}
+
+// MetaAppCredentials is the resolved credential set for one Meta product.
+type MetaAppCredentials struct {
+	AppID       string
+	AppSecret   string
+	VerifyToken string
+}
+
+// mergeMetaApp applies the resolution order for one Meta product: a channel-level
+// credential wins, then the product's own deployment-level value, then the shared
+// Messenger credentials.
+//
+// Messenger is the last fallback on purpose. A deployment that registered a single
+// Meta app for Messenger, Instagram and WhatsApp set only META_APP_ID and
+// META_APP_SECRET, and those keep working. A deployment with one app per product
+// sets the per-product variables and stops inheriting.
+func mergeMetaApp(product MetaAppCredentials, shared MessengerConfig, channelAppID, channelAppSecret string) MetaAppCredentials {
+	return MetaAppCredentials{
+		AppID:       firstNonBlankMeta(channelAppID, product.AppID, shared.AppID),
+		AppSecret:   firstNonBlankMeta(channelAppSecret, product.AppSecret, shared.AppSecret),
+		VerifyToken: firstNonBlankMeta(product.VerifyToken, shared.VerifyToken),
+	}
+}
+
+func firstNonBlankMeta(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+// MessengerApp resolves the Meta app credentials used by Facebook Messenger.
+func (c Config) MessengerApp(channelAppID, channelAppSecret string) MetaAppCredentials {
+	return mergeMetaApp(
+		MetaAppCredentials{AppID: c.Messenger.AppID, AppSecret: c.Messenger.AppSecret, VerifyToken: c.Messenger.VerifyToken},
+		c.Messenger,
+		channelAppID,
+		channelAppSecret,
+	)
+}
+
+// InstagramApp resolves the Meta app credentials used by Instagram Direct.
+func (c Config) InstagramApp(channelAppID, channelAppSecret string) MetaAppCredentials {
+	return mergeMetaApp(
+		MetaAppCredentials{AppID: c.Instagram.AppID, AppSecret: c.Instagram.AppSecret, VerifyToken: c.Instagram.VerifyToken},
+		c.Messenger,
+		channelAppID,
+		channelAppSecret,
+	)
+}
+
+// WhatsAppApp resolves the Meta app credentials used by the WhatsApp Cloud API.
+func (c Config) WhatsAppApp(channelAppID, channelAppSecret string) MetaAppCredentials {
+	return mergeMetaApp(
+		MetaAppCredentials{AppID: c.WhatsApp.AppID, AppSecret: c.WhatsApp.AppSecret, VerifyToken: c.WhatsApp.VerifyToken},
+		c.Messenger,
+		channelAppID,
+		channelAppSecret,
+	)
+}
+
 func Load(path string) (*Config, error) {
 	loadDotEnv(path)
 
@@ -398,6 +478,12 @@ func bindConfigDefaults(v *viper.Viper) {
 	v.SetDefault("messenger.appId", "")
 	v.SetDefault("messenger.appSecret", "")
 	v.SetDefault("messenger.verifyToken", "")
+	v.SetDefault("instagram.appId", "")
+	v.SetDefault("instagram.appSecret", "")
+	v.SetDefault("instagram.verifyToken", "")
+	v.SetDefault("whatsApp.appId", "")
+	v.SetDefault("whatsApp.appSecret", "")
+	v.SetDefault("whatsApp.verifyToken", "")
 }
 
 func bindEnvironmentAliases(v *viper.Viper) {
@@ -456,9 +542,19 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("discord.clientSecret", "AGENT_DESK_DISCORD_CLIENTSECRET", "DISCORD_CLIENT_SECRET")
 	_ = v.BindEnv("discord.botToken", "AGENT_DESK_DISCORD_BOTTOKEN", "DISCORD_BOT_TOKEN")
 	_ = v.BindEnv("discord.publicKey", "AGENT_DESK_DISCORD_PUBLICKEY", "DISCORD_PUBLIC_KEY")
-	_ = v.BindEnv("messenger.appId", "AGENT_DESK_MESSENGER_APPID", "META_APP_ID", "FB_APP_ID", "MESSENGER_APP_ID")
-	_ = v.BindEnv("messenger.appSecret", "AGENT_DESK_MESSENGER_APPSECRET", "META_APP_SECRET", "FB_APP_SECRET", "MESSENGER_APP_SECRET")
-	_ = v.BindEnv("messenger.verifyToken", "AGENT_DESK_MESSENGER_VERIFYTOKEN", "MESSENGER_VERIFY_TOKEN", "META_VERIFY_TOKEN", "FB_VERIFY_TOKEN")
+	_ = v.BindEnv("messenger.appId", "AGENT_DESK_MESSENGER_APPID", "FACEBOOK_APP_ID", "META_APP_ID", "FB_APP_ID", "MESSENGER_APP_ID")
+	_ = v.BindEnv("messenger.appSecret", "AGENT_DESK_MESSENGER_APPSECRET", "FACEBOOK_APP_SECRET", "META_APP_SECRET", "FB_APP_SECRET", "MESSENGER_APP_SECRET")
+	_ = v.BindEnv("messenger.verifyToken", "AGENT_DESK_MESSENGER_VERIFYTOKEN", "FACEBOOK_VERIFY_TOKEN", "MESSENGER_VERIFY_TOKEN", "META_VERIFY_TOKEN", "FB_VERIFY_TOKEN")
+
+	// Instagram and WhatsApp are bound to their own variables rather than sharing
+	// the Meta ones above: a deployment that registers a separate app per product
+	// has two different secrets, and a shared variable can only hold one.
+	_ = v.BindEnv("instagram.appId", "AGENT_DESK_INSTAGRAM_APPID", "INSTAGRAM_APP_ID")
+	_ = v.BindEnv("instagram.appSecret", "AGENT_DESK_INSTAGRAM_APPSECRET", "INSTAGRAM_APP_SECRET")
+	_ = v.BindEnv("instagram.verifyToken", "AGENT_DESK_INSTAGRAM_VERIFYTOKEN", "INSTAGRAM_VERIFY_TOKEN")
+	_ = v.BindEnv("whatsApp.appId", "AGENT_DESK_WHATSAPP_APPID", "WHATSAPP_APP_ID")
+	_ = v.BindEnv("whatsApp.appSecret", "AGENT_DESK_WHATSAPP_APPSECRET", "WHATSAPP_APP_SECRET")
+	_ = v.BindEnv("whatsApp.verifyToken", "AGENT_DESK_WHATSAPP_VERIFYTOKEN", "WHATSAPP_VERIFY_TOKEN")
 }
 
 func normalizeLoadedConfig(cfg *Config) {

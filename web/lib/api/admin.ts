@@ -1045,11 +1045,18 @@ export function deleteChannel(id: number) {
   })
 }
 
-export function fetchWhatsAppOAuthURL(redirectUri: string, state?: string) {
+export function fetchWhatsAppOAuthURL(
+  redirectUri: string,
+  state?: string,
+  channelId?: number
+) {
   return request<WhatsAppOAuthURLResult>(
     `/api/dashboard/channel/whatsapp_oauth_url${toQueryString({
       redirect_uri: redirectUri,
       state,
+      // The channel's own Meta app issues the code, so the server needs to know
+      // which channel is being connected to pick the right app id.
+      channel_id: channelId,
     })}`
   )
 }

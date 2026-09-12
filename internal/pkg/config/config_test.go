@@ -305,3 +305,124 @@ db:
 		t.Errorf("DB.DSN=%q want legacy-dsn", cfg.DB.DSN)
 	}
 }
+
+// metaAppEnvVars are every variable that can supply a Meta app credential. Each
+// phase of the test sets exactly the ones it means to, so the rest have to be
+// cleared or a value left over from an earlier phase would look like a fallback.
+var metaAppEnvVars = []string{
+	"AGENT_DESK_MESSENGER_APPID", "AGENT_DESK_MESSENGER_APPSECRET",
+	"AGENT_DESK_INSTAGRAM_APPID", "AGENT_DESK_INSTAGRAM_APPSECRET",
+	"AGENT_DESK_WHATSAPP_APPID", "AGENT_DESK_WHATSAPP_APPSECRET",
+	"FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET",
+	"INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET",
+	"WHATSAPP_APP_ID", "WHATSAPP_APP_SECRET",
+	"META_APP_ID", "META_APP_SECRET", "FB_APP_ID", "FB_APP_SECRET",
+	"MESSENGER_APP_ID", "MESSENGER_APP_SECRET",
+}
+
+func loadMetaConfig(t *testing.T) Config {
+	t.Helper()
+	t.Setenv("ENV_FILE", os.DevNull)
+	t.Setenv("AGENT_DESK_ENV_FILE", os.DevNull)
+	for _, name := range metaAppEnvVars {
+		t.Setenv(name, "")
+	}
+	t.Setenv("FACEBOOK_APP_ID", "app-messenger")
+	t.Setenv("FACEBOOK_APP_SECRET", "secret-messenger")
+	t.Setenv("INSTAGRAM_APP_ID", "app-instagram")
+	t.Setenv("INSTAGRAM_APP_SECRET", "secret-instagram")
+	t.Setenv("WHATSAPP_APP_ID", "app-whatsapp")
+	t.Setenv("WHATSAPP_APP_SECRET", "secret-whatsapp")
+
+	cfg, err := Load(filepath.Join(t.TempDir(), "absent-config.yaml"))
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	return *cfg
+}
+
+// A deployment that registered one Meta app per product has more than one app
+// secret. Each product must verify its own webhooks with its own secret; sharing
+// one variable silently breaks whichever product it does not belong to.
+func TestMetaAppCredentialsResolvePerProduct(t *testing.T) {
+	cfg := loadMetaConfig(t)
+
+	messenger := cfg.MessengerApp("", "")
+	if messenger.AppID != "app-messenger" || messenger.AppSecret != "secret-messenger" {
+		t.Errorf("MessengerApp() = %+v, want the Facebook app credentials", messenger)
+	}
+
+	instagram := cfg.InstagramApp("", "")
+	if instagram.AppID != "app-instagram" || instagram.AppSecret != "secret-instagram" {
+		t.Errorf("InstagramApp() = %+v, want the Instagram app credentials", instagram)
+	}
+
+	whatsApp := cfg.WhatsAppApp("", "")
+	if whatsApp.AppID != "app-whatsapp" || whatsApp.AppSecret != "secret-whatsapp" {
+		t.Errorf("WhatsAppApp() = %+v, want the WhatsApp app credentials", whatsApp)
+	}
+
+	if whatsApp.AppSecret == messenger.AppSecret {
+		t.Errorf("WhatsApp inherited the Messenger app secret; a two-app deployment would reject every WhatsApp webhook")
+	}
+}
+
+// A channel can belong to a Meta app that is not the deployment default, so its
+// own credentials have to win over the environment.
+func TestMetaAppCredentialsPreferChannelValues(t *testing.T) {
+	cfg := loadMetaConfig(t)
+
+	creds := cfg.WhatsAppApp("app-channel", "secret-channel")
+	if creds.AppID != "app-channel" || creds.AppSecret != "secret-channel" {
+		t.Errorf("WhatsAppApp() = %+v, want the channel-level credentials", creds)
+	}
+
+	// A channel that sets only one of the two still inherits the other.
+	partial := cfg.WhatsAppApp("", "secret-channel")
+	if partial.AppID != "app-whatsapp" {
+		t.Errorf("WhatsAppApp() app id = %q, want app-whatsapp", partial.AppID)
+	}
+	if partial.AppSecret != "secret-channel" {
+		t.Errorf("WhatsAppApp() app secret = %q, want secret-channel", partial.AppSecret)
+	}
+}
+
+// A single-app deployment sets only the shared Meta variables. Every product has
+// to keep resolving to them, or upgrading would break a working installation.
+func TestMetaAppCredentialsFallBackToSharedMessengerApp(t *testing.T) {
+	t.Setenv("ENV_FILE", os.DevNull)
+	t.Setenv("AGENT_DESK_ENV_FILE", os.DevNull)
+	for _, name := range metaAppEnvVars {
+		t.Setenv(name, "")
+	}
+	t.Setenv("META_APP_ID", "app-shared")
+	t.Setenv("META_APP_SECRET", "secret-shared")
+
+	cfg, err := Load(filepath.Join(t.TempDir(), "absent-config.yaml"))
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	for name, creds := range map[string]MetaAppCredentials{
+		"MessengerApp": cfg.MessengerApp("", ""),
+		"InstagramApp": cfg.InstagramApp("", ""),
+		"WhatsAppApp":  cfg.WhatsAppApp("", ""),
+	} {
+		if creds.AppID != "app-shared" || creds.AppSecret != "secret-shared" {
+			t.Errorf("%s() = %+v, want the shared META_APP_* credentials", name, creds)
+		}
+	}
+}
+
+// The resolvers are called on webhook paths where configuration may not have been
+// loaded yet. They must return the channel-level values instead of panicking.
+func TestResolveMetaAppWithoutLoadedConfig(t *testing.T) {
+	previous := current
+	current = nil
+	defer func() { current = previous }()
+
+	creds := ResolveWhatsAppApp("app-channel", "secret-channel")
+	if creds.AppID != "app-channel" || creds.AppSecret != "secret-channel" {
+		t.Errorf("ResolveWhatsAppApp() = %+v, want the channel-level credentials", creds)
+	}
+}

@@ -17,12 +17,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the `sha256=` prefix all passed, so anyone who learned a webhook URL could write
   into a customer conversation, trigger AI replies and burn paid message quota.
   Rejections now return `401` without echoing the reason. **Breaking for
-  deployments that never set `META_APP_SECRET` or a per-channel `appSecret`: the
-  WhatsApp webhook stops accepting messages until one is configured.**
-- `ChannelGetWhatsAppOAuthURL` no longer falls back to a fabricated app id, which
-  sent operators to a Meta error page that looked like an application bug. The
-  authorization URL now includes `response_type=code`; without it Meta returns a
-  token fragment the server never sees.
+  deployments that never set `WHATSAPP_APP_SECRET` or a per-channel `appSecret`:
+  the WhatsApp webhook stops accepting messages until one is configured.**
+- **Each Meta product now resolves its own app credentials.** Messenger, Instagram
+  and WhatsApp all read a single `META_APP_SECRET`, which cannot work for a
+  deployment that registered a separate Meta app per product: one variable holds
+  one secret, and a signature verified against the wrong app's secret always
+  fails. Credentials now resolve channel-level first, then the product's own
+  `FACEBOOK_APP_*` / `INSTAGRAM_APP_*` / `WHATSAPP_APP_*`, then the shared
+  Messenger values, so a single-app deployment keeps working unchanged. The
+  WhatsApp OAuth exchange previously sent the Messenger app id and secret for a
+  code issued by the WhatsApp app, which Meta rejects outright.
+- `ChannelGetWhatsAppOAuthURL`, `ChannelGetMessengerOAuthURL` and
+  `ChannelGetInstagramOAuthURL` no longer fall back to a fabricated app id, which
+  sent operators to a Meta error page that looked like an application bug, and now
+  report which variable to set. The authorization URL includes
+  `response_type=code`; without it Meta returns a token fragment the server never
+  sees.
 - The Channels dialog advertised `/api/third/whatsapp/webhook` as the webhook URL,
   but verification requires a bound channel id, so the documented URL always
   failed. It now shows the real per-channel URL with a copy action.
@@ -43,8 +54,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   discovers the reachable WABAs and sender numbers, and saves the credentials onto
   the target channel while preserving its existing webhook verify token. The
   Channels dialog opens Meta in a popup and prefills the form from the result.
+- The WhatsApp channel form gains Meta App ID and Meta App Secret fields. The
+  backend already read a per-channel `appSecret` but no field existed to set one,
+  so a channel belonging to a second Meta app could only be configured by editing
+  the database.
 - Focused tests for signature rejection, structured inbound types, media storage,
-  media-failure fallback, and the OAuth connect flow including discovery failure.
+  media-failure fallback, the OAuth connect flow including discovery failure, and
+  per-product Meta credential resolution.
 
 ### Changed
 
@@ -55,9 +71,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In-app brand strings in `en-US` and `zh-CN` now read `Crove Desk`; `vi-VN`
   already did. The widget SDK's public `AgentDesk*` globals are unchanged, because
   renaming them would break every site that has already integrated it.
-- `.env.example` no longer documents four `WHATSAPP_*` variables that nothing in
-  the codebase reads. It points at the Meta app credentials and at the channel
-  form instead.
+- `.env.example` groups the Meta variables per product — `FACEBOOK_APP_*`,
+  `INSTAGRAM_APP_*`, `WHATSAPP_APP_*` — matching the naming already used by Crove
+  Post, and keeps `META_APP_*` documented as a Messenger-only legacy alias. The
+  three `WHATSAPP_*` names it listed before were never read by anything; they are
+  real bindings now.
 - The product backlog marks the WhatsApp integration as shipped, with the
   template-message and delivery-receipt gaps listed explicitly.
 
@@ -71,6 +89,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   conversations outside the 24-hour customer service window are not possible, and
   the webhook `statuses` field is not consumed, so delivery and read receipts are
   not reflected.
+- Messenger and Instagram webhook verification is still conditional: it only runs
+  when an app secret is configured *and* a signature header arrived, and
+  `verifyMessengerSignature` returns `true` for a header without the `sha256=`
+  prefix. WhatsApp was closed in this release; the same fix for those two was
+  deliberately held back because it would start rejecting live traffic on any
+  deployment whose secret is not yet correct, and that needs to be sequenced
+  against the credential split above.
 - `pnpm lint` fails on pre-existing `react-hooks/set-state-in-effect` and
   ref-access errors across the dashboard. The WhatsApp files added here are
   lint-clean.

@@ -124,6 +124,7 @@ type WhatsAppChannelConfig = {
   wabaId?: string
   accessToken?: string
   webhookVerifyToken?: string
+  appId?: string
   appSecret?: string
 }
 
@@ -223,6 +224,8 @@ function createSchema(t: Translate) {
       whatsAppWabaId: z.string().trim(),
       whatsAppAccessToken: z.string().trim(),
       whatsAppWebhookVerifyToken: z.string().trim(),
+      whatsAppAppId: z.string().trim(),
+      whatsAppAppSecret: z.string().trim(),
       slackBotToken: z.string().trim(),
       slackSigningSecret: z.string().trim(),
       slackAppId: z.string().trim(),
@@ -371,6 +374,8 @@ type EditForm = {
   whatsAppWabaId: string
   whatsAppAccessToken: string
   whatsAppWebhookVerifyToken: string
+  whatsAppAppId: string
+  whatsAppAppSecret: string
   slackBotToken: string
   slackSigningSecret: string
   slackAppId: string
@@ -455,6 +460,8 @@ function createEmptyForm(t: Translate): EditForm {
     whatsAppWabaId: "",
     whatsAppAccessToken: "",
     whatsAppWebhookVerifyToken: "",
+    whatsAppAppId: "",
+    whatsAppAppSecret: "",
     slackBotToken: "",
     slackSigningSecret: "",
     slackAppId: "",
@@ -668,6 +675,7 @@ function parseWhatsAppChannelConfig(configJson: string): WhatsAppChannelConfig {
       wabaId: parsed.wabaId?.trim() || "",
       accessToken: parsed.accessToken?.trim() || "",
       webhookVerifyToken: parsed.webhookVerifyToken?.trim() || "",
+      appId: parsed.appId?.trim() || "",
       appSecret: parsed.appSecret?.trim() || "",
     }
   } catch {
@@ -898,6 +906,8 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
     whatsAppWabaId: whatsAppConfig?.wabaId ?? "",
     whatsAppAccessToken: whatsAppConfig?.accessToken ?? "",
     whatsAppWebhookVerifyToken: whatsAppConfig?.webhookVerifyToken ?? "",
+    whatsAppAppId: whatsAppConfig?.appId ?? "",
+    whatsAppAppSecret: whatsAppConfig?.appSecret ?? "",
     slackBotToken: slackConfig?.botToken ?? "",
     slackSigningSecret: slackConfig?.signingSecret ?? "",
     slackAppId: slackConfig?.appId ?? "",
@@ -1014,6 +1024,8 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
                 wabaId: form.whatsAppWabaId.trim(),
                 accessToken: form.whatsAppAccessToken.trim(),
                 webhookVerifyToken: form.whatsAppWebhookVerifyToken.trim(),
+                appId: form.whatsAppAppId.trim(),
+                appSecret: form.whatsAppAppSecret.trim(),
               })
           : channelType === "slack"
             ? JSON.stringify({
@@ -1405,7 +1417,11 @@ function ChannelFormBody({
       const state = itemId
         ? `${WHATSAPP_OAUTH_STATE_PREFIX}:${itemId}`
         : WHATSAPP_OAUTH_STATE_PREFIX
-      const { authUrl } = await fetchWhatsAppOAuthURL(redirectUri, state)
+      const { authUrl } = await fetchWhatsAppOAuthURL(
+        redirectUri,
+        state,
+        itemId ?? undefined
+      )
       // No noopener: the landing page needs window.opener to hand the
       // credentials back to this form.
       const popup = window.open(
@@ -2032,6 +2048,37 @@ function ChannelFormBody({
                     <FieldError errors={[errors.whatsAppAccessToken]} />
                   </FieldContent>
                 </Field>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.whatsAppAppId}>
+                    <FieldLabel htmlFor="channel-wa-appid">{t("channel.whatsappAppId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-wa-appid"
+                        placeholder="e.g. 1866791907324285"
+                        {...register("whatsAppAppId")}
+                      />
+                      <FieldError errors={[errors.whatsAppAppId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.whatsAppAppSecret}>
+                    <FieldLabel htmlFor="channel-wa-appsecret">{t("channel.whatsappAppSecret")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-wa-appsecret"
+                        type="password"
+                        placeholder="Meta App Secret"
+                        {...register("whatsAppAppSecret")}
+                      />
+                      <FieldError errors={[errors.whatsAppAppSecret]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {t("channel.whatsappAppCredentialsHint")}
+                </p>
               </div>
             ) : null}
 

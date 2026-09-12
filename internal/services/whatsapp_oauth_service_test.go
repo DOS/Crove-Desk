@@ -1,6 +1,10 @@
 package services
 
 import (
+	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -16,8 +20,11 @@ import (
 )
 
 // newGraphStub returns an httptest server that answers the WhatsApp connect flow
-// with a single business, a single WABA and a single sender number.
-func newGraphStub(t *testing.T, accessToken string) *httptest.Server {
+// with a single business, a single WABA and a single sender number. It asserts the
+// code exchange was authenticated with the expected app, because exchanging a code
+// against the wrong Meta app is the failure this whole resolution order exists to
+// prevent.
+func newGraphStub(t *testing.T, accessToken, wantClientID, wantClientSecret string) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
 
@@ -25,11 +32,11 @@ func newGraphStub(t *testing.T, accessToken string) *httptest.Server {
 		if got := r.URL.Query().Get("code"); got != "auth-code-1" {
 			t.Errorf("code = %q, want auth-code-1", got)
 		}
-		if got := r.URL.Query().Get("client_id"); got != "app-1" {
-			t.Errorf("client_id = %q, want app-1", got)
+		if got := r.URL.Query().Get("client_id"); got != wantClientID {
+			t.Errorf("client_id = %q, want %q", got, wantClientID)
 		}
-		if got := r.URL.Query().Get("client_secret"); got != "secret-1" {
-			t.Errorf("client_secret = %q, want secret-1", got)
+		if got := r.URL.Query().Get("client_secret"); got != wantClientSecret {
+			t.Errorf("client_secret = %q, want %q", got, wantClientSecret)
 		}
 		writeJSONStub(w, map[string]any{
 			"access_token": accessToken,
@@ -111,12 +118,86 @@ func setMetaAppCredentials(t *testing.T, appID, appSecret string) {
 	t.Cleanup(func() { config.SetCurrent(previous) })
 }
 
+// setSplitMetaAppCredentials configures a different Meta app for Messenger and
+// for WhatsApp, which is how a deployment that registered one app per product is
+// set up.
+func setSplitMetaAppCredentials(t *testing.T) {
+	t.Helper()
+	previous := config.GetCurrent()
+	cfg := &config.Config{}
+	if previous != nil {
+		*cfg = *previous
+	}
+	cfg.Messenger.AppID = "app-messenger"
+	cfg.Messenger.AppSecret = "secret-messenger"
+	cfg.WhatsApp.AppID = "app-whatsapp"
+	cfg.WhatsApp.AppSecret = "secret-whatsapp"
+	config.SetCurrent(cfg)
+	t.Cleanup(func() { config.SetCurrent(previous) })
+}
+
+// A deployment with one Meta app per product has two different secrets. WhatsApp
+// must be authorized with its own app: a code issued by the WhatsApp app cannot be
+// exchanged with the Messenger app's secret, and Meta rejects it.
+func TestWhatsAppOAuthConnectUsesTheWhatsAppAppNotMessenger(t *testing.T) {
+	db := setupWhatsAppTestDB(t)
+	channel := seedWhatsAppChannel(t, db, "")
+	setSplitMetaAppCredentials(t)
+
+	server := newGraphStub(t, "EAAtest-business-token", "app-whatsapp", "secret-whatsapp")
+	defer server.Close()
+	defer stubWhatsAppOAuthClient(server)()
+
+	operator := &dto.AuthPrincipal{UserID: 7, Username: "joy"}
+	result, err := WhatsAppOAuthService.Connect(request.WhatsAppOAuthCallbackRequest{
+		Code:      "auth-code-1",
+		ChannelID: channel.ID,
+	}, "en-US", operator)
+	if err != nil {
+		t.Fatalf("Connect failed: %v", err)
+	}
+	if !result.Connected {
+		t.Errorf("Connected = false, want the credentials to be saved")
+	}
+}
+
+// The inbound webhook has to verify signatures with the same app the channel
+// belongs to, so it resolves credentials the same way the connect flow does.
+func TestWhatsAppWebhookUsesTheWhatsAppAppSecret(t *testing.T) {
+	db := setupWhatsAppTestDB(t)
+	channel := seedWhatsAppChannel(t, db, "")
+	setSplitMetaAppCredentials(t)
+
+	payload := []byte(whatsAppWebhookPayload(`{
+		"from": "84901234567", "id": "wamid.SPLIT01", "timestamp": "1725260000", "type": "text",
+		"text": { "body": "hello" }
+	}`))
+
+	// Signed with the Messenger secret: must be rejected.
+	wrongMac := hmac.New(sha256.New, []byte("secret-messenger"))
+	wrongMac.Write(payload)
+	wrongSignature := "sha256=" + hex.EncodeToString(wrongMac.Sum(nil))
+	err := WhatsAppInboundService.HandleWebhook(context.Background(), channel.ChannelID, wrongSignature, payload)
+	assertUnauthorized(t, err)
+
+	// Signed with the WhatsApp secret: must be accepted.
+	rightSignature := signWhatsAppPayload(t, "secret-whatsapp", payload)
+	if err := WhatsAppInboundService.HandleWebhook(context.Background(), channel.ChannelID, rightSignature, payload); err != nil {
+		t.Fatalf("HandleWebhook with the WhatsApp app secret failed: %v", err)
+	}
+	if countWhatsAppMessages(t, db, "wamid.SPLIT01") != 1 {
+		t.Fatalf("expected the correctly signed message to be stored")
+	}
+}
+
 func TestWhatsAppOAuthConnectPersistsCredentials(t *testing.T) {
 	db := setupWhatsAppTestDB(t)
 	channel := seedWhatsAppChannel(t, db, whatsAppTestAppSecret)
 	setMetaAppCredentials(t, "app-1", "secret-1")
 
-	server := newGraphStub(t, "EAAtest-business-token")
+	// The channel carries its own app secret but no app id, so the exchange has to
+	// use the channel secret with the deployment-level app id.
+	server := newGraphStub(t, "EAAtest-business-token", "app-1", whatsAppTestAppSecret)
 	defer server.Close()
 	defer stubWhatsAppOAuthClient(server)()
 
@@ -181,7 +262,7 @@ func TestWhatsAppOAuthConnectPersistsCredentials(t *testing.T) {
 
 func TestWhatsAppOAuthConnectRequiresAppCredentials(t *testing.T) {
 	db := setupWhatsAppTestDB(t)
-	channel := seedWhatsAppChannel(t, db, whatsAppTestAppSecret)
+	channel := seedWhatsAppChannel(t, db, "")
 	setMetaAppCredentials(t, "", "")
 
 	operator := &dto.AuthPrincipal{UserID: 7, Username: "joy"}
@@ -320,7 +401,7 @@ func TestWhatsAppOAuthConnectRejectsNonWhatsAppChannel(t *testing.T) {
 		t.Fatalf("create telegram channel: %v", err)
 	}
 
-	server := newGraphStub(t, "EAAtest-business-token")
+	server := newGraphStub(t, "EAAtest-business-token", "app-1", whatsAppTestAppSecret)
 	defer server.Close()
 	defer stubWhatsAppOAuthClient(server)()
 
