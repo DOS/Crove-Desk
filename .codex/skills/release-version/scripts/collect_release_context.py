@@ -10,7 +10,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-SEMVER_TAG_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
+SEMVER_TAG_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)(?:-crove\.(\d+))?$")
+
+# Only the fork's own tags are valid release targets. SEMVER_TAG_RE stays
+# permissive on purpose: it also has to read the bare vX.Y.Z and vYYYYMMDD tags
+# inherited from upstream so a baseline can be chosen at all.
+FORK_RELEASE_TAG_RE = re.compile(r"^v\d+\.\d+\.\d+-crove\.\d+$")
 
 
 def run_git(
@@ -37,11 +42,21 @@ def run_git(
     return result.stdout.strip()
 
 
-def parse_semver(tag: str) -> tuple[int, int, int] | None:
+def parse_semver(tag: str) -> tuple[int, int, int, int] | None:
+    """Parse a release tag into a sortable tuple.
+
+    The fourth element is the fork counter from the ``-crove.N`` suffix, treated
+    as 0 when absent. Strict semver would rank ``1.7.0-crove.1`` below ``1.7.0``
+    as a prerelease; this repository never mints a bare ``vX.Y.Z`` tag, because
+    that namespace belongs to upstream and a collision disables
+    sync-upstream.yml, so ordering the counter above the plain release is the
+    behaviour that actually matters when picking a baseline.
+    """
     match = SEMVER_TAG_RE.match(tag)
     if not match:
         return None
-    return tuple(int(part) for part in match.groups())
+    major, minor, patch, crove = match.groups()
+    return (int(major), int(minor), int(patch), int(crove) if crove else 0)
 
 
 def list_reachable_tags(repo: Path) -> list[str]:
@@ -50,7 +65,7 @@ def list_reachable_tags(repo: Path) -> list[str]:
 
 
 def choose_previous_tag(repo: Path, tags: list[str], target_tag: str | None) -> tuple[str | None, str | None]:
-    semver_tags: list[tuple[tuple[int, int, int], str]] = []
+    semver_tags: list[tuple[tuple[int, int, int, int], str]] = []
     other_tags: list[str] = []
     target_semver = parse_semver(target_tag) if target_tag else None
 
@@ -154,7 +169,7 @@ def get_numstat(repo: Path, rev_range: str) -> dict[str, int]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", default=".", help="Repository root. Defaults to current directory.")
-    parser.add_argument("--tag", help="Target release tag to validate, for example v1.2.3.")
+    parser.add_argument("--tag", help="Target release tag to validate, for example v1.7.1-crove.1.")
     parser.add_argument("--previous-tag", help="Explicit comparison baseline.")
     return parser
 
@@ -167,8 +182,16 @@ def main() -> int:
         print(json.dumps({"error": f"not a git repository: {repo_path}"}))
         return 1
 
-    if args.tag and parse_semver(args.tag) is None:
-        print(json.dumps({"error": f"invalid tag format: {args.tag}", "expected": "vx.y.z"}))
+    if args.tag and not FORK_RELEASE_TAG_RE.match(args.tag):
+        print(json.dumps({
+            "error": f"invalid release tag format: {args.tag}",
+            "expected": "vx.y.z-crove.n",
+            "reason": (
+                "a bare vX.Y.Z tag allocates from the upstream namespace, and "
+                "sync-upstream.yml skips a sync entirely when this fork already "
+                "holds a tag of that name"
+            ),
+        }))
         return 1
 
     try:
