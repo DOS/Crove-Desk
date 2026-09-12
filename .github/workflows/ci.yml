@@ -1,6 +1,18 @@
 name: CI
 
 on:
+  # deploy-beta.yml builds and publishes an image on every push to dev, so CI has
+  # to run on push too. Without this a direct push shipped a beta image that no
+  # test had ever seen, because pull_request was the only trigger.
+  push:
+    branches:
+      - main
+      - dev
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "screenshots/**"
+      - ".gitignore"
   pull_request:
     branches:
       - main
@@ -30,9 +42,13 @@ jobs:
           go-version: "1.26"
           cache: true
 
+      - name: Run Go Vet
+        run: |
+          go vet -tags dev ./...
+
       - name: Run Go Tests
         run: |
-          go test -v -tags dev ./internal/services/... ./internal/repositories/... ./internal/pkg/... ./internal/oidcclient/... ./internal/migration/...
+          go test -v -tags dev ./internal/services/... ./internal/repositories/... ./internal/pkg/... ./internal/oidcclient/... ./internal/migration/... ./internal/builders/... ./internal/bootstrap/... ./internal/handlers/...
 
   frontend-typecheck:
     name: Frontend Typecheck
@@ -60,3 +76,15 @@ jobs:
       - name: Run Typecheck
         run: |
           cd web && pnpm typecheck
+
+      - name: Run Node Tests
+        run: |
+          cd web && node --test "**/*.test.mjs"
+
+      # Reported but not enforced: the tree currently carries six pre-existing
+      # react-hooks errors (tracked as PROC-16). Making this blocking before they
+      # are fixed would turn every unrelated PR red.
+      - name: Run Lint
+        continue-on-error: true
+        run: |
+          cd web && pnpm lint

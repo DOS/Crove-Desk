@@ -1,4 +1,4 @@
 interface:
   display_name: "Release Version"
-  short_description: "Create semver tags and changelog drafts"
-  default_prompt: "Use $release-version to create a new vx.y.z release, update changelogs, and push docs plus tags."
+  short_description: "Create -crove.N tags and CHANGELOG.md drafts"
+  default_prompt: "Use $release-version to create a new vX.Y.Z-crove.N release, reconcile dev with main, update CHANGELOG.md, push the tag, and publish the GitHub Release."
