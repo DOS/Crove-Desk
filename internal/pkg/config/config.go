@@ -69,7 +69,8 @@ type ServerConfig struct {
 	// TrustedPlatform names an edge that overwrites rather than appends the real
 	// client address, for example "cloudflare". When set it takes precedence over
 	// X-Forwarded-For entirely.
-	TrustedPlatform string `yaml:"trustedPlatform"`
+	TrustedPlatform string          `yaml:"trustedPlatform"`
+	RateLimit       RateLimitConfig `yaml:"rateLimit"`
 }
 
 // defaultTrustedProxies covers loopback, RFC1918, IPv6 unique-local and
@@ -145,6 +146,33 @@ type CORSConfig struct {
 	// AllowedOrigins 是允许浏览器跨域访问的 Origin 白名单，必须包含协议和域名。
 	// 留空表示不允许跨域请求；同源请求通常不会携带 Origin，不受影响。
 	AllowedOrigins []string `yaml:"allowedOrigins"`
+}
+
+// RateLimitConfig bounds how often one client address may call the public,
+// unauthenticated endpoints. It deliberately does not cover channel webhooks,
+// websockets or authenticated dashboard routes: a platform that receives a 429
+// from a webhook endpoint stops retrying and eventually disables the webhook.
+type RateLimitConfig struct {
+	// Enabled defaults to true. Set it to false to switch the limits off without
+	// taking them out of the route table.
+	Enabled *bool `yaml:"enabled"`
+	// WindowSeconds is the length of the counting window. Zero or negative means
+	// one minute.
+	WindowSeconds int `yaml:"windowSeconds"`
+}
+
+func (r RateLimitConfig) IsEnabled() bool {
+	if r.Enabled == nil {
+		return true
+	}
+	return *r.Enabled
+}
+
+func (r RateLimitConfig) WindowSecondsOrDefault() int {
+	if r.WindowSeconds <= 0 {
+		return 60
+	}
+	return r.WindowSeconds
 }
 
 type DBConfig struct {
@@ -510,6 +538,7 @@ func bindConfigDefaults(v *viper.Viper) {
 	v.SetDefault("server.cors.allowedOrigins", []string{})
 	v.SetDefault("server.trustedProxies", []string{})
 	v.SetDefault("server.trustedPlatform", "")
+	v.SetDefault("server.rateLimit.windowSeconds", 60)
 	v.SetDefault("db.type", "sqlite")
 	v.SetDefault("db.dsn", "file:./data/app.db?_busy_timeout=5000")
 	v.SetDefault("db.maxIdleConns", 5)
@@ -581,6 +610,8 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("server.companyFaviconUrl", "AGENT_DESK_SERVER_COMPANYFAVICONURL", "COMPANY_FAVICON_URL", "NEXT_PUBLIC_COMPANY_FAVICON_URL", "BRAND_FAVICON_URL", "FAVICON_URL")
 	_ = v.BindEnv("server.trustedProxies", "AGENT_DESK_SERVER_TRUSTEDPROXIES", "TRUSTED_PROXIES")
 	_ = v.BindEnv("server.trustedPlatform", "AGENT_DESK_SERVER_TRUSTEDPLATFORM", "TRUSTED_PLATFORM")
+	_ = v.BindEnv("server.rateLimit.enabled", "AGENT_DESK_SERVER_RATELIMIT_ENABLED", "RATE_LIMIT_ENABLED")
+	_ = v.BindEnv("server.rateLimit.windowSeconds", "AGENT_DESK_SERVER_RATELIMIT_WINDOWSECONDS", "RATE_LIMIT_WINDOW_SECONDS")
 	_ = v.BindEnv("db.type", "AGENT_DESK_DB_TYPE", "DATABASE_TYPE", "DB_TYPE")
 	_ = v.BindEnv("db.dsn", "AGENT_DESK_DB_DSN", "DATABASE_URL", "DB_DSN")
 	_ = v.BindEnv("auth.passwordLoginEnabled", "AGENT_DESK_AUTH_PASSWORDLOGINENABLED", "PASSWORD_LOGIN_ENABLED")

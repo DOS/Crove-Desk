@@ -352,6 +352,7 @@ error.e0350: "WhatsApp webhook rejected: the X-Hub-Signature-256 header is missi
 error.e0351: "WhatsApp authorization needs a Meta App ID and App Secret. Set WHATSAPP_APP_ID and WHATSAPP_APP_SECRET, or appId and appSecret on the channel."
 error.e0352: "WhatsApp authorization failed: %s"
 error.e0353: "No Meta App ID is configured for this channel. Set %s, or the app id on the channel."
+error.e0354: "Too many requests. Please wait a moment and try again."
 error.whatsapp.oauth.tokenInspectFailed: "Could not inspect the access token: %s"
 error.whatsapp.oauth.tokenInvalid: "Meta reports this access token is not valid."
 error.whatsapp.oauth.scopeMissing: "The granted token is missing the \"%s\" permission."
