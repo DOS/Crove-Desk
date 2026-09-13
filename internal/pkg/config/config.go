@@ -25,6 +25,7 @@ type Config struct {
 	OIDC            OIDCConfig            `yaml:"oidc"`
 	CustomerSession CustomerSessionConfig `yaml:"customerSession"`
 	Webhook         WebhookConfig         `yaml:"webhook"`
+	Discord         DiscordConfig         `yaml:"discord"`
 }
 
 func (c Config) LanguageOrDefault() string {
@@ -230,6 +231,16 @@ type WebhookConfig struct {
 	DOSOrgSyncSecret string `yaml:"dosOrgSyncSecret"`
 }
 
+// DiscordConfig holds deployment-wide Discord bot credentials. A channel may
+// carry its own bot token, which takes precedence; these are the fallback for a
+// single shared bot.
+type DiscordConfig struct {
+	ClientID     string `yaml:"clientId"`
+	ClientSecret string `yaml:"clientSecret"`
+	BotToken     string `yaml:"botToken"`
+	PublicKey    string `yaml:"publicKey"`
+}
+
 func Load(path string) (*Config, error) {
 	loadDotEnv(path)
 
@@ -312,6 +323,10 @@ func bindConfigDefaults(v *viper.Viper) {
 	v.SetDefault("vectorDB.qdrant.host", "127.0.0.1")
 	v.SetDefault("vectorDB.qdrant.grpcPort", 6334)
 	v.SetDefault("mcp.enabled", true)
+	v.SetDefault("discord.clientId", "")
+	v.SetDefault("discord.clientSecret", "")
+	v.SetDefault("discord.botToken", "")
+	v.SetDefault("discord.publicKey", "")
 }
 
 func bindEnvironmentAliases(v *viper.Viper) {
@@ -339,6 +354,10 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("oidc.clientSecret", "AGENT_DESK_OIDC_CLIENTSECRET", "OIDC_CLIENT_SECRET", "CUSTOM_OAUTH_CLIENT_SECRET")
 	_ = v.BindEnv("oidc.redirectUrl", "AGENT_DESK_OIDC_REDIRECTURL", "OIDC_REDIRECT_URL", "CUSTOM_OAUTH_REDIRECT_URI")
 	_ = v.BindEnv("webhook.orgSyncSecret", "AGENT_DESK_WEBHOOK_ORGSYNCSECRET", "ORG_SYNC_SECRET", "WEBHOOK_SECRET")
+	_ = v.BindEnv("discord.clientId", "AGENT_DESK_DISCORD_CLIENTID", "DISCORD_CLIENT_ID")
+	_ = v.BindEnv("discord.clientSecret", "AGENT_DESK_DISCORD_CLIENTSECRET", "DISCORD_CLIENT_SECRET")
+	_ = v.BindEnv("discord.botToken", "AGENT_DESK_DISCORD_BOTTOKEN", "DISCORD_BOT_TOKEN")
+	_ = v.BindEnv("discord.publicKey", "AGENT_DESK_DISCORD_PUBLICKEY", "DISCORD_PUBLIC_KEY")
 }
 
 func normalizeLoadedConfig(cfg *Config) {
