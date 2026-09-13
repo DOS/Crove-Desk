@@ -171,17 +171,19 @@ func isWebsocketUpgrade(ctx *gin.Context) bool {
 }
 
 func addRouter(app *gin.Engine) {
+	limits := newPublicRateLimits(config.Current().Server.RateLimit)
+
 	app.Any("/api/mcp", gin.WrapH(mcps.NewHTTPHandler()))
 
 	apiGroup := app.Group("/api")
 	apiGroup.GET("/health", api.Health)
 	apiGroup.GET("/config", api.PublicConfig)
-	registerApiAuthRoutes(apiGroup.Group("/auth"))
+	registerApiAuthRoutes(apiGroup.Group("/auth"), limits)
 	registerApiChannelRoutes(apiGroup.Group("/channel"))
-	registerApiCustomerRoutes(apiGroup.Group("/customer"))
+	registerApiCustomerRoutes(apiGroup.Group("/customer"), limits)
 	registerApiConversationRoutes(apiGroup.Group("/conversation", middleware.ExternalUserMiddleware))
-	registerApiMessageRoutes(apiGroup.Group("/message", middleware.ExternalUserMiddleware))
-	registerApiSupportRoutes(apiGroup.Group("/support"))
+	registerApiMessageRoutes(apiGroup.Group("/message", middleware.ExternalUserMiddleware), limits)
+	registerApiSupportRoutes(apiGroup.Group("/support"), limits)
 	registerApiWebhookRoutes(apiGroup.Group("/webhooks"))
 
 	wsGroup := app.Group("/api/ws")

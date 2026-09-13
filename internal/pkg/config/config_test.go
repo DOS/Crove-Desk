@@ -530,3 +530,54 @@ func TestLoadReadsTrustedProxySettings(t *testing.T) {
 		t.Errorf("TrustedPlatformHeader() = %q want CF-Connecting-IP", cfg.Server.TrustedPlatformHeader())
 	}
 }
+
+func TestRateLimitConfigDefaultsToEnabledWithAMinuteWindow(t *testing.T) {
+	var cfg RateLimitConfig
+	if !cfg.IsEnabled() {
+		t.Error("rate limiting must default to enabled; a zero-value config should not silently turn protection off")
+	}
+	if got := cfg.WindowSecondsOrDefault(); got != 60 {
+		t.Errorf("WindowSecondsOrDefault() = %d want 60", got)
+	}
+
+	off := false
+	cfg = RateLimitConfig{Enabled: &off, WindowSeconds: -5}
+	if cfg.IsEnabled() {
+		t.Error("Enabled=false must disable the limits")
+	}
+	if got := cfg.WindowSecondsOrDefault(); got != 60 {
+		t.Errorf("a non-positive window must fall back to 60, got %d", got)
+	}
+
+	on := true
+	cfg = RateLimitConfig{Enabled: &on, WindowSeconds: 30}
+	if !cfg.IsEnabled() {
+		t.Error("Enabled=true must enable the limits")
+	}
+	if got := cfg.WindowSecondsOrDefault(); got != 30 {
+		t.Errorf("WindowSecondsOrDefault() = %d want 30", got)
+	}
+}
+
+func TestLoadReadsRateLimitSettings(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("server:\n  port: 8083\n"), 0600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	t.Setenv("ENV_FILE", os.DevNull)
+	t.Setenv("AGENT_DESK_ENV_FILE", os.DevNull)
+	t.Setenv("RATE_LIMIT_ENABLED", "false")
+	t.Setenv("RATE_LIMIT_WINDOW_SECONDS", "30")
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Server.RateLimit.IsEnabled() {
+		t.Error("RATE_LIMIT_ENABLED=false did not disable the limits")
+	}
+	if got := cfg.Server.RateLimit.WindowSecondsOrDefault(); got != 30 {
+		t.Errorf("WindowSecondsOrDefault() = %d want 30", got)
+	}
+}
