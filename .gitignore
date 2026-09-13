@@ -24,6 +24,11 @@ node_modules/
 
 .superpowers
 
+# Qwen Code session scratch: temporary scripts, PR body drafts, nested clones
+# and agent worktrees. .qwen/settings.json holds per-user model preferences, not
+# project configuration.
+.qwen/
+
 agent-desk
 
 test-reports
