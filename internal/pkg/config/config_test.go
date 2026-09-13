@@ -156,3 +156,107 @@ ORG_SYNC_SECRET=webhook-secret-789
 		t.Fatalf("Webhook.OrgSyncSecret=%q", cfg.Webhook.OrgSyncSecret)
 	}
 }
+
+func TestAuthConfigMaxFailedAttemptsPerIPOrDefault(t *testing.T) {
+	cases := []struct {
+		name string
+		cfg  AuthConfig
+		want int
+	}{
+		{"explicit value wins", AuthConfig{MaxFailedAttempts: 5, MaxFailedAttemptsPerIP: 30}, 30},
+		{"unset derives four times the per-account limit", AuthConfig{MaxFailedAttempts: 5}, 20},
+		{"disabled per-account limit disables both", AuthConfig{MaxFailedAttempts: 0}, 0},
+		{"negative per-account limit disables both", AuthConfig{MaxFailedAttempts: -1}, 0},
+	}
+	for _, tc := range cases {
+		if got := tc.cfg.MaxFailedAttemptsPerIPOrDefault(); got != tc.want {
+			t.Errorf("%s: MaxFailedAttemptsPerIPOrDefault() = %d want %d", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestServerConfigTrustedProxiesOrDefault(t *testing.T) {
+	// An unset list must not fall through to Gin's own default of 0.0.0.0/0 and
+	// ::/0, which trusts every peer and makes X-Forwarded-For authoritative.
+	got := ServerConfig{}.TrustedProxiesOrDefault()
+	for _, want := range []string{"127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "::1/128", "fc00::/7", "fe80::/10"} {
+		found := false
+		for _, entry := range got {
+			if entry == want {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("TrustedProxiesOrDefault() = %v, missing %s", got, want)
+		}
+	}
+	for _, entry := range got {
+		if entry == "0.0.0.0/0" || entry == "::/0" {
+			t.Errorf("TrustedProxiesOrDefault() includes %s, which trusts every peer", entry)
+		}
+	}
+
+	// Blank entries from a comma-separated environment variable must not become
+	// empty CIDRs, which Gin would reject at startup.
+	got = ServerConfig{TrustedProxies: []string{" 10.1.0.0/16 ", "", "  "}}.TrustedProxiesOrDefault()
+	if len(got) != 1 || got[0] != "10.1.0.0/16" {
+		t.Errorf("TrustedProxiesOrDefault() = %v want [10.1.0.0/16]", got)
+	}
+}
+
+func TestServerConfigTrustedPlatformHeader(t *testing.T) {
+	cases := []struct {
+		platform string
+		want     string
+	}{
+		{"", ""},
+		{"cloudflare", "CF-Connecting-IP"},
+		{"Cloudflare", "CF-Connecting-IP"},
+		{"  CF  ", "CF-Connecting-IP"},
+		{"fly.io", "Fly-Client-IP"},
+		{"google-app-engine", "X-Appengine-Remote-Addr"},
+		// Anything unrecognised is a literal header name, which is what Gin's
+		// TrustedPlatform field expects.
+		{"X-CDN-IP", "X-CDN-IP"},
+	}
+	for _, tc := range cases {
+		if got := (ServerConfig{TrustedPlatform: tc.platform}).TrustedPlatformHeader(); got != tc.want {
+			t.Errorf("TrustedPlatformHeader(%q) = %q want %q", tc.platform, got, tc.want)
+		}
+	}
+}
+
+// TestLoadReadsTrustedProxySettings covers the environment spelling, including
+// the comma-separated list. Gin rejects an unparseable CIDR at startup, so a
+// value that arrives as one string instead of a slice would take the process
+// down rather than degrade quietly.
+func TestLoadReadsTrustedProxySettings(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("server:\n  port: 8083\n"), 0600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	t.Setenv("ENV_FILE", os.DevNull)
+	t.Setenv("AGENT_DESK_ENV_FILE", os.DevNull)
+	t.Setenv("TRUSTED_PROXIES", "10.0.0.0/8,172.16.0.0/12")
+	t.Setenv("TRUSTED_PLATFORM", "cloudflare")
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	want := []string{"10.0.0.0/8", "172.16.0.0/12"}
+	got := cfg.Server.TrustedProxies
+	if len(got) != len(want) {
+		t.Fatalf("TrustedProxies = %v want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("TrustedProxies[%d] = %q want %q", i, got[i], want[i])
+		}
+	}
+	if cfg.Server.TrustedPlatformHeader() != "CF-Connecting-IP" {
+		t.Errorf("TrustedPlatformHeader() = %q want CF-Connecting-IP", cfg.Server.TrustedPlatformHeader())
+	}
+}

@@ -90,7 +90,7 @@ func (s *authService) Login(req request.LoginRequest, authCfg config.AuthConfig,
 		return nil, errorsx.InvalidParamI18n("error.e0258")
 	}
 
-	if s.isCredentialLocked(principal, authCfg) {
+	if s.isCredentialLocked(principal, clientIP, authCfg) {
 		_ = s.createLoginCredentialLog(principal, 0, false, clientIP, userAgent, "credential locked")
 		return nil, errorsx.CredentialLockedI18n("error.e0270")
 	}
@@ -455,28 +455,71 @@ func (s *authService) createLoginCredentialLog(principal string, userID int64, s
 		Principal: principal,
 		UserID:    userID,
 		Success:   success,
-		ClientIP:  clientIP,
+		ClientIP:  normalizeClientIP(clientIP),
 		UserAgent: userAgent,
 		Reason:    reason,
 		CreatedAt: time.Now(),
 	})
 }
 
-func (s *authService) isCredentialLocked(principal string, authCfg config.AuthConfig) bool {
-	maxFailedAttempts := authCfg.MaxFailedAttempts
-	if maxFailedAttempts <= 0 {
-		return false
-	}
+// isCredentialLocked reports whether this attempt should be refused before the
+// password is even checked.
+//
+// Both windows are keyed on the client address as well as the username. Keying on
+// the username alone - which is what this used to do - means anyone who knows a
+// username can lock the real account out for the whole window, from anywhere, as
+// often as they like: that is a denial of service dressed up as a protection. The
+// principal-and-address window still stops one source grinding on one account, and
+// the address-only window across all principals still stops credential stuffing,
+// but a legitimate user arriving from a different address is no longer locked out
+// by somebody else's failures.
+//
+// This is only sound because the address itself is trustworthy; see the trusted
+// proxy configuration in bootstrap.NewServer.
+func (s *authService) isCredentialLocked(principal, clientIP string, authCfg config.AuthConfig) bool {
 	lockMinute := authCfg.CredentialLockMinute
 	if lockMinute <= 0 {
 		lockMinute = 15
 	}
 	since := time.Now().Add(-time.Duration(lockMinute) * time.Minute)
-	return LoginCredentialLogService.Count(sqls.NewCnd().
-		Eq("principal", normalizeLoginPrincipal(principal)).
-		Eq("success", false).
-		NotEq("reason", "credential locked").
-		Where("created_at >= ?", since)) >= int64(maxFailedAttempts)
+	ip := normalizeClientIP(clientIP)
+
+	base := func() *sqls.Cnd {
+		return sqls.NewCnd().
+			Eq("client_ip", ip).
+			Eq("success", false).
+			NotEq("reason", "credential locked").
+			Where("created_at >= ?", since)
+	}
+
+	if maxFailedAttempts := authCfg.MaxFailedAttempts; maxFailedAttempts > 0 {
+		count := LoginCredentialLogService.Count(base().Eq("principal", normalizeLoginPrincipal(principal)))
+		if count >= int64(maxFailedAttempts) {
+			return true
+		}
+	}
+
+	// An undetermined address would otherwise pool every such caller into one
+	// bucket and lock them all out together.
+	if maxPerIP := authCfg.MaxFailedAttemptsPerIPOrDefault(); maxPerIP > 0 && ip != unknownClientIP {
+		if count := LoginCredentialLogService.Count(base()); count >= int64(maxPerIP) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// unknownClientIP stands in for an address the server could not determine, so
+// those attempts share one bucket on the principal window instead of matching
+// nothing at all.
+const unknownClientIP = "unknown"
+
+func normalizeClientIP(clientIP string) string {
+	if clientIP = strings.TrimSpace(clientIP); clientIP == "" {
+		return unknownClientIP
+	}
+	return clientIP
 }
 
 func normalizeLoginPrincipal(principal string) string {

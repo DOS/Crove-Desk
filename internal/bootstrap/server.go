@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"path"
@@ -35,6 +36,18 @@ func NewServer() (*gin.Engine, error) {
 	printBanner()
 
 	app := gin.New()
+
+	// Gin defaults to trusting every proxy, which makes ClientIP() return the
+	// leftmost X-Forwarded-For value - a header any caller can set. Everything
+	// keyed on a client address depends on this being settled first: the login
+	// credential log, the user's last login IP, and any abuse control.
+	if platform := cfg.Server.TrustedPlatformHeader(); platform != "" {
+		app.TrustedPlatform = platform
+	}
+	if err := app.SetTrustedProxies(cfg.Server.TrustedProxiesOrDefault()); err != nil {
+		return nil, fmt.Errorf("invalid server.trustedProxies: %w", err)
+	}
+
 	app.Use(requestIDMiddleware())
 	app.Use(corsMiddleware())
 	app.Use(gin.Recovery())

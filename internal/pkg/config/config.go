@@ -52,6 +52,65 @@ type ServerConfig struct {
 	CompanyName    string     `yaml:"companyName"`
 	CompanyLogoURL string     `yaml:"companyLogoUrl"`
 	CORS           CORSConfig `yaml:"cors"`
+	// TrustedProxies are the CIDR blocks of the reverse proxies that sit in front
+	// of the application. Gin's own default is 0.0.0.0/0 and ::/0, which trusts
+	// every peer and makes ClientIP() return the leftmost X-Forwarded-For value -
+	// a header any caller can set.
+	TrustedProxies []string `yaml:"trustedProxies"`
+	// TrustedPlatform names an edge that overwrites rather than appends the real
+	// client address, for example "cloudflare". When set it takes precedence over
+	// X-Forwarded-For entirely.
+	TrustedPlatform string `yaml:"trustedPlatform"`
+}
+
+// defaultTrustedProxies covers loopback, RFC1918, IPv6 unique-local and
+// link-local ranges. That is the shape of almost every real deployment - a
+// sidecar tunnel, a compose network, a local nginx - and a client on the public
+// internet cannot present one of these addresses as its direct peer, so
+// X-Forwarded-For stays honest. When the app is exposed directly the peer is a
+// public address, is not trusted, and Gin falls back to it.
+var defaultTrustedProxies = []string{
+	"127.0.0.0/8",
+	"10.0.0.0/8",
+	"172.16.0.0/12",
+	"192.168.0.0/16",
+	"::1/128",
+	"fc00::/7",
+	"fe80::/10",
+}
+
+func (s ServerConfig) TrustedProxiesOrDefault() []string {
+	proxies := make([]string, 0, len(s.TrustedProxies))
+	for _, proxy := range s.TrustedProxies {
+		if proxy = strings.TrimSpace(proxy); proxy != "" {
+			proxies = append(proxies, proxy)
+		}
+	}
+	if len(proxies) == 0 {
+		return defaultTrustedProxies
+	}
+	return proxies
+}
+
+// TrustedPlatformHeader resolves the configured platform name to the header Gin
+// should read the client address from. Recognised names map to Gin's own
+// constants; any other non-empty value is passed through as a literal header
+// name, which is what Gin's TrustedPlatform field expects.
+func (s ServerConfig) TrustedPlatformHeader() string {
+	platform := strings.TrimSpace(s.TrustedPlatform)
+	if platform == "" {
+		return ""
+	}
+	switch strings.ToLower(platform) {
+	case "cloudflare", "cf":
+		return "CF-Connecting-IP"
+	case "fly.io", "flyio", "fly-io":
+		return "Fly-Client-IP"
+	case "google-app-engine", "appengine", "gae":
+		return "X-Appengine-Remote-Addr"
+	default:
+		return platform
+	}
 }
 
 func (s ServerConfig) Address() string {
@@ -86,7 +145,25 @@ type AuthConfig struct {
 	PasswordLoginEnabled *bool `yaml:"passwordLoginEnabled"`
 	TokenTTLHours        int   `yaml:"tokenTTLHours"`
 	MaxFailedAttempts    int   `yaml:"maxFailedAttempts"`
-	CredentialLockMinute int   `yaml:"credentialLockMinute"`
+	// MaxFailedAttemptsPerIP bounds failures from one client address across every
+	// username, which is what credential stuffing looks like. Zero or unset
+	// derives four times MaxFailedAttempts; it is disabled when MaxFailedAttempts
+	// is disabled.
+	MaxFailedAttemptsPerIP int `yaml:"maxFailedAttemptsPerIP"`
+	CredentialLockMinute   int `yaml:"credentialLockMinute"`
+}
+
+// MaxFailedAttemptsPerIPOrDefault derives the per-address threshold from the
+// per-account one so that a deployment which only tunes MaxFailedAttempts still
+// gets a coherent pair of limits.
+func (a AuthConfig) MaxFailedAttemptsPerIPOrDefault() int {
+	if a.MaxFailedAttemptsPerIP > 0 {
+		return a.MaxFailedAttemptsPerIP
+	}
+	if a.MaxFailedAttempts <= 0 {
+		return 0
+	}
+	return a.MaxFailedAttempts * 4
 }
 
 func (a AuthConfig) IsPasswordLoginEnabled() bool {
@@ -301,6 +378,8 @@ func bindConfigDefaults(v *viper.Viper) {
 	v.SetDefault("server.companyName", "")
 	v.SetDefault("server.companyLogoUrl", "")
 	v.SetDefault("server.cors.allowedOrigins", []string{})
+	v.SetDefault("server.trustedProxies", []string{})
+	v.SetDefault("server.trustedPlatform", "")
 	v.SetDefault("db.type", "sqlite")
 	v.SetDefault("db.dsn", "file:./data/app.db?_busy_timeout=5000")
 	v.SetDefault("db.maxIdleConns", 5)
@@ -312,6 +391,7 @@ func bindConfigDefaults(v *viper.Viper) {
 	v.SetDefault("logger.addSource", false)
 	v.SetDefault("auth.tokenTTLHours", 12)
 	v.SetDefault("auth.maxFailedAttempts", 5)
+	v.SetDefault("auth.maxFailedAttemptsPerIP", 0)
 	v.SetDefault("auth.credentialLockMinute", 15)
 	v.SetDefault("customerSession.ttlMinutes", 120)
 	v.SetDefault("customerSession.refreshThresholdMinutes", 30)
@@ -336,6 +416,8 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("server.port", "AGENT_DESK_SERVER_PORT", "PORT", "SERVER_PORT")
 	_ = v.BindEnv("server.companyName", "AGENT_DESK_SERVER_COMPANYNAME", "COMPANY_NAME", "NEXT_PUBLIC_COMPANY_NAME", "BRAND_NAME", "BRAND_COMPANY_NAME")
 	_ = v.BindEnv("server.companyLogoUrl", "AGENT_DESK_SERVER_COMPANYLOGOURL", "COMPANY_LOGO_URL", "NEXT_PUBLIC_COMPANY_LOGO_URL", "BRAND_LOGO_URL")
+	_ = v.BindEnv("server.trustedProxies", "AGENT_DESK_SERVER_TRUSTEDPROXIES", "TRUSTED_PROXIES")
+	_ = v.BindEnv("server.trustedPlatform", "AGENT_DESK_SERVER_TRUSTEDPLATFORM", "TRUSTED_PLATFORM")
 	_ = v.BindEnv("db.type", "AGENT_DESK_DB_TYPE", "DATABASE_TYPE", "DB_TYPE")
 	_ = v.BindEnv("db.dsn", "AGENT_DESK_DB_DSN", "DATABASE_URL", "DB_DSN")
 	_ = v.BindEnv("auth.passwordLoginEnabled", "AGENT_DESK_AUTH_PASSWORDLOGINENABLED", "PASSWORD_LOGIN_ENABLED")

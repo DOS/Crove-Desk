@@ -5,6 +5,18 @@ server:
   # Custom platform / instance branding (optional)
   companyName: ""
   companyLogoUrl: ""
+  # Reverse proxies in front of the application, as CIDR blocks. Gin's own default
+  # trusts every peer, which makes X-Forwarded-For authoritative and lets any
+  # caller choose the client address the server records in the login credential
+  # log and in user.last_login_ip. Left empty this falls back to the loopback,
+  # RFC1918, IPv6 unique-local and link-local ranges, which covers a sidecar
+  # tunnel, a compose network and a local nginx. Set it explicitly when the proxy
+  # sits on a public address, and never set it to 0.0.0.0/0.
+  trustedProxies: []
+  # Set to "cloudflare" (also accepted: "fly.io", "google-app-engine", or a literal
+  # header name) when an edge overwrites rather than appends the real client
+  # address. When set it takes precedence over X-Forwarded-For entirely.
+  trustedPlatform: ""
   cors:
     # Browser CORS allowlist. In production, replace this with the actual frontend or embedded-site domains, such as https://support.example.com.
     # Leave it empty to reject cross-origin browser requests. Same-origin and non-browser calls are still supported.
