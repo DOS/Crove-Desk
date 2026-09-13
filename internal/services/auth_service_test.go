@@ -112,6 +112,7 @@ func TestAuthServiceLoginCredentialLockout(t *testing.T) {
 			Principal: "admin",
 			UserID:    user.ID,
 			Success:   false,
+			ClientIP:  "127.0.0.1",
 			Reason:    "password mismatch",
 			CreatedAt: now.Add(-time.Duration(i+1) * time.Minute),
 		}).Error; err != nil {
@@ -122,6 +123,7 @@ func TestAuthServiceLoginCredentialLockout(t *testing.T) {
 		Principal: "admin",
 		UserID:    user.ID,
 		Success:   false,
+		ClientIP:  "127.0.0.1",
 		Reason:    "password mismatch",
 		CreatedAt: now.Add(-30 * time.Minute),
 	}).Error; err != nil {
@@ -164,6 +166,7 @@ func TestAuthServiceCredentialLockoutDoesNotExtendWhileLocked(t *testing.T) {
 			Principal: "admin",
 			UserID:    1,
 			Success:   false,
+			ClientIP:  "127.0.0.1",
 			Reason:    "password mismatch",
 			CreatedAt: now.Add(-2 * time.Minute),
 		},
@@ -171,6 +174,7 @@ func TestAuthServiceCredentialLockoutDoesNotExtendWhileLocked(t *testing.T) {
 			Principal: "admin",
 			UserID:    0,
 			Success:   false,
+			ClientIP:  "127.0.0.1",
 			Reason:    "credential locked",
 			CreatedAt: now.Add(-1 * time.Minute),
 		},
@@ -199,6 +203,7 @@ func TestAuthServiceCredentialLockoutNormalizesPrincipalCase(t *testing.T) {
 		Principal: "admin",
 		UserID:    1,
 		Success:   false,
+		ClientIP:  "127.0.0.1",
 		Reason:    "password mismatch",
 		CreatedAt: time.Now().Add(-time.Minute),
 	}).Error; err != nil {
@@ -223,6 +228,79 @@ func TestAuthServiceCredentialLockoutNormalizesPrincipalCase(t *testing.T) {
 	}
 }
 
+// TestAuthServiceCredentialLockoutIsScopedToTheClientAddress is the regression
+// test for the denial of service. Keyed on the username alone, anybody who knew a
+// username could lock the real account out for the whole window, from anywhere,
+// as often as they liked.
+func TestAuthServiceCredentialLockoutIsScopedToTheClientAddress(t *testing.T) {
+	db := setupAuthServiceTestDB(t)
+	user := createAuthTestUser(t, db, "admin", "secret")
+	now := time.Now()
+	for i := 0; i < 5; i++ {
+		if err := db.Create(&models.LoginCredentialLog{
+			Principal: "admin",
+			UserID:    user.ID,
+			Success:   false,
+			ClientIP:  "203.0.113.66",
+			Reason:    "password mismatch",
+			CreatedAt: now.Add(-time.Duration(i+1) * time.Minute),
+		}).Error; err != nil {
+			t.Fatalf("seed credential log: %v", err)
+		}
+	}
+
+	authCfg := config.AuthConfig{TokenTTLHours: 2, MaxFailedAttempts: 3, CredentialLockMinute: 15}
+
+	if _, err := newAuthService().Login(request.LoginRequest{Username: "admin", Password: "secret"}, authCfg, "203.0.113.66", "go-test"); !hasCode(err, errorsx.CodeAuthCredentialLocked) {
+		t.Fatalf("expected the attacking address to be locked, got %v", err)
+	}
+
+	ret, err := newAuthService().Login(request.LoginRequest{Username: "admin", Password: "secret"}, authCfg, "198.51.100.7", "go-test")
+	if err != nil {
+		t.Fatalf("the legitimate owner was locked out by somebody else's failures: %v", err)
+	}
+	if ret == nil || ret.AccessToken == "" {
+		t.Fatalf("expected a session for the legitimate owner, got %+v", ret)
+	}
+}
+
+// TestAuthServiceCredentialLockoutByAddressAcrossPrincipals covers the window that
+// replaces the removed account-wide lock: one address spraying many usernames.
+func TestAuthServiceCredentialLockoutByAddressAcrossPrincipals(t *testing.T) {
+	db := setupAuthServiceTestDB(t)
+	createAuthTestUser(t, db, "admin", "secret")
+	now := time.Now()
+	for i, principal := range []string{"admin", "root", "operator", "support"} {
+		if err := db.Create(&models.LoginCredentialLog{
+			Principal: principal,
+			UserID:    0,
+			Success:   false,
+			ClientIP:  "203.0.113.66",
+			Reason:    "user not found",
+			CreatedAt: now.Add(-time.Duration(i+1) * time.Minute),
+		}).Error; err != nil {
+			t.Fatalf("seed credential log: %v", err)
+		}
+	}
+
+	authCfg := config.AuthConfig{
+		TokenTTLHours:          2,
+		MaxFailedAttempts:      10,
+		MaxFailedAttemptsPerIP: 4,
+		CredentialLockMinute:   15,
+	}
+
+	// No single username has reached MaxFailedAttempts, so only the per-address
+	// window can catch this.
+	if _, err := newAuthService().Login(request.LoginRequest{Username: "admin", Password: "secret"}, authCfg, "203.0.113.66", "go-test"); !hasCode(err, errorsx.CodeAuthCredentialLocked) {
+		t.Fatalf("expected credential stuffing from one address to be locked, got %v", err)
+	}
+
+	if _, err := newAuthService().Login(request.LoginRequest{Username: "admin", Password: "secret"}, authCfg, "198.51.100.7", "go-test"); err != nil {
+		t.Fatalf("an unrelated address was locked by another address's failures: %v", err)
+	}
+}
+
 func TestAuthServiceCredentialLockoutDisabledWhenMaxAttemptsNonPositive(t *testing.T) {
 	db := setupAuthServiceTestDB(t)
 	user := createAuthTestUser(t, db, "admin", "secret")
@@ -232,6 +310,7 @@ func TestAuthServiceCredentialLockoutDisabledWhenMaxAttemptsNonPositive(t *testi
 			Principal: "admin",
 			UserID:    user.ID,
 			Success:   false,
+			ClientIP:  "127.0.0.1",
 			Reason:    "credential locked",
 			CreatedAt: now.Add(-time.Duration(i+1) * time.Minute),
 		}).Error; err != nil {
