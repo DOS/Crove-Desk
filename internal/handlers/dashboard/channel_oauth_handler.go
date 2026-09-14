@@ -41,8 +41,12 @@ func ChannelGetDiscordOAuthURL(ctx *gin.Context) {
 	redirectURI := strings.TrimSpace(ctx.Query("redirect_uri"))
 
 	if clientID == "" {
-		// Provide guidance or sample client id
-		clientID = "123456789012345678"
+		writeMissingOAuthCredential(ctx, "DISCORD_CLIENT_ID")
+		return
+	}
+	if redirectURI == "" {
+		httpx.WriteJSON(ctx, errorsx.InvalidParamI18n("error.param.required", "redirect_uri"))
+		return
 	}
 
 	state := strings.TrimSpace(ctx.Query("state"))
@@ -68,6 +72,14 @@ func ChannelGetDiscordOAuthURL(ctx *gin.Context) {
 // version is pinned so an authorization URL and the code exchange that follows it
 // cannot drift onto different versions.
 const metaOAuthDialogURL = "https://www.facebook.com/v21.0/dialog/oauth"
+
+// writeMissingOAuthCredential reports an absent OAuth client identifier instead of
+// inventing one. A fabricated id sends the operator to the provider's own error
+// page, which reads as an application bug rather than a missing configuration
+// value, and the real cause is never visible.
+func writeMissingOAuthCredential(ctx *gin.Context, envName string) {
+	httpx.WriteJSON(ctx, errorsx.InvalidParamI18n("error.channel.oauth.clientIdMissing", envName))
+}
 
 // Scopes each Meta product needs to send and receive support messages.
 const (
@@ -206,6 +218,36 @@ func ChannelPostWhatsAppOAuthCallback(ctx *gin.Context) {
 	httpx.WriteJSON(ctx, result)
 }
 
+// ChannelPostSlackOAuthCallback exchanges the installation code Slack redirected
+// back with for the workspace's bot credentials, and saves them when channelId
+// names an existing channel.
+func ChannelPostSlackOAuthCallback(ctx *gin.Context) {
+	req := request.SlackOAuthCallbackRequest{}
+	if err := params.ReadJSON(ctx, &req); err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+
+	// Saving onto an existing channel is an update; exchanging credentials for a
+	// channel that does not exist yet is part of creating one.
+	permission := constants.PermissionChannelCreate
+	if req.ChannelID > 0 {
+		permission = constants.PermissionChannelUpdate
+	}
+	operator, err := services.AuthService.RequirePermission(ctx, permission)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+
+	result, err := services.SlackOAuthService.Connect(req, i18nx.Locale(ctx), operator)
+	if err != nil {
+		httpx.WriteJSON(ctx, err)
+		return
+	}
+	httpx.WriteJSON(ctx, result)
+}
+
 // ChannelGetSlackOAuthURL returns the 1-Click OAuth authorization URL for Slack Workspace Bot.
 func ChannelGetSlackOAuthURL(ctx *gin.Context) {
 	if _, err := services.AuthService.RequirePermission(ctx, constants.PermissionChannelView); err != nil {
@@ -213,14 +255,22 @@ func ChannelGetSlackOAuthURL(ctx *gin.Context) {
 		return
 	}
 
-	clientID := strings.TrimSpace(os.Getenv("SLACK_CLIENT_ID"))
+	clientID := config.ResolveSlack("", "").ClientID
+	if clientID == "" {
+		clientID = strings.TrimSpace(os.Getenv("SLACK_CLIENT_ID"))
+	}
 	if clientID == "" {
 		clientID = strings.TrimSpace(ctx.Query("client_id"))
 	}
 	redirectURI := strings.TrimSpace(ctx.Query("redirect_uri"))
 
 	if clientID == "" {
-		clientID = "123456789012.1234567890123"
+		writeMissingOAuthCredential(ctx, "SLACK_CLIENT_ID")
+		return
+	}
+	if redirectURI == "" {
+		httpx.WriteJSON(ctx, errorsx.InvalidParamI18n("error.param.required", "redirect_uri"))
+		return
 	}
 
 	state := strings.TrimSpace(ctx.Query("state"))
@@ -259,7 +309,12 @@ func ChannelGetXOAuthURL(ctx *gin.Context) {
 	redirectURI := strings.TrimSpace(ctx.Query("redirect_uri"))
 
 	if clientID == "" {
-		clientID = "x_oauth_client_id_placeholder"
+		writeMissingOAuthCredential(ctx, "X_CLIENT_ID")
+		return
+	}
+	if redirectURI == "" {
+		httpx.WriteJSON(ctx, errorsx.InvalidParamI18n("error.param.required", "redirect_uri"))
+		return
 	}
 
 	state := strings.TrimSpace(ctx.Query("state"))
@@ -295,7 +350,12 @@ func ChannelGetTikTokOAuthURL(ctx *gin.Context) {
 	redirectURI := strings.TrimSpace(ctx.Query("redirect_uri"))
 
 	if clientKey == "" {
-		clientKey = "tiktok_client_key_placeholder"
+		writeMissingOAuthCredential(ctx, "TIKTOK_CLIENT_KEY")
+		return
+	}
+	if redirectURI == "" {
+		httpx.WriteJSON(ctx, errorsx.InvalidParamI18n("error.param.required", "redirect_uri"))
+		return
 	}
 
 	state := strings.TrimSpace(ctx.Query("state"))

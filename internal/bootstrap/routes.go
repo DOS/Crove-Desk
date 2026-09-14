@@ -293,6 +293,7 @@ func registerDashboardChannelRoutes(group *gin.RouterGroup) {
 	group.GET("/whatsapp_oauth_url", dashboard.ChannelGetWhatsAppOAuthURL)
 	group.POST("/whatsapp_oauth_callback", dashboard.ChannelPostWhatsAppOAuthCallback)
 	group.GET("/slack_oauth_url", dashboard.ChannelGetSlackOAuthURL)
+	group.POST("/slack_oauth_callback", dashboard.ChannelPostSlackOAuthCallback)
 	group.GET("/x_oauth_url", dashboard.ChannelGetXOAuthURL)
 	group.GET("/tiktok_oauth_url", dashboard.ChannelGetTikTokOAuthURL)
 	group.Any("/wxwork/kf/accounts", dashboard.ChannelAnyWxworkKfAccounts)

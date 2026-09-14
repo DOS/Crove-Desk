@@ -2,7 +2,11 @@ package services
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"strconv"
 	"testing"
 	"time"
 
@@ -16,6 +20,24 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
+
+// slackTestSigningSecret is the signing secret the test channel is configured with.
+const slackTestSigningSecret = "test_signing_secret_999"
+
+// signSlackPayload builds the X-Slack-Request-Timestamp and X-Slack-Signature
+// headers Slack would send for this body right now.
+func signSlackPayload(t *testing.T, secret string, payload []byte) (string, string) {
+	t.Helper()
+	return signSlackPayloadAt(t, secret, payload, time.Now())
+}
+
+func signSlackPayloadAt(t *testing.T, secret string, payload []byte, at time.Time) (string, string) {
+	t.Helper()
+	timestamp := strconv.FormatInt(at.Unix(), 10)
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte("v0:" + timestamp + ":" + string(payload)))
+	return timestamp, "v0=" + hex.EncodeToString(mac.Sum(nil))
+}
 
 func setupSlackTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
@@ -70,7 +92,7 @@ func TestSlackInboundAndOutbound(t *testing.T) {
 
 	slackConfig := dto.SlackChannelConfig{
 		BotToken:       "xoxb-test-bot-token-12345",
-		SigningSecret:  "test_signing_secret_999",
+		SigningSecret:  slackTestSigningSecret,
 		TeamID:         "T0123456789",
 		TeamName:       "Acme Corp",
 		DefaultChannel: "C9876543210",
@@ -107,7 +129,8 @@ func TestSlackInboundAndOutbound(t *testing.T) {
 	}`
 
 	ctx := context.Background()
-	_, err := SlackInboundService.HandleWebhook(ctx, "", "", "", []byte(payload))
+	timestamp, signature := signSlackPayload(t, slackTestSigningSecret, []byte(payload))
+	_, err := SlackInboundService.HandleWebhook(ctx, "", timestamp, signature, []byte(payload))
 	if err != nil {
 		t.Fatalf("HandleWebhook failed: %v", err)
 	}

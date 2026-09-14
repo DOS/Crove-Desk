@@ -7,9 +7,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"agent-desk/internal/models"
+	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/pkg/openidentity"
@@ -73,9 +76,16 @@ func (s *slackInboundService) HandleWebhook(ctx context.Context, channelID strin
 		return nil, errorsx.InvalidParam("slack channel config invalid")
 	}
 
-	// Verify Slack Signing Secret if configured
-	if cfg.SigningSecret != "" && strings.TrimSpace(signatureHeader) != "" && strings.TrimSpace(timestampHeader) != "" {
-		if !verifySlackSignature(cfg.SigningSecret, timestampHeader, signatureHeader, rawPayload) {
+	// Verify the Slack signing secret whenever one resolves for this channel. A
+	// delivery with no signature headers is rejected rather than waved through:
+	// Slack always signs once a signing secret exists, so a missing header means
+	// the sender is not Slack.
+	slackCfg := config.ResolveSlack(cfg.BotToken, cfg.SigningSecret)
+	if slackCfg.SigningSecret != "" {
+		if strings.TrimSpace(signatureHeader) == "" || strings.TrimSpace(timestampHeader) == "" {
+			return nil, errorsx.UnauthorizedI18n("error.auth.invalidSignature")
+		}
+		if !verifySlackSignature(slackCfg.SigningSecret, timestampHeader, signatureHeader, rawPayload) {
 			return nil, errorsx.UnauthorizedI18n("error.auth.invalidSignature")
 		}
 	}
@@ -125,10 +135,26 @@ func (s *slackInboundService) HandleWebhook(ctx context.Context, channelID strin
 	return nil, nil
 }
 
+// slackTimestampTolerance is how far a request timestamp may drift from now.
+//
+// Slack's own verification guide requires rejecting anything older than five
+// minutes. Without the check a captured request replays indefinitely: the
+// signature covers the timestamp and the body, but nothing in it expires.
+const slackTimestampTolerance = 5 * time.Minute
+
 func verifySlackSignature(signingSecret, timestampHeader, signatureHeader string, payload []byte) bool {
+	timestampHeader = strings.TrimSpace(timestampHeader)
+	timestamp, err := strconv.ParseInt(timestampHeader, 10, 64)
+	if err != nil || timestamp <= 0 {
+		return false
+	}
+	if drift := time.Since(time.Unix(timestamp, 0)); drift > slackTimestampTolerance || drift < -slackTimestampTolerance {
+		return false
+	}
+
 	sigBasestring := fmt.Sprintf("v0:%s:%s", timestampHeader, string(payload))
 	mac := hmac.New(sha256.New, []byte(signingSecret))
 	mac.Write([]byte(sigBasestring))
 	expectedSig := "v0=" + hex.EncodeToString(mac.Sum(nil))
-	return hmac.Equal([]byte(signatureHeader), []byte(expectedSig))
+	return hmac.Equal([]byte(strings.TrimSpace(signatureHeader)), []byte(expectedSig))
 }
