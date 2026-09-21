@@ -27,6 +27,9 @@ logger:
 
 auth:
   passwordLoginEnabled: false
+  # Break-glass: allowlisted admin emails keep password login reachable via
+  # /dashboard/login?direct=1 while the OIDC provider is unreachable.
+  breakGlassEmails: ""
   tokenTTLHours: 12
   maxFailedAttempts: 5
   credentialLockMinute: 15

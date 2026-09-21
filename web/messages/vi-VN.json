@@ -252,6 +252,7 @@
     "continueWith": "Or continue with",
     "wxworkSignIn": "Sign in with WeCom",
     "oidcSignIn": "Sign in with DOS ID",
+    "redirectingToOidc": "Đang chuyển hướng đến DOS ID...",
     "noAccount": "Don't have an account?",
     "signUp": "Sign up",
     "termsPrefix": "By clicking continue, you agree to our",

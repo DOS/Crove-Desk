@@ -252,6 +252,7 @@
     "continueWith": "或继续使用",
     "wxworkSignIn": "企业微信登录",
     "oidcSignIn": "OIDC 登录",
+    "redirectingToOidc": "正在跳转到 DOS ID...",
     "noAccount": "还没有账号？",
     "signUp": "注册",
     "termsPrefix": "点击继续即表示你同意我们的",

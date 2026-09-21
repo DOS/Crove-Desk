@@ -19,7 +19,7 @@ import (
 
 func Login(ctx *gin.Context) {
 	cfg := config.Current()
-	if !cfg.Auth.IsPasswordLoginEnabled() {
+	if !cfg.Auth.IsPasswordLoginEnabled() && !cfg.Auth.HasBreakGlassEmails() {
 		httpx.WriteJSON(ctx, errorsx.ForbiddenI18n("error.auth.passwordLoginDisabled"))
 		return
 	}
@@ -40,13 +40,14 @@ func Login(ctx *gin.Context) {
 func PublicConfig(ctx *gin.Context) {
 	cfg := config.Current()
 	httpx.WriteJSON(ctx, &response.PublicConfigResponse{
-		Language:             cfg.LanguageOrDefault(),
-		CompanyName:          cfg.Server.CompanyName,
-		CompanyLogoURL:       cfg.Server.CompanyLogoURL,
-		CompanyFaviconURL:    cfg.Server.CompanyFaviconURL,
-		PasswordLoginEnabled: cfg.Auth.IsPasswordLoginEnabled(),
-		WxWorkEnabled:        cfg.WxWork.Enabled,
-		OIDCEnabled:          cfg.OIDC.Enabled,
+		Language:               cfg.LanguageOrDefault(),
+		CompanyName:            cfg.Server.CompanyName,
+		CompanyLogoURL:         cfg.Server.CompanyLogoURL,
+		CompanyFaviconURL:      cfg.Server.CompanyFaviconURL,
+		PasswordLoginEnabled:   cfg.Auth.IsPasswordLoginEnabled(),
+		BreakGlassLoginEnabled: cfg.Auth.IsBreakGlassLoginEnabled(),
+		WxWorkEnabled:          cfg.WxWork.Enabled,
+		OIDCEnabled:            cfg.OIDC.Enabled,
 	})
 }
 

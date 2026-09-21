@@ -6,6 +6,7 @@ export type PublicConfig = {
   companyLogoUrl?: string
   companyFaviconUrl?: string
   passwordLoginEnabled?: boolean
+  breakGlassLoginEnabled?: boolean
   wxworkEnabled: boolean
   oidcEnabled: boolean
 }
