@@ -2,6 +2,7 @@ package services
 
 import (
 	"agent-desk/internal/models"
+	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/constants"
 	"agent-desk/internal/pkg/dto"
 	"agent-desk/internal/pkg/dto/request"
@@ -220,22 +221,22 @@ func (s *userService) UpdateStatus(id int64, status int, operator *dto.AuthPrinc
 	return nil
 }
 
-func (s *userService) ResetPassword(userID int64, operator *dto.AuthPrincipal) (string, error) {
+func (s *userService) ResetPassword(userID int64, operator *dto.AuthPrincipal, authCfg config.AuthConfig) (string, error) {
 	password, err := utils.GenerateRandomPassword(12)
 	if err != nil {
 		return "", err
 	}
-	if err = s.changePassword(userID, password, operator); err != nil {
+	if err = s.changePassword(userID, password, operator, authCfg); err != nil {
 		return "", err
 	}
 	return password, nil
 }
 
-func (s *userService) ChangeOwnPassword(password string, operator *dto.AuthPrincipal) error {
+func (s *userService) ChangeOwnPassword(password string, operator *dto.AuthPrincipal, authCfg config.AuthConfig) error {
 	if operator == nil || operator.UserID <= 0 {
 		return errorsx.UnauthorizedI18n("error.auth.expired")
 	}
-	return s.changePassword(operator.UserID, password, operator)
+	return s.changePassword(operator.UserID, password, operator, authCfg)
 }
 
 func (s *userService) AssignRoles(userID int64, roleIDs []int64, operator *dto.AuthPrincipal) error {
@@ -282,10 +283,17 @@ func (s *userService) replaceUserRolesDB(db *gorm.DB, userID int64, roleIDs []in
 	return nil
 }
 
-func (s *userService) changePassword(userID int64, password string, operator *dto.AuthPrincipal) error {
+func (s *userService) changePassword(userID int64, password string, operator *dto.AuthPrincipal, authCfg config.AuthConfig) error {
 	user := s.Get(userID)
 	if user == nil || user.DeletedAt != nil {
 		return errorsx.InvalidParamI18n("error.e0255")
+	}
+	// SSO-only invariant: a local password is only ever usable by break-glass
+	// principals, so never set one for anyone else. Otherwise password resets
+	// would plant dormant credentials that come alive the moment password
+	// login is re-enabled.
+	if !authCfg.IsPasswordLoginEnabled() && !isBreakGlassUser(authCfg, user) {
+		return errorsx.ForbiddenI18n("error.auth.passwordChangeDisabled")
 	}
 	if operator != nil && operator.UserID != userID && !slices.Contains(operator.Roles, string(constants.RoleCodeSuperAdmin)) {
 		var superAdminCount int64

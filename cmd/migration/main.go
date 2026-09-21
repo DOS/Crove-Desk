@@ -14,6 +14,9 @@ func main() {
 		slog.Error("load config failed", "error", err)
 		return
 	}
+	// Migrations read config (e.g. the SSO-only bootstrap-admin gate), so the
+	// loaded config must be registered as the process-wide current one.
+	config.SetCurrent(cfg)
 	logx.Init(logx.Config{
 		Level:     cfg.Logger.Level,
 		Format:    cfg.Logger.Format,

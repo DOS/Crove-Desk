@@ -19,7 +19,7 @@ import (
 
 func Login(ctx *gin.Context) {
 	cfg := config.Current()
-	if !cfg.Auth.IsPasswordLoginEnabled() {
+	if !cfg.Auth.IsPasswordLoginEnabled() && !cfg.Auth.HasBreakGlassEmails() {
 		httpx.WriteJSON(ctx, errorsx.ForbiddenI18n("error.auth.passwordLoginDisabled"))
 		return
 	}
@@ -40,13 +40,14 @@ func Login(ctx *gin.Context) {
 func PublicConfig(ctx *gin.Context) {
 	cfg := config.Current()
 	httpx.WriteJSON(ctx, &response.PublicConfigResponse{
-		Language:             cfg.LanguageOrDefault(),
-		CompanyName:          cfg.Server.CompanyName,
-		CompanyLogoURL:       cfg.Server.CompanyLogoURL,
-		CompanyFaviconURL:    cfg.Server.CompanyFaviconURL,
-		PasswordLoginEnabled: cfg.Auth.IsPasswordLoginEnabled(),
-		WxWorkEnabled:        cfg.WxWork.Enabled,
-		OIDCEnabled:          cfg.OIDC.Enabled,
+		Language:               cfg.LanguageOrDefault(),
+		CompanyName:            cfg.Server.CompanyName,
+		CompanyLogoURL:         cfg.Server.CompanyLogoURL,
+		CompanyFaviconURL:      cfg.Server.CompanyFaviconURL,
+		PasswordLoginEnabled:   cfg.Auth.IsPasswordLoginEnabled(),
+		BreakGlassLoginEnabled: cfg.Auth.IsBreakGlassLoginEnabled(),
+		WxWorkEnabled:          cfg.WxWork.Enabled,
+		OIDCEnabled:            cfg.OIDC.Enabled,
 	})
 }
 
@@ -99,9 +100,10 @@ func WxWorkExchange(ctx *gin.Context) {
 }
 
 func OIDCLogin(ctx *gin.Context) {
-	loginURL, err := services.OIDCLoginService.BuildOIDCLoginURL(ctx.Query("next"))
+	next := ctx.Query("next")
+	loginURL, err := services.OIDCLoginService.BuildOIDCLoginURL(next)
 	if err != nil {
-		ctx.Redirect(http.StatusFound, "/dashboard/login?oidcError="+url.QueryEscape(loginErrorMessage(err.Error())))
+		ctx.Redirect(http.StatusFound, oidcLoginErrorRedirect(next, loginErrorMessage(err.Error())))
 		return
 	}
 	ctx.Redirect(http.StatusFound, loginURL)
@@ -115,7 +117,8 @@ func OIDCCallback(ctx *gin.Context) {
 		if desc != "" {
 			errMsg += ": " + desc
 		}
-		ctx.Redirect(http.StatusFound, "/dashboard/login?oidcError="+url.QueryEscape(errMsg))
+		ctx.Redirect(http.StatusFound, oidcLoginErrorRedirect(
+			services.OIDCLoginService.NextFromState(ctx.Query("state")), errMsg))
 		return
 	}
 
@@ -136,7 +139,8 @@ func OIDCCallback(ctx *gin.Context) {
 	)
 	if err != nil {
 		slog.Error("oidc callback login failed", "error", err)
-		ctx.Redirect(http.StatusFound, "/dashboard/login?oidcError="+url.QueryEscape(loginErrorMessage(err.Error())))
+		ctx.Redirect(http.StatusFound, oidcLoginErrorRedirect(
+			services.OIDCLoginService.NextFromState(ctx.Query("state")), loginErrorMessage(err.Error())))
 		return
 	}
 	ctx.Redirect(http.StatusFound, "/dashboard/login/oidc/callback?ticket="+url.QueryEscape(ticket)+"&next="+url.QueryEscape(next))
@@ -214,6 +218,18 @@ func UploadProfileAvatar(ctx *gin.Context) {
 
 func wxWorkErrorMessage(message string) string {
 	return loginErrorMessage(message)
+}
+
+// oidcLoginErrorRedirect routes a failed OIDC round-trip back to the login
+// surface that started it: the support portal for /support/* targets, the
+// staff dashboard otherwise. This keeps the IdP error bounce and the
+// auto-redirect loop guard on the same page.
+func oidcLoginErrorRedirect(next, message string) string {
+	loginPath := "/dashboard/login"
+	if services.IsSupportPortalNext(next) {
+		loginPath = "/support/login"
+	}
+	return loginPath + "?oidcError=" + url.QueryEscape(message)
 }
 
 func loginErrorMessage(message string) string {

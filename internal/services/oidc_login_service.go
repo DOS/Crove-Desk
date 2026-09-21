@@ -47,7 +47,7 @@ func (s *oidcLoginService) LoginByOIDC(ctx context.Context, code, state string, 
 	if err != nil {
 		return "", "", err
 	}
-	loginResp, err := s.loginWithOIDCProfile(profile, authCfg, clientIP, userAgent)
+	loginResp, err := s.loginWithOIDCProfile(profile, authCfg, clientIP, userAgent, IsSupportPortalNext(next))
 	if err != nil {
 		return "", "", err
 	}
@@ -62,7 +62,31 @@ func (s *oidcLoginService) ExchangeOIDCLoginTicket(ticket string) (*response.Log
 	return oidcclient.ConsumeLoginTicket(ticket)
 }
 
-func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authCfg config.AuthConfig, clientIP, userAgent string) (*response.LoginResponse, error) {
+// NextFromState recovers the sanitized redirect target carried by a signed
+// OIDC state. Handlers use it after a failed round-trip so an IdP error
+// bounces back to the login surface that started the flow. It returns an
+// empty string when the state is missing, expired, or fails verification.
+func (s *oidcLoginService) NextFromState(state string) string {
+	next, _, err := oidcclient.ParseState(state)
+	if err != nil {
+		return ""
+	}
+	return next
+}
+
+// IsSupportPortalNext reports whether the OIDC round-trip started from the
+// customer support portal rather than the staff dashboard. The portal always
+// targets /support/* paths (see getSupportLoginDestination), so the signed
+// state's next path identifies the entry surface without extra parameters.
+// Portal-origin logins provision customer-type users without staff roles;
+// only the staff surface (/dashboard/login) grants staff access. Handlers
+// also use it to route failed round-trips back to the originating surface.
+func IsSupportPortalNext(next string) bool {
+	next = strings.TrimSpace(next)
+	return next == "/support" || strings.HasPrefix(next, "/support/")
+}
+
+func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authCfg config.AuthConfig, clientIP, userAgent string, portalOrigin bool) (*response.LoginResponse, error) {
 	if profile == nil || strings.TrimSpace(profile.Subject) == "" {
 		return nil, errorsx.BusinessErrorI18n(2, "error.oidc.profileMissing")
 	}
@@ -75,7 +99,7 @@ func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authC
 			err      error
 		)
 		if identity == nil {
-			user, identity, err = s.createOIDCUser(ctx, profile)
+			user, identity, err = s.createOIDCUser(ctx, profile, portalOrigin)
 			if err != nil {
 				return err
 			}
@@ -112,10 +136,17 @@ func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authC
 			return err
 		}
 
-		s.ensureDefaultOIDCRole(ctx.Tx, user)
-		s.syncOIDCUserOrganizations(ctx.Tx, user, profile)
-		s.syncOIDCUserTeams(ctx.Tx, user, profile)
-		_, _ = AgentProfileService.EnsureAgentProfileForUser(ctx.Tx, user)
+		// Staff provisioning (roles, org/team sync, agent profile) runs only
+		// for staff-surface logins. A customer signing in through the support
+		// portal must never receive a staff seat: the dashboard middleware
+		// rejects non-employee users, and that type is set at creation only.
+		if !portalOrigin {
+			s.ensureDefaultOIDCRole(ctx.Tx, user)
+			s.ensureBreakGlassAdminRole(ctx.Tx, authCfg, user, profile)
+			s.syncOIDCUserOrganizations(ctx.Tx, user, profile)
+			s.syncOIDCUserTeams(ctx.Tx, user, profile)
+			_, _ = AgentProfileService.EnsureAgentProfileForUser(ctx.Tx, user)
+		}
 
 		if err = repositories.UserIdentityRepository.Updates(ctx.Tx, identity.ID, map[string]any{
 			"provider_name":    enums.GetThirdProviderLabel(enums.ThirdProviderOIDC),
@@ -138,10 +169,15 @@ func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authC
 	return ret, nil
 }
 
-func (s *oidcLoginService) createOIDCUser(ctx *sqls.TxContext, profile *oidcLoginProfile) (*models.User, *models.UserIdentity, error) {
+func (s *oidcLoginService) createOIDCUser(ctx *sqls.TxContext, profile *oidcLoginProfile, portalOrigin bool) (*models.User, *models.UserIdentity, error) {
 	now := time.Now()
 	email := s.availableEmail(ctx.Tx, profile.Email)
 	username := s.availableUsername(ctx.Tx, profile)
+
+	userType := enums.UserTypeEmployee
+	if portalOrigin {
+		userType = enums.UserTypeUser
+	}
 
 	user := &models.User{
 		Username:     username,
@@ -150,7 +186,7 @@ func (s *oidcLoginService) createOIDCUser(ctx *sqls.TxContext, profile *oidcLogi
 		Email:        email,
 		Password:     "",
 		PasswordSalt: "",
-		UserType:     enums.UserTypeEmployee,
+		UserType:     userType,
 		Status:       enums.StatusOk,
 		AuditFields: models.AuditFields{
 			CreatedAt:      now,
@@ -186,7 +222,9 @@ func (s *oidcLoginService) createOIDCUser(ctx *sqls.TxContext, profile *oidcLogi
 	if err := repositories.UserIdentityRepository.Create(ctx.Tx, identity); err != nil {
 		return nil, nil, err
 	}
-	s.ensureDefaultOIDCRole(ctx.Tx, user)
+	if !portalOrigin {
+		s.ensureDefaultOIDCRole(ctx.Tx, user)
+	}
 	return user, identity, nil
 }
 
@@ -261,6 +299,10 @@ func shortSubjectHash(subject string) string {
 	return hex.EncodeToString(sum[:])[:16]
 }
 
+// ensureDefaultOIDCRole gives a first-time OIDC user the lowest staff role.
+// Administrative roles are only derived from explicit DOS ID organization or
+// team claims (see syncOIDCUserOrganizations / syncOIDCUserTeams); a missing
+// or empty claim set must never escalate to admin.
 func (s *oidcLoginService) ensureDefaultOIDCRole(tx *gorm.DB, user *models.User) {
 	if user == nil || user.ID <= 0 {
 		return
@@ -269,10 +311,7 @@ func (s *oidcLoginService) ensureDefaultOIDCRole(tx *gorm.DB, user *models.User)
 	if existingRole != nil {
 		return
 	}
-	defaultRole := repositories.RoleRepository.GetByCode(tx, constants.RoleCodeAdmin)
-	if defaultRole == nil {
-		defaultRole = repositories.RoleRepository.GetByCode(tx, constants.RoleCodeSuperAdmin)
-	}
+	defaultRole := repositories.RoleRepository.GetByCode(tx, constants.RoleCodeCsUser)
 	if defaultRole == nil {
 		return
 	}
@@ -311,6 +350,12 @@ func (s *oidcLoginService) syncOIDCUserOrganizations(tx *gorm.DB, user *models.U
 			role := strings.ToUpper(strings.TrimSpace(orgClaim.Role))
 			if role == "" {
 				role = "MEMBER"
+			}
+
+			// Organization ADMIN/OWNER claims are the only OIDC path to the
+			// Desk admin role; plain members keep the default staff role.
+			if role == "ADMIN" || role == "OWNER" {
+				s.ensureOrganisationAdminRole(tx, user)
 			}
 
 			org := repositories.OrganizationRepository.GetByCode(tx, orgCode)
@@ -494,11 +539,66 @@ func (s *oidcLoginService) syncOIDCUserTeams(tx *gorm.DB, user *models.User, pro
 	}
 
 	if isTeamLead {
-		s.ensureSupervisorRole(tx, user)
+		s.ensureTeamLeaderRole(tx, user)
 	}
 }
 
-func (s *oidcLoginService) ensureSupervisorRole(tx *gorm.DB, user *models.User) {
+// ensureBreakGlassAdminRole elevates an allowlisted break-glass admin to the
+// admin role on OIDC login. This is what gives a fresh SSO-only deployment
+// (where the default-password bootstrap admin is not seeded) its first
+// administrator, and it lets the allowlist owner recover while the IdP is up.
+// The claim may have just been backfilled in this transaction, so the profile
+// email is checked alongside the stored one.
+func (s *oidcLoginService) ensureBreakGlassAdminRole(tx *gorm.DB, authCfg config.AuthConfig, user *models.User, profile *oidcLoginProfile) {
+	if user == nil || user.ID <= 0 {
+		return
+	}
+	email := ""
+	if user.Email != nil {
+		email = *user.Email
+	}
+	if !authCfg.IsBreakGlassEmail(email) && (profile == nil || !authCfg.IsBreakGlassEmail(profile.Email)) {
+		return
+	}
+	s.ensureOrganisationAdminRole(tx, user)
+}
+
+// ensureTeamLeaderRole grants the support team leader role to users whose
+// DOS ID team claims mark them as LEAD. It deliberately does not grant the
+// admin role: administrative access comes from organization ADMIN/OWNER
+// claims only (see ensureOrganisationAdminRole).
+func (s *oidcLoginService) ensureTeamLeaderRole(tx *gorm.DB, user *models.User) {
+	if user == nil || user.ID <= 0 {
+		return
+	}
+	leaderRole := repositories.RoleRepository.GetByCode(tx, constants.RoleCodeCsTeamLeader)
+	if leaderRole == nil {
+		return
+	}
+	existing := repositories.UserRoleRepository.FindOne(tx, sqls.NewCnd().Eq("user_id", user.ID).Eq("role_id", leaderRole.ID))
+	if existing == nil {
+		now := time.Now()
+		_ = repositories.UserRoleRepository.Create(tx, &models.UserRole{
+			UserID: user.ID,
+			RoleID: leaderRole.ID,
+			AuditFields: models.AuditFields{
+				CreatedAt:      now,
+				CreateUserID:   user.ID,
+				CreateUserName: user.Username,
+				UpdatedAt:      now,
+				UpdateUserID:   user.ID,
+				UpdateUserName: user.Username,
+			},
+		})
+	}
+}
+
+// ensureOrganisationAdminRole grants the admin role, falling back to the
+// super admin role code when the admin role is missing. Callers derive the
+// trigger: an organization ADMIN/OWNER claim
+// (syncOIDCUserOrganizations) or the break-glass allowlist
+// (ensureBreakGlassAdminRole).
+func (s *oidcLoginService) ensureOrganisationAdminRole(tx *gorm.DB, user *models.User) {
 	if user == nil || user.ID <= 0 {
 		return
 	}

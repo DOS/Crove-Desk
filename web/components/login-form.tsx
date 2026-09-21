@@ -38,7 +38,7 @@ export function LoginForm({
   const t = useI18n()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { session } = useAuth()
+  const { session, ready } = useAuth()
   const [isPending, setIsPending] = useState(false)
   const [isWxWorkEnv, setIsWxWorkEnv] = useState(false)
   const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
@@ -51,6 +51,11 @@ export function LoginForm({
   const enabledProviderCount =
     Number(publicConfig?.wxworkEnabled) + Number(publicConfig?.oidcEnabled)
   const isPasswordLoginEnabled = publicConfig?.passwordLoginEnabled !== false
+  // Break-glass door: with password login disabled suite-wide, an allowlisted
+  // admin can still reach the password form via ?direct=1.
+  const isBreakGlassRequested =
+    searchParams.get("direct") === "1" && publicConfig?.breakGlassLoginEnabled === true
+  const showPasswordForm = isPasswordLoginEnabled || isBreakGlassRequested
 
   useEffect(() => {
     if (session) {
@@ -63,12 +68,6 @@ export function LoginForm({
       toast.error(wxworkError)
     }
   }, [wxworkError])
-
-  useEffect(() => {
-    if (oidcError) {
-      toast.error(oidcError)
-    }
-  }, [oidcError])
 
   useEffect(() => {
     setIsWxWorkEnv(detectWxWorkEnvironment())
@@ -96,9 +95,36 @@ export function LoginForm({
     }
   }, [])
 
+  // Redirect-only mode: when OIDC is the only login transport, skip the
+  // chooser and go straight to the provider. Suppressed for the break-glass
+  // form, an IdP error bounce (otherwise this would loop), WxWork-only
+  // environments, and while the session probe is still in flight (an
+  // already-signed-in visitor goes to their destination instead of the IdP).
+  const shouldRedirectToOIDC = Boolean(
+    ready &&
+      !session &&
+      publicConfig &&
+      publicConfig.oidcEnabled &&
+      !publicConfig.passwordLoginEnabled &&
+      !publicConfig.wxworkEnabled &&
+      !isBreakGlassRequested &&
+      !oidcError,
+  )
+
+  useEffect(() => {
+    if (!shouldRedirectToOIDC) {
+      return
+    }
+    window.location.href = `/api/auth/oidc_login?next=${encodeURIComponent(redirectPath)}`
+  }, [shouldRedirectToOIDC, redirectPath])
+
+  function startOIDCLogin() {
+    window.location.href = `/api/auth/oidc_login?next=${encodeURIComponent(redirectPath)}`
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!isPasswordLoginEnabled) {
+    if (!showPasswordForm) {
       return
     }
     const formData = new FormData(event.currentTarget)
@@ -151,6 +177,19 @@ export function LoginForm({
     )
   }
 
+  if (shouldRedirectToOIDC) {
+    return (
+      <div className={cn("flex flex-col gap-6", className)} {...props}>
+        <Card className="overflow-hidden p-0">
+          <CardContent className="flex min-h-80 flex-col items-center justify-center gap-3 p-8 text-center">
+            <Loader2Icon className="size-7 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">{t("auth.redirectingToOidc")}</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div
       className={cn("flex flex-col gap-6", className)}
@@ -178,7 +217,19 @@ export function LoginForm({
                   {t("auth.loginDescription", { brand: publicConfig.companyName || t("app.brand") })}
                 </p>
               </div>
-              {isPasswordLoginEnabled ? (
+              {oidcError ? (
+                <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+                  <div className="flex items-center gap-2 font-medium text-destructive">
+                    <TriangleAlertIcon className="size-4 shrink-0" />
+                    <span>{t("auth.oidcFailed")}</span>
+                  </div>
+                  <p className="mt-1 break-words text-muted-foreground">{oidcError}</p>
+                  <Button type="button" variant="outline" size="sm" className="mt-3" onClick={startOIDCLogin}>
+                    {t("auth.retry")}
+                  </Button>
+                </div>
+              ) : null}
+              {showPasswordForm ? (
                 <>
                   <Field>
                     <FieldLabel htmlFor="username">{t("auth.username")}</FieldLabel>
@@ -218,7 +269,7 @@ export function LoginForm({
               ) : null}
               {enabledProviderCount > 0 ? (
                 <>
-                  {isPasswordLoginEnabled ? (
+                  {showPasswordForm ? (
                     <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
                       {t("auth.continueWith")}
                     </FieldSeparator>
@@ -226,7 +277,7 @@ export function LoginForm({
                   <Field
                     className={cn(
                       "grid gap-4",
-                      enabledProviderCount === 1 || !isPasswordLoginEnabled ? "grid-cols-1" : "grid-cols-2"
+                      enabledProviderCount === 1 || !showPasswordForm ? "grid-cols-1" : "grid-cols-2"
                     )}
                   >
                     {publicConfig.wxworkEnabled ? (
@@ -256,9 +307,7 @@ export function LoginForm({
                         type="button"
                         variant="outline"
                         aria-label={t("auth.oidcSignIn")}
-                        onClick={() => {
-                          window.location.href = `/api/auth/oidc_login?next=${encodeURIComponent(redirectPath)}`
-                        }}
+                        onClick={startOIDCLogin}
                       >
                         <KeyRoundIcon className="size-4 shrink-0" />
                         <span>{t("auth.oidcSignIn")}</span>

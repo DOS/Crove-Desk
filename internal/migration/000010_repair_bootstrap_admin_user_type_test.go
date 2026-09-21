@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"agent-desk/internal/models"
+	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/constants"
 	"agent-desk/internal/pkg/enums"
 	"github.com/glebarez/sqlite"
@@ -33,8 +34,16 @@ func setupBootstrapAdminTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+func setTestConfig(t *testing.T, cfg *config.Config) {
+	t.Helper()
+	previous := config.GetCurrent()
+	config.SetCurrent(cfg)
+	t.Cleanup(func() { config.SetCurrent(previous) })
+}
+
 func TestBootstrapAdminCreatedAsEmployee(t *testing.T) {
 	db := setupBootstrapAdminTestDB(t)
+	setTestConfig(t, &config.Config{})
 	role := models.Role{Code: constants.RoleCodeSuperAdmin, Status: enums.StatusOk}
 	if err := db.Create(&role).Error; err != nil {
 		t.Fatal(err)
@@ -55,6 +64,57 @@ func TestBootstrapAdminCreatedAsEmployee(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("super admin role assignments = %d, want 1", count)
+	}
+}
+
+// SSO-only deployments (OIDC enabled, password login disabled) must not seed
+// the known default-password bootstrap account: it is a standing backdoor the
+// moment password login is ever re-enabled.
+func TestBootstrapAdminSkippedInSSOOnlyMode(t *testing.T) {
+	db := setupBootstrapAdminTestDB(t)
+	passwordLoginEnabled := false
+	setTestConfig(t, &config.Config{
+		OIDC: config.OIDCConfig{Enabled: true},
+		Auth: config.AuthConfig{PasswordLoginEnabled: &passwordLoginEnabled},
+	})
+	role := models.Role{Code: constants.RoleCodeSuperAdmin, Status: enums.StatusOk}
+	if err := db.Create(&role).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureBootstrapAdmin(db, &role); err != nil {
+		t.Fatal(err)
+	}
+	var count int64
+	if err := db.Model(&models.User{}).Where("username = ?", constants.BootstrapAdminUsername).Count(&count).Error; err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("bootstrap admin seeded %d times in SSO-only mode, want 0", count)
+	}
+}
+
+// When password login stays enabled the seed must keep running even with OIDC
+// enabled (mixed deployments still need the local break-glass account).
+func TestBootstrapAdminStillSeededWhenPasswordLoginEnabled(t *testing.T) {
+	db := setupBootstrapAdminTestDB(t)
+	passwordLoginEnabled := true
+	setTestConfig(t, &config.Config{
+		OIDC: config.OIDCConfig{Enabled: true},
+		Auth: config.AuthConfig{PasswordLoginEnabled: &passwordLoginEnabled},
+	})
+	role := models.Role{Code: constants.RoleCodeSuperAdmin, Status: enums.StatusOk}
+	if err := db.Create(&role).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureBootstrapAdmin(db, &role); err != nil {
+		t.Fatal(err)
+	}
+	var count int64
+	if err := db.Model(&models.User{}).Where("username = ?", constants.BootstrapAdminUsername).Count(&count).Error; err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("bootstrap admin seed count = %d, want 1", count)
 	}
 }
 

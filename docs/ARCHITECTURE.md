@@ -193,6 +193,25 @@ When a user logs in via DOS.Me OIDC, the `userinfo` claim supplies both organiza
 ```
 * **Crove Desk Action**: Automatically ensures `t_organization`, provisions default/mapped `t_agent_team`, creates `t_user`, and guarantees 1-to-1 `t_agent_profile` association.
 
+##### JIT Role Mapping (suite standard)
+
+Application roles are derived from claims, never defaulted to admin:
+
+| DOS ID claim | Crove Desk role |
+| --- | --- |
+| no role / `MEMBER` org claim | `cs_user` (support agent) |
+| team claim role `LEAD` | `cs_team_leader` |
+| organization claim role `ADMIN` / `OWNER` | `admin` |
+| email on the break-glass allowlist (`auth.breakGlassEmails`) | `admin` (first-login bootstrap for fresh SSO-only deployments) |
+
+##### SSO-Only Mode & Break-Glass
+
+When `passwordLoginEnabled: false` and OIDC is the only staff transport, `/dashboard/login` auto-redirects to the provider. The redirect is suppressed when the provider bounced back with `?oidcError=` (prevents a loop), in WxWork-only environments, or via `?direct=1` with the break-glass allowlist configured (`auth.breakGlassEmails`, env `BREAK_GLASS_LOGIN_EMAILS`): allowlisted admin emails keep password login reachable for IdP outages. In this mode the default-password bootstrap admin (`admin` / `ChangeMe123!`) is not seeded, and its emailless account can never pass the email-only allowlist. The support portal follows the same rule: with OIDC as its only enabled transport, `/support/login` auto-redirects as well, and portal OIDC logins provision customer-type users (see the next section), so the redirect can never mint staff accounts. A failed round-trip bounces back to the surface that started it, `/support/login?oidcError=` for portal targets and `/dashboard/login?oidcError=` otherwise, so the error guard cannot loop across surfaces. The break-glass `?direct=1` form stays reachable on both surfaces, and while password login is disabled the password-mutation endpoints (`/api/dashboard/user/reset_password`, `/api/dashboard/change_password`) reject any target that is not on the break-glass allowlist, so an SSO-only deployment never accumulates dormant local passwords that would come alive if the switch were flipped back.
+
+##### Portal OIDC Login Provisions Customers
+
+The support portal's OIDC button targets `/support/*` return paths, which the signed OIDC state carries through the round-trip. Portal-origin logins provision **customer-type** users (`UserTypeUser`) with no staff role, no organization/team provisioning, and no agent profile, and the break-glass allowlist never elevates on the portal surface. Only the staff surface (`/dashboard/login`) grants staff access; the dashboard middleware rejects non-employee users, so a portal customer cannot open the staff dashboard. The user type is decided at creation time from the entry surface and is never changed by a later login on the other surface (fail-closed: a staff account keeps its type wherever it signs in). If a staff member's very first OIDC login happens through a shared `/support/*` link, they are provisioned as a customer and the dashboard keeps rejecting them; no admin API changes user type today, so recovery is a one-row update (`UPDATE t_users SET user_type='employee' WHERE id=...`) or deleting the user to re-provision via the staff surface. The portal also renders a WxWork button whose login still provisions employee users (upstream behaviour, disabled in DOS deployments). Note this fixes the upstream default, where every OIDC first login created an employee user - upstream `huabeitech/agent-desk` also still grants the admin role to every first-time OIDC user (fixed here in the Wave 2 redirect-only change).
+
 #### Phase 2: Real-time Event-Driven Webhooks (`X-DOS-Signature: sha256=...`)
 When administrators create, update, or reorganize Teams/Projects in DOS.Me, webhook events are broadcast to member apps:
 ```json
