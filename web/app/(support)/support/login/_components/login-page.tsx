@@ -161,9 +161,11 @@ export function SupportLoginPage() {
                   <Button type="submit" disabled={submitting}>
                     {submitting ? t("supportPublic.actions.processing") : mode === "login" ? t("supportPublic.login.loginAction") : t("supportPublic.login.registerAction")}
                   </Button>
-                  <Button type="button" variant="ghost" onClick={() => setMode(mode === "login" ? "register" : "login")}>
-                    {mode === "login" ? t("supportPublic.login.switchToRegister") : t("supportPublic.login.switchToLogin")}
-                  </Button>
+                  {passwordLoginEnabled ? (
+                    <Button type="button" variant="ghost" onClick={() => setMode(mode === "login" ? "register" : "login")}>
+                      {mode === "login" ? t("supportPublic.login.switchToRegister") : t("supportPublic.login.switchToLogin")}
+                    </Button>
+                  ) : null}
                 </form>
               ) : null}
               {providerCount > 0 ? (

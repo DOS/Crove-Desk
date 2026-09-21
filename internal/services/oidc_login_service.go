@@ -556,8 +556,11 @@ func (s *oidcLoginService) ensureTeamLeaderRole(tx *gorm.DB, user *models.User) 
 	}
 }
 
-// ensureOrganisationAdminRole grants the admin role when the DOS ID
-// organization claim marks the user as ADMIN or OWNER.
+// ensureOrganisationAdminRole grants the admin role, falling back to the
+// super admin role code when the admin role is missing. Callers derive the
+// trigger: an organization ADMIN/OWNER claim
+// (syncOIDCUserOrganizations) or the break-glass allowlist
+// (ensureBreakGlassAdminRole).
 func (s *oidcLoginService) ensureOrganisationAdminRole(tx *gorm.DB, user *models.User) {
 	if user == nil || user.ID <= 0 {
 		return

@@ -49,6 +49,9 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("load config failed: %w", err)
 	}
+	// Migrations read config (e.g. the SSO-only bootstrap-admin gate), so the
+	// loaded config must be registered as the process-wide current one.
+	config.SetCurrent(cfg)
 
 	db, err := bootstrap.InitDB(cfg.DB)
 	if err != nil {
