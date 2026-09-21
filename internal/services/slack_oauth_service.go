@@ -150,7 +150,7 @@ func (s *slackOAuthService) loadTargetChannel(channelID int64) (*models.Channel,
 	}
 	parsed, err := ChannelService.ParseSlackChannelConfig(channel.ConfigJSON)
 	if err != nil {
-		return nil, nil, errorsx.InvalidParam("invalid slack configuration")
+		return nil, nil, errorsx.InvalidParamI18n("error.slack.configInvalid")
 	}
 	if parsed != nil {
 		cfg = parsed

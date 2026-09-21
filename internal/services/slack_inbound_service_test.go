@@ -178,3 +178,35 @@ func TestSlackInboundAndOutbound(t *testing.T) {
 		t.Fatalf("expected outbox channel type 'slack', got %s", outbox.ChannelType)
 	}
 }
+
+// The signature covers the timestamp and the body, but nothing in it expires,
+// so the five-minute drift window is the only replay protection a captured
+// delivery faces. Lock the window down.
+func TestVerifySlackSignatureEnforcesReplayWindow(t *testing.T) {
+	payload := []byte(`{"type":"event_callback","event":{"user":"U1","text":"hi"}}`)
+	now := time.Now()
+	cases := []struct {
+		name   string
+		at     time.Time
+		accept bool
+	}{
+		{name: "fresh", at: now, accept: true},
+		{name: "four minutes old", at: now.Add(-4 * time.Minute), accept: true},
+		{name: "ten minutes old", at: now.Add(-10 * time.Minute)},
+		{name: "one hour old", at: now.Add(-time.Hour)},
+		{name: "ten minutes in the future", at: now.Add(10 * time.Minute)},
+	}
+	for _, tc := range cases {
+		timestamp, signature := signSlackPayloadAt(t, slackTestSigningSecret, payload, tc.at)
+		if got := verifySlackSignature(slackTestSigningSecret, timestamp, signature, payload); got != tc.accept {
+			t.Fatalf("%s: verifySlackSignature = %v, want %v", tc.name, got, tc.accept)
+		}
+	}
+
+	if verifySlackSignature(slackTestSigningSecret, "not-a-number", "v0=deadbeef", payload) {
+		t.Fatal("malformed timestamp must be rejected")
+	}
+	if verifySlackSignature(slackTestSigningSecret, "", "v0=deadbeef", payload) {
+		t.Fatal("empty timestamp must be rejected")
+	}
+}

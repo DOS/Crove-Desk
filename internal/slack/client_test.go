@@ -188,13 +188,14 @@ func TestPostMessageOmitsThreadTSForTopLevel(t *testing.T) {
 	if _, err := client.PostMessage(context.Background(), "C0123", "top level", ""); err != nil {
 		t.Fatalf("PostMessage failed: %v", err)
 	}
-	// thread_ts is omitempty on the request struct, so a top-level post must not
-	// carry an empty one.
-	form, err := url.ParseQuery(gotRaw)
-	if err != nil {
+	// thread_ts is omitempty on the request struct, so a top-level post must
+	// not carry an empty one. The body is JSON, so it has to be unmarshalled
+	// rather than form-parsed.
+	var body map[string]any
+	if err := json.Unmarshal([]byte(gotRaw), &body); err != nil {
 		t.Fatalf("parse request body: %v", err)
 	}
-	if _, present := form["thread_ts"]; present {
+	if _, present := body["thread_ts"]; present {
 		t.Errorf("request body carried thread_ts for a top-level message: %s", gotRaw)
 	}
 }

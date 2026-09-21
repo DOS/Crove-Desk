@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -83,9 +84,13 @@ func (s *slackInboundService) HandleWebhook(ctx context.Context, channelID strin
 	slackCfg := config.ResolveSlack(cfg.BotToken, cfg.SigningSecret)
 	if slackCfg.SigningSecret != "" {
 		if strings.TrimSpace(signatureHeader) == "" || strings.TrimSpace(timestampHeader) == "" {
+			slog.Warn("slack webhook rejected: missing signature headers",
+				"channel_id", channelID, "secret_source", slackSecretSource(cfg.SigningSecret, slackCfg))
 			return nil, errorsx.UnauthorizedI18n("error.auth.invalidSignature")
 		}
 		if !verifySlackSignature(slackCfg.SigningSecret, timestampHeader, signatureHeader, rawPayload) {
+			slog.Warn("slack webhook rejected: signature verification failed",
+				"channel_id", channelID, "secret_source", slackSecretSource(cfg.SigningSecret, slackCfg))
 			return nil, errorsx.UnauthorizedI18n("error.auth.invalidSignature")
 		}
 	}
@@ -133,6 +138,20 @@ func (s *slackInboundService) HandleWebhook(ctx context.Context, channelID strin
 	}
 
 	return nil, nil
+}
+
+// slackSecretSource names where the verifying secret came from. A channel
+// bound to a different Slack app than the deployment-wide one starts failing
+// the moment the fallback secret appears, and this log field is the only way
+// an operator can tell that apart from a spoofed delivery.
+func slackSecretSource(channelSigningSecret string, resolved config.SlackConfig) string {
+	if strings.TrimSpace(channelSigningSecret) != "" {
+		return "channel"
+	}
+	if resolved.SigningSecret != "" {
+		return "deployment_fallback"
+	}
+	return "none"
 }
 
 // slackTimestampTolerance is how far a request timestamp may drift from now.
