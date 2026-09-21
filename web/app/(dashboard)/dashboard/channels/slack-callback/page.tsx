@@ -156,7 +156,7 @@ function SlackOAuthCallback() {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {status === "success" && result ? (
+          {status === "success" && (result?.teamName || result?.teamId) ? (
             <div className="space-y-2">
               <div className="text-sm font-medium">
                 {t("channel.slackCallbackWorkspaceTitle")}
