@@ -47,7 +47,7 @@ func (s *oidcLoginService) LoginByOIDC(ctx context.Context, code, state string, 
 	if err != nil {
 		return "", "", err
 	}
-	loginResp, err := s.loginWithOIDCProfile(profile, authCfg, clientIP, userAgent, isSupportPortalNext(next))
+	loginResp, err := s.loginWithOIDCProfile(profile, authCfg, clientIP, userAgent, IsSupportPortalNext(next))
 	if err != nil {
 		return "", "", err
 	}
@@ -62,13 +62,26 @@ func (s *oidcLoginService) ExchangeOIDCLoginTicket(ticket string) (*response.Log
 	return oidcclient.ConsumeLoginTicket(ticket)
 }
 
-// isSupportPortalNext reports whether the OIDC round-trip started from the
+// NextFromState recovers the sanitized redirect target carried by a signed
+// OIDC state. Handlers use it after a failed round-trip so an IdP error
+// bounces back to the login surface that started the flow. It returns an
+// empty string when the state is missing, expired, or fails verification.
+func (s *oidcLoginService) NextFromState(state string) string {
+	next, _, err := oidcclient.ParseState(state)
+	if err != nil {
+		return ""
+	}
+	return next
+}
+
+// IsSupportPortalNext reports whether the OIDC round-trip started from the
 // customer support portal rather than the staff dashboard. The portal always
 // targets /support/* paths (see getSupportLoginDestination), so the signed
 // state's next path identifies the entry surface without extra parameters.
 // Portal-origin logins provision customer-type users without staff roles;
-// only the staff surface (/dashboard/login) grants staff access.
-func isSupportPortalNext(next string) bool {
+// only the staff surface (/dashboard/login) grants staff access. Handlers
+// also use it to route failed round-trips back to the originating surface.
+func IsSupportPortalNext(next string) bool {
 	next = strings.TrimSpace(next)
 	return next == "/support" || strings.HasPrefix(next, "/support/")
 }

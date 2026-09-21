@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"agent-desk/internal/builders"
+	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/constants"
 	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/dto/response"
@@ -171,7 +172,7 @@ func UserPostReset_password(ctx *gin.Context) {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	password, err := services.UserService.ResetPassword(req.UserID, operator)
+	password, err := services.UserService.ResetPassword(req.UserID, operator, config.Current().Auth)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
@@ -200,7 +201,7 @@ func UserPostChange_password(ctx *gin.Context) {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	if err := services.UserService.ChangeOwnPassword(req.Password, principal); err != nil {
+	if err := services.UserService.ChangeOwnPassword(req.Password, principal, config.Current().Auth); err != nil {
 		httpx.WriteJSON(ctx, err)
 		return
 	}

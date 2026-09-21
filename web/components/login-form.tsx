@@ -38,7 +38,7 @@ export function LoginForm({
   const t = useI18n()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { session } = useAuth()
+  const { session, ready } = useAuth()
   const [isPending, setIsPending] = useState(false)
   const [isWxWorkEnv, setIsWxWorkEnv] = useState(false)
   const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
@@ -70,12 +70,6 @@ export function LoginForm({
   }, [wxworkError])
 
   useEffect(() => {
-    if (oidcError) {
-      toast.error(oidcError)
-    }
-  }, [oidcError])
-
-  useEffect(() => {
     setIsWxWorkEnv(detectWxWorkEnvironment())
   }, [])
 
@@ -103,10 +97,13 @@ export function LoginForm({
 
   // Redirect-only mode: when OIDC is the only login transport, skip the
   // chooser and go straight to the provider. Suppressed for the break-glass
-  // form, an IdP error bounce (otherwise this would loop), and WxWork-only
-  // environments.
+  // form, an IdP error bounce (otherwise this would loop), WxWork-only
+  // environments, and while the session probe is still in flight (an
+  // already-signed-in visitor goes to their destination instead of the IdP).
   const shouldRedirectToOIDC = Boolean(
-    publicConfig &&
+    ready &&
+      !session &&
+      publicConfig &&
       publicConfig.oidcEnabled &&
       !publicConfig.passwordLoginEnabled &&
       !publicConfig.wxworkEnabled &&
@@ -120,6 +117,10 @@ export function LoginForm({
     }
     window.location.href = `/api/auth/oidc_login?next=${encodeURIComponent(redirectPath)}`
   }, [shouldRedirectToOIDC, redirectPath])
+
+  function startOIDCLogin() {
+    window.location.href = `/api/auth/oidc_login?next=${encodeURIComponent(redirectPath)}`
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -216,6 +217,18 @@ export function LoginForm({
                   {t("auth.loginDescription", { brand: publicConfig.companyName || t("app.brand") })}
                 </p>
               </div>
+              {oidcError ? (
+                <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+                  <div className="flex items-center gap-2 font-medium text-destructive">
+                    <TriangleAlertIcon className="size-4 shrink-0" />
+                    <span>{t("auth.oidcFailed")}</span>
+                  </div>
+                  <p className="mt-1 break-words text-muted-foreground">{oidcError}</p>
+                  <Button type="button" variant="outline" size="sm" className="mt-3" onClick={startOIDCLogin}>
+                    {t("auth.retry")}
+                  </Button>
+                </div>
+              ) : null}
               {showPasswordForm ? (
                 <>
                   <Field>
@@ -294,9 +307,7 @@ export function LoginForm({
                         type="button"
                         variant="outline"
                         aria-label={t("auth.oidcSignIn")}
-                        onClick={() => {
-                          window.location.href = `/api/auth/oidc_login?next=${encodeURIComponent(redirectPath)}`
-                        }}
+                        onClick={startOIDCLogin}
                       >
                         <KeyRoundIcon className="size-4 shrink-0" />
                         <span>{t("auth.oidcSignIn")}</span>

@@ -284,7 +284,7 @@ func TestIsSupportPortalNext(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		if got := isSupportPortalNext(tc.next); got != tc.expected {
+		if got := IsSupportPortalNext(tc.next); got != tc.expected {
 			t.Fatalf("isSupportPortalNext(%q) = %v, want %v", tc.next, got, tc.expected)
 		}
 	}

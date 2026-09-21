@@ -41,13 +41,33 @@ export function SupportLoginPage() {
   const oidcError = searchParams.get("oidcError")
   const passwordLoginEnabled = publicConfig?.passwordLoginEnabled !== false
   // Break-glass door: with password login disabled suite-wide, an allowlisted
-  // admin can still reach the password form via ?direct=1. The portal is
-  // never auto-redirected: it primarily serves customer accounts.
+  // admin can still reach the password form via ?direct=1.
   const isBreakGlassRequested =
     searchParams.get("direct") === "1" && publicConfig?.breakGlassLoginEnabled === true
   const showPasswordForm = passwordLoginEnabled || isBreakGlassRequested
   const providerCount = Number(publicConfig?.wxworkEnabled) + Number(publicConfig?.oidcEnabled)
   const hasAnyLoginMethod = showPasswordForm || providerCount > 0
+  // Redirect-only mode: when OIDC is the only login transport, skip the
+  // chooser and go straight to the provider, exactly like the staff login.
+  // Suppressed for the break-glass form, an IdP error bounce (otherwise
+  // this would loop), and while the session probe is still in flight (an
+  // already-signed-in customer goes to their destination instead of the
+  // IdP). Portal OIDC logins provision customer-type users.
+  const shouldRedirectToOIDC = Boolean(
+    ready &&
+      !session &&
+      publicConfig &&
+      publicConfig.oidcEnabled &&
+      !publicConfig.passwordLoginEnabled &&
+      !publicConfig.wxworkEnabled &&
+      !isBreakGlassRequested &&
+      !oidcError,
+  )
+
+  useEffect(() => {
+    if (!shouldRedirectToOIDC) return
+    window.location.href = `/api/auth/oidc_login?next=${encodeURIComponent(nextDestination)}`
+  }, [shouldRedirectToOIDC, nextDestination])
 
   useEffect(() => {
     if (ready && session) router.replace(nextDestination)
@@ -60,10 +80,6 @@ export function SupportLoginPage() {
   useEffect(() => {
     if (wxworkError) toast.error(wxworkError)
   }, [wxworkError])
-
-  useEffect(() => {
-    if (oidcError) toast.error(oidcError)
-  }, [oidcError])
 
   useEffect(() => {
     setIsWxWorkEnv(detectWxWorkEnvironment())
@@ -128,11 +144,26 @@ export function SupportLoginPage() {
           {publicConfigError ? (
             <LoginState icon={<TriangleAlertIcon className="size-5" />} title={t("auth.optionsLoadFailed")} description={publicConfigError} destructive />
           ) : null}
+          {publicConfig && shouldRedirectToOIDC ? (
+            <LoginState icon={<Loader2Icon className="size-5 animate-spin" />} title={t("auth.redirectingToOidc")} />
+          ) : null}
           {publicConfig && !hasAnyLoginMethod ? (
             <LoginState icon={<TriangleAlertIcon className="size-5" />} title={t("supportPublic.login.noMethodsTitle")} description={t("supportPublic.login.noMethodsDescription")} />
           ) : null}
-          {publicConfig && hasAnyLoginMethod ? (
+          {publicConfig && hasAnyLoginMethod && !shouldRedirectToOIDC ? (
             <div className="grid gap-5">
+              {oidcError ? (
+                <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+                  <div className="flex items-center gap-2 font-medium text-destructive">
+                    <TriangleAlertIcon className="size-4 shrink-0" />
+                    <span>{t("auth.oidcFailed")}</span>
+                  </div>
+                  <p className="mt-1 break-words text-muted-foreground">{oidcError}</p>
+                  <Button type="button" variant="outline" size="sm" className="mt-3" onClick={startOIDCLogin}>
+                    {t("auth.retry")}
+                  </Button>
+                </div>
+              ) : null}
               {showPasswordForm ? (
                 <form
                   className="grid gap-4"
