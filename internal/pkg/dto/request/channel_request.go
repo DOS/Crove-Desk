@@ -50,3 +50,12 @@ type WhatsAppOAuthCallbackRequest struct {
 	PhoneNumberID string `json:"phoneNumberId"`
 	WabaID        string `json:"wabaId"`
 }
+
+// SlackOAuthCallbackRequest carries the installation code Slack redirected back
+// with. ChannelID is optional and means the same thing as on the WhatsApp one.
+type SlackOAuthCallbackRequest struct {
+	Code        string `json:"code"`
+	State       string `json:"state"`
+	ChannelID   int64  `json:"channelId"`
+	RedirectURI string `json:"redirectUri"`
+}

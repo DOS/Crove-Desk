@@ -16,6 +16,51 @@ type SendMessageResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
+// OAuthAccessResponse is the response of oauth.v2.access, the endpoint that
+// exchanges an installation code for the credentials an app actually runs on.
+//
+// AccessToken is the bot token when TokenType is "bot", which is the normal case
+// for a support app. IncomingWebhook is only populated when the installation
+// included an incoming-webhook and picked a default channel.
+type OAuthAccessResponse struct {
+	OK          bool   `json:"ok"`
+	Error       string `json:"error,omitempty"`
+	AppID       string `json:"app_id,omitempty"`
+	Scope       string `json:"scope,omitempty"`
+	TokenType   string `json:"token_type,omitempty"`
+	AccessToken string `json:"access_token,omitempty"`
+	BotUserID   string `json:"bot_user_id,omitempty"`
+	Team        struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"team"`
+	Enterprise *struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"enterprise,omitempty"`
+	IncomingWebhook *struct {
+		ChannelID string `json:"channel_id"`
+		Channel   string `json:"channel"`
+		URL       string `json:"url"`
+	} `json:"incoming_webhook,omitempty"`
+}
+
+// AuthTestResponse is the response of auth.test, used to confirm a token works
+// and to read back the workspace it belongs to.
+type AuthTestResponse struct {
+	OK      bool   `json:"ok"`
+	Error   string `json:"error,omitempty"`
+	URL     string `json:"url,omitempty"`
+	Team    string `json:"team,omitempty"`
+	TeamID  string `json:"team_id,omitempty"`
+	User    string `json:"user,omitempty"`
+	UserID  string `json:"user_id,omitempty"`
+	BotID   string `json:"bot_id,omitempty"`
+	IsBot   bool   `json:"is_bot,omitempty"`
+	AppID   string `json:"app_id,omitempty"`
+	AppName string `json:"app_name,omitempty"`
+}
+
 // EventCallback represents incoming Slack Events API payload.
 type EventCallback struct {
 	Token     string `json:"token"`

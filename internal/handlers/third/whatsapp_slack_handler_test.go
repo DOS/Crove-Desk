@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -30,6 +31,19 @@ func signWhatsAppTestPayload(payload []byte) string {
 	mac := hmac.New(sha256.New, []byte(whatsAppTestSecret))
 	mac.Write(payload)
 	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
+}
+
+// slackTestSigningSecret is the Slack signing secret the test channel is
+// configured with.
+const slackTestSigningSecret = "test_signing_secret"
+
+// signSlackTestPayload builds the X-Slack-Request-Timestamp and
+// X-Slack-Signature headers Slack would send for this body right now.
+func signSlackTestPayload(payload []byte) (string, string) {
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	mac := hmac.New(sha256.New, []byte(slackTestSigningSecret))
+	mac.Write([]byte("v0:" + timestamp + ":" + string(payload)))
+	return timestamp, "v0=" + hex.EncodeToString(mac.Sum(nil))
 }
 
 func TestWhatsAppWebhook_Handler(t *testing.T) {
@@ -175,7 +189,7 @@ func TestSlackWebhook_Handler(t *testing.T) {
 
 	slackConfig, _ := json.Marshal(dto.SlackChannelConfig{
 		BotToken:       "xoxb-test-token",
-		SigningSecret:  "test_signing_secret",
+		SigningSecret:  slackTestSigningSecret,
 		TeamID:         "T_SLACK_100",
 		DefaultChannel: "C_GENERAL",
 	})
@@ -232,6 +246,9 @@ func TestSlackWebhook_Handler(t *testing.T) {
 	}`)
 	reqEvent, _ := http.NewRequest(http.MethodPost, "/api/third/slack/webhook/"+channel.ChannelID, bytes.NewBuffer(eventPayload))
 	reqEvent.Header.Set("Content-Type", "application/json")
+	slackTimestamp, slackSignature := signSlackTestPayload(eventPayload)
+	reqEvent.Header.Set("X-Slack-Request-Timestamp", slackTimestamp)
+	reqEvent.Header.Set("X-Slack-Signature", slackSignature)
 	recEvent := httptest.NewRecorder()
 	router.ServeHTTP(recEvent, reqEvent)
 
@@ -245,5 +262,37 @@ func TestSlackWebhook_Handler(t *testing.T) {
 		Eq("external_id", "U_USER_777"))
 	if identity == nil {
 		t.Fatalf("expected customer identity for U_USER_777")
+	}
+
+	// 3. Unsigned delivery is rejected: once a signing secret resolves for the
+	// channel, a payload without Slack signature headers must not provision
+	// anything. The handler still answers 200 ok=false so Slack does not retry.
+	unsignedPayload := []byte(`{
+		"token": "token123",
+		"team_id": "T_SLACK_100",
+		"type": "event_callback",
+		"event": {
+			"type": "message",
+			"user": "U_USER_888",
+			"text": "Unsigned spoof attempt",
+			"ts": "1725260001.000100",
+			"channel": "C_GENERAL"
+		}
+	}`)
+	reqUnsigned, _ := http.NewRequest(http.MethodPost, "/api/third/slack/webhook/"+channel.ChannelID, bytes.NewBuffer(unsignedPayload))
+	reqUnsigned.Header.Set("Content-Type", "application/json")
+	recUnsigned := httptest.NewRecorder()
+	router.ServeHTTP(recUnsigned, reqUnsigned)
+
+	var unsignedResp map[string]any
+	_ = json.Unmarshal(recUnsigned.Body.Bytes(), &unsignedResp)
+	if unsignedResp["ok"] != false {
+		t.Fatalf("expected unsigned delivery to be rejected with ok=false, got: %+v", unsignedResp)
+	}
+	unsignedIdentity := repositories.CustomerIdentityRepository.FindOne(db, sqls.NewCnd().
+		Eq("external_source", enums.ExternalSourceSlack).
+		Eq("external_id", "U_USER_888"))
+	if unsignedIdentity != nil {
+		t.Fatalf("unsigned delivery must not provision an identity for U_USER_888")
 	}
 }

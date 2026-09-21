@@ -30,6 +30,7 @@ type Config struct {
 	Webhook         WebhookConfig         `yaml:"webhook"`
 	Email           EmailConfig           `yaml:"email"`
 	Discord         DiscordConfig         `yaml:"discord"`
+	Slack           SlackConfig           `yaml:"slack"`
 	Messenger       MessengerConfig       `yaml:"messenger"`
 	Instagram       InstagramConfig       `yaml:"instagram"`
 	WhatsApp        WhatsAppConfig        `yaml:"whatsApp"`
@@ -438,6 +439,16 @@ type DiscordConfig struct {
 	PublicKey    string `yaml:"publicKey"`
 }
 
+// SlackConfig holds deployment-wide Slack app credentials. A channel may carry
+// its own bot token and signing secret, which take precedence; these are the
+// fallback for a single shared Slack app.
+type SlackConfig struct {
+	ClientID      string `yaml:"clientId"`
+	ClientSecret  string `yaml:"clientSecret"`
+	BotToken      string `yaml:"botToken"`
+	SigningSecret string `yaml:"signingSecret"`
+}
+
 type MessengerConfig struct {
 	AppID       string `yaml:"appId"`
 	AppSecret   string `yaml:"appSecret"`
@@ -477,13 +488,13 @@ type MetaAppCredentials struct {
 // sets the per-product variables and stops inheriting.
 func mergeMetaApp(product MetaAppCredentials, shared MessengerConfig, channelAppID, channelAppSecret string) MetaAppCredentials {
 	return MetaAppCredentials{
-		AppID:       firstNonBlankMeta(channelAppID, product.AppID, shared.AppID),
-		AppSecret:   firstNonBlankMeta(channelAppSecret, product.AppSecret, shared.AppSecret),
-		VerifyToken: firstNonBlankMeta(product.VerifyToken, shared.VerifyToken),
+		AppID:       firstNonBlank(channelAppID, product.AppID, shared.AppID),
+		AppSecret:   firstNonBlank(channelAppSecret, product.AppSecret, shared.AppSecret),
+		VerifyToken: firstNonBlank(product.VerifyToken, shared.VerifyToken),
 	}
 }
 
-func firstNonBlankMeta(values ...string) string {
+func firstNonBlank(values ...string) string {
 	for _, value := range values {
 		if trimmed := strings.TrimSpace(value); trimmed != "" {
 			return trimmed
@@ -520,6 +531,18 @@ func (c Config) WhatsAppApp(channelAppID, channelAppSecret string) MetaAppCreden
 		channelAppID,
 		channelAppSecret,
 	)
+}
+
+// SlackApp resolves the Slack app credentials for one channel. A channel value
+// wins over the deployment-wide one, so a single deployment can serve several
+// workspaces while still having a default app.
+func (c Config) SlackApp(channelBotToken, channelSigningSecret string) SlackConfig {
+	return SlackConfig{
+		ClientID:      strings.TrimSpace(c.Slack.ClientID),
+		ClientSecret:  strings.TrimSpace(c.Slack.ClientSecret),
+		BotToken:      firstNonBlank(channelBotToken, c.Slack.BotToken),
+		SigningSecret: firstNonBlank(channelSigningSecret, c.Slack.SigningSecret),
+	}
 }
 
 func Load(path string) (*Config, error) {
@@ -632,6 +655,10 @@ func bindConfigDefaults(v *viper.Viper) {
 	v.SetDefault("discord.clientSecret", "")
 	v.SetDefault("discord.botToken", "")
 	v.SetDefault("discord.publicKey", "")
+	v.SetDefault("slack.clientId", "")
+	v.SetDefault("slack.clientSecret", "")
+	v.SetDefault("slack.botToken", "")
+	v.SetDefault("slack.signingSecret", "")
 	v.SetDefault("messenger.appId", "")
 	v.SetDefault("messenger.appSecret", "")
 	v.SetDefault("messenger.verifyToken", "")
@@ -704,6 +731,10 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("discord.clientSecret", "AGENT_DESK_DISCORD_CLIENTSECRET", "DISCORD_CLIENT_SECRET")
 	_ = v.BindEnv("discord.botToken", "AGENT_DESK_DISCORD_BOTTOKEN", "DISCORD_BOT_TOKEN")
 	_ = v.BindEnv("discord.publicKey", "AGENT_DESK_DISCORD_PUBLICKEY", "DISCORD_PUBLIC_KEY")
+	_ = v.BindEnv("slack.clientId", "AGENT_DESK_SLACK_CLIENTID", "SLACK_CLIENT_ID")
+	_ = v.BindEnv("slack.clientSecret", "AGENT_DESK_SLACK_CLIENTSECRET", "SLACK_CLIENT_SECRET")
+	_ = v.BindEnv("slack.botToken", "AGENT_DESK_SLACK_BOTTOKEN", "SLACK_BOT_TOKEN")
+	_ = v.BindEnv("slack.signingSecret", "AGENT_DESK_SLACK_SIGNINGSECRET", "SLACK_SIGNING_SECRET")
 	_ = v.BindEnv("messenger.appId", "AGENT_DESK_MESSENGER_APPID", "FACEBOOK_APP_ID", "META_APP_ID", "FB_APP_ID", "MESSENGER_APP_ID")
 	_ = v.BindEnv("messenger.appSecret", "AGENT_DESK_MESSENGER_APPSECRET", "FACEBOOK_APP_SECRET", "META_APP_SECRET", "FB_APP_SECRET", "MESSENGER_APP_SECRET")
 	_ = v.BindEnv("messenger.verifyToken", "AGENT_DESK_MESSENGER_VERIFYTOKEN", "FACEBOOK_VERIFY_TOKEN", "MESSENGER_VERIFY_TOKEN", "META_VERIFY_TOKEN", "FB_VERIFY_TOKEN")

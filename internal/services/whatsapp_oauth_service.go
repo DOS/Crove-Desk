@@ -85,7 +85,7 @@ func (s *whatsappOAuthService) Connect(req request.WhatsAppOAuthCallbackRequest,
 
 	result := &response.WhatsAppOAuthConnectResponse{
 		AccessToken: token.AccessToken,
-		TokenMasked: maskWhatsAppToken(token.AccessToken),
+		TokenMasked: maskChannelToken(token.AccessToken),
 		TokenType:   strings.TrimSpace(token.TokenType),
 		Accounts:    []response.WhatsAppOAuthAccountResponse{},
 	}
@@ -323,9 +323,9 @@ func (s *whatsappOAuthService) pickPhoneNumberID(req request.WhatsAppOAuthCallba
 	return ""
 }
 
-// maskWhatsAppToken keeps enough of a token to recognise it in a list without
-// making the masked value usable.
-func maskWhatsAppToken(token string) string {
+// maskChannelToken keeps enough of a channel credential to recognise it in a list
+// without making the masked value usable.
+func maskChannelToken(token string) string {
 	token = strings.TrimSpace(token)
 	if len(token) <= 8 {
 		return "********"
