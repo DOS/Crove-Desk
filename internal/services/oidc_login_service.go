@@ -47,7 +47,7 @@ func (s *oidcLoginService) LoginByOIDC(ctx context.Context, code, state string, 
 	if err != nil {
 		return "", "", err
 	}
-	loginResp, err := s.loginWithOIDCProfile(profile, authCfg, clientIP, userAgent)
+	loginResp, err := s.loginWithOIDCProfile(profile, authCfg, clientIP, userAgent, isSupportPortalNext(next))
 	if err != nil {
 		return "", "", err
 	}
@@ -62,7 +62,18 @@ func (s *oidcLoginService) ExchangeOIDCLoginTicket(ticket string) (*response.Log
 	return oidcclient.ConsumeLoginTicket(ticket)
 }
 
-func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authCfg config.AuthConfig, clientIP, userAgent string) (*response.LoginResponse, error) {
+// isSupportPortalNext reports whether the OIDC round-trip started from the
+// customer support portal rather than the staff dashboard. The portal always
+// targets /support/* paths (see getSupportLoginDestination), so the signed
+// state's next path identifies the entry surface without extra parameters.
+// Portal-origin logins provision customer-type users without staff roles;
+// only the staff surface (/dashboard/login) grants staff access.
+func isSupportPortalNext(next string) bool {
+	next = strings.TrimSpace(next)
+	return next == "/support" || strings.HasPrefix(next, "/support/")
+}
+
+func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authCfg config.AuthConfig, clientIP, userAgent string, portalOrigin bool) (*response.LoginResponse, error) {
 	if profile == nil || strings.TrimSpace(profile.Subject) == "" {
 		return nil, errorsx.BusinessErrorI18n(2, "error.oidc.profileMissing")
 	}
@@ -75,7 +86,7 @@ func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authC
 			err      error
 		)
 		if identity == nil {
-			user, identity, err = s.createOIDCUser(ctx, profile)
+			user, identity, err = s.createOIDCUser(ctx, profile, portalOrigin)
 			if err != nil {
 				return err
 			}
@@ -112,11 +123,17 @@ func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authC
 			return err
 		}
 
-		s.ensureDefaultOIDCRole(ctx.Tx, user)
-		s.ensureBreakGlassAdminRole(ctx.Tx, authCfg, user, profile)
-		s.syncOIDCUserOrganizations(ctx.Tx, user, profile)
-		s.syncOIDCUserTeams(ctx.Tx, user, profile)
-		_, _ = AgentProfileService.EnsureAgentProfileForUser(ctx.Tx, user)
+		// Staff provisioning (roles, org/team sync, agent profile) runs only
+		// for staff-surface logins. A customer signing in through the support
+		// portal must never receive a staff seat: the dashboard middleware
+		// rejects non-employee users, and that type is set at creation only.
+		if !portalOrigin {
+			s.ensureDefaultOIDCRole(ctx.Tx, user)
+			s.ensureBreakGlassAdminRole(ctx.Tx, authCfg, user, profile)
+			s.syncOIDCUserOrganizations(ctx.Tx, user, profile)
+			s.syncOIDCUserTeams(ctx.Tx, user, profile)
+			_, _ = AgentProfileService.EnsureAgentProfileForUser(ctx.Tx, user)
+		}
 
 		if err = repositories.UserIdentityRepository.Updates(ctx.Tx, identity.ID, map[string]any{
 			"provider_name":    enums.GetThirdProviderLabel(enums.ThirdProviderOIDC),
@@ -139,10 +156,15 @@ func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authC
 	return ret, nil
 }
 
-func (s *oidcLoginService) createOIDCUser(ctx *sqls.TxContext, profile *oidcLoginProfile) (*models.User, *models.UserIdentity, error) {
+func (s *oidcLoginService) createOIDCUser(ctx *sqls.TxContext, profile *oidcLoginProfile, portalOrigin bool) (*models.User, *models.UserIdentity, error) {
 	now := time.Now()
 	email := s.availableEmail(ctx.Tx, profile.Email)
 	username := s.availableUsername(ctx.Tx, profile)
+
+	userType := enums.UserTypeEmployee
+	if portalOrigin {
+		userType = enums.UserTypeUser
+	}
 
 	user := &models.User{
 		Username:     username,
@@ -151,7 +173,7 @@ func (s *oidcLoginService) createOIDCUser(ctx *sqls.TxContext, profile *oidcLogi
 		Email:        email,
 		Password:     "",
 		PasswordSalt: "",
-		UserType:     enums.UserTypeEmployee,
+		UserType:     userType,
 		Status:       enums.StatusOk,
 		AuditFields: models.AuditFields{
 			CreatedAt:      now,
@@ -187,7 +209,9 @@ func (s *oidcLoginService) createOIDCUser(ctx *sqls.TxContext, profile *oidcLogi
 	if err := repositories.UserIdentityRepository.Create(ctx.Tx, identity); err != nil {
 		return nil, nil, err
 	}
-	s.ensureDefaultOIDCRole(ctx.Tx, user)
+	if !portalOrigin {
+		s.ensureDefaultOIDCRole(ctx.Tx, user)
+	}
 	return user, identity, nil
 }
 
