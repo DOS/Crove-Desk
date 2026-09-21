@@ -200,6 +200,11 @@ type AuthConfig struct {
 	// is disabled.
 	MaxFailedAttemptsPerIP int `yaml:"maxFailedAttemptsPerIP"`
 	CredentialLockMinute   int `yaml:"credentialLockMinute"`
+	// BreakGlassEmails is a comma-separated allowlist of admin emails that keep
+	// password login reachable via /dashboard/login?direct=1 while password
+	// login is disabled suite-wide (redirect-only OIDC deployments). Regular
+	// users have no password path. Leave empty to disable the escape hatch.
+	BreakGlassEmails string `yaml:"breakGlassEmails"`
 }
 
 // MaxFailedAttemptsPerIPOrDefault derives the per-address threshold from the
@@ -220,6 +225,49 @@ func (a AuthConfig) IsPasswordLoginEnabled() bool {
 		return true
 	}
 	return *a.PasswordLoginEnabled
+}
+
+// BreakGlassEmailList returns the parsed, normalised (trimmed + lowercased)
+// break-glass allowlist. Empty entries are dropped.
+func (a AuthConfig) BreakGlassEmailList() []string {
+	entries := strings.Split(a.BreakGlassEmails, ",")
+	emails := make([]string, 0, len(entries))
+
+	for _, entry := range entries {
+		if email := strings.ToLower(strings.TrimSpace(entry)); email != "" {
+			emails = append(emails, email)
+		}
+	}
+
+	return emails
+}
+
+func (a AuthConfig) HasBreakGlassEmails() bool {
+	return len(a.BreakGlassEmailList()) > 0
+}
+
+// IsBreakGlassEmail reports whether the given email (already normalised or
+// not) is on the break-glass allowlist.
+func (a AuthConfig) IsBreakGlassEmail(email string) bool {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return false
+	}
+
+	for _, allowed := range a.BreakGlassEmailList() {
+		if allowed == email {
+			return true
+		}
+	}
+
+	return false
+}
+
+// IsBreakGlassLoginEnabled reports whether the break-glass door is armed:
+// password login is disabled suite-wide but an admin allowlist exists, so
+// allowlisted admins may still reach the password form via ?direct=1.
+func (a AuthConfig) IsBreakGlassLoginEnabled() bool {
+	return !a.IsPasswordLoginEnabled() && a.HasBreakGlassEmails()
 }
 
 type CustomerSessionConfig struct {
@@ -615,6 +663,7 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("db.type", "AGENT_DESK_DB_TYPE", "DATABASE_TYPE", "DB_TYPE")
 	_ = v.BindEnv("db.dsn", "AGENT_DESK_DB_DSN", "DATABASE_URL", "DB_DSN")
 	_ = v.BindEnv("auth.passwordLoginEnabled", "AGENT_DESK_AUTH_PASSWORDLOGINENABLED", "PASSWORD_LOGIN_ENABLED")
+	_ = v.BindEnv("auth.breakGlassEmails", "AGENT_DESK_AUTH_BREAKGLASSEMAILS", "BREAK_GLASS_LOGIN_EMAILS")
 	_ = v.BindEnv("auth.tokenTTLHours", "AGENT_DESK_AUTH_TOKENTTLHOURS", "AUTH_TOKEN_TTL_HOURS")
 	_ = v.BindEnv("customerSession.secret", "AGENT_DESK_CUSTOMERSESSION_SECRET", "CUSTOMER_SESSION_SECRET", "SESSION_SECRET", "JWT_SECRET")
 	_ = v.BindEnv("storage.default", "AGENT_DESK_STORAGE_DEFAULT", "STORAGE_DEFAULT", "STORAGE_TYPE")

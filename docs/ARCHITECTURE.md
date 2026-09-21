@@ -193,6 +193,21 @@ When a user logs in via DOS.Me OIDC, the `userinfo` claim supplies both organiza
 ```
 * **Crove Desk Action**: Automatically ensures `t_organization`, provisions default/mapped `t_agent_team`, creates `t_user`, and guarantees 1-to-1 `t_agent_profile` association.
 
+##### JIT Role Mapping (suite standard)
+
+Application roles are derived from claims, never defaulted to admin:
+
+| DOS ID claim | Crove Desk role |
+| --- | --- |
+| no role / `MEMBER` org claim | `cs_user` (support agent) |
+| team claim role `LEAD` | `cs_team_leader` |
+| organization claim role `ADMIN` / `OWNER` | `admin` |
+| email on the break-glass allowlist (`auth.breakGlassEmails`) | `admin` (first-login bootstrap for fresh SSO-only deployments) |
+
+##### SSO-Only Mode & Break-Glass
+
+When `passwordLoginEnabled: false` and OIDC is the only staff transport, `/dashboard/login` auto-redirects to the provider. The redirect is suppressed when the provider bounced back with `?oidcError=` (prevents a loop), in WxWork-only environments, or via `?direct=1` with the break-glass allowlist configured (`auth.breakGlassEmails`, env `BREAK_GLASS_LOGIN_EMAILS`): allowlisted admin emails keep password login reachable for IdP outages. In this mode the default-password bootstrap admin (`admin` / `ChangeMe123!`) is not seeded, and its emailless account can never pass the email-only allowlist. The support portal is never auto-redirected (it serves customer accounts); note that customer portal sign-in shares the staff password endpoint, so in SSO-only mode only break-glass principals can password-sign in there.
+
 #### Phase 2: Real-time Event-Driven Webhooks (`X-DOS-Signature: sha256=...`)
 When administrators create, update, or reorganize Teams/Projects in DOS.Me, webhook events are broadcast to member apps:
 ```json

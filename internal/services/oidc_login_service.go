@@ -113,6 +113,7 @@ func (s *oidcLoginService) loginWithOIDCProfile(profile *oidcLoginProfile, authC
 		}
 
 		s.ensureDefaultOIDCRole(ctx.Tx, user)
+		s.ensureBreakGlassAdminRole(ctx.Tx, authCfg, user, profile)
 		s.syncOIDCUserOrganizations(ctx.Tx, user, profile)
 		s.syncOIDCUserTeams(ctx.Tx, user, profile)
 		_, _ = AgentProfileService.EnsureAgentProfileForUser(ctx.Tx, user)
@@ -261,6 +262,10 @@ func shortSubjectHash(subject string) string {
 	return hex.EncodeToString(sum[:])[:16]
 }
 
+// ensureDefaultOIDCRole gives a first-time OIDC user the lowest staff role.
+// Administrative roles are only derived from explicit DOS ID organization or
+// team claims (see syncOIDCUserOrganizations / syncOIDCUserTeams); a missing
+// or empty claim set must never escalate to admin.
 func (s *oidcLoginService) ensureDefaultOIDCRole(tx *gorm.DB, user *models.User) {
 	if user == nil || user.ID <= 0 {
 		return
@@ -269,10 +274,7 @@ func (s *oidcLoginService) ensureDefaultOIDCRole(tx *gorm.DB, user *models.User)
 	if existingRole != nil {
 		return
 	}
-	defaultRole := repositories.RoleRepository.GetByCode(tx, constants.RoleCodeAdmin)
-	if defaultRole == nil {
-		defaultRole = repositories.RoleRepository.GetByCode(tx, constants.RoleCodeSuperAdmin)
-	}
+	defaultRole := repositories.RoleRepository.GetByCode(tx, constants.RoleCodeCsUser)
 	if defaultRole == nil {
 		return
 	}
@@ -311,6 +313,12 @@ func (s *oidcLoginService) syncOIDCUserOrganizations(tx *gorm.DB, user *models.U
 			role := strings.ToUpper(strings.TrimSpace(orgClaim.Role))
 			if role == "" {
 				role = "MEMBER"
+			}
+
+			// Organization ADMIN/OWNER claims are the only OIDC path to the
+			// Desk admin role; plain members keep the default staff role.
+			if role == "ADMIN" || role == "OWNER" {
+				s.ensureOrganisationAdminRole(tx, user)
 			}
 
 			org := repositories.OrganizationRepository.GetByCode(tx, orgCode)
@@ -494,11 +502,63 @@ func (s *oidcLoginService) syncOIDCUserTeams(tx *gorm.DB, user *models.User, pro
 	}
 
 	if isTeamLead {
-		s.ensureSupervisorRole(tx, user)
+		s.ensureTeamLeaderRole(tx, user)
 	}
 }
 
-func (s *oidcLoginService) ensureSupervisorRole(tx *gorm.DB, user *models.User) {
+// ensureBreakGlassAdminRole elevates an allowlisted break-glass admin to the
+// admin role on OIDC login. This is what gives a fresh SSO-only deployment
+// (where the default-password bootstrap admin is not seeded) its first
+// administrator, and it lets the allowlist owner recover while the IdP is up.
+// The claim may have just been backfilled in this transaction, so the profile
+// email is checked alongside the stored one.
+func (s *oidcLoginService) ensureBreakGlassAdminRole(tx *gorm.DB, authCfg config.AuthConfig, user *models.User, profile *oidcLoginProfile) {
+	if user == nil || user.ID <= 0 {
+		return
+	}
+	email := ""
+	if user.Email != nil {
+		email = *user.Email
+	}
+	if !authCfg.IsBreakGlassEmail(email) && (profile == nil || !authCfg.IsBreakGlassEmail(profile.Email)) {
+		return
+	}
+	s.ensureOrganisationAdminRole(tx, user)
+}
+
+// ensureTeamLeaderRole grants the support team leader role to users whose
+// DOS ID team claims mark them as LEAD. It deliberately does not grant the
+// admin role: administrative access comes from organization ADMIN/OWNER
+// claims only (see ensureOrganisationAdminRole).
+func (s *oidcLoginService) ensureTeamLeaderRole(tx *gorm.DB, user *models.User) {
+	if user == nil || user.ID <= 0 {
+		return
+	}
+	leaderRole := repositories.RoleRepository.GetByCode(tx, constants.RoleCodeCsTeamLeader)
+	if leaderRole == nil {
+		return
+	}
+	existing := repositories.UserRoleRepository.FindOne(tx, sqls.NewCnd().Eq("user_id", user.ID).Eq("role_id", leaderRole.ID))
+	if existing == nil {
+		now := time.Now()
+		_ = repositories.UserRoleRepository.Create(tx, &models.UserRole{
+			UserID: user.ID,
+			RoleID: leaderRole.ID,
+			AuditFields: models.AuditFields{
+				CreatedAt:      now,
+				CreateUserID:   user.ID,
+				CreateUserName: user.Username,
+				UpdatedAt:      now,
+				UpdateUserID:   user.ID,
+				UpdateUserName: user.Username,
+			},
+		})
+	}
+}
+
+// ensureOrganisationAdminRole grants the admin role when the DOS ID
+// organization claim marks the user as ADMIN or OWNER.
+func (s *oidcLoginService) ensureOrganisationAdminRole(tx *gorm.DB, user *models.User) {
 	if user == nil || user.ID <= 0 {
 		return
 	}

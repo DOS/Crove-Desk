@@ -95,10 +95,25 @@ func (s *authService) Login(req request.LoginRequest, authCfg config.AuthConfig,
 		return nil, errorsx.CredentialLockedI18n("error.e0270")
 	}
 
+	passwordLoginEnabled := authCfg.IsPasswordLoginEnabled()
+
 	user := UserService.GetByUsername(username)
+	if user == nil && !passwordLoginEnabled {
+		// Break-glass door: in SSO-only mode an allowlisted admin signs in with
+		// the account email, which is not necessarily the username.
+		user = UserService.GetByEmail(strings.ToLower(username))
+	}
 	if user == nil || user.Status != enums.StatusOk {
+		if !passwordLoginEnabled {
+			_ = s.createLoginCredentialLog(principal, 0, false, clientIP, userAgent, "password login disabled")
+			return nil, errorsx.ForbiddenI18n("error.auth.passwordLoginDisabled")
+		}
 		_ = s.createLoginCredentialLog(principal, 0, false, clientIP, userAgent, "user not found")
 		return nil, errorsx.InvalidAccountI18n("error.e0260")
+	}
+	if !passwordLoginEnabled && !isBreakGlassUser(authCfg, user) {
+		_ = s.createLoginCredentialLog(principal, user.ID, false, clientIP, userAgent, "password login disabled")
+		return nil, errorsx.ForbiddenI18n("error.auth.passwordLoginDisabled")
 	}
 	if strs.IsBlank(user.Password) || bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) != nil {
 		_ = s.createLoginCredentialLog(principal, user.ID, false, clientIP, userAgent, "password mismatch")
@@ -128,6 +143,17 @@ func (s *authService) Login(req request.LoginRequest, authCfg config.AuthConfig,
 
 	_ = s.createLoginCredentialLog(principal, user.ID, true, clientIP, userAgent, "")
 	return ret, nil
+}
+
+// isBreakGlassUser reports whether the resolved user's email is on the
+// break-glass allowlist (case-insensitively). The allowlist is email-only:
+// usernames are never matched, so the emailless seeded bootstrap admin can
+// never pass the check even if its username is put on the list.
+func isBreakGlassUser(authCfg config.AuthConfig, user *models.User) bool {
+	if user == nil || user.Email == nil {
+		return false
+	}
+	return authCfg.IsBreakGlassEmail(*user.Email)
 }
 
 func (s *authService) Logout(accessToken string) error {

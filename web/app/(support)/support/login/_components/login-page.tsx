@@ -40,8 +40,14 @@ export function SupportLoginPage() {
   const wxworkError = searchParams.get("wxworkError")
   const oidcError = searchParams.get("oidcError")
   const passwordLoginEnabled = publicConfig?.passwordLoginEnabled !== false
+  // Break-glass door: with password login disabled suite-wide, an allowlisted
+  // admin can still reach the password form via ?direct=1. The portal is
+  // never auto-redirected: it primarily serves customer accounts.
+  const isBreakGlassRequested =
+    searchParams.get("direct") === "1" && publicConfig?.breakGlassLoginEnabled === true
+  const showPasswordForm = passwordLoginEnabled || isBreakGlassRequested
   const providerCount = Number(publicConfig?.wxworkEnabled) + Number(publicConfig?.oidcEnabled)
-  const hasAnyLoginMethod = passwordLoginEnabled || providerCount > 0
+  const hasAnyLoginMethod = showPasswordForm || providerCount > 0
 
   useEffect(() => {
     if (ready && session) router.replace(nextDestination)
@@ -84,7 +90,7 @@ export function SupportLoginPage() {
   }, [t])
 
   const submit = async () => {
-    if (submitting || !passwordLoginEnabled) return
+    if (submitting || !showPasswordForm) return
     setSubmitting(true)
     try {
       await (mode === "login"
@@ -127,7 +133,7 @@ export function SupportLoginPage() {
           ) : null}
           {publicConfig && hasAnyLoginMethod ? (
             <div className="grid gap-5">
-              {passwordLoginEnabled ? (
+              {showPasswordForm ? (
                 <form
                   className="grid gap-4"
                   onSubmit={(event) => {
@@ -162,7 +168,7 @@ export function SupportLoginPage() {
               ) : null}
               {providerCount > 0 ? (
                 <div className="grid gap-3">
-                  {passwordLoginEnabled ? <div className="flex items-center gap-3 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">{t("auth.continueWith")}</div> : null}
+                  {showPasswordForm ? <div className="flex items-center gap-3 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">{t("auth.continueWith")}</div> : null}
                   <div className="grid gap-3">
                     {publicConfig.wxworkEnabled ? (
                       <Button type="button" variant="outline" onClick={startWxWorkLogin} aria-label={t("auth.wxworkSignIn")}>

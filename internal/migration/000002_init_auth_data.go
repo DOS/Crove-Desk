@@ -2,6 +2,7 @@ package migration
 
 import (
 	"agent-desk/internal/models"
+	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/constants"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/repositories"
@@ -182,6 +183,19 @@ func ensureRolePermissions(tx *gorm.DB, roles map[string]*models.Role, permissio
 func ensureBootstrapAdmin(tx *gorm.DB, superAdminRole *models.Role) error {
 	if superAdminRole == nil {
 		return errors.New("super admin role not found")
+	}
+
+	// In SSO-only mode (OIDC enabled, password login disabled) the known
+	// default-password account must not exist at all: it would be a standing
+	// backdoor the moment password login is ever re-enabled. Fresh SSO-only
+	// deployments bootstrap their first admin through the break-glass email
+	// allowlist (auth.breakGlassEmails) on first OIDC login instead.
+	cfg := config.Current()
+	if cfg.OIDC.Enabled && !cfg.Auth.IsPasswordLoginEnabled() {
+		slog.Info("skipping bootstrap admin seed: SSO-only login mode is active",
+			"oidc_enabled", true,
+			"password_login_enabled", false)
+		return nil
 	}
 
 	username := constants.BootstrapAdminUsername

@@ -69,6 +69,11 @@ auth:
   # Enable username and password login. When set to false, users must sign in with SSO (e.g. OIDC or WeCom).
   # Default is true.
   passwordLoginEnabled: true
+  # Comma-separated allowlist of admin emails that keep password login reachable
+  # via /dashboard/login?direct=1 while password login is disabled (SSO-only
+  # deployments). Regular users have no password path. Leave empty to disable
+  # the escape hatch. Env: BREAK_GLASS_LOGIN_EMAILS.
+  breakGlassEmails: ""
   # Login access token lifetime, in hours. Values <= 0 fall back to 12 hours.
   # Applies to password login, OIDC login, and WeCom login sessions.
   tokenTTLHours: 12
