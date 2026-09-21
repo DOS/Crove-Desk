@@ -280,6 +280,33 @@ export type ConnectWhatsAppOAuthPayload = {
   wabaId?: string
 }
 
+export type SlackOAuthURLResult = {
+  authUrl: string
+  clientId: string
+  redirectUri: string
+}
+
+export type SlackOAuthConnectResult = {
+  connected: boolean
+  channelId?: number
+  botToken: string
+  tokenMasked: string
+  appId?: string
+  botUserId?: string
+  teamId?: string
+  teamName?: string
+  defaultChannelId?: string
+  scopes?: string[]
+  warnings?: string[]
+}
+
+export type ConnectSlackOAuthPayload = {
+  code: string
+  state?: string
+  channelId?: number
+  redirectUri?: string
+}
+
 export type AIAgent = {
   id: number
   name: string
@@ -1064,6 +1091,28 @@ export function fetchWhatsAppOAuthURL(
 export function connectWhatsAppOAuth(payload: ConnectWhatsAppOAuthPayload) {
   return request<WhatsAppOAuthConnectResult>(
     "/api/dashboard/channel/whatsapp_oauth_callback",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  )
+}
+
+// The Slack app is deployment-wide, so unlike the Meta flow there is no
+// per-channel app to select and only the redirect target and state travel in
+// the query.
+export function fetchSlackOAuthURL(redirectUri: string, state?: string) {
+  return request<SlackOAuthURLResult>(
+    `/api/dashboard/channel/slack_oauth_url${toQueryString({
+      redirect_uri: redirectUri,
+      state,
+    })}`
+  )
+}
+
+export function connectSlackOAuth(payload: ConnectSlackOAuthPayload) {
+  return request<SlackOAuthConnectResult>(
+    "/api/dashboard/channel/slack_oauth_callback",
     {
       method: "POST",
       body: JSON.stringify(payload),

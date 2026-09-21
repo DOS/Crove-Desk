@@ -23,10 +23,12 @@ import {
   type AIAgent,
   type AdminChannel,
   type CreateAdminChannelPayload,
+  type SlackOAuthConnectResult,
   type WhatsAppOAuthConnectResult,
   type WxWorkKFAccount,
   fetchAIAgentsAll,
   fetchChannel,
+  fetchSlackOAuthURL,
   fetchWhatsAppOAuthURL,
   fetchWxWorkKFAccounts,
 	rollbackChannelAIAgentRollout,
@@ -40,6 +42,11 @@ import {
   isWhatsAppOAuthMessage,
   whatsAppWebhookPath,
 } from "./whatsapp-oauth"
+import {
+  SLACK_OAUTH_CALLBACK_PATH,
+  SLACK_OAUTH_STATE_PREFIX,
+  isSlackOAuthMessage,
+} from "./slack-oauth"
 
 type ChannelFormDialogProps = {
   open: boolean
@@ -1155,6 +1162,8 @@ function ChannelFormBody({
   const [currentStatus, setCurrentStatus] = useState(0)
   const [whatsAppConnecting, setWhatsAppConnecting] = useState(false)
   const whatsAppPopup = useRef<Window | null>(null)
+  const [slackConnecting, setSlackConnecting] = useState(false)
+  const slackPopup = useRef<Window | null>(null)
   const form = useForm<
     z.input<typeof schema>,
     undefined,
@@ -1407,6 +1416,60 @@ function ChannelFormBody({
     return () => window.clearInterval(timer)
   }, [whatsAppConnecting])
 
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) {
+        return
+      }
+      if (!isSlackOAuthMessage(event.data)) {
+        return
+      }
+      const payload: SlackOAuthConnectResult = event.data.payload
+      slackPopup.current = null
+      setSlackConnecting(false)
+
+      if (payload.botToken) {
+        setValue("slackBotToken", payload.botToken, { shouldDirty: true })
+      }
+      if (payload.teamId) {
+        setValue("slackTeamId", payload.teamId, { shouldDirty: true })
+      }
+      if (payload.teamName) {
+        setValue("slackTeamName", payload.teamName, { shouldDirty: true })
+      }
+      if (payload.appId) {
+        setValue("slackAppId", payload.appId, { shouldDirty: true })
+      }
+      if (payload.defaultChannelId) {
+        setValue("slackDefaultChannel", payload.defaultChannelId, {
+          shouldDirty: true,
+        })
+      }
+      toast.success(t("channel.slackFilledFromOAuth"))
+      for (const warning of payload.warnings ?? []) {
+        toast.error(warning)
+      }
+    }
+
+    window.addEventListener("message", handleMessage)
+    return () => window.removeEventListener("message", handleMessage)
+  }, [setValue, t])
+
+  // Release the button if the operator closes the Slack window without
+  // finishing the installation.
+  useEffect(() => {
+    if (!slackConnecting) {
+      return
+    }
+    const timer = window.setInterval(() => {
+      if (slackPopup.current?.closed) {
+        slackPopup.current = null
+        setSlackConnecting(false)
+      }
+    }, 600)
+    return () => window.clearInterval(timer)
+  }, [slackConnecting])
+
   async function handleConnectWhatsApp() {
     if (whatsAppConnecting) {
       return
@@ -1456,6 +1519,41 @@ function ChannelFormBody({
       toast.success(t("channel.copySecretSuccess"))
     } catch {
       toast.error(t("channel.copyFailed"))
+    }
+  }
+
+  async function handleConnectSlack() {
+    if (slackConnecting) {
+      return
+    }
+    setSlackConnecting(true)
+    try {
+      const redirectUri = window.location.origin + SLACK_OAUTH_CALLBACK_PATH
+      const state = itemId
+        ? `${SLACK_OAUTH_STATE_PREFIX}:${itemId}`
+        : SLACK_OAUTH_STATE_PREFIX
+      const { authUrl } = await fetchSlackOAuthURL(redirectUri, state)
+      // No noopener: the landing page needs window.opener to hand the bot
+      // credentials back to this form.
+      const popup = window.open(
+        authUrl,
+        "crove-slack-oauth",
+        "width=760,height=820,menubar=no,toolbar=no,location=yes"
+      )
+      if (!popup) {
+        setSlackConnecting(false)
+        toast.error(t("channel.slackPopupBlocked"))
+        return
+      }
+      slackPopup.current = popup
+    } catch (error) {
+      slackPopup.current = null
+      setSlackConnecting(false)
+      toast.error(
+        t("channel.slackConnectFailed", {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      )
     }
   }
 
@@ -2092,13 +2190,17 @@ function ChannelFormBody({
                       type="button"
                       variant="default"
                       size="sm"
-                      onClick={() => {
-                        const redirectUri = window.location.origin + "/dashboard/channels"
-                        window.open(`/api/dashboard/channel/slack_oauth_url?redirect_uri=${encodeURIComponent(redirectUri)}`, "_blank")
-                      }}
+                      disabled={slackConnecting}
+                      onClick={() => void handleConnectSlack()}
                     >
-                      <ExternalLinkIcon className="size-3.5 mr-1" />
-                      {t("channel.connectSlackButton")}
+                      {slackConnecting ? (
+                        <Loader2Icon className="size-3.5 mr-1 animate-spin" />
+                      ) : (
+                        <ExternalLinkIcon className="size-3.5 mr-1" />
+                      )}
+                      {slackConnecting
+                        ? t("channel.slackConnecting")
+                        : t("channel.connectSlackButton")}
                     </Button>
                   </div>
                   <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
