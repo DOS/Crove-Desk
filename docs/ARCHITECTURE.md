@@ -208,6 +208,10 @@ Application roles are derived from claims, never defaulted to admin:
 
 When `passwordLoginEnabled: false` and OIDC is the only staff transport, `/dashboard/login` auto-redirects to the provider. The redirect is suppressed when the provider bounced back with `?oidcError=` (prevents a loop), in WxWork-only environments, or via `?direct=1` with the break-glass allowlist configured (`auth.breakGlassEmails`, env `BREAK_GLASS_LOGIN_EMAILS`): allowlisted admin emails keep password login reachable for IdP outages. In this mode the default-password bootstrap admin (`admin` / `ChangeMe123!`) is not seeded, and its emailless account can never pass the email-only allowlist. The support portal is never auto-redirected (it serves customer accounts); note that customer portal sign-in shares the staff password endpoint, so in SSO-only mode only break-glass principals can password-sign in there.
 
+##### Portal OIDC Login Provisions Customers
+
+The support portal's OIDC button targets `/support/*` return paths, which the signed OIDC state carries through the round-trip. Portal-origin logins provision **customer-type** users (`UserTypeUser`) with no staff role, no organization/team provisioning, and no agent profile, and the break-glass allowlist never elevates on the portal surface. Only the staff surface (`/dashboard/login`) grants staff access; the dashboard middleware rejects non-employee users, so a portal customer cannot open the staff dashboard. The user type is decided at creation time from the entry surface and is never changed by a later login on the other surface (fail-closed: a staff account keeps its type wherever it signs in). Note this fixes the upstream default, where every OIDC first login created an employee user - upstream `huabeitech/agent-desk` also still grants the admin role to every first-time OIDC user (fixed here in the Wave 2 redirect-only change).
+
 #### Phase 2: Real-time Event-Driven Webhooks (`X-DOS-Signature: sha256=...`)
 When administrators create, update, or reorganize Teams/Projects in DOS.Me, webhook events are broadcast to member apps:
 ```json
