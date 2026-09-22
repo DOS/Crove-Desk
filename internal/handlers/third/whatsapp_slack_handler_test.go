@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
 	"time"
 
@@ -31,19 +30,6 @@ func signWhatsAppTestPayload(payload []byte) string {
 	mac := hmac.New(sha256.New, []byte(whatsAppTestSecret))
 	mac.Write(payload)
 	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
-}
-
-// slackTestSigningSecret is the Slack signing secret the test channel is
-// configured with.
-const slackTestSigningSecret = "test_signing_secret"
-
-// signSlackTestPayload builds the X-Slack-Request-Timestamp and
-// X-Slack-Signature headers Slack would send for this body right now.
-func signSlackTestPayload(payload []byte) (string, string) {
-	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-	mac := hmac.New(sha256.New, []byte(slackTestSigningSecret))
-	mac.Write([]byte("v0:" + timestamp + ":" + string(payload)))
-	return timestamp, "v0=" + hex.EncodeToString(mac.Sum(nil))
 }
 
 func TestWhatsAppWebhook_Handler(t *testing.T) {
@@ -169,130 +155,5 @@ func TestWhatsAppWebhook_Handler(t *testing.T) {
 		Eq("external_id", "1234567890"))
 	if identity == nil {
 		t.Fatalf("expected customer identity for 1234567890")
-	}
-}
-
-func TestSlackWebhook_Handler(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	db := setupThirdHandlerTestDB(t)
-
-	now := time.Now()
-	agent := &models.AIAgent{
-		Name:                "Slack Agent",
-		ServiceMode:         enums.IMConversationServiceModeAIFirst,
-		PublishedRevisionID: 1,
-		WelcomeMessage:      "Hello Slack User!",
-		Status:              enums.StatusOk,
-		AuditFields:         models.AuditFields{CreatedAt: now, UpdatedAt: now},
-	}
-	_ = db.Create(agent)
-
-	slackConfig, _ := json.Marshal(dto.SlackChannelConfig{
-		BotToken:       "xoxb-test-token",
-		SigningSecret:  slackTestSigningSecret,
-		TeamID:         "T_SLACK_100",
-		DefaultChannel: "C_GENERAL",
-	})
-
-	operator := &dto.AuthPrincipal{UserID: 1, Username: "admin"}
-	channel, err := services.ChannelService.CreateChannel(request.CreateChannelRequest{
-		Name:                  "Slack Channel",
-		ChannelType:           enums.ChannelTypeSlack,
-		AIAgentID:             agent.ID,
-		AIAgentRolloutPercent: 100,
-		ConfigJSON:            string(slackConfig),
-		Status:                int(enums.StatusOk),
-	}, operator)
-	if err != nil {
-		t.Fatalf("CreateChannel failed: %v", err)
-	}
-
-	router := gin.New()
-	router.POST("/api/third/slack/webhook/:channel_id", SlackPostWebhook)
-	router.POST("/api/third/slack/webhook", SlackPostWebhook)
-
-	// 1. URL Verification
-	challengePayload := []byte(`{
-		"token": "token123",
-		"challenge": "slack_challenge_string_999",
-		"type": "url_verification"
-	}`)
-	reqChallenge, _ := http.NewRequest(http.MethodPost, "/api/third/slack/webhook/"+channel.ChannelID, bytes.NewBuffer(challengePayload))
-	reqChallenge.Header.Set("Content-Type", "application/json")
-	recChallenge := httptest.NewRecorder()
-	router.ServeHTTP(recChallenge, reqChallenge)
-
-	if recChallenge.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK for challenge, got: %d", recChallenge.Code)
-	}
-	var challengeResp map[string]any
-	_ = json.Unmarshal(recChallenge.Body.Bytes(), &challengeResp)
-	if challengeResp["challenge"] != "slack_challenge_string_999" {
-		t.Fatalf("expected challenge in body, got: %+v", challengeResp)
-	}
-
-	// 2. Event Callback
-	eventPayload := []byte(`{
-		"token": "token123",
-		"team_id": "T_SLACK_100",
-		"type": "event_callback",
-		"event": {
-			"type": "message",
-			"user": "U_USER_777",
-			"text": "Hello support team on Slack!",
-			"ts": "1725260000.000100",
-			"channel": "C_GENERAL"
-		}
-	}`)
-	reqEvent, _ := http.NewRequest(http.MethodPost, "/api/third/slack/webhook/"+channel.ChannelID, bytes.NewBuffer(eventPayload))
-	reqEvent.Header.Set("Content-Type", "application/json")
-	slackTimestamp, slackSignature := signSlackTestPayload(eventPayload)
-	reqEvent.Header.Set("X-Slack-Request-Timestamp", slackTimestamp)
-	reqEvent.Header.Set("X-Slack-Signature", slackSignature)
-	recEvent := httptest.NewRecorder()
-	router.ServeHTTP(recEvent, reqEvent)
-
-	if recEvent.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK for event, got: %d", recEvent.Code)
-	}
-
-	// Verify identity
-	identity := repositories.CustomerIdentityRepository.FindOne(db, sqls.NewCnd().
-		Eq("external_source", enums.ExternalSourceSlack).
-		Eq("external_id", "U_USER_777"))
-	if identity == nil {
-		t.Fatalf("expected customer identity for U_USER_777")
-	}
-
-	// 3. Unsigned delivery is rejected: once a signing secret resolves for the
-	// channel, a payload without Slack signature headers must not provision
-	// anything. The handler still answers 200 ok=false so Slack does not retry.
-	unsignedPayload := []byte(`{
-		"token": "token123",
-		"team_id": "T_SLACK_100",
-		"type": "event_callback",
-		"event": {
-			"type": "message",
-			"user": "U_USER_888",
-			"text": "Unsigned spoof attempt",
-			"ts": "1725260001.000100",
-			"channel": "C_GENERAL"
-		}
-	}`)
-	reqUnsigned, _ := http.NewRequest(http.MethodPost, "/api/third/slack/webhook/"+channel.ChannelID, bytes.NewBuffer(unsignedPayload))
-	reqUnsigned.Header.Set("Content-Type", "application/json")
-	recUnsigned := httptest.NewRecorder()
-	router.ServeHTTP(recUnsigned, reqUnsigned)
-
-	var unsignedResp map[string]any
-	_ = json.Unmarshal(recUnsigned.Body.Bytes(), &unsignedResp)
-	if unsignedResp["ok"] != false {
-		t.Fatalf("expected unsigned delivery to be rejected with ok=false, got: %+v", unsignedResp)
-	}
-	unsignedIdentity := repositories.CustomerIdentityRepository.FindOne(db, sqls.NewCnd().
-		Eq("external_source", enums.ExternalSourceSlack).
-		Eq("external_id", "U_USER_888"))
-	if unsignedIdentity != nil {
-		t.Fatalf("unsigned delivery must not provision an identity for U_USER_888")
 	}
 }

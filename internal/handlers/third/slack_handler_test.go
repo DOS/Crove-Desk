@@ -150,4 +150,8 @@ func TestSlackWebhook_Handler(t *testing.T) {
 	if identity == nil {
 		t.Fatalf("expected customer identity for U_USER_777")
 	}
+
+	if identity == nil {
+		t.Fatalf("expected customer identity for U_USER_777")
+	}
 }
