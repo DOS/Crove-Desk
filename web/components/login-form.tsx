@@ -38,7 +38,7 @@ export function LoginForm({
   const t = useI18n()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { session } = useAuth()
+  const { session, ready } = useAuth()
   const [isPending, setIsPending] = useState(false)
   const [isWxWorkEnv, setIsWxWorkEnv] = useState(false)
   const [publicConfig, setPublicConfig] = useState<PublicConfig | null>(null)
@@ -51,6 +51,28 @@ export function LoginForm({
   const enabledProviderCount =
     Number(publicConfig?.wxworkEnabled) + Number(publicConfig?.oidcEnabled)
   const isPasswordLoginEnabled = publicConfig?.passwordLoginEnabled !== false
+
+  // Redirect-only mode: when OIDC is the only login transport, skip the
+  // chooser and go straight to the provider. Suppressed while the session
+  // probe is in flight (an already-signed-in visitor goes to their
+  // destination instead of the IdP), in WxWork-only environments, and when
+  // the provider bounced back with ?oidcError= - otherwise this would loop.
+  const shouldRedirectToOIDC = Boolean(
+    ready &&
+      !session &&
+      publicConfig &&
+      publicConfig.oidcEnabled &&
+      !publicConfig.passwordLoginEnabled &&
+      !publicConfig.wxworkEnabled &&
+      !oidcError,
+  )
+
+  useEffect(() => {
+    if (!shouldRedirectToOIDC) {
+      return
+    }
+    window.location.href = `/api/auth/oidc_login?next=${encodeURIComponent(redirectPath)}`
+  }, [shouldRedirectToOIDC, redirectPath])
 
   useEffect(() => {
     if (session) {
@@ -145,6 +167,19 @@ export function LoginForm({
           <CardContent className="flex min-h-80 flex-col items-center justify-center gap-3 p-8 text-center">
             <Loader2Icon className="size-7 animate-spin text-muted-foreground" />
             <p className="text-sm text-muted-foreground">{t("auth.loadingOptions")}</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (shouldRedirectToOIDC) {
+    return (
+      <div className={cn("flex flex-col gap-6", className)} {...props}>
+        <Card className="overflow-hidden p-0">
+          <CardContent className="flex min-h-80 flex-col items-center justify-center gap-3 p-8 text-center">
+            <Loader2Icon className="size-7 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">{t("auth.redirectingToOidc")}</p>
           </CardContent>
         </Card>
       </div>
