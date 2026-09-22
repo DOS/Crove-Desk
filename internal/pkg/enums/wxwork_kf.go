@@ -24,6 +24,7 @@ const (
 	ChannelTypeTelegram = "telegram"
 	ChannelTypeZaloOA   = "zalo_oa"
 	ChannelTypeEmail    = "email"
+	ChannelTypeDiscord  = "discord"
 )
 
 type WxWorkKFMessageSendStatus string

@@ -10,8 +10,9 @@ const (
 	ExternalSourceWxWorkKF  ExternalSource = "wxwork_kf"  // 企业微信客服
 	ExternalSourceUser      ExternalSource = "user"       // 用户信息
 	ExternalSourceTwentyCRM ExternalSource = "twenty_crm" // Twenty CRM
-	ExternalSourceTelegram  ExternalSource = "telegram"   // Telegram Bot
-	ExternalSourceZaloOA    ExternalSource = "zalo_oa"    // Zalo Official Account
+	ExternalSourceTelegram  ExternalSource = "telegram"   // Telegram
+	ExternalSourceZaloOA    ExternalSource = "zalo_oa"    // Zalo OA
+	ExternalSourceDiscord   ExternalSource = "discord"    // Discord
 	ExternalSourceEmail     ExternalSource = "email"      // Email
 )
 
@@ -22,6 +23,7 @@ var externalSourceLabelMap = map[ExternalSource]string{
 	ExternalSourceTwentyCRM: "Twenty CRM",
 	ExternalSourceTelegram:  "Telegram",
 	ExternalSourceZaloOA:    "Zalo OA",
+	ExternalSourceDiscord:   "Discord",
 	ExternalSourceEmail:     "Email",
 }
 

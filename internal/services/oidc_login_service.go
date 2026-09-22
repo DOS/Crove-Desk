@@ -257,6 +257,10 @@ func shortSubjectHash(subject string) string {
 	return hex.EncodeToString(sum[:])[:16]
 }
 
+// ensureDefaultOIDCRole gives a first-time OIDC user the lowest staff role.
+// The provider vouches for who the user is, not what they may administer, so
+// a user arriving without any role must never escalate to an administrative
+// one.
 func (s *oidcLoginService) ensureDefaultOIDCRole(tx *gorm.DB, user *models.User) {
 	if user == nil || user.ID <= 0 {
 		return
@@ -265,10 +269,7 @@ func (s *oidcLoginService) ensureDefaultOIDCRole(tx *gorm.DB, user *models.User)
 	if existingRole != nil {
 		return
 	}
-	defaultRole := repositories.RoleRepository.GetByCode(tx, constants.RoleCodeAdmin)
-	if defaultRole == nil {
-		defaultRole = repositories.RoleRepository.GetByCode(tx, constants.RoleCodeSuperAdmin)
-	}
+	defaultRole := repositories.RoleRepository.GetByCode(tx, constants.RoleCodeCsUser)
 	if defaultRole == nil {
 		return
 	}
