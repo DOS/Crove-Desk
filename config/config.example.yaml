@@ -17,6 +17,21 @@ server:
   # header name) when an edge overwrites rather than appends the real client
   # address. When set it takes precedence over X-Forwarded-For entirely.
   trustedPlatform: ""
+  rateLimit:
+    # Bounds how often one client address may call the public, unauthenticated
+    # endpoints: login, support registration, the widget session exchange, message
+    # uploads and documentation feedback. Enabled by default.
+    #
+    # Channel webhooks under /api/third, the websocket routes, /api/webhooks and
+    # the whole authenticated dashboard are deliberately NOT covered. A platform
+    # that receives a 429 from its webhook stops retrying and eventually disables
+    # the delivery, which takes an entire channel offline.
+    #
+    # The counters live in this process. Running several replicas gives each one
+    # its own budget, which weakens the bound by the replica count; these limits
+    # exist to make flooding expensive, not to meter a quota.
+    enabled: true
+    windowSeconds: 60
   cors:
     # Browser CORS allowlist. In production, replace this with the actual frontend or embedded-site domains, such as https://support.example.com.
     # Leave it empty to reject cross-origin browser requests. Same-origin and non-browser calls are still supported.
