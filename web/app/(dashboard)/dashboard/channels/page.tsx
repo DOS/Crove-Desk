@@ -2,6 +2,7 @@
 
 import {
   Building2Icon,
+  Gamepad2Icon,
   MessagesSquareIcon,
   MessageSquareMoreIcon,
   SendIcon,
@@ -43,6 +44,9 @@ function getChannelTypeLabel(channelType: string, t: (key: string) => string) {
   if (channelType === "slack") {
     return t("channel.typeSlack")
   }
+  if (channelType === "discord") {
+    return t("channel.typeDiscord")
+  }
   return t("channel.typeWeb")
 }
 
@@ -69,6 +73,9 @@ function ChannelIcon({ channelType }: { channelType: string }) {
   if (channelType === "slack") {
     return <SlackIcon className="size-4" />
   }
+  if (channelType === "discord") {
+    return <Gamepad2Icon className="size-4" />
+  }
   return <Building2Icon className="size-4" />
 }
 
@@ -85,6 +92,7 @@ export default function DashboardChannelsPage() {
     { value: "all", label: t("channel.allTypes") },
     { value: "web", label: t("channel.typeWeb") },
     { value: "telegram", label: t("channel.typeTelegram") },
+    { value: "discord", label: t("channel.typeDiscord") },
     { value: "slack", label: t("channel.typeSlack") },
     { value: "zalo_oa", label: t("channel.typeZaloOa") },
     { value: "wechat_mp", label: t("channel.typeWechatMp") },

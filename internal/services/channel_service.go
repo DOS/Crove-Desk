@@ -347,6 +347,24 @@ func (s *channelService) ParseSlackChannelConfig(raw string) (*dto.SlackChannelC
 	cfg.TeamID = strings.TrimSpace(cfg.TeamID)
 	cfg.TeamName = strings.TrimSpace(cfg.TeamName)
 	cfg.DefaultChannel = strings.TrimSpace(cfg.DefaultChannel)
+	return cfg, nil
+}
+
+func (s *channelService) ParseDiscordChannelConfig(raw string) (*dto.DiscordChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.DiscordChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.GuildID = strings.TrimSpace(cfg.GuildID)
+	cfg.GuildName = strings.TrimSpace(cfg.GuildName)
+	cfg.ChannelScope = strings.TrimSpace(cfg.ChannelScope)
+	cfg.BotToken = strings.TrimSpace(cfg.BotToken)
+	cfg.ApplicationID = strings.TrimSpace(cfg.ApplicationID)
+	cfg.PublicKey = strings.TrimSpace(cfg.PublicKey)
+	cfg.WebhookSecret = strings.TrimSpace(cfg.WebhookSecret)
 	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
 	return cfg, nil
 }
@@ -467,7 +485,7 @@ func (s *channelService) GetEnabledChannel(ctx *gin.Context) *models.Channel {
 
 func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRequest) (*models.Channel, error) {
 	channelType := strings.TrimSpace(req.ChannelType)
-	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeSlack {
+	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeSlack && channelType != enums.ChannelTypeDiscord {
 		return nil, errorsx.InvalidParamI18n("error.e0250")
 	}
 	name := strings.TrimSpace(req.Name)
@@ -629,6 +647,32 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 		// so it is required the same way Telegram's bot token is.
 		if cfg == nil || cfg.BotToken == "" {
 			return nil, errorsx.InvalidParam("slack botToken is required")
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeDiscord:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseDiscordChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid discord configuration")
+		}
+		// A channel may rely on the deployment-wide bot token instead of carrying
+		// its own, so the token is not required here the way Telegram's is.
+		if cfg.ChannelScope != "" && cfg.ChannelScope != "all" && cfg.ChannelScope != "dm_only" {
+			return nil, errorsx.InvalidParam("discord channelScope must be all or dm_only")
+		}
+		if cfg.WebhookSecret == "" {
+			if secret, err := generateUserTokenSecret(); err == nil {
+				cfg.WebhookSecret = secret
+			}
 		}
 		configBytes, err := json.Marshal(cfg)
 		if err != nil {

@@ -12,6 +12,7 @@ const (
 	ExternalSourceTelegram ExternalSource = "telegram"  // Telegram
 	ExternalSourceZaloOA   ExternalSource = "zalo_oa"   // Zalo OA
 	ExternalSourceSlack    ExternalSource = "slack"     // Slack
+	ExternalSourceDiscord  ExternalSource = "discord"   // Discord
 )
 
 var externalSourceLabelMap = map[ExternalSource]string{
@@ -21,6 +22,7 @@ var externalSourceLabelMap = map[ExternalSource]string{
 	ExternalSourceTelegram: "Telegram",
 	ExternalSourceZaloOA:   "Zalo OA",
 	ExternalSourceSlack:    "Slack",
+	ExternalSourceDiscord:  "Discord",
 }
 
 func GetExternalSourceLabel(v ExternalSource) string {

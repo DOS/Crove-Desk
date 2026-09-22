@@ -80,6 +80,14 @@ type SlackChannelConfig = {
   teamId?: string
   teamName?: string
   defaultChannel?: string
+  webhookSecret?: string
+}
+
+type DiscordChannelConfig = {
+  guildId?: string
+  guildName?: string
+  botToken?: string
+  webhookSecret?: string
 }
 
 function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
@@ -96,7 +104,7 @@ function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
 function createSchema(t: Translate) {
   return z
     .object({
-      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "slack"], t("channel.typeRequired")),
+      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "slack", "discord"], t("channel.typeRequired")),
       aiAgentId: z.string().trim().regex(/^\d+$/, t("channel.agentRequired")),
 		aiAgentRolloutPercent: z.coerce.number().int().min(1).max(100),
       name: z.string().trim().min(1, t("channel.nameRequired")),
@@ -114,6 +122,10 @@ function createSchema(t: Translate) {
       slackTeamId: z.string().trim(),
       slackTeamName: z.string().trim(),
       slackDefaultChannel: z.string().trim(),
+      discordGuildId: z.string().trim(),
+      discordGuildName: z.string().trim(),
+      discordBotToken: z.string().trim(),
+
       widgetTitle: z.string().trim(),
       widgetSubtitle: z.string().trim(),
       widgetThemeColor: z.string().trim(),
@@ -155,7 +167,7 @@ function createSchema(t: Translate) {
 }
 
 type EditForm = {
-  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "slack"
+  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "slack" | "discord"
   aiAgentId: string
 	aiAgentRolloutPercent: number
   name: string
@@ -173,6 +185,10 @@ type EditForm = {
   slackTeamId: string
   slackTeamName: string
   slackDefaultChannel: string
+  discordGuildId: string
+  discordGuildName: string
+  discordBotToken: string
+
   widgetTitle: string
   widgetSubtitle: string
   widgetThemeColor: string
@@ -203,6 +219,10 @@ function createEmptyForm(t: Translate): EditForm {
     slackTeamId: "",
     slackTeamName: "",
     slackDefaultChannel: "",
+    discordGuildId: "",
+    discordGuildName: "",
+    discordBotToken: "",
+
     widgetTitle: defaultWebChannelConfig.title,
     widgetSubtitle: defaultWebChannelConfig.subtitle,
     widgetThemeColor: defaultWebChannelConfig.themeColor,
@@ -267,6 +287,22 @@ function parseSlackChannelConfig(configJson: string): SlackChannelConfig {
       teamId: parsed.teamId?.trim() || "",
       teamName: parsed.teamName?.trim() || "",
       defaultChannel: parsed.defaultChannel?.trim() || "",
+      webhookSecret: parsed.webhookSecret?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
+function parseDiscordChannelConfig(configJson: string): DiscordChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as DiscordChannelConfig
+    return {
+      guildId: parsed.guildId?.trim() || "",
+      guildName: parsed.guildName?.trim() || "",
+      botToken: parsed.botToken?.trim() || "",
+      webhookSecret: parsed.webhookSecret?.trim() || "",
     }
   } catch {
     return {}
@@ -328,6 +364,8 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const isTelegram = item.channelType === "telegram"
   const isZaloOA = item.channelType === "zalo_oa"
   const isSlack = item.channelType === "slack"
+  const isDiscord = item.channelType === "discord"
+
   const webConfig = parseWebChannelConfig(item.configJson, t)
   const wechatConfig = isWechatMP
     ? parseWechatMPChannelConfig(item.configJson, t)
@@ -341,6 +379,10 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const slackConfig = isSlack
     ? parseSlackChannelConfig(item.configJson)
     : null
+
+  const discordConfig = isDiscord
+    ? parseDiscordChannelConfig(item.configJson)
+    : null
   return {
     channelType:
       item.channelType === "wxwork_kf"
@@ -351,16 +393,22 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
             ? "zalo_oa"
             : item.channelType === "slack"
               ? "slack"
-              : item.channelType === "wechat_mp"
-                ? "wechat_mp"
-                : "web",
+              : item.channelType === "discord"
+                ? "discord"
+                : item.channelType === "wechat_mp"
+                  ? "wechat_mp"
+                  : "web",
     aiAgentId: item.aiAgentId > 0 ? String(item.aiAgentId) : "",
 		aiAgentRolloutPercent: item.aiAgentRolloutPercent || 100,
     name: item.name,
     openKfId: parseOpenKfId(item.configJson),
     botToken: telegramConfig?.botToken ?? "",
     botUsername: telegramConfig?.botUsername ?? "",
-    webhookSecret: telegramConfig?.webhookSecret ?? zaloConfig?.webhookSecret ?? "",
+    webhookSecret:
+      telegramConfig?.webhookSecret ??
+      zaloConfig?.webhookSecret ??
+      discordConfig?.webhookSecret ??
+      "",
     zaloAppId: zaloConfig?.appId ?? "",
     zaloOaId: zaloConfig?.oaId ?? "",
     zaloAccessToken: zaloConfig?.accessToken ?? "",
@@ -371,6 +419,10 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
     slackTeamId: slackConfig?.teamId ?? "",
     slackTeamName: slackConfig?.teamName ?? "",
     slackDefaultChannel: slackConfig?.defaultChannel ?? "",
+    discordGuildId: discordConfig?.guildId ?? "",
+    discordGuildName: discordConfig?.guildName ?? "",
+    discordBotToken: discordConfig?.botToken ?? "",
+
     widgetTitle: wechatConfig?.title ?? webConfig.title,
     widgetSubtitle: wechatConfig?.subtitle ?? webConfig.subtitle,
     widgetThemeColor: wechatConfig?.themeColor ?? webConfig.themeColor,
@@ -418,8 +470,16 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
                 teamId: form.slackTeamId.trim(),
                 teamName: form.slackTeamName.trim(),
                 defaultChannel: form.slackDefaultChannel.trim(),
+                webhookSecret: form.webhookSecret.trim(),
               })
-            : channelType === "wechat_mp"
+            : channelType === "discord"
+              ? JSON.stringify({
+                  guildId: form.discordGuildId.trim(),
+                  guildName: form.discordGuildName.trim(),
+                  botToken: form.discordBotToken.trim(),
+                  webhookSecret: form.webhookSecret.trim(),
+                })
+              : channelType === "wechat_mp"
               ? JSON.stringify(webLikeConfig)
               : JSON.stringify({
                   ...webLikeConfig,
@@ -616,6 +676,8 @@ function ChannelFormBody({
     { value: "web", label: t("channel.typeWeb") },
     { value: "telegram", label: t("channel.typeTelegram") },
     { value: "slack", label: t("channel.typeSlack") },
+    { value: "discord", label: t("channel.typeDiscord") },
+
     { value: "wechat_mp", label: t("channel.typeWechatMp") },
     { value: "wxwork_kf", label: t("channel.typeWxworkKf") },
   ] as const
@@ -924,6 +986,57 @@ function ChannelFormBody({
                   <div className="mt-1">{t("channel.slackSetupDescription")}</div>
                   <div className="mt-2 font-mono text-[11px]">
                     {t("channel.slackRequestUrl")}: /api/third/slack/webhook
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {channelType === "discord" ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.discordGuildId}>
+                    <FieldLabel htmlFor="channel-discord-guildid">{t("channel.discordGuildId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-discord-guildid"
+                        placeholder="e.g. 1234567890123456789"
+                        {...register("discordGuildId")}
+                      />
+                      <FieldError errors={[errors.discordGuildId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.discordGuildName}>
+                    <FieldLabel htmlFor="channel-discord-guildname">{t("channel.discordGuildName")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-discord-guildname"
+                        placeholder="e.g. Support Server"
+                        {...register("discordGuildName")}
+                      />
+                      <FieldError errors={[errors.discordGuildName]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.discordBotToken}>
+                  <FieldLabel htmlFor="channel-discord-bottoken">{t("channel.discordBotToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-discord-bottoken"
+                      type="password"
+                      placeholder="Optional per-channel bot token"
+                      {...register("discordBotToken")}
+                    />
+                    <FieldError errors={[errors.discordBotToken]} />
+                  </FieldContent>
+                </Field>
+
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                  <div className="font-medium text-foreground">{t("channel.discordSetupTitle")}</div>
+                  <div className="mt-1">{t("channel.discordSetupDescription")}</div>
+                  <div className="mt-2 font-mono text-[11px]">
+                    {t("channel.inboundWebhookUrl")}: /api/third/discord/webhook
                   </div>
                 </div>
               </div>

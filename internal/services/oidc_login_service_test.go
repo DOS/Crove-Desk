@@ -3,9 +3,11 @@ package services
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/config"
+	"agent-desk/internal/pkg/constants"
 	"agent-desk/internal/pkg/enums"
 )
 
@@ -92,5 +94,60 @@ func TestOIDCLoginReusesExistingIdentity(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("expected existing identity to reuse user, got %d users", count)
+	}
+}
+
+// A first-time OIDC user is a stranger the provider vouched for, nothing
+// more: they must land on the lowest staff role, never on an administrative
+// one. Seeds every candidate role so the assignment cannot pass by accident
+// of a missing row.
+func TestOIDCLoginFirstUserGetsLowestStaffRole(t *testing.T) {
+	db := setupAuthServiceTestDB(t)
+	now := time.Now()
+	for _, role := range []struct{ name, code string }{
+		{"Super Admin", constants.RoleCodeSuperAdmin},
+		{"Admin", constants.RoleCodeAdmin},
+		{"Support Agent", constants.RoleCodeCsUser},
+	} {
+		if err := db.Create(&models.Role{
+			Name:   role.name,
+			Code:   role.code,
+			Status: enums.StatusOk,
+			AuditFields: models.AuditFields{
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+		}).Error; err != nil {
+			t.Fatalf("seed role %s: %v", role.code, err)
+		}
+	}
+
+	if _, err := newOIDCLoginService().loginWithOIDCProfile(&oidcLoginProfile{
+		Subject:           "sub-777",
+		Email:             "stranger@example.com",
+		PreferredUsername: "stranger",
+		Name:              "Stranger",
+		RawProfile:        `{"sub":"sub-777"}`,
+	}, config.AuthConfig{TokenTTLHours: 2}, "127.0.0.1", "go-test"); err != nil {
+		t.Fatalf("loginWithOIDCProfile() error = %v", err)
+	}
+
+	var user models.User
+	if err := db.Take(&user, "username = ?", "stranger").Error; err != nil {
+		t.Fatalf("expected OIDC user to be created: %v", err)
+	}
+
+	var roles []models.Role
+	if err := db.
+		Joins("JOIN t_user_role ON t_user_role.role_id = t_role.id").
+		Where("t_user_role.user_id = ?", user.ID).
+		Find(&roles).Error; err != nil {
+		t.Fatalf("query user roles: %v", err)
+	}
+	if len(roles) != 1 {
+		t.Fatalf("expected exactly one role for a first-time OIDC user, got %d", len(roles))
+	}
+	if roles[0].Code != constants.RoleCodeCsUser {
+		t.Fatalf("first-time OIDC user role = %q, want %q", roles[0].Code, constants.RoleCodeCsUser)
 	}
 }

@@ -57,5 +57,15 @@ type SlackChannelConfig struct {
 	TeamID         string `json:"teamId,omitempty"`         // Slack Workspace Team ID
 	TeamName       string `json:"teamName,omitempty"`       // Slack Workspace Team Name
 	DefaultChannel string `json:"defaultChannel,omitempty"` // Default channel to post
+}
+
+type DiscordChannelConfig struct {
+	GuildID        string `json:"guildId,omitempty"`
+	GuildName      string `json:"guildName,omitempty"`
+	ChannelScope   string `json:"channelScope,omitempty"` // all | dm_only
+	BotToken       string `json:"botToken,omitempty"`
+	ApplicationID  string `json:"applicationId,omitempty"`
+	PublicKey      string `json:"publicKey,omitempty"`
+	WebhookSecret  string `json:"webhookSecret,omitempty"`
 	WelcomeMessage string `json:"welcomeMessage,omitempty"`
 }

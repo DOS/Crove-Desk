@@ -1,15 +1,66 @@
 package bootstrap
 
 import (
+	"time"
+
 	"agent-desk/internal/handlers/api"
 	"agent-desk/internal/handlers/dashboard"
 	"agent-desk/internal/handlers/third"
+	"agent-desk/internal/middleware"
+	"agent-desk/internal/pkg/config"
+	"agent-desk/internal/pkg/ratelimit"
 
 	"github.com/gin-gonic/gin"
 )
 
-func registerApiAuthRoutes(group *gin.RouterGroup) {
-	group.POST("/login", api.Login)
+// publicRateLimits holds one limiter per abuse-prone unauthenticated endpoint.
+// They are built once per server rather than per request, and the middleware keys
+// them by client address.
+//
+// Channel webhooks under /api/third, the websocket routes and /api/webhooks are
+// deliberately absent. A platform that receives a 429 from its webhook stops
+// retrying and eventually disables the delivery, which would take a whole channel
+// offline; those endpoints authenticate by signature instead. The dashboard is
+// absent too - it is already behind AuthMiddleware, and staff sharing one office
+// address would throttle each other.
+type publicRateLimits struct {
+	login           *ratelimit.Limiter
+	supportRegister *ratelimit.Limiter
+	sessionExchange *ratelimit.Limiter
+	upload          *ratelimit.Limiter
+	docFeedback     *ratelimit.Limiter
+}
+
+// Limits are sized for a human driving a browser, not for a machine. They are
+// deliberately generous: the point is to make flooding expensive, not to police
+// legitimate use. The session exchange budget in particular has to absorb a whole
+// support office loading the widget from behind one NAT address.
+const (
+	limitLogin           = 20
+	limitSupportRegister = 10
+	limitSessionExchange = 120
+	limitUpload          = 30
+	limitDocFeedback     = 20
+)
+
+func newPublicRateLimits(cfg config.RateLimitConfig) publicRateLimits {
+	if !cfg.IsEnabled() {
+		// Every field stays nil and a nil limiter allows everything, so "disabled"
+		// needs no branch at any call site.
+		return publicRateLimits{}
+	}
+	window := time.Duration(cfg.WindowSecondsOrDefault()) * time.Second
+	return publicRateLimits{
+		login:           ratelimit.New(limitLogin, window),
+		supportRegister: ratelimit.New(limitSupportRegister, window),
+		sessionExchange: ratelimit.New(limitSessionExchange, window),
+		upload:          ratelimit.New(limitUpload, window),
+		docFeedback:     ratelimit.New(limitDocFeedback, window),
+	}
+}
+
+func registerApiAuthRoutes(group *gin.RouterGroup, limits publicRateLimits) {
+	group.POST("/login", middleware.RateLimit(limits.login), api.Login)
 	group.POST("/logout", api.Logout)
 	group.GET("/profile", api.Profile)
 	group.POST("/profile/update", api.UpdateProfile)
@@ -33,8 +84,8 @@ func registerApiWebhookRoutes(group *gin.RouterGroup) {
 	group.POST("/dos-org-sync", api.DOSOrgSyncWebhook)
 }
 
-func registerApiCustomerRoutes(group *gin.RouterGroup) {
-	group.POST("/session_exchange", api.CustomerPostSession_exchange)
+func registerApiCustomerRoutes(group *gin.RouterGroup, limits publicRateLimits) {
+	group.POST("/session_exchange", middleware.RateLimit(limits.sessionExchange), api.CustomerPostSession_exchange)
 }
 
 func registerApiConversationRoutes(group *gin.RouterGroup) {
@@ -43,22 +94,26 @@ func registerApiConversationRoutes(group *gin.RouterGroup) {
 	group.POST("/create_or_match", api.ConversationPostCreate_or_match)
 }
 
-func registerApiMessageRoutes(group *gin.RouterGroup) {
+func registerApiMessageRoutes(group *gin.RouterGroup, limits publicRateLimits) {
 	group.Any("/list", api.MessageAnyList)
 	group.POST("/read", api.MessagePostRead)
 	group.POST("/send", api.MessagePostSend)
-	group.POST("/upload_attachment", api.MessagePostUpload_attachment)
-	group.POST("/upload_image", api.MessagePostUpload_image)
+	// One shared budget for both upload routes: what matters is how many bytes an
+	// unauthenticated caller can push at the storage layer, not which of the two
+	// endpoints they used.
+	uploadLimit := middleware.RateLimit(limits.upload)
+	group.POST("/upload_attachment", uploadLimit, api.MessagePostUpload_attachment)
+	group.POST("/upload_image", uploadLimit, api.MessagePostUpload_image)
 }
 
-func registerApiSupportRoutes(group *gin.RouterGroup) {
+func registerApiSupportRoutes(group *gin.RouterGroup, limits publicRateLimits) {
 	group.GET("/config", api.SupportConfigGetConfig)
-	group.POST("/auth/register", api.SupportAuthPostRegister)
+	group.POST("/auth/register", middleware.RateLimit(limits.supportRegister), api.SupportAuthPostRegister)
 	group.GET("/me", api.SupportGetMe)
 	group.Any("/doc-page/list", api.DocPageAnyList)
 	group.GET("/doc-page/navigation", api.DocPageGetNavigation)
 	group.GET("/doc-page/:id", api.DocPageGetBy)
-	group.POST("/doc-page/feedback", api.DocPagePostFeedback)
+	group.POST("/doc-page/feedback", middleware.RateLimit(limits.docFeedback), api.DocPagePostFeedback)
 	group.Any("/community/categories/list", api.CategoryAnyList)
 	group.Any("/community/posts/list", api.PostAnyList)
 	group.GET("/community/posts/:id", api.PostGetBy)
@@ -439,4 +494,9 @@ func registerThirdZaloRoutes(group *gin.RouterGroup) {
 func registerThirdSlackRoutes(group *gin.RouterGroup) {
 	group.POST("/webhook", third.SlackPostWebhook)
 	group.POST("/webhook/:channel_id", third.SlackPostWebhook)
+}
+
+func registerThirdDiscordRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.DiscordPostWebhook)
+	group.POST("/webhook/:channel_id", third.DiscordPostWebhook)
 }

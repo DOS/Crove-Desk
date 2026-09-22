@@ -1,8 +1,10 @@
 package bootstrap
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +19,7 @@ import (
 	"agent-desk/internal/pkg/i18nx"
 	"agent-desk/internal/pkg/tracex"
 	"agent-desk/internal/services"
+	"agent-desk/internal/services/storage"
 	webspa "agent-desk/web"
 
 	"github.com/gin-gonic/gin"
@@ -33,6 +36,18 @@ func NewServer() (*gin.Engine, error) {
 	printBanner()
 
 	app := gin.New()
+
+	// Gin defaults to trusting every proxy, which makes ClientIP() return the
+	// leftmost X-Forwarded-For value - a header any caller can set. Everything
+	// keyed on a client address depends on this being settled first: the login
+	// credential log, the user's last login IP, and any abuse control.
+	if platform := cfg.Server.TrustedPlatformHeader(); platform != "" {
+		app.TrustedPlatform = platform
+	}
+	if err := app.SetTrustedProxies(cfg.Server.TrustedProxiesOrDefault()); err != nil {
+		return nil, fmt.Errorf("invalid server.trustedProxies: %w", err)
+	}
+
 	app.Use(requestIDMiddleware())
 	app.Use(corsMiddleware())
 	app.Use(gin.Recovery())
@@ -44,9 +59,27 @@ func NewServer() (*gin.Engine, error) {
 
 	handleSpa(app)
 
-	app.StaticFS(cfg.Storage.Local.BaseURL, ginx.StaticFiles(cfg.Storage.Local.Root))
+	storageGroup := app.Group(cfg.Storage.Local.BaseURL, assetResponseHeaders())
+	storageGroup.StaticFS("", ginx.StaticFiles(cfg.Storage.Local.Root))
 
 	return app, nil
+}
+
+// assetResponseHeaders guards the locally stored assets.
+//
+// Those files are user-supplied bytes served from this application's own origin,
+// so a response a browser renders inline is same-origin content. nosniff stops a
+// browser reinterpreting the payload, and forcing a download for anything that is
+// not previewable media means a document type that slipped in before this policy
+// existed still cannot run as a page.
+func assetResponseHeaders() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctx.Header("X-Content-Type-Options", "nosniff")
+		if !storage.IsPreviewableExtension(path.Ext(ctx.Request.URL.Path)) {
+			ctx.Header("Content-Disposition", "attachment")
+		}
+		ctx.Next()
+	}
 }
 
 func corsMiddleware() gin.HandlerFunc {
@@ -138,17 +171,19 @@ func isWebsocketUpgrade(ctx *gin.Context) bool {
 }
 
 func addRouter(app *gin.Engine) {
+	limits := newPublicRateLimits(config.Current().Server.RateLimit)
+
 	app.Any("/api/mcp", gin.WrapH(mcps.NewHTTPHandler()))
 
 	apiGroup := app.Group("/api")
 	apiGroup.GET("/health", api.Health)
 	apiGroup.GET("/config", api.PublicConfig)
-	registerApiAuthRoutes(apiGroup.Group("/auth"))
+	registerApiAuthRoutes(apiGroup.Group("/auth"), limits)
 	registerApiChannelRoutes(apiGroup.Group("/channel"))
-	registerApiCustomerRoutes(apiGroup.Group("/customer"))
+	registerApiCustomerRoutes(apiGroup.Group("/customer"), limits)
 	registerApiConversationRoutes(apiGroup.Group("/conversation", middleware.ExternalUserMiddleware))
-	registerApiMessageRoutes(apiGroup.Group("/message", middleware.ExternalUserMiddleware))
-	registerApiSupportRoutes(apiGroup.Group("/support"))
+	registerApiMessageRoutes(apiGroup.Group("/message", middleware.ExternalUserMiddleware), limits)
+	registerApiSupportRoutes(apiGroup.Group("/support"), limits)
 	registerApiWebhookRoutes(apiGroup.Group("/webhooks"))
 
 	wsGroup := app.Group("/api/ws")
@@ -198,6 +233,7 @@ func addRouter(app *gin.Engine) {
 	registerThirdTelegramRoutes(thirdGroup.Group("/telegram"))
 	registerThirdZaloRoutes(thirdGroup.Group("/zalo"))
 	registerThirdSlackRoutes(thirdGroup.Group("/slack"))
+	registerThirdDiscordRoutes(thirdGroup.Group("/discord"))
 }
 
 type spaShellRewrite struct {
