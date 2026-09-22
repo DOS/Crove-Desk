@@ -2,8 +2,11 @@ package services
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+
 	"strings"
 
 	"agent-desk/internal/discord"
@@ -40,7 +43,11 @@ func (s *discordInboundService) HandleWebhook(ctx context.Context, channelID str
 		return errorsx.InvalidParam("discord channel config invalid")
 	}
 
-	if cfg.WebhookSecret != "" && strings.TrimSpace(secretHeader) != cfg.WebhookSecret {
+	// Compared in constant time: a byte-wise != leaks how much of the prefix
+	// matched through response timing.
+	if cfg.WebhookSecret != "" &&
+		subtle.ConstantTimeCompare([]byte(strings.TrimSpace(secretHeader)), []byte(cfg.WebhookSecret)) != 1 {
+
 		return errorsx.UnauthorizedI18n("error.auth.invalidSignature")
 	}
 
@@ -83,6 +90,24 @@ func (s *discordInboundService) HandleWebhook(ctx context.Context, channelID str
 
 	if author == nil || author.Bot || strings.TrimSpace(author.ID) == "" {
 		return nil // Ignore bot messages or invalid authors
+	}
+
+	// Honour the channel's guild scope. A bot can be invited to several servers,
+	// and without these checks GuildID and ChannelScope would be stored
+	// configuration that silently does nothing.
+	if cfg.GuildID != "" && guildID != cfg.GuildID {
+		slog.Debug("ignoring discord message from an out-of-scope guild",
+			"guild_id", guildID,
+			"channel", channel.ID,
+		)
+		return nil
+	}
+	if cfg.ChannelScope == "dm_only" && guildID != "" {
+		slog.Debug("ignoring discord guild message, channel is dm_only",
+			"guild_id", guildID,
+			"channel", channel.ID,
+		)
+		return nil
 	}
 
 	if text == "" && len(attachments) > 0 {

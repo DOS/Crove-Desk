@@ -574,4 +574,5 @@ func registerThirdThreadsRoutes(group *gin.RouterGroup) {
 	group.GET("/webhook/:channel_id", third.ThreadsGetWebhook)
 	group.POST("/webhook", third.ThreadsPostWebhook)
 	group.POST("/webhook/:channel_id", third.ThreadsPostWebhook)
+
 }

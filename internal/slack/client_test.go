@@ -194,6 +194,7 @@ func TestPostMessageOmitsThreadTSForTopLevel(t *testing.T) {
 	var body map[string]any
 	if err := json.Unmarshal([]byte(gotRaw), &body); err != nil {
 		t.Fatalf("parse request body: %v", err)
+
 	}
 	if _, present := body["thread_ts"]; present {
 		t.Errorf("request body carried thread_ts for a top-level message: %s", gotRaw)

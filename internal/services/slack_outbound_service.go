@@ -8,6 +8,7 @@ import (
 
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/config"
+
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/repositories"
 	"agent-desk/internal/services/storage"
@@ -99,6 +100,7 @@ func (s *slackOutboundService) processOutbox(outboxID int64) error {
 	// fallback for a single shared Slack app.
 	botToken := config.ResolveSlack(cfg.BotToken, cfg.SigningSecret).BotToken
 	if botToken == "" {
+
 		return s.markOutboxFailed(outbox, "slack bot token not configured")
 	}
 
@@ -130,6 +132,7 @@ func (s *slackOutboundService) processOutbox(outboxID int64) error {
 	}
 
 	client := slack.NewClient(botToken)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 

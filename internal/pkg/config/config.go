@@ -62,6 +62,7 @@ type ServerConfig struct {
 	CompanyLogoURL    string     `yaml:"companyLogoUrl"`
 	CompanyFaviconURL string     `yaml:"companyFaviconUrl"`
 	CORS              CORSConfig `yaml:"cors"`
+
 	// TrustedProxies are the CIDR blocks of the reverse proxies that sit in front
 	// of the application. Gin's own default is 0.0.0.0/0 and ::/0, which trusts
 	// every peer and makes ClientIP() return the leftmost X-Forwarded-For value -
@@ -432,6 +433,9 @@ type EmailConfig struct {
 	InboundSecret string `yaml:"inboundSecret"`
 }
 
+// DiscordConfig holds deployment-wide Discord bot credentials. A channel may
+// carry its own bot token, which takes precedence; these are the fallback for a
+// single shared bot.
 type DiscordConfig struct {
 	ClientID     string `yaml:"clientId"`
 	ClientSecret string `yaml:"clientSecret"`
@@ -651,6 +655,7 @@ func bindConfigDefaults(v *viper.Viper) {
 	v.SetDefault("email.smtpPassword", "")
 	v.SetDefault("email.smtpUseTls", false)
 	v.SetDefault("email.inboundSecret", "")
+
 	v.SetDefault("discord.clientId", "")
 	v.SetDefault("discord.clientSecret", "")
 	v.SetDefault("discord.botToken", "")
@@ -668,6 +673,7 @@ func bindConfigDefaults(v *viper.Viper) {
 	v.SetDefault("whatsApp.appId", "")
 	v.SetDefault("whatsApp.appSecret", "")
 	v.SetDefault("whatsApp.verifyToken", "")
+
 }
 
 func bindEnvironmentAliases(v *viper.Viper) {
@@ -683,6 +689,7 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("server.companyName", "AGENT_DESK_SERVER_COMPANYNAME", "COMPANY_NAME", "NEXT_PUBLIC_COMPANY_NAME", "BRAND_NAME", "BRAND_COMPANY_NAME")
 	_ = v.BindEnv("server.companyLogoUrl", "AGENT_DESK_SERVER_COMPANYLOGOURL", "COMPANY_LOGO_URL", "NEXT_PUBLIC_COMPANY_LOGO_URL", "BRAND_LOGO_URL")
 	_ = v.BindEnv("server.companyFaviconUrl", "AGENT_DESK_SERVER_COMPANYFAVICONURL", "COMPANY_FAVICON_URL", "NEXT_PUBLIC_COMPANY_FAVICON_URL", "BRAND_FAVICON_URL", "FAVICON_URL")
+
 	_ = v.BindEnv("server.trustedProxies", "AGENT_DESK_SERVER_TRUSTEDPROXIES", "TRUSTED_PROXIES")
 	_ = v.BindEnv("server.trustedPlatform", "AGENT_DESK_SERVER_TRUSTEDPLATFORM", "TRUSTED_PLATFORM")
 	_ = v.BindEnv("server.rateLimit.enabled", "AGENT_DESK_SERVER_RATELIMIT_ENABLED", "RATE_LIMIT_ENABLED")
@@ -727,6 +734,7 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("email.smtpPassword", "AGENT_DESK_EMAIL_SMTPPASSWORD", "SMTP_PASSWORD", "SMTP_PASS", "EMAIL_SMTP_PASSWORD", "CROVE_SMTP_PASSWORD")
 	_ = v.BindEnv("email.smtpUseTls", "AGENT_DESK_EMAIL_SMTPUSETLS", "SMTP_USE_TLS", "SMTP_SSL")
 	_ = v.BindEnv("email.inboundSecret", "AGENT_DESK_EMAIL_INBOUNDSECRET", "EMAIL_INBOUND_SECRET", "EMAIL_WEBHOOK_SECRET")
+
 	_ = v.BindEnv("discord.clientId", "AGENT_DESK_DISCORD_CLIENTID", "DISCORD_CLIENT_ID")
 	_ = v.BindEnv("discord.clientSecret", "AGENT_DESK_DISCORD_CLIENTSECRET", "DISCORD_CLIENT_SECRET")
 	_ = v.BindEnv("discord.botToken", "AGENT_DESK_DISCORD_BOTTOKEN", "DISCORD_BOT_TOKEN")
@@ -748,6 +756,7 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("whatsApp.appId", "AGENT_DESK_WHATSAPP_APPID", "WHATSAPP_APP_ID")
 	_ = v.BindEnv("whatsApp.appSecret", "AGENT_DESK_WHATSAPP_APPSECRET", "WHATSAPP_APP_SECRET")
 	_ = v.BindEnv("whatsApp.verifyToken", "AGENT_DESK_WHATSAPP_VERIFYTOKEN", "WHATSAPP_VERIFY_TOKEN")
+
 }
 
 func normalizeLoadedConfig(cfg *Config) {

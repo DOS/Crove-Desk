@@ -369,6 +369,7 @@ error.whatsapp.oauth.noBusinesses: "This token cannot see any Meta business port
 error.whatsapp.oauth.accountsFailed: "Could not list WhatsApp Business Accounts for %s: %s"
 error.whatsapp.oauth.phoneNumbersFailed: "Could not list phone numbers for WABA %s: %s"
 error.whatsapp.oauth.noAccounts: "No WhatsApp Business Account is reachable with this token. Grant whatsapp_business_management with advanced access, or enter the WABA ID and Phone Number ID manually."
+
 error.profile.nicknameRequired: "Enter a nickname."
 error.profile.nicknameTooLong: "Nickname cannot exceed 100 characters."
 error.profile.avatarTooLong: "Avatar link cannot exceed 255 characters."

@@ -105,6 +105,7 @@ func (s *discordOutboundService) processOutbox(outboxID int64) error {
 		if serverCfg := config.GetCurrent(); serverCfg != nil {
 			botToken = strings.TrimSpace(serverCfg.Discord.BotToken)
 		}
+
 	}
 	if botToken == "" {
 		botToken = strings.TrimSpace(os.Getenv("DISCORD_BOT_TOKEN"))
