@@ -37,6 +37,7 @@ func Init() {
 		emailCount := services.EmailOutboundService.DispatchPendingOutbox()
 		if emailCount > 0 {
 			slog.Info("email outbox dispatched", "count", emailCount)
+
 		}
 		discordCount := services.DiscordOutboundService.DispatchPendingOutbox()
 		if discordCount > 0 {
@@ -78,6 +79,7 @@ func Init() {
 		if tiktokCount > 0 {
 			slog.Info("tiktok outbox dispatched", "count", tiktokCount)
 		}
+
 	})
 
 	c.Start()

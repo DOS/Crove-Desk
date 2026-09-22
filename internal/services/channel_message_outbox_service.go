@@ -253,11 +253,13 @@ func (s *channelMessageOutboxService) EnqueueZaloOAMessage(conversation *models.
 }
 
 func (s *channelMessageOutboxService) EnqueueEmailMessage(conversation *models.Conversation, message *models.Message) error {
+
 	if conversation == nil || message == nil {
 		return nil
 	}
 	channel := ChannelService.Get(conversation.ChannelID)
 	if channel == nil || channel.ChannelType != enums.ChannelTypeEmail {
+
 		return nil
 	}
 	if message.SenderType != enums.IMSenderTypeAgent && message.SenderType != enums.IMSenderTypeAI {
@@ -267,6 +269,7 @@ func (s *channelMessageOutboxService) EnqueueEmailMessage(conversation *models.C
 		return nil
 	}
 	if existing := s.GetByMessageID(enums.ChannelTypeEmail, message.ID); existing != nil {
+
 		return nil
 	}
 
@@ -284,7 +287,8 @@ func (s *channelMessageOutboxService) EnqueueEmailMessage(conversation *models.C
 
 	now := time.Now()
 	err = s.Create(&models.ChannelMessageOutbox{
-		ChannelType:    enums.ChannelTypeEmail,
+		ChannelType: enums.ChannelTypeEmail,
+
 		ConversationID: conversation.ID,
 		MessageID:      message.ID,
 		Payload:        string(payload),
@@ -310,6 +314,7 @@ func (s *channelMessageOutboxService) EnqueueEmailMessage(conversation *models.C
 			}
 		}()
 		EmailOutboundService.DispatchPendingOutbox()
+
 	}()
 
 	return nil
@@ -366,6 +371,7 @@ func (s *channelMessageOutboxService) EnqueueDiscordMessage(conversation *models
 	}
 
 	// Trigger async dispatch immediately
+
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {

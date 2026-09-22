@@ -243,6 +243,7 @@ func addRouter(app *gin.Engine) {
 	registerThirdLineRoutes(thirdGroup.Group("/line"))
 	registerThirdViberRoutes(thirdGroup.Group("/viber"))
 	registerThirdThreadsRoutes(thirdGroup.Group("/threads"))
+
 }
 
 type spaShellRewrite struct {

@@ -303,6 +303,7 @@ func shortSubjectHash(subject string) string {
 // Administrative roles are only derived from explicit DOS ID organization or
 // team claims (see syncOIDCUserOrganizations / syncOIDCUserTeams); a missing
 // or empty claim set must never escalate to admin.
+
 func (s *oidcLoginService) ensureDefaultOIDCRole(tx *gorm.DB, user *models.User) {
 	if user == nil || user.ID <= 0 {
 		return

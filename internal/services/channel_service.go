@@ -430,6 +430,7 @@ func (s *channelService) ParseEmailChannelConfig(raw string) (*dto.EmailChannelC
 	cfg := &dto.EmailChannelConfig{
 		Provider: "smtp",
 	}
+
 	if raw != "" {
 		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
 			return nil, err
@@ -452,6 +453,7 @@ func (s *channelService) ParseEmailChannelConfig(raw string) (*dto.EmailChannelC
 	cfg.SMTPPassword = strings.TrimSpace(cfg.SMTPPassword)
 	cfg.WebhookSecret = strings.TrimSpace(cfg.WebhookSecret)
 	cfg.WelcomeMessage = strings.TrimSpace(cfg.WelcomeMessage)
+
 	return cfg, nil
 }
 
@@ -854,6 +856,7 @@ func (s *channelService) GetEnabledChannel(ctx *gin.Context) *models.Channel {
 func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRequest) (*models.Channel, error) {
 	channelType := strings.TrimSpace(req.ChannelType)
 	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeEmail && channelType != enums.ChannelTypeDiscord && channelType != enums.ChannelTypeMessenger && channelType != enums.ChannelTypeInstagram && channelType != enums.ChannelTypeWhatsApp && channelType != enums.ChannelTypeSlack && channelType != enums.ChannelTypeX && channelType != enums.ChannelTypeTikTok && channelType != enums.ChannelTypeLine && channelType != enums.ChannelTypeViber && channelType != enums.ChannelTypeThreads {
+
 		return nil, errorsx.InvalidParamI18n("error.e0250")
 	}
 	name := strings.TrimSpace(req.Name)
@@ -1001,6 +1004,7 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 		}
 		configJSON = string(configBytes)
 	case enums.ChannelTypeEmail:
+
 		if channelID == "" {
 			channelID = strs.UUID()
 		}
@@ -1018,6 +1022,7 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 			if secret, err := generateUserTokenSecret(); err == nil {
 				cfg.WebhookSecret = secret
 			}
+
 		}
 		configBytes, err := json.Marshal(cfg)
 		if err != nil {
@@ -1035,6 +1040,7 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 		if err != nil {
 			return nil, errorsx.InvalidParam("invalid discord configuration")
 		}
+
 		if cfg.WebhookSecret == "" {
 			if secret, err := generateUserTokenSecret(); err == nil {
 				cfg.WebhookSecret = secret
@@ -1223,6 +1229,7 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 			return nil, err
 		}
 		configJSON = string(configBytes)
+
 	}
 
 	return &models.Channel{

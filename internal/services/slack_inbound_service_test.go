@@ -182,6 +182,175 @@ func TestSlackInboundAndOutbound(t *testing.T) {
 // The signature covers the timestamp and the body, but nothing in it expires,
 // so the five-minute drift window is the only replay protection a captured
 // delivery faces. Lock the window down.
+func seedSlackChannel(t *testing.T, db *gorm.DB, signingSecret string) *models.Channel {
+	t.Helper()
+	now := time.Now()
+	aiAgent := &models.AIAgent{
+		Name:                "Support AI",
+		Status:              enums.StatusOk,
+		PublishedRevisionID: 1,
+		AuditFields:         models.AuditFields{CreatedAt: now, UpdatedAt: now},
+	}
+	if err := db.Create(aiAgent).Error; err != nil {
+		t.Fatalf("create ai agent: %v", err)
+	}
+	cfgBytes, err := json.Marshal(dto.SlackChannelConfig{
+		BotToken:      "xoxb-test-bot-token-12345",
+		SigningSecret: signingSecret,
+		TeamID:        "T0123456789",
+	})
+	if err != nil {
+		t.Fatalf("marshal slack config: %v", err)
+	}
+	channel := &models.Channel{
+		ChannelType:           enums.ChannelTypeSlack,
+		ChannelID:             "slack_sig_channel",
+		AIAgentID:             aiAgent.ID,
+		AIAgentRolloutPercent: 100,
+		Name:                  "Slack Support",
+		ConfigJSON:            string(cfgBytes),
+		Status:                enums.StatusOk,
+		AuditFields:           models.AuditFields{CreatedAt: now, UpdatedAt: now},
+	}
+	if err := db.Create(channel).Error; err != nil {
+		t.Fatalf("create slack channel: %v", err)
+	}
+	return channel
+}
+
+func slackEventPayload(messageID string) []byte {
+	return []byte(`{
+		"team_id": "T0123456789",
+		"type": "event_callback",
+		"event": {
+			"type": "message",
+			"user": "U_SIG_TEST",
+			"text": "signature probe",
+			"ts": "` + messageID + `",
+			"channel": "C9876543210",
+			"channel_type": "channel"
+		}
+	}`)
+}
+
+func countSlackMessages(t *testing.T, db *gorm.DB, messageTS string) int64 {
+	t.Helper()
+	var count int64
+	if err := db.Table("t_message").Where("client_msg_id = ?", "slack_C9876543210_"+messageTS).Count(&count).Error; err != nil {
+		t.Fatalf("count messages: %v", err)
+	}
+	return count
+}
+
+// A channel with a signing secret configured must reject anything Slack did not
+// sign. Accepting an unsigned delivery would let anyone who learns the webhook
+// URL write into a workspace conversation and trigger paid AI replies.
+func TestSlackInboundRejectsUnauthenticatedDelivery(t *testing.T) {
+	db := setupSlackTestDB(t)
+	channel := seedSlackChannel(t, db, slackTestSigningSecret)
+
+	cases := []struct {
+		name      string
+		messageTS string
+		timestamp string
+		signature string
+	}{
+		{"no signature headers at all", "1725260000.000001", "", ""},
+		{"signature without a timestamp", "1725260000.000002", "", "v0=deadbeef"},
+		{"timestamp without a signature", "1725260000.000003", "1725260000", ""},
+		{"wrong signature", "1725260000.000004", "1725260000", "v0=deadbeef"},
+		{"non-numeric timestamp", "1725260000.000005", "not-a-timestamp", "v0=deadbeef"},
+	}
+
+	for _, tc := range cases {
+		payload := slackEventPayload(tc.messageTS)
+		_, err := SlackInboundService.HandleWebhook(context.Background(), channel.ChannelID, tc.timestamp, tc.signature, payload)
+		if err == nil {
+			t.Errorf("%s: expected the delivery to be rejected", tc.name)
+			continue
+		}
+		if countSlackMessages(t, db, tc.messageTS) != 0 {
+			t.Errorf("%s: a rejected delivery stored a message", tc.name)
+		}
+	}
+}
+
+// Slack signs the timestamp and the body but nothing in the signature expires, so
+// a captured request replays forever unless the timestamp is checked. Slack's own
+// guide requires rejecting anything older than five minutes.
+func TestSlackInboundRejectsReplayedTimestamp(t *testing.T) {
+	db := setupSlackTestDB(t)
+	channel := seedSlackChannel(t, db, slackTestSigningSecret)
+
+	cases := []struct {
+		name string
+		age  time.Duration
+	}{
+		{"ten minutes old", 10 * time.Minute},
+		{"one hour old", time.Hour},
+		{"ten minutes in the future", -10 * time.Minute},
+	}
+
+	for i, tc := range cases {
+		messageTS := "1725260000.0000" + strconv.Itoa(10+i)
+		payload := slackEventPayload(messageTS)
+		// Correctly signed for its own timestamp, which is exactly what a replayed
+		// capture looks like on the wire.
+		timestamp, signature := signSlackPayloadAt(t, slackTestSigningSecret, payload, time.Now().Add(-tc.age))
+
+		if _, err := SlackInboundService.HandleWebhook(context.Background(), channel.ChannelID, timestamp, signature, payload); err == nil {
+			t.Errorf("%s: expected a stale timestamp to be rejected", tc.name)
+		}
+		if countSlackMessages(t, db, messageTS) != 0 {
+			t.Errorf("%s: a replayed delivery stored a message", tc.name)
+		}
+	}
+}
+
+// A correctly signed, fresh delivery is still accepted, and one signed just
+// inside the tolerance window is not rejected for clock drift.
+func TestSlackInboundAcceptsFreshValidSignature(t *testing.T) {
+	db := setupSlackTestDB(t)
+	channel := seedSlackChannel(t, db, slackTestSigningSecret)
+
+	cases := []struct {
+		name string
+		age  time.Duration
+	}{
+		{"signed now", 0},
+		{"signed four minutes ago", 4 * time.Minute},
+	}
+
+	for i, tc := range cases {
+		messageTS := "1725260000.0000" + strconv.Itoa(20+i)
+		payload := slackEventPayload(messageTS)
+		timestamp, signature := signSlackPayloadAt(t, slackTestSigningSecret, payload, time.Now().Add(-tc.age))
+
+		if _, err := SlackInboundService.HandleWebhook(context.Background(), channel.ChannelID, timestamp, signature, payload); err != nil {
+			t.Fatalf("%s: HandleWebhook failed: %v", tc.name, err)
+		}
+		if countSlackMessages(t, db, messageTS) != 1 {
+			t.Errorf("%s: expected the signed message to be stored", tc.name)
+		}
+	}
+}
+
+// The url_verification handshake has to be answered before any channel lookup or
+// signature check, because Slack sends it once while the endpoint is being
+// configured and will not retry.
+func TestSlackInboundAnswersURLVerificationChallenge(t *testing.T) {
+	setupSlackTestDB(t)
+
+	payload := []byte(`{"type":"url_verification","challenge":"challenge_token_abc","token":"verification_token"}`)
+	challenge, err := SlackInboundService.HandleWebhook(context.Background(), "", "", "", payload)
+	if err != nil {
+		t.Fatalf("HandleWebhook failed: %v", err)
+	}
+	if challenge == nil || *challenge != "challenge_token_abc" {
+		t.Fatalf("challenge = %v, want challenge_token_abc", challenge)
+	}
+}
+
 func TestVerifySlackSignatureEnforcesReplayWindow(t *testing.T) {
 	payload := []byte(`{"type":"event_callback","event":{"user":"U1","text":"hi"}}`)
 	now := time.Now()
@@ -208,5 +377,6 @@ func TestVerifySlackSignatureEnforcesReplayWindow(t *testing.T) {
 	}
 	if verifySlackSignature(slackTestSigningSecret, "", "v0=deadbeef", payload) {
 		t.Fatal("empty timestamp must be rejected")
+
 	}
 }
