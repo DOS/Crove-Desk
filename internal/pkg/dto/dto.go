@@ -50,6 +50,15 @@ type ZaloOAChannelConfig struct {
 	WelcomeMessage string `json:"welcomeMessage,omitempty"`
 }
 
+type SlackChannelConfig struct {
+	BotToken       string `json:"botToken,omitempty"`       // xoxb-... Bot Token
+	SigningSecret  string `json:"signingSecret,omitempty"`  // Slack Signing Secret
+	AppID          string `json:"appId,omitempty"`          // Slack App ID
+	TeamID         string `json:"teamId,omitempty"`         // Slack Workspace Team ID
+	TeamName       string `json:"teamName,omitempty"`       // Slack Workspace Team Name
+	DefaultChannel string `json:"defaultChannel,omitempty"` // Default channel to post
+}
+
 type DiscordChannelConfig struct {
 	GuildID        string `json:"guildId,omitempty"`
 	GuildName      string `json:"guildName,omitempty"`

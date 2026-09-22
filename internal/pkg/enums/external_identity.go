@@ -11,6 +11,7 @@ const (
 	ExternalSourceUser     ExternalSource = "user"      // 用户信息
 	ExternalSourceTelegram ExternalSource = "telegram"  // Telegram
 	ExternalSourceZaloOA   ExternalSource = "zalo_oa"   // Zalo OA
+	ExternalSourceSlack    ExternalSource = "slack"     // Slack
 	ExternalSourceDiscord  ExternalSource = "discord"   // Discord
 )
 
@@ -20,6 +21,7 @@ var externalSourceLabelMap = map[ExternalSource]string{
 	ExternalSourceUser:     "用户",
 	ExternalSourceTelegram: "Telegram",
 	ExternalSourceZaloOA:   "Zalo OA",
+	ExternalSourceSlack:    "Slack",
 	ExternalSourceDiscord:  "Discord",
 }
 

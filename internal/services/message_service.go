@@ -559,6 +559,15 @@ func (s *messageService) sendValidatedMessage(conversation *models.Conversation,
 		)
 	}
 
+	// Slack 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueSlackMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue slack outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
 	// Discord 渠道消息入队，异步发送
 	if enqueueErr := ChannelMessageOutboxService.EnqueueDiscordMessage(conversation, message); enqueueErr != nil {
 		slog.Error("enqueue discord outbox failed",
