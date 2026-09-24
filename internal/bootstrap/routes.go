@@ -545,6 +545,11 @@ func registerThirdSlackRoutes(group *gin.RouterGroup) {
 	group.POST("/webhook/:channel_id", third.SlackPostWebhook)
 }
 
+func registerThirdLarkRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.LarkPostWebhook)
+	group.POST("/webhook/:channel_id", third.LarkPostWebhook)
+}
+
 func registerThirdXRoutes(group *gin.RouterGroup) {
 	group.GET("/webhook", third.XGetWebhook)
 	group.GET("/webhook/:channel_id", third.XGetWebhook)

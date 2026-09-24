@@ -115,6 +115,13 @@ type SlackChannelConfig struct {
 	WelcomeMessage string `json:"welcomeMessage,omitempty"`
 }
 
+type LarkChannelConfig struct {
+	AppID             string `json:"appId,omitempty"`             // Lark custom app App ID (cli_...)
+	AppSecret         string `json:"appSecret,omitempty"`         // Lark custom app App Secret
+	VerificationToken string `json:"verificationToken,omitempty"` // Event subscription Verification Token
+	Domain            string `json:"domain,omitempty"`            // lark (default) | feishu
+}
+
 type XChannelConfig struct {
 	BearerToken       string `json:"bearerToken,omitempty"`       // X API v2 Bearer Token
 	APIKey            string `json:"apiKey,omitempty"`            // Consumer Key

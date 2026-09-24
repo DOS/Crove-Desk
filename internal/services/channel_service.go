@@ -636,6 +636,26 @@ func (s *channelService) ParseThreadsChannelConfig(raw string) (*dto.ThreadsChan
 	return cfg, nil
 }
 
+func (s *channelService) ParseLarkChannelConfig(raw string) (*dto.LarkChannelConfig, error) {
+	raw = strings.TrimSpace(raw)
+	cfg := &dto.LarkChannelConfig{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), cfg); err != nil {
+			return nil, err
+		}
+	}
+	cfg.AppID = strings.TrimSpace(cfg.AppID)
+	cfg.AppSecret = strings.TrimSpace(cfg.AppSecret)
+	cfg.VerificationToken = strings.TrimSpace(cfg.VerificationToken)
+	switch strings.ToLower(strings.TrimSpace(cfg.Domain)) {
+	case "feishu":
+		cfg.Domain = "feishu"
+	default:
+		cfg.Domain = "lark"
+	}
+	return cfg, nil
+}
+
 func (s *channelService) GetUserTokenSecret(channel *models.Channel) string {
 	if channel == nil {
 		return ""
@@ -855,7 +875,7 @@ func (s *channelService) GetEnabledChannel(ctx *gin.Context) *models.Channel {
 
 func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRequest) (*models.Channel, error) {
 	channelType := strings.TrimSpace(req.ChannelType)
-	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeEmail && channelType != enums.ChannelTypeDiscord && channelType != enums.ChannelTypeMessenger && channelType != enums.ChannelTypeInstagram && channelType != enums.ChannelTypeWhatsApp && channelType != enums.ChannelTypeSlack && channelType != enums.ChannelTypeX && channelType != enums.ChannelTypeTikTok && channelType != enums.ChannelTypeLine && channelType != enums.ChannelTypeViber && channelType != enums.ChannelTypeThreads {
+	if channelType != enums.ChannelTypeWeb && channelType != enums.ChannelTypeWechatMP && channelType != enums.ChannelTypeWxWorkKF && channelType != enums.ChannelTypeTelegram && channelType != enums.ChannelTypeZaloOA && channelType != enums.ChannelTypeEmail && channelType != enums.ChannelTypeDiscord && channelType != enums.ChannelTypeMessenger && channelType != enums.ChannelTypeInstagram && channelType != enums.ChannelTypeWhatsApp && channelType != enums.ChannelTypeSlack && channelType != enums.ChannelTypeX && channelType != enums.ChannelTypeTikTok && channelType != enums.ChannelTypeLine && channelType != enums.ChannelTypeViber && channelType != enums.ChannelTypeThreads && channelType != enums.ChannelTypeLark {
 
 		return nil, errorsx.InvalidParamI18n("error.e0250")
 	}
@@ -1044,6 +1064,30 @@ func (s *channelService) buildChannelModel(id int64, req request.CreateChannelRe
 		if cfg.WebhookSecret == "" {
 			if secret, err := generateUserTokenSecret(); err == nil {
 				cfg.WebhookSecret = secret
+			}
+		}
+		configBytes, err := json.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
+		configJSON = string(configBytes)
+	case enums.ChannelTypeLark:
+		if channelID == "" {
+			channelID = strs.UUID()
+		}
+		if exists := s.Take("channel_id = ? AND status <> ? AND id <> ?", channelID, enums.StatusDeleted, id); exists != nil {
+			return nil, errorsx.InvalidParamI18n("error.e0248")
+		}
+		cfg, err := s.ParseLarkChannelConfig(configJSON)
+		if err != nil {
+			return nil, errorsx.InvalidParam("invalid lark channel configuration")
+		}
+		if cfg == nil || cfg.AppID == "" || cfg.AppSecret == "" {
+			return nil, errorsx.InvalidParam("lark appId and appSecret are required")
+		}
+		if cfg.VerificationToken == "" {
+			if secret, err := generateUserTokenSecret(); err == nil {
+				cfg.VerificationToken = secret
 			}
 		}
 		configBytes, err := json.Marshal(cfg)

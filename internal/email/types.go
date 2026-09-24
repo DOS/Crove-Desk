@@ -110,14 +110,14 @@ type SendGridContent struct {
 
 // ResendSendEmailRequest payload for Resend API.
 type ResendSendEmailRequest struct {
-	From        string            `json:"from"`
-	To          []string          `json:"to"`
-	ReplyTo     string            `json:"reply_to,omitempty"`
-	Subject     string            `json:"subject"`
-	Text        string            `json:"text,omitempty"`
-	HTML        string            `json:"html,omitempty"`
-	Headers     map[string]string `json:"headers,omitempty"`
-	Attachments []ResendAttachment`json:"attachments,omitempty"`
+	From        string             `json:"from"`
+	To          []string           `json:"to"`
+	ReplyTo     string             `json:"reply_to,omitempty"`
+	Subject     string             `json:"subject"`
+	Text        string             `json:"text,omitempty"`
+	HTML        string             `json:"html,omitempty"`
+	Headers     map[string]string  `json:"headers,omitempty"`
+	Attachments []ResendAttachment `json:"attachments,omitempty"`
 }
 
 type ResendAttachment struct {
@@ -127,14 +127,14 @@ type ResendAttachment struct {
 
 // PostmarkSendEmailRequest payload for Postmark API.
 type PostmarkSendEmailRequest struct {
-	From        string            `json:"From"`
-	To          string            `json:"To"`
-	ReplyTo     string            `json:"ReplyTo,omitempty"`
-	Subject     string            `json:"Subject"`
-	TextBody    string            `json:"TextBody,omitempty"`
-	HtmlBody    string            `json:"HtmlBody,omitempty"`
-	Headers     []PostmarkHeader  `json:"Headers,omitempty"`
-	Attachments []PostmarkAttach  `json:"Attachments,omitempty"`
+	From        string           `json:"From"`
+	To          string           `json:"To"`
+	ReplyTo     string           `json:"ReplyTo,omitempty"`
+	Subject     string           `json:"Subject"`
+	TextBody    string           `json:"TextBody,omitempty"`
+	HtmlBody    string           `json:"HtmlBody,omitempty"`
+	Headers     []PostmarkHeader `json:"Headers,omitempty"`
+	Attachments []PostmarkAttach `json:"Attachments,omitempty"`
 }
 
 type PostmarkHeader struct {
@@ -181,13 +181,13 @@ type BrevoInboundWebhook struct {
 
 // PostmarkInboundWebhook represents Postmark inbound email payload.
 type PostmarkInboundWebhook struct {
-	From        string            `json:"From"`
-	FromName    string            `json:"FromName,omitempty"`
-	To          string            `json:"To"`
-	Subject     string            `json:"Subject"`
-	TextBody    string            `json:"TextBody,omitempty"`
-	HtmlBody    string            `json:"HtmlBody,omitempty"`
-	MessageID   string            `json:"MessageID,omitempty"`
-	MailboxHash string            `json:"MailboxHash,omitempty"`
-	Headers     []PostmarkHeader  `json:"Headers,omitempty"`
+	From        string           `json:"From"`
+	FromName    string           `json:"FromName,omitempty"`
+	To          string           `json:"To"`
+	Subject     string           `json:"Subject"`
+	TextBody    string           `json:"TextBody,omitempty"`
+	HtmlBody    string           `json:"HtmlBody,omitempty"`
+	MessageID   string           `json:"MessageID,omitempty"`
+	MailboxHash string           `json:"MailboxHash,omitempty"`
+	Headers     []PostmarkHeader `json:"Headers,omitempty"`
 }

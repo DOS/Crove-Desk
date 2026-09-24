@@ -18,6 +18,7 @@ const (
 	ExternalSourceInstagram ExternalSource = "instagram"  // Instagram Direct
 	ExternalSourceWhatsApp  ExternalSource = "whatsapp"   // WhatsApp Business
 	ExternalSourceSlack     ExternalSource = "slack"      // Slack Bot
+	ExternalSourceLark      ExternalSource = "lark"       // Lark
 	ExternalSourceX         ExternalSource = "x"          // X (Twitter)
 	ExternalSourceTikTok    ExternalSource = "tiktok"     // TikTok Direct Messages
 	ExternalSourceLine      ExternalSource = "line"       // LINE Official Account
@@ -38,6 +39,7 @@ var externalSourceLabelMap = map[ExternalSource]string{
 	ExternalSourceInstagram: "Instagram",
 	ExternalSourceWhatsApp:  "WhatsApp",
 	ExternalSourceSlack:     "Slack",
+	ExternalSourceLark:      "Lark",
 	ExternalSourceX:         "X",
 	ExternalSourceTikTok:    "TikTok",
 	ExternalSourceLine:      "LINE",
