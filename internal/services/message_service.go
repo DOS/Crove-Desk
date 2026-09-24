@@ -619,6 +619,15 @@ func (s *messageService) sendValidatedMessage(conversation *models.Conversation,
 		)
 	}
 
+	// Lark 渠道消息入队，异步发送
+	if enqueueErr := ChannelMessageOutboxService.EnqueueLarkMessage(conversation, message); enqueueErr != nil {
+		slog.Error("enqueue lark outbox failed",
+			"conversation_id", conversation.ID,
+			"message_id", message.ID,
+			"error", enqueueErr,
+		)
+	}
+
 	// X (Twitter) 渠道消息入队，异步发送
 	if enqueueErr := ChannelMessageOutboxService.EnqueueXMessage(conversation, message); enqueueErr != nil {
 		slog.Error("enqueue x outbox failed",

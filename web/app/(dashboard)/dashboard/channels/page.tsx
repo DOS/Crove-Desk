@@ -15,6 +15,7 @@ import {
   PhoneIcon,
   SendIcon,
   SlackIcon,
+  BirdIcon,
   SmartphoneIcon,
   VideoIcon,
 
@@ -45,6 +46,9 @@ function getChannelTypeLabel(channelType: string, t: (key: string) => string) {
   }
   if (channelType === "discord") {
     return t("channel.typeDiscord")
+  }
+  if (channelType === "lark") {
+    return t("channel.typeLark")
   }
   if (channelType === "messenger") {
     return t("channel.typeMessenger")
@@ -91,6 +95,9 @@ function getChannelTypeLabel(channelType: string, t: (key: string) => string) {
   if (channelType === "discord") {
     return t("channel.typeDiscord")
   }
+  if (channelType === "lark") {
+    return t("channel.typeLark")
+  }
   return t("channel.typeWeb")
 }
 
@@ -110,6 +117,9 @@ function ChannelIcon({ channelType }: { channelType: string }) {
   }
   if (channelType === "discord") {
     return <Gamepad2Icon className="size-4" />
+  }
+  if (channelType === "lark") {
+    return <BirdIcon className="size-4" />
   }
   if (channelType === "messenger") {
     return <MessageCircleIcon className="size-4" />
@@ -152,6 +162,9 @@ function ChannelIcon({ channelType }: { channelType: string }) {
   }
   if (channelType === "discord") {
     return <Gamepad2Icon className="size-4" />
+  }
+  if (channelType === "lark") {
+    return <BirdIcon className="size-4" />
   }
   return <Building2Icon className="size-4" />
 }

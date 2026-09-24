@@ -34,6 +34,7 @@ const (
 	ChannelTypeLine      = "line"
 	ChannelTypeViber     = "viber"
 	ChannelTypeThreads   = "threads"
+	ChannelTypeLark      = "lark"
 )
 
 type WxWorkKFMessageSendStatus string

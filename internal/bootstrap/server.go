@@ -238,6 +238,7 @@ func addRouter(app *gin.Engine) {
 	registerThirdInstagramRoutes(thirdGroup.Group("/instagram"))
 	registerThirdWhatsAppRoutes(thirdGroup.Group("/whatsapp"))
 	registerThirdSlackRoutes(thirdGroup.Group("/slack"))
+	registerThirdLarkRoutes(thirdGroup.Group("/lark"))
 	registerThirdXRoutes(thirdGroup.Group("/x"))
 	registerThirdTikTokRoutes(thirdGroup.Group("/tiktok"))
 	registerThirdLineRoutes(thirdGroup.Group("/line"))

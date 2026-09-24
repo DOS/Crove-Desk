@@ -59,6 +59,10 @@ func Init() {
 		if slackCount > 0 {
 			slog.Info("slack outbox dispatched", "count", slackCount)
 		}
+		larkCount := services.LarkOutboundService.DispatchPendingOutbox()
+		if larkCount > 0 {
+			slog.Info("lark outbox dispatched", "count", larkCount)
+		}
 		lineCount := services.LineOutboundService.DispatchPendingOutbox()
 		if lineCount > 0 {
 			slog.Info("line outbox dispatched", "count", lineCount)

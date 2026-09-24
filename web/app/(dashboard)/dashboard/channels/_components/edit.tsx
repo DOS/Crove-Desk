@@ -136,6 +136,12 @@ type WhatsAppChannelConfig = {
 }
 
 
+type LarkChannelConfig = {
+  appId?: string
+  appSecret?: string
+  verificationToken?: string
+}
+
 type SlackChannelConfig = {
   botToken?: string
   signingSecret?: string
@@ -203,7 +209,7 @@ function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
 function createSchema(t: Translate) {
   return z
     .object({
-      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "email", "discord", "messenger", "instagram", "whatsapp", "slack", "x", "tiktok", "line", "viber", "threads"], t("channel.typeRequired")),
+      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "email", "discord", "messenger", "instagram", "whatsapp", "slack", "x", "tiktok", "line", "viber", "threads", "lark"], t("channel.typeRequired")),
 
       aiAgentId: z.string().trim().regex(/^\d+$/, t("channel.agentRequired")),
 		aiAgentRolloutPercent: z.coerce.number().int().min(1).max(100),
@@ -243,6 +249,9 @@ function createSchema(t: Translate) {
       slackTeamId: z.string().trim(),
       slackTeamName: z.string().trim(),
       slackDefaultChannel: z.string().trim(),
+      larkAppId: z.string().trim(),
+      larkAppSecret: z.string().trim(),
+      larkVerificationToken: z.string().trim(),
       xBearerToken: z.string().trim(),
       xApiKey: z.string().trim(),
       xApiSecretKey: z.string().trim(),
@@ -360,11 +369,18 @@ function createSchema(t: Translate) {
           message: t("channel.slackBotTokenRequired"),
         })
       }
+      if (values.channelType === "lark" && (!values.larkAppId.trim() || !values.larkAppSecret.trim())) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["larkAppId"],
+          message: t("channel.larkCredentialsRequired"),
+        })
+      }
     })
 }
 
 type EditForm = {
-  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "email" | "discord" | "messenger" | "instagram" | "whatsapp" | "slack" | "x" | "tiktok" | "line" | "viber" | "threads"
+  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "email" | "discord" | "messenger" | "instagram" | "whatsapp" | "slack" | "x" | "tiktok" | "line" | "viber" | "threads" | "lark"
 
   aiAgentId: string
 	aiAgentRolloutPercent: number
@@ -401,6 +417,9 @@ type EditForm = {
   slackBotToken: string
   slackSigningSecret: string
   slackAppId: string
+  larkAppId: string
+  larkAppSecret: string
+  larkVerificationToken: string
   slackTeamId: string
   slackTeamName: string
   slackDefaultChannel: string
@@ -489,6 +508,9 @@ function createEmptyForm(t: Translate): EditForm {
     slackBotToken: "",
     slackSigningSecret: "",
     slackAppId: "",
+    larkAppId: "",
+    larkAppSecret: "",
+    larkVerificationToken: "",
     slackTeamId: "",
     slackTeamName: "",
     slackDefaultChannel: "",
@@ -709,6 +731,20 @@ function parseWhatsAppChannelConfig(configJson: string): WhatsAppChannelConfig {
   }
 }
 
+function parseLarkChannelConfig(configJson: string): LarkChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as LarkChannelConfig
+    return {
+      appId: parsed.appId?.trim() || "",
+      appSecret: parsed.appSecret?.trim() || "",
+      verificationToken: parsed.verificationToken?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
 function parseSlackChannelConfig(configJson: string): SlackChannelConfig {
   if (!configJson.trim()) return {}
   try {
@@ -821,6 +857,7 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const isMessenger = item.channelType === "messenger"
   const isInstagram = item.channelType === "instagram"
   const isWhatsApp = item.channelType === "whatsapp"
+  const isLark = item.channelType === "lark"
   const isSlack = item.channelType === "slack"
   const isX = item.channelType === "x"
   const isTikTok = item.channelType === "tiktok"
@@ -856,6 +893,9 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const slackConfig = isSlack
     ? parseSlackChannelConfig(item.configJson)
     : null
+  const larkConfig = isLark
+    ? parseLarkChannelConfig(item.configJson)
+    : null
   const xConfig = isX
     ? parseXChannelConfig(item.configJson)
     : null
@@ -890,13 +930,15 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
                     ? "whatsapp"
                     : item.channelType === "slack"
                       ? "slack"
-                      : item.channelType === "x"
-                        ? "x"
-                        : item.channelType === "tiktok"
-                          ? "tiktok"
-                          : item.channelType === "line"
-                            ? "line"
-                            : item.channelType === "viber"
+                      : item.channelType === "lark"
+                        ? "lark"
+                        : item.channelType === "x"
+                          ? "x"
+                          : item.channelType === "tiktok"
+                            ? "tiktok"
+                            : item.channelType === "line"
+                              ? "line"
+                              : item.channelType === "viber"
                               ? "viber"
                               : item.channelType === "threads"
                                 ? "threads"
@@ -945,6 +987,9 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
     slackTeamId: slackConfig?.teamId ?? "",
     slackTeamName: slackConfig?.teamName ?? "",
     slackDefaultChannel: slackConfig?.defaultChannel ?? "",
+    larkAppId: larkConfig?.appId ?? "",
+    larkAppSecret: larkConfig?.appSecret ?? "",
+    larkVerificationToken: larkConfig?.verificationToken ?? "",
     xBearerToken: xConfig?.bearerToken ?? "",
     xApiKey: xConfig?.apiKey ?? "",
     xApiSecretKey: xConfig?.apiSecretKey ?? "",
@@ -1067,6 +1112,12 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
                 teamId: form.slackTeamId.trim(),
                 teamName: form.slackTeamName.trim(),
                 defaultChannel: form.slackDefaultChannel.trim(),
+              })
+          : channelType === "lark"
+            ? JSON.stringify({
+                appId: form.larkAppId.trim(),
+                appSecret: form.larkAppSecret.trim(),
+                verificationToken: form.larkVerificationToken.trim(),
               })
           : channelType === "x"
             ? JSON.stringify({
@@ -2430,6 +2481,58 @@ function ChannelFormBody({
                     </FieldContent>
                   </Field>
                 </div>
+              </div>
+            ) : null}
+
+            {channelType === "lark" ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-3">
+                  <div className="font-medium text-sm text-foreground">{t("channel.larkSetupTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.larkSetupDescription")}</div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: {channelDetail?.channelId ? `/api/third/lark/webhook/${channelDetail.channelId}` : "/api/third/lark/webhook/{channelId}"}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.larkAppId}>
+                    <FieldLabel htmlFor="channel-lark-appid">{t("channel.larkAppId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-lark-appid"
+                        placeholder="cli_..."
+                        {...register("larkAppId")}
+                      />
+                      <FieldError errors={[errors.larkAppId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.larkAppSecret}>
+                    <FieldLabel htmlFor="channel-lark-secret">{t("channel.larkAppSecret")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-lark-secret"
+                        type="password"
+                        placeholder="Lark App Secret"
+                        {...register("larkAppSecret")}
+                      />
+                      <FieldError errors={[errors.larkAppSecret]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.larkVerificationToken}>
+                  <FieldLabel htmlFor="channel-lark-token">{t("channel.larkVerificationToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-lark-token"
+                      type="password"
+                      placeholder="Lark Verification Token"
+                      {...register("larkVerificationToken")}
+                    />
+                    <FieldError errors={[errors.larkVerificationToken]} />
+                  </FieldContent>
+                </Field>
               </div>
             ) : null}
 

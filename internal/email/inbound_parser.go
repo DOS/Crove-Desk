@@ -44,7 +44,7 @@ type UniversalInboundWebhook struct {
 	MailboxHash   string `json:"MailboxHash"`
 
 	// Headers can be a map or an array of objects
-	Headers any `json:"headers"`
+	Headers     any `json:"headers"`
 	HeadersCaps any `json:"Headers"`
 
 	// Brevo items array
