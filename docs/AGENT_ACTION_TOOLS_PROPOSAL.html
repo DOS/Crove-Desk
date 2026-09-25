@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Agent Action Tools cho Crove-Desk - Đề xuất kiến trúc</title>
+<style>
+  :root{
+    --bg:#0f1113; --panel:#16191d; --panel2:#1b1f24; --border:#262b31;
+    --text:#e6e8ea; --muted:#9aa3ad; --red:#FF2E29; --red-soft:rgba(255,46,41,.12);
+    --ok:#3fb96f; --warn:#e8a33d;
+    --mono:ui-monospace,Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);margin:0;line-height:1.7;
+    font-family:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;}
+  .wrap{max-width:960px;margin:0 auto;padding:48px 24px 96px}
+  header{border-bottom:1px solid var(--border);padding-bottom:28px;margin-bottom:36px}
+  .badge{display:inline-block;padding:3px 14px;border:1px solid var(--red);color:var(--red);
+    border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+  h1{font-size:30px;line-height:1.25;margin:16px 0 8px}
+  .sub{color:var(--muted);font-size:17px;margin:0 0 12px}
+  .meta{color:var(--muted);font-size:13px;margin:0}
+  h2{font-size:21px;margin:44px 0 14px;padding-left:12px;border-left:3px solid var(--red)}
+  h3{font-size:16px;margin:26px 0 8px;color:#f2f3f4}
+  p{margin:10px 0}
+  ul,ol{margin:8px 0 12px;padding-left:24px}
+  li{margin:5px 0}
+  code{font-family:var(--mono);background:var(--panel2);border:1px solid var(--border);
+    padding:1px 6px;border-radius:4px;font-size:.88em;color:#ffb3af}
+  strong{color:#fff}
+  table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:14px}
+  th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:#fff;font-size:13px;letter-spacing:.02em}
+  tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+  .ok{color:var(--ok);font-weight:700;white-space:nowrap}
+  .missing{color:var(--red);font-weight:700;white-space:nowrap}
+  .partial{color:var(--warn);font-weight:700;white-space:nowrap}
+  .callout{border-left:3px solid var(--red);background:var(--panel);border-radius:0 8px 8px 0;
+    padding:14px 18px;margin:16px 0}
+  .callout p{margin:6px 0}
+  .principle{background:var(--red-soft);border:1px solid rgba(255,46,41,.35);border-radius:10px;
+    padding:16px 20px;margin:18px 0;font-size:16px;text-align:center;font-weight:600}
+  .flow{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch;margin:18px 0;font-size:13px}
+  .fnode{background:var(--panel2);border:1px solid var(--border);border-radius:8px;
+    padding:10px 12px;flex:1 1 130px;min-width:120px;text-align:center}
+  .fnode b{display:block;font-size:13px;color:#fff;margin-bottom:2px}
+  .fnode span{color:var(--muted);font-size:12px;line-height:1.4;display:block}
+  .fnode.hot{border-color:var(--red)}
+  .farrow{align-self:center;color:var(--red);font-weight:700;font-size:16px;padding:0 2px}
+  details{border:1px solid var(--border);border-radius:8px;background:var(--panel);
+    padding:10px 16px;margin:12px 0}
+  summary{cursor:pointer;font-weight:600;color:#f2f3f4}
+  details[open] summary{margin-bottom:8px}
+  pre{background:#0b0d0f;border:1px solid var(--border);border-radius:8px;padding:14px 16px;
+    overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.6;color:#d7dbdf}
+  footer{margin-top:56px;border-top:1px solid var(--border);padding-top:18px;
+    color:var(--muted);font-size:13px}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 22px;margin:0 0 8px}
+  .toc a{color:#f2a19e;text-decoration:none}
+  .toc a:hover{color:var(--red)}
+  .toc ol{margin:6px 0 2px}
+  @media (max-width:640px){
+    .wrap{padding:28px 14px 64px}
+    h1{font-size:24px}
+    table{font-size:13px}
+    th,td{padding:7px 8px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="badge">Đề xuất - chờ duyệt</span>
+  <h1>Agent Action Tools cho Crove-Desk</h1>
+  <p class="sub">Cho phép AI agent hành động trên hệ thống nghiệp vụ thật - không chỉ trả lời câu hỏi</p>
+  <p class="meta">2026-09-26 · Crove-Desk (desk.crove.com) · Soạn bởi ZCode agent · Duyệt: JOY</p>
+</header>
+
+<nav class="toc">
+  <strong>Nội dung</strong>
+  <ol>
+    <li><a href="#s1">Tóm tắt điều hành</a></li>
+    <li><a href="#s2">Bối cảnh: Ada Computer và tiền lệ Em Huyền</a></li>
+    <li><a href="#s3">Hiện trạng repo - đã có gì, thiếu gì</a></li>
+    <li><a href="#s4">Kiến trúc đề xuất</a></li>
+    <li><a href="#s5">Ba loại tool map sang Crove-Desk</a></li>
+    <li><a href="#s6">Guardrails - điều kiện bắt buộc trước khi bật</a></li>
+    <li><a href="#s7">Lộ trình và ước lượng effort</a></li>
+    <li><a href="#s8">Rủi ro và câu hỏi mở</a></li>
+    <li><a href="#s9">Khuyến nghị và quyết định cần từ JOY</a></li>
+  </ol>
+</nav>
+
+<h2 id="s1">1. Tóm tắt điều hành</h2>
+<p>Khách hàng đến với agent hỗ trợ thường là khi họ gặp vấn đề. Trả lời câu hỏi là phần dễ; phần khó là vẫn phải có người làm việc thật: tra đơn hàng, reset thiết bị, xử lý hoàn tiền, đổi gói. Đề xuất này bổ sung cho Crove-Desk một lớp <strong>action tools</strong> để AI agent tự hoàn thành việc đó: kết nối API nghiệp vụ thật, thực thi hành động trong giới hạn chính sách, có người duyệt khi rủi ro cao, và ghi vết từng bước.</p>
+<p>Điểm quan trọng nhất: <strong>Crove-Desk không phải xây từ đầu.</strong> Khi rà code thực tế, repo đã có sẵn một bộ khung governance chất lượng cao: <code>PolicyGuard</code> với risk level và giới hạn gọi tool, audit 3 lớp (<code>AgentRun</code> / <code>AgentStep</code> / <code>AgentToolCall</code>), MCP client với allow-list do admin chọn tay. Còn thiếu đúng 3 mảnh:</p>
+<ul>
+  <li><strong>Business API tools</strong> - cho doanh nghiệp tự đăng ký endpoint có sẵn thành tool agent gọi được (hiện tool chỉ tồn tại dạng code cứng hoặc MCP server ngoài).</li>
+  <li><strong>Policy-as-code</strong> - luật nghiệp vụ (ngưỡng tiền, điều kiện entitlement) chạy bằng engine biểu thức an toàn, quyết định cho phép / từ chối / cần người duyệt.</li>
+  <li><strong>Staff approval gate</strong> - khi vượt ngưỡng, hành động dừng vào hàng chờ duyệt cho CS lead, thay vì chỉ hỏi xác nhận khách hàng như hiện tại.</li>
+</ul>
+<p>Ước lượng tổng: <strong>9 đến 16 ngày làm việc</strong> (solo dev + agent hỗ trợ), chia 4 pha; Pha 0 chỉ tốn 1-2 ngày để ra quyết định go/no-go.</p>
+<div class="principle">Model đề xuất - Policy phán quyết - Người duyệt khi vượt ngưỡng - Mọi bước đều được ghi vết</div>
+
+<h2 id="s2">2. Bối cảnh: Ada Computer và tiền lệ Em Huyền</h2>
+<p>Ngày 2026-09-25, Ada (ada.cx) ra mắt <strong>Ada Computer</strong>: thay vì chỉ trả lời, agent được gắn tool để dùng chính hệ thống của doanh nghiệp hoàn thành việc của khách. Ba loại tool: <em>API tools</em> (nối API có sẵn, agent làm việc từ order / số dư / booking thật), <em>Code tools</em> (luật nghiệp vụ chạy sandbox Python để refund / entitlement theo policy chứ không theo ý model), <em>MCP tools</em> (nối MCP server có sẵn, từng tool mặc định tắt, bật tay). Doanh nghiệp quyết khi nào tool chạy và mọi bước được trace trong conversation view.</p>
+<p class="meta" style="margin-top:-4px">Ghi chú trung thực: bài gốc trên ada.cx chặn bot (403 ở cả 3 công cụ fetch), nên phần phân tích dựa trên nội dung announcement JOY cung cấp, không phải toàn văn bài viết.</p>
+<p>Tiền lệ nội bộ: <strong>Em Huyền</strong>, agent trên DOSClaw, đã làm đúng pattern này ở quy mô nhỏ - nhận yêu cầu và tự reset thiết bị cho user. Tức là concept đã được chứng minh chạy thật; câu hỏi chỉ là productize nó trong Crove-Desk cho mọi doanh nghiệp dùng.</p>
+
+<h2 id="s3">3. Hiện trạng repo - đã có gì, thiếu gì</h2>
+<p>Toàn bộ nhận định dưới đây đã kiểm chứng bằng đọc code trực tiếp, ngày 2026-09-26. Mỗi dòng ghi rõ đường dẫn để đối chiếu.</p>
+<table>
+  <tr><th style="width:30%">Thành phần</th><th style="width:12%">Trạng thái</th><th>Bằng chứng trong code</th></tr>
+  <tr>
+    <td>Ranh giới governance cho tool gọi bởi agent (risk level, giới hạn số lần, yêu cầu confirm, chế độ idempotency)</td>
+    <td class="ok">Đã có</td>
+    <td><code>internal/ai/tooling/registry.go</code>: <code>Definition</code> có <code>RiskLevel</code> (read/write), <code>RequireConfirmation</code>, <code>MaxCallsPerRun</code>, <code>TimeoutMS</code>, <code>IdempotencyMode</code>; <code>PolicyGuard.Authorize</code> kiểm allow-list, giới hạn tổng số lần gọi, kích thước tham số tối đa.</td>
+  </tr>
+  <tr>
+    <td>MCP client + MCP server + registry</td>
+    <td class="ok">Đã có</td>
+    <td><code>internal/ai/mcps/</code> (client.go, server.go, registry.go, runtime.go) dùng chính SDK <code>github.com/modelcontextprotocol/go-sdk/mcp</code>.</td>
+  </tr>
+  <tr>
+    <td>MCP allow-list theo agent, admin bật tay từng tool</td>
+    <td class="ok">Đã có</td>
+    <td>Trường <code>AllowedMCPTools</code> trên model <code>Agent</code> (<code>internal/models/models.go</code>), cấu hình tại dashboard <code>/dashboard/mcp</code> và workbench cấu hình AI agent.</td>
+  </tr>
+  <tr>
+    <td>Xác nhận với khách hàng trước hành động (HITL phía khách)</td>
+    <td class="ok">Đã có</td>
+    <td><code>internal/ai/runtime/graphs/hitl.go</code>: interrupt confirm/cancel cho tạo ticket và chuyển tiếp nhân viên; tool ghi như <code>GraphCreateTicketConfirm</code> đặt <code>RequireConfirmation=true</code>.</td>
+  </tr>
+  <tr>
+    <td>Audit từng lần gọi tool</td>
+    <td class="ok">Đã có</td>
+    <td>Models <code>AgentRun</code>, <code>AgentStep</code>, <code>AgentToolCall</code> (risk level, preview tham số / kết quả, duration); hiển thị tại dashboard <code>/dashboard/agent-runs</code>.</td>
+  </tr>
+  <tr>
+    <td>Workflow engine + editor trực quan</td>
+    <td class="ok">Đã có</td>
+    <td><code>internal/ai/runtime/graphs/</code>, <code>internal/ai/workflow/</code>, editor flowgram nhúng tại <code>web/public/flowgram-editor</code>.</td>
+  </tr>
+  <tr>
+    <td>Business API tool tự đăng ký (doanh nghiệp khai báo endpoint thành tool)</td>
+    <td class="missing">Thiếu</td>
+    <td>Tool hiện chỉ tồn tại 3 dạng source: <code>builtin</code> (viết cứng), <code>graph</code>, <code>mcp</code> - xem <code>internal/pkg/enums/tool.go</code>. Muốn agent gọi API nghiệp vụ riêng thì phải viết code Go mới hoặc dựng hẳn MCP server.</td>
+  </tr>
+  <tr>
+    <td>Policy-as-code (ngưỡng tiền, entitlement quyết định hành động)</td>
+    <td class="missing">Thiếu</td>
+    <td><code>PolicyGuard</code> chỉ có giới hạn tĩnh (số lần gọi, kích thước tham số). Chưa có chỗ viết luật kiểu "refund dưới 500 nghìn thì tự chạy, trên thì cần duyệt".</td>
+  </tr>
+  <tr>
+    <td>Staff approval gate (CS lead duyệt khi vượt ngưỡng)</td>
+    <td class="missing">Thiếu</td>
+    <td>Cơ chế confirm hiện có chỉ hướng về <em>khách hàng</em>. Không có hàng chờ duyệt cho người vận hành, cũng không có flow "agent tạm dừng, chờ duyệt, chạy tiếp".</td>
+  </tr>
+  <tr>
+    <td>Mô hình secret cho tool gọi ra ngoài</td>
+    <td class="partial">Một phần</td>
+    <td>MCP server config có <code>Headers</code> (<code>internal/ai/mcps/types.go</code>) nhưng chưa có nguyên tắc "credential không bao giờ vào context của model" áp hệ thống cho business API tool mới.</td>
+  </tr>
+</table>
+<details>
+  <summary>Phát hiện an toàn kèm theo: MCP tool ghi dữ liệu đang bị mặc định là "read"</summary>
+  <p>Trong <code>internal/ai/tooling/registry.go</code>, hàm <code>Resolve()</code> trả về MCP tool với <code>RiskLevel: "read"</code> và <code>RequireConfirmation: false</code> một cách vô điều kiện - trong khi MCP server có cung cấp sẵn cờ <code>readOnlyHint</code> trên từng tool (<code>internal/ai/mcps/types.go</code>) nhưng code chưa dùng nó. Nghĩa là nếu sau này nối một MCP server có tool <em>ghi</em> (tạo deal, cập nhật subscription), tool đó vẫn được classify là read và đi qua policy như hành động đọc.</p>
+  <p>Đây không phải lỗ hổng đang khai thác được ngay (chưa có MCP server ghi nào được nối, và allow-list admin vẫn phải bật tool), nhưng là bẫy an toàn sắp sửa nổ khi tính năng này mở rộng. Đề xuất xử lý trong Pha 2: risk level của MCP tool suy từ <code>readOnlyHint</code> + ghi đè tay bởi admin, thay vì mặc định read.</p>
+</details>
+
+<h2 id="s4">4. Kiến trúc đề xuất</h2>
+
+<div class="flow">
+  <div class="fnode"><b>Khách hàng</b><span>yêu cầu cần xử lý thật</span></div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>Agent Loop</b><span>model chọn tool + lập tham số</span></div>
+  <div class="farrow">→</div>
+  <div class="fnode hot"><b>Policy Engine</b><span>CEL: allow / deny / cần duyệt</span></div>
+  <div class="farrow">→</div>
+  <div class="fnode hot"><b>Approval Gate</b><span>dừng chờ CS lead nếu vượt ngưỡng</span></div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>Executor</b><span>gọi API thật, secret resolve lúc chạy</span></div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>Audit + Reply</b><span>ghi AgentToolCall, trả lời khách</span></div>
+</div>
+
+<h3>4.1. Tool Registry mở rộng - business API tool là dữ liệu, không phải code</h3>
+<p>Thêm một giá trị <code>api</code> vào enum <code>ToolSourceType</code> và một bảng mới (đề xuất tên <code>t_action_tool</code>, đăng ký vào <code>AutoMigrate</code> theo quy ước repo) với các trường chính:</p>
+<ul>
+  <li><code>code</code>, <code>name</code>, <code>description</code> - định danh và mô tả đưa vào system prompt của agent.</li>
+  <li><code>endpoint</code>: method + base URL + path, kèm JSON schema của tham số đầu vào (schema này vừa để validate tham số model sinh ra, vừa là hợp đồng công khai của tool).</li>
+  <li><code>auth</code>: <em>tham chiếu</em> secret (tên env var hoặc key trong secret store), không bao giờ lưu giá trị secret trong DB.</li>
+  <li><code>risk_level</code> (read/write), <code>policy_expr</code> (biểu thức ngưỡng, xem 4.2), <code>enabled</code> (mặc định FALSE - off by default đúng như Ada), <code>dry_run</code>, <code>timeout_ms</code>, <code>rate_limit</code>, <code>idempotency_mode</code>.</li>
+</ul>
+<p>Trang quản lý dùng đúng <code>DashboardCrudPage</code> sẵn có của repo (filter / pagination / form / confirm đều miễn phí), không viết trang riêng. Khi resolve tool, <code>Registry.Resolve()</code> mở rộng: tra <code>t_action_tool</code> trước, sau đó mới rơi về các nguồn hiện có.</p>
+
+<h3>4.2. Policy Engine v1 - biểu thức CEL thay sandbox Python</h3>
+<p>Ada dùng Python sandbox cho code tools. Với Crove-Desk, v1 không cần nặng đến thế: một <strong>expression engine</strong> là đủ cho 90% luật nghiệp vụ (ngưỡng tiền, điều kiện trạng thái, entitlement). Đề xuất <strong>CEL (cel-go)</strong>: pure Go, không Turing-complete (không loop, không IO - không thể lạm dụng), đánh giá tất định, đã chiến đấu trong production ở Google. Model không bao giờ viết policy - model chỉ đề xuất tham số, policy là văn bản do admin soạn sẵn gắn vào từng tool.</p>
+<details>
+  <summary>Ví dụ policy expression gắn vào tool "refund_order"</summary>
+<pre>// cho phép tự chạy khi: đơn đã giao + số tiền trong hạn mức
+order.status == "delivered" &amp;&amp; refund.amount &lt;= 500000
+  → verdict: allow
+
+// vượt hạn mức: vẫn hợp lệ nhưng cần người duyệt
+order.status == "delivered" &amp;&amp; refund.amount &gt; 500000
+  → verdict: require_approval
+
+// còn lại: từ chối thẳng
+  → verdict: deny</pre>
+  <p>Context đưa vào biểu thức gồm: dữ liệu conversation, hồ sơ customer (từ mirror <code>t_customer</code> đã đồng bộ với CRM), và tham số action model đề xuất. Verdict trả về một trong ba: <code>allow</code> / <code>deny</code> / <code>require_approval</code>, và verdict này được ghi vào bản audit.</p>
+</details>
+<p>Lựa chọn kỹ thuật (CEL so với expr-lang so với goja) để chốt lúc vào Pha 1; tiêu chí là: pure Go, safe by default, có khả năng test expression offline. Nếu sau này xuất hiện use case cần logic phức tạp hơn expression (vòng lặp, gọi nhiều API), khi đó mới đánh giá sandbox tổng quát (WASM hoặc process isolé) - không làm vội.</p>
+
+<h3>4.3. Staff Approval Gate - mảnh HITL còn thiếu</h3>
+<p>Repo đã có interrupt confirm cho khách hàng; gate phía người vận hành tái dùng đúng cơ chế đó nhưng đổi phía duyệt:</p>
+<ol>
+  <li>Policy trả <code>require_approval</code> → tạo bản ghi <code>t_tool_approval</code> (tool, tham số đã hash, conversation, verdict, hạn chót).</li>
+  <li>Agent trả lời khách ngay: "yêu cầu của bạn đã được ghi nhận, đang chờ duyệt từ đội hỗ trợ" - khách không bị treo.</li>
+  <li>CS lead thấy hàng chờ trong dashboard, bấm Duyệt hoặc Từ chối (kèm ghi chú).</li>
+  <li>Duyệt xong, executor chạy tiếp và kết quả đẩy ngược vào conversation; từ chối thì agent thông báo lịch sự cho khách.</li>
+</ol>
+<p>Ưu tiên thiết kế này vì nó tái dùng interrupt infrastructure hiện có, và quan trọng hơn: <strong>quyết định rủi ro tài chính nằm ở con người, không nằm ở prompt.</strong></p>
+
+<h3>4.4. Executor và nguyên tắc credential</h3>
+<ul>
+  <li>HTTP client dùng chung với timeout, retry có ý thức về idempotency (chỉ retry method an toàn hoặc khi có idempotency key).</li>
+  <li>Secret resolve <em>tại thời điểm gọi</em> từ env var / secret store; giá trị secret không bao giờ được đưa vào context model, không vào log, không vào preview tham số trong audit.</li>
+  <li>Kết quả tool cắt gọn (size limit) trước khi trả về model để tránh phình context.</li>
+</ul>
+
+<h3>4.5. Trace và audit</h3>
+<p>Bảng <code>AgentToolCall</code> đã ghi risk level, tham số, kết quả, duration - mở rộng thêm: verdict của policy, ID approval (nếu có), và cờ dry-run. Hiển thị tại <code>/dashboard/agent-runs</code> vốn đã có. Việc render từng bước tool <em>ngay trong conversation view</em> (dạng card gập lại được) là nâng cấp UI theo sau, không phải điều kiện để chạy tính năng.</p>
+
+<h2 id="s5">5. Ba loại tool map sang Crove-Desk</h2>
+<table>
+  <tr><th style="width:16%">Ada gọi là</th><th style="width:34%">Ở Crove-Desk là</th><th>Khoảng cách</th></tr>
+  <tr>
+    <td><strong>API tools</strong></td>
+    <td>Business API tool tự đăng ký (mục 4.1)</td>
+    <td><span class="missing">Mảnh thiếu lớn nhất.</span> Đây cũng chính là dạng tool của Em Huyền (reset thiết bị): một endpoint nội bộ + schema + policy. Ưu tiên số 1.</td>
+  </tr>
+  <tr>
+    <td><strong>Code tools</strong></td>
+    <td>Policy expression (CEL) trong Policy Engine (mục 4.2)</td>
+    <td><span class="partial">Giải khác biệt có chủ đích:</span> expression thay sandbox Python cho v1 - đủ cho refund / entitlement, an toàn mặc định, không cần container. Sandbox tổng quát để dành khi có use case thật.</td>
+  </tr>
+  <tr>
+    <td><strong>MCP tools</strong></td>
+    <td>Đã có client + allow-list admin</td>
+    <td><span class="partial">Cần đồng bộ governance:</span> áp cùng cỗ máy risk level + policy + approval cho MCP tool (hiện MCP tool mặc định read, xem phát hiện ở mục 3), và cho phép expose MCP server nội bộ của ecosystem Crove (CRM, Crove Sign) thành tool có kiểm soát - khớp đúng Tier 2 trong <code>docs/ARCHITECTURE.md</code>.</td>
+  </tr>
+</table>
+
+<h2 id="s6">6. Guardrails - điều kiện bắt buộc trước khi bật</h2>
+<p>Đây là phần khó nhất của tính năng, và là phần announcement của Ada không nói kỹ. Bảy nguyên tắc, tất cả là điều kiện hoàn thành của Pha 2 - action ghi không bật nếu thiếu bất kỳ mục nào:</p>
+<ol>
+  <li><strong>Off by default từng tool.</strong> Bật một tool là một hành động có chủ đích của admin, có confirm ghi rõ hậu quả.</li>
+  <li><strong>Least privilege.</strong> Mỗi tool một credential riêng, giới hạn đúng method/path cho phép; credential không bao giờ vào model context.</li>
+  <li><strong>Ngưỡng + approval.</strong> Mọi action ghi có ngưỡng; vượt ngưỡng thì dừng chờ người duyệt. Mặc định an toàn: tuần đầu mọi action ghi cần duyệt, sau đó mới nới theo số tiền.</li>
+  <li><strong>Idempotency.</strong> Idempotency key theo bộ (conversation, tool, hash tham số) với TTL - retry không bao giờ hoàn tiền 2 lần.</li>
+  <li><strong>Rate limit.</strong> Theo tool và theo conversation (tái dùng pattern rate limit đã làm cho public endpoint ở commit <code>61832f4c</code>).</li>
+  <li><strong>Audit bất biến.</strong> Mỗi lần gọi ghi đủ: tham số, policy verdict, approval, kết quả, lỗi. Không có nút xóa audit.</li>
+  <li><strong>Kill switch.</strong> Một công tắc global + một per agent để tắt toàn bộ action tools ngay lập tức, không cần deploy lại.</li>
+</ol>
+<p>Bổ sung hai chế độ vận hành: <strong>dry-run</strong> (tool mới chạy đủ policy + audit nhưng không gọi ra ngoài thật) và <strong>verify khách hàng</strong> trước action nhạy cảm (câu hỏi xác minh dựa lịch sử; OTP là open question, xem mục 8).</p>
+
+<h2 id="s7">7. Lộ trình và ước lượng effort</h2>
+<table>
+  <tr><th style="width:20%">Pha</th><th style="width:12%">Effort</th><th>Nội dung và tiêu chí xong</th></tr>
+  <tr>
+    <td><strong>Pha 0 - Spike</strong></td>
+    <td>1-2 ngày</td>
+    <td>Một tool <em>read-only</em> chạy end-to-end trong 1 luồng thật: đăng ký tool trong DB → agent loop expose → gọi được → audit hiện trong agent-runs. Không có policy, không có approval. Mục tiêu duy nhất: chứng minh vòng đời và ra quyết định go/no-go với chi phí thấp nhất.</td>
+  </tr>
+  <tr>
+    <td><strong>Pha 1 - Registry + Policy</strong></td>
+    <td>3-5 ngày</td>
+    <td>Bảng <code>t_action_tool</code> + dashboard CRUD + executor an toàn + CEL policy engine + dry-run + i18n đủ zh-CN / en-US (theo quy ước repo). Xong khi: tạo tool qua dashboard, gắn policy, agent gọi được với verdict ghi audit.</td>
+  </tr>
+  <tr>
+    <td><strong>Pha 2 - Approval + an toàn ghi</strong></td>
+    <td>3-5 ngày</td>
+    <td>Staff approval gate + idempotency key + rate limit + kill switch + sửa risk level MCP tool (phát hiện mục 3). Xong khi: 1 action ghi thật chạy trọn vòng "policy → chờ duyệt → duyệt → thực thi → trace".</td>
+  </tr>
+  <tr>
+    <td><strong>Pha 3 - Hoàn thiện</strong> (tùy chọn)</td>
+    <td>2-4 ngày</td>
+    <td>Render tool step trong conversation view, thư viện policy mẫu (refund / entitlement / reset), nối MCP server nội bộ của ecosystem Crove. Ước lượng lại khi chạy.</td>
+  </tr>
+</table>
+<p class="meta">Ước lượng thô cho solo dev có agent hỗ trợ, dựa trên việc khung governance đã có sẵn. Tính lại tại từng pha - đặc biệt Pha 1 vì đụng schema mới + dashboard + i18n.</p>
+
+<h2 id="s8">8. Rủi ro và câu hỏi mở</h2>
+<ul>
+  <li><strong>Model chọn sai tool hoặc sai tham số.</strong> Giảm thiểu: JSON schema validate cứng trước khi chạy, policy chặn lớp 2, và bắt agent xác nhận với khách khi yêu cầu mơ hồ. Chấp nhận còn sót rủi ro - vì lý do đó mà ngưỡng approval mặc định bảo thủ.</li>
+  <li><strong>Khách giả danh để kích hoạt action.</strong> Action nhạy cảm cần verify danh tính trước. Câu hỏi mở: câu hỏi xác minh dựa lịch sử mua đủ chưa, hay cần OTP? Quyết định khi có use case thật.</li>
+  <li><strong>Chi phí và độ trễ.</strong> Mỗi tool call thêm 1 round vào reply loop. Giới hạn bằng MaxCallsPerRun đã có sẵn trong PolicyGuard, và chỉ expose tool liên quan từng agent.</li>
+  <li><strong>Ai viết policy?</strong> JOY solo - expression thuần là rào cản. Thiết kế dashboard cần form ngưỡng đơn giản cho case phổ biến (số tiền + điều kiện rơi vào dropdown), expression chỉ cho case nâng cao.</li>
+  <li><strong>Có nên vẽ luồng action bằng flowgram không?</strong> Backlog đã có mục "Visual AI Workflow Canvas" đang Under Consideration. Không gộp vào đề xuất này - để sau khi 2 pha đầu chứng minh giá trị.</li>
+</ul>
+
+<h2 id="s9">9. Khuyến nghị và quyết định cần từ JOY</h2>
+<p><strong>Khuyến nghị:</strong> duyệt Pha 0 ngay (1-2 ngày, không đụng action ghi, rủi ro thấp) để chứng minh vòng đời end-to-end. Pha 1-2 chỉ khởi động khi có sẵn 2-3 use case thật - đề xuất đầu tiên: tra trạng thái đơn hàng / thiết bị (read-only), hành động thứ hai kiểu Em Huyền (reset thiết bị, có approval gate).</p>
+<p>Ba quyết định cần từ JOY:</p>
+<ol>
+  <li>Duyệt làm Pha 0 không?</li>
+  <li>Use case thật đầu tiên là gì? (đề xuất: tra trạng thái đơn / thiết bị - read-only, an toàn tuyệt đối)</li>
+  <li>Chính sách ngưỡng mặc định: mọi action ghi cần duyệt trong giai đoạn đầu, sau đó nới lỏng theo số tiền - đồng ý không?</li>
+</ol>
+
+<footer>
+  <p><strong>Nguồn và phạm vi kiểm chứng:</strong> mọi nhận định "Đã có / Thiếu" ở mục 3 đã verify bằng đọc code trực tiếp tại đúng đường dẫn nêu ra, ngày 2026-09-26. Bài gốc Ada Computer (ada.cx/blog/introducing-ada-computer) chặn bot nên phân tích dựa trên trích dẫn announcement. Tài liệu nguồn của bản ghi trong repo: <code>docs/CROVE_DESK_PRODUCT_BACKLOG.md</code> (mục AI Agent Runtime &amp; Automation).</p>
+</footer>
+
+</div>
+</body>
+</html>
