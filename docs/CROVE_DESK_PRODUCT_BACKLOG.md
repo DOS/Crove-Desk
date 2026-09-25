@@ -44,7 +44,7 @@ This document defines the complete product backlog and feature roadmap for **Cro
   - Embedded Signup / OAuth code exchange that saves the access token and discovers the WABA ID and Phone Number ID.
   - Outbound text, image and document delivery queued through the channel outbox with backoff retry.
 - **Not shipped yet**:
-  - Message status delivery receipts (sent, delivered, read) — the webhook `statuses` field is not consumed.
+  - Message status delivery receipts (sent, delivered, read) - the webhook `statuses` field is not consumed.
   - Pre-approved HSM template message triggers for re-engagement, so business-initiated conversations outside the 24-hour customer service window are not supported.
   - Outbound interactive buttons and list messages.
 
@@ -85,6 +85,18 @@ This document defines the complete product backlog and feature roadmap for **Cro
   - Automated status transition from `ai_serving` to `pending` queue.
   - Agent routing based on skills, availability, and round-robin dispatch.
   - Notification triggers across WeCom, Telegram, and dashboard alerts.
+
+### [Planned] Agent Action Tools: Governed Business Actions from Conversations
+- **Status**: `Planned`
+- **Topics**: `Improvement 👍`
+- **Description**: Let the AI Agent complete customer tasks instead of only answering questions, by executing governed actions against business systems. Modeled after Ada Computer's tool model (API tools, code-based policy, off-by-default MCP tools) and validated internally by the DOSClaw "device reset" agent pattern. Design doc: `docs/AGENT_ACTION_TOOLS_PROPOSAL.html`.
+- **Key Capabilities**:
+  - Business API tool registry: admins register existing HTTP endpoints as agent-callable tools with parameter schemas, per-tool enablement (off by default), risk level, and credential references resolved at execution time and never exposed to the model.
+  - Policy-as-code thresholds: a safe expression engine (CEL) evaluates conversation, customer, and action context to return allow, deny, or require approval, so refunds and entitlements follow written policy instead of model judgment.
+  - Staff approval gate: actions above configured thresholds pause into a pending approval queue for support leads; the customer is informed immediately, approval resumes execution, and every decision is audited. Extends the existing customer-side confirmation interrupts to a human operator loop.
+  - Write-safety for MCP tools: derive risk level from the server-provided read-only hint plus admin override instead of the current unconditional read default.
+  - Write-action guardrails: idempotency keys per (conversation, tool, arguments) to prevent duplicate side effects on retry, per-tool and per-conversation rate limits, dry-run mode for new tools, and a global kill switch.
+  - Full audit continuity: policy verdicts and approval decisions recorded alongside the existing AgentToolCall safety records and surfaced in the Agent Runs dashboard.
 
 ### [Under Consideration] Visual AI Workflow Canvas & Node-based Orchestration
 - **Status**: `Under Consideration`
