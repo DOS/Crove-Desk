@@ -1303,6 +1303,8 @@
     "createdTitle": "User Created",
     "initialPasswordDescription": "The initial password for {username} has been generated. It will only be shown once, so copy it now and share it securely.",
     "initialPassword": "Initial Password",
+    "ssoAccountDescription": "{username} was created without a local password. The account signs in via SSO (DOS ID).",
+    "ssoAccountNote": "No local password was set for this account. The user signs in through SSO (DOS ID) instead.",
     "copying": "Copying...",
     "copyPassword": "Copy Password",
     "close": "Close",

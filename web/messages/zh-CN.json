@@ -1303,6 +1303,8 @@
     "createdTitle": "用户已创建",
     "initialPasswordDescription": "{username} 的初始密码已生成，仅在此展示一次，请及时复制并安全传达。",
     "initialPassword": "初始密码",
+    "ssoAccountDescription": "已创建 {username}。该账号未设置本地密码，将通过 SSO（DOS ID）登录。",
+    "ssoAccountNote": "该账号未设置本地密码，用户将通过 SSO（DOS ID）登录。",
     "copying": "复制中...",
     "copyPassword": "复制密码",
     "close": "关闭",

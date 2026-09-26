@@ -1302,6 +1302,8 @@
     "createdTitle": "User Created",
     "initialPasswordDescription": "The initial password for {username} has been generated. It will only be shown once, so copy it now and share it securely.",
     "initialPassword": "Initial Password",
+    "ssoAccountDescription": "Đã tạo {username}. Tài khoản không có mật khẩu local và sẽ đăng nhập qua SSO (DOS ID).",
+    "ssoAccountNote": "Tài khoản không có mật khẩu local. Người dùng sẽ đăng nhập qua SSO (DOS ID).",
     "copying": "Copying...",
     "copyPassword": "Copy Password",
     "close": "Close",

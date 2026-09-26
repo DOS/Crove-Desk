@@ -45,7 +45,9 @@ type UserResponse struct {
 	Permissions []string       `json:"permissions,omitempty"`
 }
 
-// CreateUserResultResponse 创建用户成功响应；password 仅在本次响应中返回一次。
+// CreateUserResultResponse is the user-create success payload. password is
+// returned exactly once and is empty when the account was created without a
+// local password (SSO-only mode; a non-break-glass user signs in via SSO).
 type CreateUserResultResponse struct {
 	User     *UserResponse `json:"user"`
 	Password string        `json:"password"`
