@@ -4,24 +4,19 @@ on:
   # deploy-beta.yml builds and publishes an image on every push to dev, so CI has
   # to run on push too. Without this a direct push shipped a beta image that no
   # test had ever seen, because pull_request was the only trigger.
+  #
+  # Deliberately no `paths-ignore` here: the protect-dev ruleset requires the
+  # "Backend Tests" and "Frontend Typecheck" checks, and a skipped workflow never
+  # reports them, so docs-only PRs would be permanently unmergeable (hit on
+  # PR #23). CI is a few minutes on a public repo, so it runs on every change.
   push:
     branches:
       - main
       - dev
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - "screenshots/**"
-      - ".gitignore"
   pull_request:
     branches:
       - main
       - dev
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - "screenshots/**"
-      - ".gitignore"
   workflow_dispatch:
 
 concurrency:
