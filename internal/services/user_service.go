@@ -90,7 +90,7 @@ func (s *userService) GetByEmail(email string) *models.User {
 	return repositories.UserRepository.GetByEmail(sqls.DB(), email)
 }
 
-func (s *userService) CreateUser(req request.CreateUserRequest, operator *dto.AuthPrincipal) (*models.User, string, error) {
+func (s *userService) CreateUser(req request.CreateUserRequest, operator *dto.AuthPrincipal, authCfg config.AuthConfig) (*models.User, string, error) {
 	username := strings.TrimSpace(req.Username)
 	if username == "" {
 		return nil, "", errorsx.InvalidParamI18n("error.e0257")
@@ -108,13 +108,24 @@ func (s *userService) CreateUser(req request.CreateUserRequest, operator *dto.Au
 		return nil, "", errorsx.InvalidParamI18n("error.e0338")
 	}
 
-	plain, err := utils.GenerateRandomPassword(12)
-	if err != nil {
-		return nil, "", err
-	}
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(plain), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, "", err
+	// SSO-only invariant (mirrors changePassword): a local password is only
+	// ever usable by break-glass principals, so creating a regular account
+	// must not plant a dormant credential that comes alive the moment
+	// password login is re-enabled.
+	allowLocalPassword := authCfg.IsPasswordLoginEnabled() ||
+		(email != nil && authCfg.IsBreakGlassEmail(*email))
+	plain := ""
+	var passwordHash []byte
+	if allowLocalPassword {
+		var err error
+		plain, err = utils.GenerateRandomPassword(12)
+		if err != nil {
+			return nil, "", err
+		}
+		passwordHash, err = bcrypt.GenerateFromPassword([]byte(plain), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, "", err
+		}
 	}
 
 	user := &models.User{
@@ -134,7 +145,7 @@ func (s *userService) CreateUser(req request.CreateUserRequest, operator *dto.Au
 		user.Nickname = username
 	}
 
-	err = sqls.WithTransaction(func(ctx *sqls.TxContext) error {
+	err := sqls.WithTransaction(func(ctx *sqls.TxContext) error {
 		if err := repositories.UserRepository.Create(ctx.Tx, user); err != nil {
 			return err
 		}

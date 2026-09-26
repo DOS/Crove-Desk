@@ -7,9 +7,11 @@ import (
 	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/config"
 	"agent-desk/internal/pkg/dto"
+	"agent-desk/internal/pkg/dto/request"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/errorsx"
 
+	"github.com/mlogclub/simple/sqls"
 	"gorm.io/gorm"
 )
 
@@ -156,5 +158,76 @@ func TestResetPasswordAllowedInSSOOnlyModeForBreakGlassTarget(t *testing.T) {
 	}
 	if password == "" {
 		t.Fatal("expected a generated password to be returned")
+	}
+}
+
+// Creating an account in SSO-only mode must not plant a dormant local
+// password that comes alive the moment password login is re-enabled.
+func TestCreateUserSkipsLocalPasswordInSSOOnlyMode(t *testing.T) {
+	setupAuthServiceTestDB(t)
+	email := "staff@dos.ai"
+
+	user, plain, err := UserService.CreateUser(request.CreateUserRequest{
+		Username: "ssouser",
+		Email:    &email,
+	}, &dto.AuthPrincipal{UserID: 1, Username: "admin"}, ssoOnlyAuthConfig("joy@dos.ai"))
+	if err != nil {
+		t.Fatalf("create user in SSO-only mode: %v", err)
+	}
+	if plain != "" {
+		t.Fatal("no generated password may be returned in SSO-only mode")
+	}
+	if user.Password != "" {
+		t.Fatal("created account must not carry a local password in SSO-only mode")
+	}
+
+	var reloaded models.User
+	if err := sqls.DB().Take(&reloaded, "id = ?", user.ID).Error; err != nil {
+		t.Fatalf("reload user: %v", err)
+	}
+	if reloaded.Password != "" {
+		t.Fatal("persisted account must not carry a local password in SSO-only mode")
+	}
+}
+
+// A break-glass allowlisted account is the one exception: its local password
+// stays usable for the break-glass login path, so create must still mint one.
+func TestCreateUserGeneratesPasswordForBreakGlassUserInSSOOnlyMode(t *testing.T) {
+	setupAuthServiceTestDB(t)
+	email := "joy@dos.ai"
+
+	user, plain, err := UserService.CreateUser(request.CreateUserRequest{
+		Username: "breakglass",
+		Email:    &email,
+	}, &dto.AuthPrincipal{UserID: 1, Username: "admin"}, ssoOnlyAuthConfig("joy@dos.ai"))
+	if err != nil {
+		t.Fatalf("create break-glass user in SSO-only mode: %v", err)
+	}
+	if plain == "" {
+		t.Fatal("expected a generated password for the break-glass account")
+	}
+	if user.Password == "" {
+		t.Fatal("break-glass account must carry a local password")
+	}
+}
+
+// With password login enabled (mixed mode) user creation keeps the classic
+// generated-password handoff.
+func TestCreateUserUnaffectedInMixedMode(t *testing.T) {
+	setupAuthServiceTestDB(t)
+	email := "staff@dos.ai"
+
+	user, plain, err := UserService.CreateUser(request.CreateUserRequest{
+		Username: "mixedmode",
+		Email:    &email,
+	}, &dto.AuthPrincipal{UserID: 1, Username: "admin"}, config.AuthConfig{TokenTTLHours: 2})
+	if err != nil {
+		t.Fatalf("create user in mixed mode: %v", err)
+	}
+	if plain == "" {
+		t.Fatal("expected a generated password in mixed mode")
+	}
+	if user.Password == "" {
+		t.Fatal("created account must carry a local password in mixed mode")
 	}
 }

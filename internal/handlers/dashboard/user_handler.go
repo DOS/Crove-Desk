@@ -90,7 +90,7 @@ func UserPostCreate(ctx *gin.Context) {
 		httpx.WriteJSON(ctx, err)
 		return
 	}
-	user, generatedPassword, err := services.UserService.CreateUser(req, operator)
+	user, generatedPassword, err := services.UserService.CreateUser(req, operator, config.Current().Auth)
 	if err != nil {
 		httpx.WriteJSON(ctx, err)
 		return

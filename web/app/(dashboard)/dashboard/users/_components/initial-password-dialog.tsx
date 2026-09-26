@@ -53,23 +53,33 @@ export function InitialPasswordDialog({
         <DialogHeader>
           <DialogTitle>{t("user.createdTitle")}</DialogTitle>
           <DialogDescription>
-            {t("user.initialPasswordDescription", { username: username || "-" })}
+            {password
+              ? t("user.initialPasswordDescription", { username: username || "-" })
+              : t("user.ssoAccountDescription", { username: username || "-" })}
           </DialogDescription>
         </DialogHeader>
-        <div className="rounded-md border bg-muted/35 p-4">
-          <div className="text-xs text-muted-foreground">{t("user.initialPassword")}</div>
-          <div className="mt-2 break-all font-mono text-base">{password}</div>
-        </div>
+        {password ? (
+          <div className="rounded-md border bg-muted/35 p-4">
+            <div className="text-xs text-muted-foreground">{t("user.initialPassword")}</div>
+            <div className="mt-2 break-all font-mono text-base">{password}</div>
+          </div>
+        ) : (
+          <div className="rounded-md border bg-muted/35 p-4 text-sm text-muted-foreground">
+            {t("user.ssoAccountNote")}
+          </div>
+        )}
         <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void handleCopy()}
-            disabled={copying || !password}
-          >
-            <CopyIcon />
-            {copying ? t("user.copying") : t("user.copyPassword")}
-          </Button>
+          {password ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleCopy()}
+              disabled={copying || !password}
+            >
+              <CopyIcon />
+              {copying ? t("user.copying") : t("user.copyPassword")}
+            </Button>
+          ) : null}
           <Button type="button" onClick={() => onOpenChange(false)}>
             {t("user.close")}
           </Button>
