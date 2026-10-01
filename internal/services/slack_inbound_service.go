@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/config"
+
+	"agent-desk/internal/models"
 	"agent-desk/internal/pkg/enums"
 	"agent-desk/internal/pkg/errorsx"
 	"agent-desk/internal/pkg/openidentity"

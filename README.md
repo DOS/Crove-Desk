@@ -16,13 +16,13 @@ Customer chat, the agent workspace, the knowledge base, model configuration, AI 
 
 ### Customer Chat
 
-![Customer Chat](screenshots/1.png)
+![Customer Chat](screenshots/en/1.png)
 
 Customers start a conversation from the web chat page or from any connected channel. The AI Agent responds first with knowledge-grounded answers. When the user explicitly asks for a human, the system starts a handoff confirmation flow.
 
 ### Agent Workspace
 
-![Agent Workspace](screenshots/2.png)
+![Agent Workspace](screenshots/en/2.png)
 
 The support workspace includes conversation lists, message handling, AI-to-human handoff, agent replies, private internal notes, conversation tags, linked customers, and ticket context for daily support work.
 
@@ -30,13 +30,13 @@ The support workspace includes conversation lists, message handling, AI-to-human
 
 | Knowledge Base FAQ | AI Agent Configuration |
 | --- | --- |
-| ![Knowledge Base FAQ](screenshots/4.png) | ![AI Agent Configuration](screenshots/5.png) |
+| ![Knowledge Base FAQ](screenshots/en/4.png) | ![AI Agent Configuration](screenshots/en/5.png) |
 
 The knowledge base stores FAQs, documents, and retrievable content. AI Agents bind model configurations, knowledge bases, Skills, MCP tools, and visual workflows to create support agents for specific scenarios.
 
 ### Model Configuration
 
-![Model Configuration](screenshots/3.png)
+![Model Configuration](screenshots/en/3.png)
 
 Model configuration supports OpenAI-compatible providers. You can configure LLMs, embedding models, rerank models, context limits, output settings, timeout, retry behavior, and enablement state.
 
