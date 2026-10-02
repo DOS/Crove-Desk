@@ -13,6 +13,7 @@ const (
 	ExternalSourceZaloOA   ExternalSource = "zalo_oa"   // Zalo OA
 	ExternalSourceSlack    ExternalSource = "slack"     // Slack
 	ExternalSourceDiscord  ExternalSource = "discord"   // Discord
+	ExternalSourceLark     ExternalSource = "lark"      // Lark
 )
 
 var externalSourceLabelMap = map[ExternalSource]string{
@@ -23,6 +24,7 @@ var externalSourceLabelMap = map[ExternalSource]string{
 	ExternalSourceZaloOA:   "Zalo OA",
 	ExternalSourceSlack:    "Slack",
 	ExternalSourceDiscord:  "Discord",
+	ExternalSourceLark:     "Lark",
 }
 
 func GetExternalSourceLabel(v ExternalSource) string {

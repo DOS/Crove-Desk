@@ -7,6 +7,7 @@ import {
   MessageSquareMoreIcon,
   SendIcon,
   SlackIcon,
+  BirdIcon,
 } from "lucide-react"
 
 import {
@@ -47,6 +48,9 @@ function getChannelTypeLabel(channelType: string, t: (key: string) => string) {
   if (channelType === "discord") {
     return t("channel.typeDiscord")
   }
+  if (channelType === "lark") {
+    return t("channel.typeLark")
+  }
   return t("channel.typeWeb")
 }
 
@@ -76,6 +80,9 @@ function ChannelIcon({ channelType }: { channelType: string }) {
   if (channelType === "discord") {
     return <Gamepad2Icon className="size-4" />
   }
+  if (channelType === "lark") {
+    return <BirdIcon className="size-4" />
+  }
   return <Building2Icon className="size-4" />
 }
 
@@ -93,6 +100,7 @@ export default function DashboardChannelsPage() {
     { value: "web", label: t("channel.typeWeb") },
     { value: "telegram", label: t("channel.typeTelegram") },
     { value: "discord", label: t("channel.typeDiscord") },
+    { value: "lark", label: t("channel.typeLark") },
     { value: "slack", label: t("channel.typeSlack") },
     { value: "zalo_oa", label: t("channel.typeZaloOa") },
     { value: "wechat_mp", label: t("channel.typeWechatMp") },

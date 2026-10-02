@@ -59,6 +59,13 @@ type SlackChannelConfig struct {
 	DefaultChannel string `json:"defaultChannel,omitempty"` // Default channel to post
 }
 
+type LarkChannelConfig struct {
+	AppID             string `json:"appId,omitempty"`             // Lark custom app App ID (cli_...)
+	AppSecret         string `json:"appSecret,omitempty"`         // Lark custom app App Secret
+	VerificationToken string `json:"verificationToken,omitempty"` // Event subscription Verification Token
+	Domain            string `json:"domain,omitempty"`            // lark (default) | feishu
+}
+
 type DiscordChannelConfig struct {
 	GuildID        string `json:"guildId,omitempty"`
 	GuildName      string `json:"guildName,omitempty"`

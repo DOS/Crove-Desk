@@ -42,6 +42,10 @@ func Init() {
 		if discordCount > 0 {
 			slog.Info("discord outbox dispatched", "count", discordCount)
 		}
+		larkCount := services.LarkOutboundService.DispatchPendingOutbox()
+		if larkCount > 0 {
+			slog.Info("lark outbox dispatched", "count", larkCount)
+		}
 	})
 
 	c.Start()

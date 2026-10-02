@@ -500,3 +500,8 @@ func registerThirdDiscordRoutes(group *gin.RouterGroup) {
 	group.POST("/webhook", third.DiscordPostWebhook)
 	group.POST("/webhook/:channel_id", third.DiscordPostWebhook)
 }
+
+func registerThirdLarkRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.LarkPostWebhook)
+	group.POST("/webhook/:channel_id", third.LarkPostWebhook)
+}
