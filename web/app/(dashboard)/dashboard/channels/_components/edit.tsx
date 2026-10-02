@@ -83,6 +83,12 @@ type SlackChannelConfig = {
   webhookSecret?: string
 }
 
+type LarkChannelConfig = {
+  appId?: string
+  appSecret?: string
+  verificationToken?: string
+}
+
 type DiscordChannelConfig = {
   guildId?: string
   guildName?: string
@@ -104,7 +110,7 @@ function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
 function createSchema(t: Translate) {
   return z
     .object({
-      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "slack", "discord"], t("channel.typeRequired")),
+      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "slack", "lark", "discord"], t("channel.typeRequired")),
       aiAgentId: z.string().trim().regex(/^\d+$/, t("channel.agentRequired")),
 		aiAgentRolloutPercent: z.coerce.number().int().min(1).max(100),
       name: z.string().trim().min(1, t("channel.nameRequired")),
@@ -119,6 +125,9 @@ function createSchema(t: Translate) {
       slackBotToken: z.string().trim(),
       slackSigningSecret: z.string().trim(),
       slackAppId: z.string().trim(),
+      larkAppId: z.string().trim(),
+      larkAppSecret: z.string().trim(),
+      larkVerificationToken: z.string().trim(),
       slackTeamId: z.string().trim(),
       slackTeamName: z.string().trim(),
       slackDefaultChannel: z.string().trim(),
@@ -163,11 +172,18 @@ function createSchema(t: Translate) {
           message: t("channel.slackBotTokenRequired"),
         })
       }
+      if (values.channelType === "lark" && (!values.larkAppId.trim() || !values.larkAppSecret.trim())) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["larkAppId"],
+          message: t("channel.larkCredentialsRequired"),
+        })
+      }
     })
 }
 
 type EditForm = {
-  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "slack" | "discord"
+  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "slack" | "lark" | "discord"
   aiAgentId: string
 	aiAgentRolloutPercent: number
   name: string
@@ -182,6 +198,9 @@ type EditForm = {
   slackBotToken: string
   slackSigningSecret: string
   slackAppId: string
+  larkAppId: string
+  larkAppSecret: string
+  larkVerificationToken: string
   slackTeamId: string
   slackTeamName: string
   slackDefaultChannel: string
@@ -216,6 +235,9 @@ function createEmptyForm(t: Translate): EditForm {
     slackBotToken: "",
     slackSigningSecret: "",
     slackAppId: "",
+    larkAppId: "",
+    larkAppSecret: "",
+    larkVerificationToken: "",
     slackTeamId: "",
     slackTeamName: "",
     slackDefaultChannel: "",
@@ -294,6 +316,20 @@ function parseSlackChannelConfig(configJson: string): SlackChannelConfig {
   }
 }
 
+function parseLarkChannelConfig(configJson: string): LarkChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as LarkChannelConfig
+    return {
+      appId: parsed.appId?.trim() || "",
+      appSecret: parsed.appSecret?.trim() || "",
+      verificationToken: parsed.verificationToken?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
 function parseDiscordChannelConfig(configJson: string): DiscordChannelConfig {
   if (!configJson.trim()) return {}
   try {
@@ -364,6 +400,7 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const isTelegram = item.channelType === "telegram"
   const isZaloOA = item.channelType === "zalo_oa"
   const isSlack = item.channelType === "slack"
+  const isLark = item.channelType === "lark"
   const isDiscord = item.channelType === "discord"
 
   const webConfig = parseWebChannelConfig(item.configJson, t)
@@ -383,6 +420,9 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const discordConfig = isDiscord
     ? parseDiscordChannelConfig(item.configJson)
     : null
+  const larkConfig = isLark
+    ? parseLarkChannelConfig(item.configJson)
+    : null
   return {
     channelType:
       item.channelType === "wxwork_kf"
@@ -393,8 +433,10 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
             ? "zalo_oa"
             : item.channelType === "slack"
               ? "slack"
-              : item.channelType === "discord"
-                ? "discord"
+              : item.channelType === "lark"
+                ? "lark"
+                : item.channelType === "discord"
+                  ? "discord"
                 : item.channelType === "wechat_mp"
                   ? "wechat_mp"
                   : "web",
@@ -422,6 +464,9 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
     discordGuildId: discordConfig?.guildId ?? "",
     discordGuildName: discordConfig?.guildName ?? "",
     discordBotToken: discordConfig?.botToken ?? "",
+    larkAppId: larkConfig?.appId ?? "",
+    larkAppSecret: larkConfig?.appSecret ?? "",
+    larkVerificationToken: larkConfig?.verificationToken ?? "",
 
     widgetTitle: wechatConfig?.title ?? webConfig.title,
     widgetSubtitle: wechatConfig?.subtitle ?? webConfig.subtitle,
@@ -478,6 +523,12 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
                   guildName: form.discordGuildName.trim(),
                   botToken: form.discordBotToken.trim(),
                   webhookSecret: form.webhookSecret.trim(),
+                })
+            : channelType === "lark"
+              ? JSON.stringify({
+                  appId: form.larkAppId.trim(),
+                  appSecret: form.larkAppSecret.trim(),
+                  verificationToken: form.larkVerificationToken.trim(),
                 })
               : channelType === "wechat_mp"
               ? JSON.stringify(webLikeConfig)
@@ -1037,6 +1088,58 @@ function ChannelFormBody({
                   <div className="mt-1">{t("channel.discordSetupDescription")}</div>
                   <div className="mt-2 font-mono text-[11px]">
                     {t("channel.inboundWebhookUrl")}: /api/third/discord/webhook
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {channelType === "lark" ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.larkAppId}>
+                    <FieldLabel htmlFor="channel-lark-appid">{t("channel.larkAppId")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-lark-appid"
+                        placeholder="cli_..."
+                        {...register("larkAppId")}
+                      />
+                      <FieldError errors={[errors.larkAppId]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.larkAppSecret}>
+                    <FieldLabel htmlFor="channel-lark-secret">{t("channel.larkAppSecret")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-lark-secret"
+                        type="password"
+                        placeholder="Lark App Secret"
+                        {...register("larkAppSecret")}
+                      />
+                      <FieldError errors={[errors.larkAppSecret]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <Field data-invalid={!!errors.larkVerificationToken}>
+                  <FieldLabel htmlFor="channel-lark-token">{t("channel.larkVerificationToken")}</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      id="channel-lark-token"
+                      type="password"
+                      placeholder="Lark Verification Token"
+                      {...register("larkVerificationToken")}
+                    />
+                    <FieldError errors={[errors.larkVerificationToken]} />
+                  </FieldContent>
+                </Field>
+
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                  <div className="font-medium text-foreground">{t("channel.larkSetupTitle")}</div>
+                  <div className="mt-1">{t("channel.larkSetupDescription")}</div>
+                  <div className="mt-2 font-mono text-[11px]">
+                    {t("channel.inboundWebhookUrl")}: /api/third/lark/webhook
                   </div>
                 </div>
               </div>
