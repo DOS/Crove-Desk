@@ -63,6 +63,22 @@ type EmailChannelConfig struct {
 	WelcomeMessage    string `json:"welcomeMessage,omitempty"`    // Auto-responder / welcome message
 }
 
+type SlackChannelConfig struct {
+	BotToken       string `json:"botToken,omitempty"`       // xoxb-... Bot Token
+	SigningSecret  string `json:"signingSecret,omitempty"`  // Slack Signing Secret
+	AppID          string `json:"appId,omitempty"`          // Slack App ID
+	TeamID         string `json:"teamId,omitempty"`         // Slack Workspace Team ID
+	TeamName       string `json:"teamName,omitempty"`       // Slack Workspace Team Name
+	DefaultChannel string `json:"defaultChannel,omitempty"` // Default channel to post
+}
+
+type LarkChannelConfig struct {
+	AppID             string `json:"appId,omitempty"`             // Lark custom app App ID (cli_...)
+	AppSecret         string `json:"appSecret,omitempty"`         // Lark custom app App Secret
+	VerificationToken string `json:"verificationToken,omitempty"` // Event subscription Verification Token
+	Domain            string `json:"domain,omitempty"`            // lark (default) | feishu
+}
+
 type DiscordChannelConfig struct {
 	GuildID        string `json:"guildId,omitempty"`
 	GuildName      string `json:"guildName,omitempty"`

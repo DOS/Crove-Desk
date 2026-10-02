@@ -11,9 +11,11 @@ const (
 	ExternalSourceUser      ExternalSource = "user"       // 用户信息
 	ExternalSourceTwentyCRM ExternalSource = "twenty_crm" // Twenty CRM
 	ExternalSourceTelegram  ExternalSource = "telegram"   // Telegram
-	ExternalSourceZaloOA    ExternalSource = "zalo_oa"    // Zalo OA
+	ExternalSourceZaloOA    ExternalSource = "zalo_oa"    // Zalo Official Account
+	ExternalSourceSlack     ExternalSource = "slack"      // Slack
 	ExternalSourceDiscord   ExternalSource = "discord"    // Discord
 	ExternalSourceEmail     ExternalSource = "email"      // Email
+	ExternalSourceLark      ExternalSource = "lark"       // Lark
 )
 
 var externalSourceLabelMap = map[ExternalSource]string{
@@ -23,8 +25,10 @@ var externalSourceLabelMap = map[ExternalSource]string{
 	ExternalSourceTwentyCRM: "Twenty CRM",
 	ExternalSourceTelegram:  "Telegram",
 	ExternalSourceZaloOA:    "Zalo OA",
+	ExternalSourceSlack:     "Slack",
 	ExternalSourceDiscord:   "Discord",
 	ExternalSourceEmail:     "Email",
+	ExternalSourceLark:      "Lark",
 }
 
 func GetExternalSourceLabel(v ExternalSource) string {

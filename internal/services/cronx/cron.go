@@ -38,9 +38,17 @@ func Init() {
 		if emailCount > 0 {
 			slog.Info("email outbox dispatched", "count", emailCount)
 		}
+		slackCount := services.SlackOutboundService.DispatchPendingOutbox()
+		if slackCount > 0 {
+			slog.Info("slack outbox dispatched", "count", slackCount)
+		}
 		discordCount := services.DiscordOutboundService.DispatchPendingOutbox()
 		if discordCount > 0 {
 			slog.Info("discord outbox dispatched", "count", discordCount)
+		}
+		larkCount := services.LarkOutboundService.DispatchPendingOutbox()
+		if larkCount > 0 {
+			slog.Info("lark outbox dispatched", "count", larkCount)
 		}
 	})
 

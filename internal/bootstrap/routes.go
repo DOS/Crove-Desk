@@ -504,7 +504,17 @@ func registerThirdEmailRoutes(group *gin.RouterGroup) {
 	group.POST("/webhook/:channel_id", third.EmailPostWebhook)
 }
 
+func registerThirdSlackRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.SlackPostWebhook)
+	group.POST("/webhook/:channel_id", third.SlackPostWebhook)
+}
+
 func registerThirdDiscordRoutes(group *gin.RouterGroup) {
 	group.POST("/webhook", third.DiscordPostWebhook)
 	group.POST("/webhook/:channel_id", third.DiscordPostWebhook)
+}
+
+func registerThirdLarkRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.LarkPostWebhook)
+	group.POST("/webhook/:channel_id", third.LarkPostWebhook)
 }
