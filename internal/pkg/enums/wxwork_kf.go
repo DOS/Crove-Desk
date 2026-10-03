@@ -26,6 +26,7 @@ const (
 	ChannelTypeSlack    = "slack"
 	ChannelTypeDiscord  = "discord"
 	ChannelTypeLark     = "lark"
+	ChannelTypeEmail    = "email"
 )
 
 type WxWorkKFMessageSendStatus string

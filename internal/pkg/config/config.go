@@ -26,6 +26,7 @@ type Config struct {
 	CustomerSession CustomerSessionConfig `yaml:"customerSession"`
 	Webhook         WebhookConfig         `yaml:"webhook"`
 	Discord         DiscordConfig         `yaml:"discord"`
+	Email           EmailConfig           `yaml:"email"`
 	Slack           SlackConfig           `yaml:"slack"`
 }
 
@@ -347,6 +348,20 @@ type DiscordConfig struct {
 	PublicKey    string `yaml:"publicKey"`
 }
 
+// EmailConfig holds the email delivery provider settings.
+type EmailConfig struct {
+	Provider      string `yaml:"provider"`
+	FromAddress   string `yaml:"fromAddress"`
+	FromName      string `yaml:"fromName"`
+	APIKey        string `yaml:"apiKey"`
+	SMTPHost      string `yaml:"smtpHost"`
+	SMTPPort      int    `yaml:"smtpPort"`
+	SMTPUser      string `yaml:"smtpUser"`
+	SMTPPassword  string `yaml:"smtpPassword"`
+	SMTPUseTLS    bool   `yaml:"smtpUseTls"`
+	InboundSecret string `yaml:"inboundSecret"`
+}
+
 // SlackConfig holds deployment-wide Slack app credentials. A channel may carry
 // its own bot token and signing secret, which take precedence; these are the
 // fallback for a single shared Slack app.
@@ -472,6 +487,16 @@ func bindConfigDefaults(v *viper.Viper) {
 	v.SetDefault("slack.clientSecret", "")
 	v.SetDefault("slack.botToken", "")
 	v.SetDefault("slack.signingSecret", "")
+	v.SetDefault("email.provider", "smtp")
+	v.SetDefault("email.fromAddress", "")
+	v.SetDefault("email.fromName", "")
+	v.SetDefault("email.apiKey", "")
+	v.SetDefault("email.smtpHost", "")
+	v.SetDefault("email.smtpPort", 587)
+	v.SetDefault("email.smtpUser", "")
+	v.SetDefault("email.smtpPassword", "")
+	v.SetDefault("email.smtpUseTls", false)
+	v.SetDefault("email.inboundSecret", "")
 }
 
 func bindEnvironmentAliases(v *viper.Viper) {
@@ -511,6 +536,16 @@ func bindEnvironmentAliases(v *viper.Viper) {
 	_ = v.BindEnv("slack.clientSecret", "AGENT_DESK_SLACK_CLIENTSECRET", "SLACK_CLIENT_SECRET")
 	_ = v.BindEnv("slack.botToken", "AGENT_DESK_SLACK_BOTTOKEN", "SLACK_BOT_TOKEN")
 	_ = v.BindEnv("slack.signingSecret", "AGENT_DESK_SLACK_SIGNINGSECRET", "SLACK_SIGNING_SECRET")
+	_ = v.BindEnv("email.provider", "EMAIL_PROVIDER", "AGENT_DESK_EMAIL_PROVIDER")
+	_ = v.BindEnv("email.fromAddress", "EMAIL_FROM", "EMAIL_FROM_ADDRESS", "AGENT_DESK_EMAIL_FROMADDRESS")
+	_ = v.BindEnv("email.fromName", "EMAIL_FROM_NAME", "EMAIL_SENDER_NAME", "AGENT_DESK_EMAIL_FROMNAME")
+	_ = v.BindEnv("email.apiKey", "EMAIL_API_KEY", "BREVO_API_KEY", "AGENT_DESK_EMAIL_APIKEY")
+	_ = v.BindEnv("email.smtpHost", "SMTP_HOST", "EMAIL_SMTP_HOST", "AGENT_DESK_EMAIL_SMTPHOST")
+	_ = v.BindEnv("email.smtpPort", "SMTP_PORT", "EMAIL_SMTP_PORT", "AGENT_DESK_EMAIL_SMTPPORT")
+	_ = v.BindEnv("email.smtpUser", "SMTP_USER", "EMAIL_SMTP_USER", "AGENT_DESK_EMAIL_SMTPUSER")
+	_ = v.BindEnv("email.smtpPassword", "SMTP_PASSWORD", "SMTP_PASS", "AGENT_DESK_EMAIL_SMTPPASSWORD")
+	_ = v.BindEnv("email.smtpUseTls", "SMTP_USE_TLS", "SMTP_SSL", "AGENT_DESK_EMAIL_SMTPUSETLS")
+	_ = v.BindEnv("email.inboundSecret", "EMAIL_INBOUND_SECRET", "EMAIL_WEBHOOK_SECRET", "AGENT_DESK_EMAIL_INBOUNDSECRET")
 }
 
 func normalizeLoadedConfig(cfg *Config) {

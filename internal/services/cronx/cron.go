@@ -46,6 +46,10 @@ func Init() {
 		if larkCount > 0 {
 			slog.Info("lark outbox dispatched", "count", larkCount)
 		}
+		emailCount := services.EmailOutboundService.DispatchPendingOutbox()
+		if emailCount > 0 {
+			slog.Info("email outbox dispatched", "count", emailCount)
+		}
 	})
 
 	c.Start()

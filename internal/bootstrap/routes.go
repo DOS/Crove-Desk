@@ -505,3 +505,8 @@ func registerThirdLarkRoutes(group *gin.RouterGroup) {
 	group.POST("/webhook", third.LarkPostWebhook)
 	group.POST("/webhook/:channel_id", third.LarkPostWebhook)
 }
+
+func registerThirdEmailRoutes(group *gin.RouterGroup) {
+	group.POST("/webhook", third.EmailPostWebhook)
+	group.POST("/webhook/:channel_id", third.EmailPostWebhook)
+}

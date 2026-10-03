@@ -73,6 +73,18 @@ type ZaloOAChannelConfig = {
   webhookSecret?: string
 }
 
+type EmailChannelConfig = {
+  emailAddress?: string
+  senderName?: string
+  provider?: string
+  apiKey?: string
+  smtpHost?: string
+  smtpPort?: number
+  smtpUser?: string
+  smtpPassword?: string
+  webhookSecret?: string
+}
+
 type SlackChannelConfig = {
   botToken?: string
   signingSecret?: string
@@ -110,7 +122,7 @@ function getDefaultWebChannelConfig(t: Translate): Required<WebChannelConfig> {
 function createSchema(t: Translate) {
   return z
     .object({
-      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "slack", "lark", "discord"], t("channel.typeRequired")),
+      channelType: z.enum(["web", "wechat_mp", "wxwork_kf", "telegram", "zalo_oa", "email", "slack", "lark", "discord"], t("channel.typeRequired")),
       aiAgentId: z.string().trim().regex(/^\d+$/, t("channel.agentRequired")),
 		aiAgentRolloutPercent: z.coerce.number().int().min(1).max(100),
       name: z.string().trim().min(1, t("channel.nameRequired")),
@@ -122,6 +134,14 @@ function createSchema(t: Translate) {
       zaloOaId: z.string().trim(),
       zaloAccessToken: z.string().trim(),
       zaloSecretKey: z.string().trim(),
+      emailAddress: z.string().trim(),
+      senderName: z.string().trim(),
+      emailProvider: z.string().trim(),
+      emailApiKey: z.string().trim(),
+      smtpHost: z.string().trim(),
+      smtpPort: z.coerce.number().int().optional(),
+      smtpUser: z.string().trim(),
+      smtpPassword: z.string().trim(),
       slackBotToken: z.string().trim(),
       slackSigningSecret: z.string().trim(),
       slackAppId: z.string().trim(),
@@ -149,6 +169,13 @@ function createSchema(t: Translate) {
           code: "custom",
           path: ["openKfId"],
           message: t("channel.wxworkAccountRequired"),
+        })
+      }
+      if (values.channelType === "email" && !values.emailAddress.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["emailAddress"],
+          message: t("channel.emailAddressRequired"),
         })
       }
       if (values.channelType === "telegram" && !values.botToken.trim()) {
@@ -183,7 +210,7 @@ function createSchema(t: Translate) {
 }
 
 type EditForm = {
-  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "slack" | "lark" | "discord"
+  channelType: "web" | "wechat_mp" | "wxwork_kf" | "telegram" | "zalo_oa" | "email" | "slack" | "lark" | "discord"
   aiAgentId: string
 	aiAgentRolloutPercent: number
   name: string
@@ -195,6 +222,14 @@ type EditForm = {
   zaloOaId: string
   zaloAccessToken: string
   zaloSecretKey: string
+  emailAddress: string
+  senderName: string
+  emailProvider: string
+  emailApiKey: string
+  smtpHost: string
+  smtpPort?: number
+  smtpUser: string
+  smtpPassword: string
   slackBotToken: string
   slackSigningSecret: string
   slackAppId: string
@@ -232,6 +267,14 @@ function createEmptyForm(t: Translate): EditForm {
     zaloOaId: "",
     zaloAccessToken: "",
     zaloSecretKey: "",
+    emailAddress: "",
+    senderName: "",
+    emailProvider: "default",
+    emailApiKey: "",
+    smtpHost: "",
+    smtpPort: 587,
+    smtpUser: "",
+    smtpPassword: "",
     slackBotToken: "",
     slackSigningSecret: "",
     slackAppId: "",
@@ -345,6 +388,26 @@ function parseDiscordChannelConfig(configJson: string): DiscordChannelConfig {
   }
 }
 
+function parseEmailChannelConfig(configJson: string): EmailChannelConfig {
+  if (!configJson.trim()) return {}
+  try {
+    const parsed = JSON.parse(configJson) as EmailChannelConfig
+    return {
+      emailAddress: parsed.emailAddress?.trim() || "",
+      senderName: parsed.senderName?.trim() || "",
+      provider: parsed.provider?.trim() || "",
+      apiKey: parsed.apiKey?.trim() || "",
+      smtpHost: parsed.smtpHost?.trim() || "",
+      smtpPort: parsed.smtpPort,
+      smtpUser: parsed.smtpUser?.trim() || "",
+      smtpPassword: parsed.smtpPassword?.trim() || "",
+      webhookSecret: parsed.webhookSecret?.trim() || "",
+    }
+  } catch {
+    return {}
+  }
+}
+
 function parseWebChannelConfig(configJson: string, t: Translate): Required<WebChannelConfig> {
   const defaultWebChannelConfig = getDefaultWebChannelConfig(t)
   if (!configJson.trim()) {
@@ -399,6 +462,7 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const isWechatMP = item.channelType === "wechat_mp"
   const isTelegram = item.channelType === "telegram"
   const isZaloOA = item.channelType === "zalo_oa"
+  const isEmail = item.channelType === "email"
   const isSlack = item.channelType === "slack"
   const isLark = item.channelType === "lark"
   const isDiscord = item.channelType === "discord"
@@ -423,10 +487,15 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
   const larkConfig = isLark
     ? parseLarkChannelConfig(item.configJson)
     : null
+  const emailConfig = isEmail
+    ? parseEmailChannelConfig(item.configJson)
+    : null
   return {
     channelType:
       item.channelType === "wxwork_kf"
         ? "wxwork_kf"
+        : item.channelType === "email"
+          ? "email"
         : item.channelType === "telegram"
           ? "telegram"
           : item.channelType === "zalo_oa"
@@ -455,6 +524,14 @@ function buildForm(item: AdminChannel | null, t: Translate): EditForm {
     zaloOaId: zaloConfig?.oaId ?? "",
     zaloAccessToken: zaloConfig?.accessToken ?? "",
     zaloSecretKey: zaloConfig?.secretKey ?? "",
+    emailAddress: emailConfig?.emailAddress ?? "",
+    senderName: emailConfig?.senderName ?? "",
+    emailProvider: emailConfig?.provider || "default",
+    emailApiKey: emailConfig?.apiKey ?? "",
+    smtpHost: emailConfig?.smtpHost ?? "",
+    smtpPort: emailConfig?.smtpPort ?? 587,
+    smtpUser: emailConfig?.smtpUser ?? "",
+    smtpPassword: emailConfig?.smtpPassword ?? "",
     slackBotToken: slackConfig?.botToken ?? "",
     slackSigningSecret: slackConfig?.signingSecret ?? "",
     slackAppId: slackConfig?.appId ?? "",
@@ -493,6 +570,18 @@ function buildPayload(form: EditForm, status: number, t: Translate): CreateAdmin
   const configJson =
     channelType === "wxwork_kf"
       ? JSON.stringify({ openKfId: form.openKfId.trim() })
+      : channelType === "email"
+        ? JSON.stringify({
+            emailAddress: form.emailAddress.trim(),
+            senderName: form.senderName.trim(),
+            provider: form.emailProvider === "default" ? "" : form.emailProvider.trim(),
+            apiKey: form.emailApiKey.trim(),
+            smtpHost: form.smtpHost.trim(),
+            smtpPort: form.smtpPort || 587,
+            smtpUser: form.smtpUser.trim(),
+            smtpPassword: form.smtpPassword.trim(),
+            webhookSecret: form.webhookSecret.trim(),
+          })
       : channelType === "telegram"
         ? JSON.stringify({
             botToken: form.botToken.trim(),
@@ -624,6 +713,7 @@ function ChannelFormBody({
   const aiAgentId = useWatch({ control, name: "aiAgentId" })
   const openKfId = useWatch({ control, name: "openKfId" })
   const userTokenSecret = useWatch({ control, name: "userTokenSecret" })
+  const emailProvider = useWatch({ control, name: "emailProvider" })
 	const previousRolloutPercent = channelDetail?.previousAiAgentRolloutPercent ?? 0
 
 	async function rollbackRolloutPercent() {
@@ -902,6 +992,153 @@ function ChannelFormBody({
                     : t("channel.configWebDescription")}
               </div>
             </div>
+
+            {channelType === "email" ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.emailAddress}>
+                    <FieldLabel htmlFor="channel-email-address">{t("channel.emailAddress")} *</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-email-address"
+                        type="email"
+                        placeholder="support@example.com"
+                        {...register("emailAddress")}
+                      />
+                      <FieldError errors={[errors.emailAddress]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.senderName}>
+                    <FieldLabel htmlFor="channel-sender-name">{t("channel.senderName")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-sender-name"
+                        placeholder="Support Team"
+                        {...register("senderName")}
+                      />
+                      <FieldError errors={[errors.senderName]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.emailProvider}>
+                    <FieldLabel htmlFor="channel-email-provider">{t("channel.emailProvider")}</FieldLabel>
+                    <FieldContent>
+                      <select
+                        id="channel-email-provider"
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        {...register("emailProvider")}
+                      >
+                        <option value="default">{t("channel.emailProviderDefault")}</option>
+                        <option value="smtp">{t("channel.emailProviderSmtp")}</option>
+                        <option value="brevo">{t("channel.emailProviderBrevo")}</option>
+                        <option value="sendgrid">{t("channel.emailProviderSendGrid")}</option>
+                        <option value="resend">{t("channel.emailProviderResend")}</option>
+                        <option value="postmark">{t("channel.emailProviderPostmark")}</option>
+                        <option value="mailgun">{t("channel.emailProviderMailgun")}</option>
+                      </select>
+                      <FieldError errors={[errors.emailProvider]} />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={!!errors.webhookSecret}>
+                    <FieldLabel htmlFor="channel-email-webhook-secret">{t("channel.webhookSecret")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-email-webhook-secret"
+                        placeholder="Secret for Inbound Webhook"
+                        {...register("webhookSecret")}
+                      />
+                      <FieldError errors={[errors.webhookSecret]} />
+                    </FieldContent>
+                  </Field>
+                </div>
+
+                {emailProvider === "brevo" ||
+                emailProvider === "sendgrid" ||
+                emailProvider === "resend" ||
+                emailProvider === "postmark" ||
+                emailProvider === "mailgun" ? (
+                  <Field data-invalid={!!errors.emailApiKey}>
+                    <FieldLabel htmlFor="channel-email-apikey">{t("channel.emailApiKey")}</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="channel-email-apikey"
+                        type="password"
+                        placeholder="API Key / Server Token"
+                        {...register("emailApiKey")}
+                      />
+                      <FieldError errors={[errors.emailApiKey]} />
+                    </FieldContent>
+                  </Field>
+                ) : emailProvider === "smtp" ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                      <div className="sm:col-span-2">
+                        <Field data-invalid={!!errors.smtpHost}>
+                          <FieldLabel htmlFor="channel-smtp-host">{t("channel.smtpHost")}</FieldLabel>
+                          <FieldContent>
+                            <Input
+                              id="channel-smtp-host"
+                              placeholder="smtp.example.com"
+                              {...register("smtpHost")}
+                            />
+                            <FieldError errors={[errors.smtpHost]} />
+                          </FieldContent>
+                        </Field>
+                      </div>
+                      <Field data-invalid={!!errors.smtpPort}>
+                        <FieldLabel htmlFor="channel-smtp-port">{t("channel.smtpPort")}</FieldLabel>
+                        <FieldContent>
+                          <Input
+                            id="channel-smtp-port"
+                            type="number"
+                            placeholder="587"
+                            {...register("smtpPort")}
+                          />
+                          <FieldError errors={[errors.smtpPort]} />
+                        </FieldContent>
+                      </Field>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Field data-invalid={!!errors.smtpUser}>
+                        <FieldLabel htmlFor="channel-smtp-user">{t("channel.smtpUser")}</FieldLabel>
+                        <FieldContent>
+                          <Input
+                            id="channel-smtp-user"
+                            placeholder="user@example.com"
+                            {...register("smtpUser")}
+                          />
+                          <FieldError errors={[errors.smtpUser]} />
+                        </FieldContent>
+                      </Field>
+                      <Field data-invalid={!!errors.smtpPassword}>
+                        <FieldLabel htmlFor="channel-smtp-password">{t("channel.smtpPassword")}</FieldLabel>
+                        <FieldContent>
+                          <Input
+                            id="channel-smtp-password"
+                            type="password"
+                            placeholder="••••••••"
+                            {...register("smtpPassword")}
+                          />
+                          <FieldError errors={[errors.smtpPassword]} />
+                        </FieldContent>
+                      </Field>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground space-y-2.5">
+                  <div className="font-medium text-sm text-foreground">{t("channel.emailAutoConnectTitle")}</div>
+                  <div className="leading-relaxed">{t("channel.emailAutoConnectDescription")}</div>
+                  <div className="font-mono text-[11px] text-muted-foreground pt-0.5">
+                    {t("channel.inboundWebhookUrl")}: /api/third/email/webhook
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             {channelType === "zalo_oa" ? (
               <div className="space-y-4">

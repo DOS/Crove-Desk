@@ -66,6 +66,20 @@ type LarkChannelConfig struct {
 	Domain            string `json:"domain,omitempty"`            // lark (default) | feishu
 }
 
+type EmailChannelConfig struct {
+	EmailAddress      string `json:"emailAddress,omitempty"`
+	ForwardingAddress string `json:"forwardingAddress,omitempty"`
+	SenderName        string `json:"senderName,omitempty"`
+	Provider          string `json:"provider,omitempty"`
+	APIKey            string `json:"apiKey,omitempty"`
+	SMTPHost          string `json:"smtpHost,omitempty"`
+	SMTPPort          int    `json:"smtpPort,omitempty"`
+	SMTPUser          string `json:"smtpUser,omitempty"`
+	SMTPPassword      string `json:"smtpPassword,omitempty"`
+	WebhookSecret     string `json:"webhookSecret,omitempty"`
+	WelcomeMessage    string `json:"welcomeMessage,omitempty"`
+}
+
 type DiscordChannelConfig struct {
 	GuildID        string `json:"guildId,omitempty"`
 	GuildName      string `json:"guildName,omitempty"`
