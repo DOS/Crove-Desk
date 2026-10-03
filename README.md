@@ -1,4 +1,4 @@
-# AgentDesk
+# Crove Desk
 
 English | [简体中文](README_ZH.md)
 
@@ -268,7 +268,7 @@ Compose uses [docker/agent-desk.yaml](docker/agent-desk.yaml) as the in-containe
 
 ## Open-source Positioning
 
-`AgentDesk` is useful as an open-source foundation for:
+`Crove Desk` is useful as an open-source foundation for:
 
 - AI customer support systems
 - AI Helpdesk / AI Support Platform projects
